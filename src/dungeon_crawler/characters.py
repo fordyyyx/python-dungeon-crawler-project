@@ -1,7 +1,8 @@
 class Character:
-    def __init__(self, name: str, hp: int):
+    def __init__(self, name: str, hp: int, armour: int = 0):
         self.name = name
         self.hp = hp
+        self.armour = armour
 
     def attack(self, target):
         pass
@@ -16,8 +17,8 @@ class Character:
         return self.hp > 0
 
 class Player(Character):
-    def __init__(self, name: str, hp: int, level: int, attack_damage: int, inventory: list):
-        super().__init__(name, hp)
+    def __init__(self, name: str, hp: int, level: int, attack_damage: int, inventory: list, armour: int = 0):
+        super().__init__(name, hp, armour)
         self.level = level
         self.attack_damage = attack_damage
         self.inventory = inventory
@@ -27,8 +28,8 @@ class Player(Character):
         target.take_damage(damage)
 
 class Enemy(Character):
-    def __init__(self, name: str, hp: int, attack_damage: int):
-        super().__init__(name, hp)
+    def __init__(self, name: str, hp: int, attack_damage: int, armour: int = 0):
+        super().__init__(name, hp, armour)
         self.attack_damage = attack_damage
 
     def attack(self, target):
