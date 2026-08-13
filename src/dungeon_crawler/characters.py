@@ -1,4 +1,4 @@
-from dungeon_crawler.items import Inventory
+from dungeon_crawler.items import Inventory, Item
 
 class Character:
     def __init__(self, name: str, hp: int, armour: int = 0):
