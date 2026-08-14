@@ -1,19 +1,46 @@
 from dungeon_crawler.characters import Player
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour
+from dungeon_crawler.items import Armour, Weapon
 from dungeon_crawler.engine import pick_up
 
 def test_pick_up_adds_item_to_inventory():
-    pass
+    room = Room("Armoury")
+    sword = Weapon("Bronze Xephis", "", damage=3)
+    room.add_item(sword)
+    player = Player(name="hero", hp=100)
+
+    pick_up(room, "bronze xephis", player)
+
+    assert sword in player.inventory.items
 
 def test_pick_up_removes_item_from_room():
-    pass
+    room = Room("Armoury")
+    sword = Weapon("Bronze Xephis", "", damage=3)
+    room.add_item(sword)
+    player = Player(name="hero", hp=100)
+    assert sword in room.items
+    
+    pick_up(room, "bronze xephis", player)
+    assert sword not in room.items
 
-def test_pick_up_returns_message_with_description():
-    pass
+def test_pick_up_returns_message_with_description(capsys):
+    room = Room("Armoury")
+    sword = Weapon("Bronze Xephis", "", damage=3)
+    room.add_item(sword)
+    player = Player(name="hero", hp=100)
 
-def test_pick_up_returns_not_here_message_when_item_missing():
-    pass
+    print(pick_up(room, "bronze xephis", player))
+    captured = capsys.readouterr()
+    assert "You take the Bronze Xephis." in captured.out
+
+
+def test_pick_up_returns_not_here_message_when_item_missing(capsys):
+    room = Room("Armoury")
+    player = Player(name="hero", hp=100)
+
+    print(pick_up(room, "bronze xephis", player))
+    captured = capsys.readouterr()
+    assert "That's not here." in captured.out
 
 def test_pick_up_is_case_insensitive():
     room = Room("Library of Athena")
