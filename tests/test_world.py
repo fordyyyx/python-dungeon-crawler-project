@@ -1,4 +1,6 @@
 from dungeon_crawler.world import Room, Map
+from dungeon_crawler.characters import Enemy
+from dungeon_crawler.content import create_hades
 
 def test_room_connects_to_another_room():
     a = Room("A")
@@ -22,3 +24,10 @@ def test_room_items_property_returns_copy():
     room.add_item("sword")
     room.items.append("shield")
     assert room.items == ["sword"]
+
+def test_enemies_add_to_room():
+    room = Room("Armoury")
+    hades = create_hades()
+    room.add_enemy(hades)
+    assert hades in room.enemies
+    

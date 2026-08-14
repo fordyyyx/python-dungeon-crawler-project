@@ -58,6 +58,10 @@ class Inventory:
                 return message
         raise ValueError(f"No item named'{item_name}' in inventory.")
 
+    @property
+    def items(self) -> list[Item]:
+        return list(self._items)
+
     def __len__(self) -> int:
         return len(self._items)
 

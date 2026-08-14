@@ -17,7 +17,7 @@ def test_pick_up_adds_item_to_inventory():
 
     result = pick_up(room, "Bronze Xiphos", player)
 
-    assert sword in player.inventory._items
+    assert sword in player.inventory.items
     assert sword not in room.items
     assert "Bronze Xiphos" in result
 
