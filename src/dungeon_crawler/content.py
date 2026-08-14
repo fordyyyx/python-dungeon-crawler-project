@@ -84,10 +84,10 @@ def build_world() -> tuple[Map, Room]:
         dungeon.add_room(room)
 
     """Add enemies and items to rooms"""
-    sunken_vault.add_enemy(create_skeleton_warrior)
-    sunken_vault.add_item(create_ambrosia)
-    armoury_of_ares.add_item(create_bronze_xiphos)
-    library_of_athena.add_item(create_aegis_fragment)
-    hall_of_hades.add_enemy(create_hades)
+    sunken_vault.add_enemy(create_skeleton_warrior())
+    sunken_vault.add_item(create_ambrosia())
+    armoury_of_ares.add_item(create_bronze_xiphos())
+    library_of_athena.add_item(create_aegis_fragment())
+    hall_of_hades.add_enemy(create_hades())
 
     return dungeon, entrance

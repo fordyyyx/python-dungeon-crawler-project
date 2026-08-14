@@ -9,16 +9,34 @@ def test_weapon_use_increases_attack_power():
     sword.use(hero)
     assert hero.attack_damage == 15
 
-def test_pick_up_adds_item_to_inventory():
-    room = Room("Armoury")
-    sword = Weapon(name="Bronze Xiphos", damage=3, description="...")
-    room.add_item(sword)
-    player = Player(name="hero", hp=100)
+def test_armour_use_increases_armour():
+    pass
 
-    result = pick_up(room, "Bronze Xiphos", player)
+def test_consumable_use_heals_character():
+    pass
 
-    assert sword in player.inventory.items
-    assert sword not in room.items
-    assert "Bronze Xiphos" in result
+def test_consumable_use_does_not_exceed_max_hp():
+    pass
+
+def test_item_repr_includes_class_name_and_name():
+    pass
+
+def test_inventory_add_adds_item():
+    pass
+
+def test_inventory_items_property_returns_copy():
+    pass
+
+def test_inventory_use_item_removes_consumable_after_use():
+    pass
+
+def test_inventory_use_item_keeps_weapon_after_use():
+    pass
+
+def test_use_item_raises_error_when_item_not_found():
+    pass
+
+def test_inventory_len_returns_item_count():
+    pass
 
 

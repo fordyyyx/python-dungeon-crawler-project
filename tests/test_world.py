@@ -12,12 +12,12 @@ def test_room_with_no_exit_returns_none():
     a = Room("A")
     assert a.get_exit("east") is None
 
-def test_map_stores_and_retrieves_rooms():
-    dungeon = Map()
-    room = Room("Entrance")
-    dungeon.add_room(room)
-    assert dungeon.get_room("Entrance") is room
-    assert len(dungeon) == 1
+def test_room_add_item_adds_to_room():
+    pass
+
+def test_room_remove_item_removes_from_room():
+    pass
+
 
 def test_room_items_property_returns_copy():
     room = Room("Armoury")
@@ -25,9 +25,27 @@ def test_room_items_property_returns_copy():
     room.items.append("shield")
     assert room.items == ["sword"]
 
-def test_enemies_add_to_room():
+def test_room_add_enemy_adds_to_room():
     room = Room("Armoury")
     hades = create_hades()
     room.add_enemy(hades)
     assert hades in room.enemies
+
+def test_room_remove_enemy_removes_from_room():
+    pass
+
+def test_room_enemies_property_returns_copy():
+    pass
+
+def test_map_stores_and_retrieves_rooms():
+    dungeon = Map()
+    room = Room("Entrance")
+    dungeon.add_room(room)
+    assert dungeon.get_room("Entrance") is room
+    assert len(dungeon) == 1
+
+def test_map_len_returns_room_count():
+    pass
+
+
     

@@ -5,7 +5,7 @@ from dungeon_crawler.content import build_world
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     for item in room.items:
-        if item.name == item_name:
+        if item.name.lower() == item_name.lower():
             player.inventory.add(item)
             room.remove_item(item)
             return f"You take the {item.name}. {item.description}"
