@@ -83,4 +83,6 @@ def build_world() -> tuple[Map, Room]:
     for room in (entrance, styx_crossing, library_of_athena, armoury_of_ares, hall_of_hades, sunken_vault):
         dungeon.add_room(room)
 
+    """Add enemies and items to rooms"""
+
     return dungeon, entrance

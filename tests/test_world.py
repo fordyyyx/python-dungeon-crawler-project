@@ -16,3 +16,9 @@ def test_map_stores_and_retrieves_rooms():
     dungeon.add_room(room)
     assert dungeon.get_room("Entrance") is room
     assert len(dungeon) == 1
+
+def test_room_items_property_returns_copy():
+    room = Room("Armoury")
+    room.add_item("sword")
+    room.items.append("shield")
+    assert room.items == ["sword"]

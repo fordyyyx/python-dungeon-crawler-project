@@ -12,7 +12,7 @@ def test_weapon_use_increases_attack_power():
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
     sword = Weapon(name="Bronze Xiphos", damage=3, description="...")
-    room.items.append(sword)
+    room.add_item(sword)
     player = Player(name="hero", hp=100)
 
     result = pick_up(room, "Bronze Xiphos", player)

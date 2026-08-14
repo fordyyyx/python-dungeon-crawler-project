@@ -54,7 +54,7 @@ class Inventory:
             if item.name == item_name:
                 message = item.use(character)
                 if isinstance(item, Consumable):
-                    self.remove(item)
+                    self.remove_item(item)
                 return message
         raise ValueError(f"No item named'{item_name}' in inventory.")
 

@@ -4,10 +4,10 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
-    for item in room.items:
+    for item in room._items:
         if item.name == item_name:
             player.inventory.add(item)
-            room.items.remove(item)
+            room.remove_item(item)
             return f"You take the {item.name}. {item.description}"
     return "That's not here."
 
@@ -16,8 +16,8 @@ def main() -> None:
     player = Player(name="Hero", hp=100)
     while player.is_alive():
         print(f"\n{current_room.name}: {current_room.description}")
-        if current_room.enemies:
-            enemy = current_room.enemies[0]
+        if current_room._enemies:
+            enemy = current_room._enemies[0]
             print(f"A {enemy.name} blocks your path!")
 
         command = input("> ").strip().lower()
