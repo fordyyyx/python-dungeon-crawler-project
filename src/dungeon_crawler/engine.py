@@ -1,20 +1,8 @@
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.items import Weapon
 from dungeon_crawler.world import Room, Map
+from dungeon_crawler.content import build_world
 
-def build_world() -> tuple[Map, Room]:
-    entrance = Room("Entrance", "A torchlit stone archway.")
-    hallway = Room("Hallway", "A long corridor lined with cobwebs.")
-    entrance.connect("north", hallway)
-    hallway.connect("south", entrance)
-
-    hallway.enemies.append((Enemy(name="Goblin", hp=10, loot=[Weapon("Iron Sword", damage=5)])))
-
-    dungeon = Map()
-    for room in (entrance, hallway):
-        dungeon.add_room(room)
-
-    return dungeon, entrance
 
 
 def main() -> None:
