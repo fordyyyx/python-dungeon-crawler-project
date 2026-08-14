@@ -22,7 +22,7 @@ def main() -> None:
 
         command = input("> ").strip().lower()
 
-        if command.startwith("take "):
+        if command.startswith("take "):
             item_name = command.removeprefix("take ").strip()
             print(pick_up(current_room, item_name, player))
         elif command in ("quit", "exit"):

@@ -26,7 +26,7 @@ class Character:
         print(f"{self.name} has died.")
 
 class Player(Character):
-    def __init__(self, name: str, hp: int, attack_damage: int, armour: int = 0):
+    def __init__(self, name: str, hp: int, attack_damage: int = 5, armour: int = 0):
         super().__init__(name, hp, attack_damage, armour)
         self.level = 1
         self.experience = 0
