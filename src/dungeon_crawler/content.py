@@ -69,8 +69,8 @@ def build_world() -> tuple[Map, Room]:
     """Connect the rooms"""
     entrance.connect("north", styx_crossing)
     styx_crossing.connect("south", entrance)
-    entrance.connect("south", sunken_vault)
-    sunken_vault.connect("north", entrance)
+    entrance.connect("down", sunken_vault)
+    sunken_vault.connect("up", entrance)
     styx_crossing.connect("east", library_of_athena)
     library_of_athena.connect("west", styx_crossing)
     styx_crossing.connect("west", armoury_of_ares)
