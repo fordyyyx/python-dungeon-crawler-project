@@ -28,7 +28,7 @@ def main() -> None:
         elif command in ("quit", "exit"):
             break
         elif command in current_room.exits:
-            current_room = current_room.get_exit(command)
+            current_room = current_room.exits[command]
         else:
             print("Nothing happens.")
 
