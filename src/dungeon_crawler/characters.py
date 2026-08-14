@@ -1,16 +1,18 @@
 from dungeon_crawler.items import Inventory, Item
 
 class Character:
-    def __init__(self, name: str, hp: int, armour: int = 0):
+    def __init__(self, name: str, hp: int, attack_damage: int, armour: int = 0):
         self.name = name
         self.hp = hp
+        self.attack_damage = attack_damage
         self.armour = armour
 
     def attack(self, target):
         pass
 
     def take_damage(self, amount: int) -> None:
-        self.hp -= amount
+        reduced = max(0, amount - self.armour)
+        self.hp -= reduced
         if self.hp < 0:
             self.hp = 0
         if not self.is_alive():
@@ -25,10 +27,9 @@ class Character:
 
 class Player(Character):
     def __init__(self, name: str, hp: int, attack_damage: int, armour: int = 0):
-        super().__init__(name, hp, armour)
+        super().__init__(name, hp, attack_damage, armour)
         self.level = 1
         self.experience = 0
-        self.attack_damage = attack_damage
         self.inventory = Inventory()
 
     def on_death(self) -> None:
@@ -39,9 +40,8 @@ class Player(Character):
         target.take_damage(damage)
 
 class Enemy(Character):
-    def __init__(self, name: str, hp: int, attack_damage: int, loot: list[Item], armour: int = 0):
-        super().__init__(name, hp, armour)
-        self.attack_damage = attack_damage
+    def __init__(self, name: str, hp: int, attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):
+        super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
 
     def attack(self, target):

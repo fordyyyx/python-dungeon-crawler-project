@@ -21,7 +21,7 @@ class Weapon(Item):
         character.attack_damage += self.damage
         return f"{character.name} equips {self.name}, (+{self.damage} attack)."
 
-class Armor(Item):
+class Armour(Item):
     def __init__(self, name: str, description: str, defence: int):
         super().__init__(name, description)
         self.defence = defence
