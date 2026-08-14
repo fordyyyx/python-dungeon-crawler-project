@@ -4,12 +4,12 @@ from dungeon_crawler.characters import Enemy, Player
 
 def build_world() -> tuple[Map, Room]:
     """Build the rooms"""
-    entrance = Room("Cave Entrance", "")
-    styx_crossing = Room("Styx Crossing", "")
-    library_of_athena = Room("Library of Athena", "")
-    armoury_of_ares = Room("Armoury of Ares", "")
-    hall_of_hades = Room("Hall of Hades", "")
-    sunken_vault = Room("Sunken Vault", "")
+    entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
+    styx_crossing = Room("Styx Crossing", "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.")
+    library_of_athena = Room("Library of Athena", "Towering shelves of scrolls creak under their own weight; an owl watches from the rafters, unblinking.")
+    armoury_of_ares = Room("Armoury of Ares", "Racks of corroded bronze weapons line the walls, still faintly warm to the touch.")
+    hall_of_hades = Room("Hall of Hades", "The chamber opens into a vast black hall lit by pale fire, a throne of bone waits at its centre.")
+    sunken_vault = Room("Sunken Vault", "Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.")
 
     """Connect the rooms"""
     entrance.connect("north", styx_crossing)

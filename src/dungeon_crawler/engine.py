@@ -3,8 +3,6 @@ from dungeon_crawler.items import Weapon
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 
-
-
 def main() -> None:
     dungeon, current_room = build_world()
     player = Player(name="Hero", hp=100)
