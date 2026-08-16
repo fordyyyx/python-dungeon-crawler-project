@@ -6,6 +6,7 @@ class Character:
         self.hp = hp
         self.attack_damage = attack_damage
         self.armour = armour
+        self.max_hp = hp
 
     def attack(self, target):
         pass

@@ -36,7 +36,7 @@ class Consumable(Item):
         self.heal_amount = heal_amount
 
     def use(self, character) -> str:
-        character.hp += self.heal_amount
+        character.hp = min(character.hp + self.heal_amount, character.max_hp)
         return f"{character.name} uses {self.name}, healing {self.heal_amount} HP."
 
 class Inventory:
