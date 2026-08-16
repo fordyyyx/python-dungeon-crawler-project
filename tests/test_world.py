@@ -1,6 +1,7 @@
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.characters import Enemy
-from dungeon_crawler.content import create_hades
+from dungeon_crawler.content import create_hades, create_minotaur
+from dungeon_crawler.items import Weapon
 
 def test_room_connects_to_another_room():
     a = Room("A")
@@ -13,11 +14,17 @@ def test_room_with_no_exit_returns_none():
     assert a.get_exit("east") is None
 
 def test_room_add_item_adds_to_room():
-    pass
+    a = Room("A")
+    sword = Weapon(name="sword", description="", damage=3)
+    a.add_item(sword)
+    assert a.items == [sword]
 
 def test_room_remove_item_removes_from_room():
-    pass
-
+    a = Room("A")
+    sword = Weapon(name="sword", description="", damage=3)
+    a.add_item(sword)
+    a.remove_item(sword)
+    assert a.items == []
 
 def test_room_items_property_returns_copy():
     room = Room("Armoury")
@@ -32,10 +39,19 @@ def test_room_add_enemy_adds_to_room():
     assert hades in room.enemies
 
 def test_room_remove_enemy_removes_from_room():
-    pass
+    room = Room("Armoury")
+    hades = create_hades()
+    room.add_enemy(hades)
+    room.remove_enemy(hades)
+    assert room.enemies == []
 
 def test_room_enemies_property_returns_copy():
-    pass
+    room = Room("Armoury")
+    hades = create_hades()
+    minotaur = create_minotaur()
+    room.add_enemy(hades)
+    room.enemies.append(minotaur)
+    assert room.enemies == [hades]
 
 def test_map_stores_and_retrieves_rooms():
     dungeon = Map()
@@ -45,7 +61,13 @@ def test_map_stores_and_retrieves_rooms():
     assert len(dungeon) == 1
 
 def test_map_len_returns_room_count():
-    pass
+    a = Room("A")
+    b = Room("B")
+
+    dungeon = Map() 
+    dungeon.add_room(a)
+    dungeon.add_room(b)
+    assert len(dungeon) == 2
 
 
     
