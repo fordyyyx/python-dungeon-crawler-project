@@ -11,6 +11,20 @@ def pick_up(room: Room, item_name: str, player: Player) -> str:
             return f"You take the {item.name}. {item.description}"
     return "That's not here."
 
+def resolve_combat_round(player: Player, enemy: Enemy):
+    messages = [player.attack(enemy)]
+
+    if not enemy.is_alive():
+        messages.append(f"The {enemy.name} has fallen.")
+        return "\n".join(messages)
+
+    messages.append(enemy.attack(player))
+
+    if not player.is_alive():
+        messages.append(f"{player.name} has fallen.")
+
+    return "\n".join(messages)
+
 def main() -> None:
     dungeon, current_room = build_world()
     player = Player(name="Hero", hp=100)
@@ -25,12 +39,27 @@ def main() -> None:
         if command.startswith("take "):
             item_name = command.removeprefix("take ").strip()
             print(pick_up(current_room, item_name, player))
+
         elif command in ("quit", "exit"):
             break
+
         elif command in current_room.exits:
             current_room = current_room.exits[command]
+
+        elif command == "attack":
+            if current_room.enemies:
+                enemy = current_room.enemies[0]
+                print(resolve_combat_round(player, enemy))
+                if not enemy.is_alive():
+                    current_room.remove_enemy(enemy)
+            else:
+                print("There's nothing here to attack.")
+
         else:
             print("Nothing happens.")
+
+    if not player.is_alive():
+        print(f"\n{player.name} has died. Game over.")
 
 if __name__ == "__main__":
     main()

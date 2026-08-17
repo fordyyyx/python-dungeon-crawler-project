@@ -9,7 +9,8 @@ class Character:
         self.max_hp = hp
 
     def attack(self, target):
-        pass
+        target.take_damage(self.attack_damage)
+        return f"{self.name} attacks {target.name}"
 
     def take_damage(self, amount: int) -> None:
         reduced = max(0, amount - self.armour)
@@ -36,18 +37,10 @@ class Player(Character):
     def on_death(self) -> None:
         print(f"{self.name} has fallen. Game Over.")
 
-    def attack(self, target):
-        damage = self.attack_damage
-        target.take_damage(damage)
-
 class Enemy(Character):
     def __init__(self, name: str, hp: int, attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):
         super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
-
-    def attack(self, target):
-        damage = self.attack_damage
-        target.take_damage(damage)
 
     def on_death(self) -> None:
         print(f"{self.name} has been defeated.")
