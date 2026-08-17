@@ -74,7 +74,6 @@ def test_use_item_raises_error_when_item_not_found():
     except ValueError:
         pass
     
-
 def test_inventory_len_returns_item_count():
     player = Player(name="hero", hp=100)
     sword = Weapon(name="Bronze Xiphos", description="", damage=3)

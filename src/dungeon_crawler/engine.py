@@ -32,7 +32,7 @@ def handle_enemy_defeat(room: Room, enemy: Enemy) -> None:
 
 def main() -> None:
     dungeon, current_room = build_world()
-    player = Player(name="Hero", hp=1000, attack_damage=20)
+    player = Player(name="Hero", hp=100, attack_damage=20)
     while player.is_alive():
         print(f"\n{current_room.name}: {current_room.description}")
         if current_room.enemies:
