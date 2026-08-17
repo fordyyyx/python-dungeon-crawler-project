@@ -51,12 +51,12 @@ class Inventory:
 
     def use_item(self, item_name: str, character) -> str:
         for item in self._items:
-            if item.name == item_name:
+            if item.name.lower() == item_name.lower():
                 message = item.use(character)
                 if isinstance(item, Consumable):
                     self._items.remove(item)
                 return message
-        raise ValueError(f"No item named'{item_name}' in inventory.")
+        raise ValueError(f"No item named' {item_name}' in inventory.")
 
     @property
     def items(self) -> list[Item]:

@@ -63,6 +63,13 @@ def main() -> None:
             else:
                 print("There's nothing here to attack.")
 
+        elif command.startswith("use "):
+            item_name = command.removeprefix("use ").strip()
+            try:
+                print(player.inventory.use_item(item_name, player))
+            except ValueError as e:
+                print(e)
+
         else:
             print("Nothing happens.")
 
