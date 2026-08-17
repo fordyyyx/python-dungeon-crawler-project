@@ -36,4 +36,4 @@ run ```python -m dungeon_crawler```
 * quit/exit - quit game
 
 ## License
-MIT -  
+MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE
