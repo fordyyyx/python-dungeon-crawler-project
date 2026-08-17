@@ -25,9 +25,14 @@ def resolve_combat_round(player: Player, enemy: Enemy):
 
     return "\n".join(messages)
 
+def handle_enemy_defeat(room: Room, enemy: Enemy) -> None:
+    room.remove_enemy(enemy)
+    for item in enemy.loot:
+        room.add_item(item)
+
 def main() -> None:
     dungeon, current_room = build_world()
-    player = Player(name="Hero", hp=100)
+    player = Player(name="Hero", hp=1000, attack_damage=20)
     while player.is_alive():
         print(f"\n{current_room.name}: {current_room.description}")
         if current_room.enemies:
@@ -51,7 +56,10 @@ def main() -> None:
                 enemy = current_room.enemies[0]
                 print(resolve_combat_round(player, enemy))
                 if not enemy.is_alive():
-                    current_room.remove_enemy(enemy)
+                    handle_enemy_defeat(current_room, enemy)
+                    if enemy.name == "Hades":
+                        print(f"\n{player.name} has defeated Hades. You win!")
+                        break
             else:
                 print("There's nothing here to attack.")
 
