@@ -70,7 +70,7 @@ def main() -> None:
             except ValueError as e:
                 print(e)
 
-        elif command == "stats":
+        elif command == "stats" or command == "inventory":
             print(player.get_stats())
 
         else:
