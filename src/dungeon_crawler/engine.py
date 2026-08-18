@@ -70,6 +70,15 @@ def main() -> None:
             except ValueError as e:
                 print(e)
 
+        elif command.startswith("drop "):
+            item_name = command.removeprefix("drop ").strip()
+            try:
+                item = player.inventory.drop_item(item_name)
+                current_room.add_item(item)
+                print(f"You drop the {item.name}")
+            except ValueError as e:
+                print(e)
+
         elif command == "stats" or command == "inventory":
             print(player.get_stats())
 

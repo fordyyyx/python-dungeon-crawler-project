@@ -4,6 +4,7 @@ class Item(ABC):
     def __init__(self, name: str, description: str):
         self.name = name
         self.description = description
+        self.equipped = False
 
     @abstractmethod
     def use(self, character) -> str:
@@ -18,7 +19,10 @@ class Weapon(Item):
         self.damage = damage
 
     def use(self, character) -> str:
+        if self.equipped:
+            return f"{self.name} already equipped."
         character.attack_damage += self.damage
+        self.equipped = True
         return f"{character.name} equips {self.name}, (+{self.damage} attack)."
 
 class Armour(Item):
@@ -27,7 +31,10 @@ class Armour(Item):
         self.defence = defence
 
     def use(self, character) -> str:
+        if self.equipped:
+            return f"{self.name} already equipped"
         character.armour += self.defence
+        self.equipped = True
         return f"{character.name} equips {self.name}, (+{self.defence} armour)."
     
 class Consumable(Item):
@@ -57,6 +64,15 @@ class Inventory:
                     self._items.remove(item)
                 return message
         raise ValueError(f"No item named' {item_name}' in inventory.")
+    
+    def drop_item(self, item_name: str):
+        for item in self._items:
+            if item.name.lower() == item_name.lower():
+                if item.equipped:
+                    raise ValueError(f"Cannot drop {item.name} while it is equipped.")
+                self._items.remove(item)
+                return item
+        raise ValueError(f"No item named {item_name} in inventory.")
 
     @property
     def items(self) -> list[Item]:
