@@ -37,6 +37,18 @@ class Player(Character):
     def on_death(self) -> None:
         print(f"{self.name} has fallen. Game Over.")
 
+    def get_stats(self) -> str:
+        inv_string = ", ".join(item.name for item in self.inventory.items)
+        stat_string = f"""
+        {self.name}:
+        LVL {self.level} --- {self.experience} XP
+        {self.hp} HP
+        {self.attack_damage} ATK
+        {self.armour} DEF
+        Inventory: {inv_string}
+        """
+        return stat_string
+
 class Enemy(Character):
     def __init__(self, name: str, hp: int, attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):
         super().__init__(name, hp, attack_damage, armour)

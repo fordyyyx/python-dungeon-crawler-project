@@ -70,3 +70,9 @@ def test_enemy_on_death_with_no_loot_does_not_print_drop_message(capsys):
     enemy.on_death()
     captured = capsys.readouterr()
     assert "dropped: " not in captured.out
+
+def test_player_get_stats(capsys):
+    player = Player(name="hero", hp=100)
+    print(player.get_stats())
+    captured = capsys.readouterr()
+    assert "hero:" in captured.out
