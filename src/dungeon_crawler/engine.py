@@ -70,6 +70,9 @@ def main() -> None:
             except ValueError as e:
                 print(e)
 
+        elif command == "stats":
+            print(player.get_stats())
+
         else:
             print("Nothing happens.")
 
