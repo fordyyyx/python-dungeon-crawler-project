@@ -64,10 +64,17 @@ def test_map_len_returns_room_count():
     a = Room("A")
     b = Room("B")
 
-    dungeon = Map() 
+    dungeon = Map()
     dungeon.add_room(a)
     dungeon.add_room(b)
     assert len(dungeon) == 2
 
+def test_map_get_room_returns_none_for_missing_room():
+    dungeon = Map()
+    assert dungeon.get_room("Nowhere") is None
 
-    
+def test_room_repr_includes_name(capsys):
+    room = Room("Armoury")
+    print(room)
+    captured = capsys.readouterr()
+    assert "Room('Armoury')" in captured.out
