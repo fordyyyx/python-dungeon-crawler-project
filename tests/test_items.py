@@ -1,4 +1,4 @@
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Inventory
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, QuestItem, Inventory
 from dungeon_crawler.characters import Character, Player
 from dungeon_crawler.world import Room
 from dungeon_crawler.engine import pick_up
@@ -91,6 +91,19 @@ def test_consumable_use_returns_heal_message():
     hero.take_damage(10)
     message = potion.use(hero)
     assert message == "hero uses potion, healing 3 HP."
+
+def test_quest_item_use_returns_message():
+    key = QuestItem(name="Bronze Key", description="")
+    message = key.use(Character(name="hero", hp=100, attack_damage=10))
+    assert message == "Bronze Key doesn't do anything on its own - it is meant for someone else."
+
+def test_quest_item_use_does_not_change_character_stats():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    key = QuestItem(name="Bronze Key", description="")
+    key.use(hero)
+    assert hero.attack_damage == 10
+    assert hero.armour == 0
+    assert hero.hp == 100
 
 def test_item_repr_includes_class_name_and_name(capsys):
     potion = Consumable(name="potion", heal_amount=3)

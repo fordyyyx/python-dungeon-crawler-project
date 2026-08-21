@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -128,3 +128,25 @@ def test_handle_enemy_defeat_with_no_loot_adds_nothing_to_room():
     handle_enemy_defeat(room, enemy)
 
     assert room.items == []
+
+def test_is_exit_locked_returns_false_when_direction_not_locked():
+    room = Room("Armoury")
+    player = Player(name="hero", hp=100)
+
+    assert is_exit_locked(room, "north", player) is False
+
+def test_is_exit_locked_returns_true_when_player_missing_required_item():
+    room = Room("Armoury")
+    room.lock_exit("north", "Bronze Key")
+    player = Player(name="hero", hp=100)
+
+    assert is_exit_locked(room, "north", player) is True
+
+def test_is_exit_locked_returns_false_when_player_has_required_item():
+    room = Room("Armoury")
+    room.lock_exit("north", "Bronze Key")
+    key = Weapon(name="Bronze Key", description="", damage=0)
+    player = Player(name="hero", hp=100)
+    player.inventory.add(key)
+
+    assert is_exit_locked(room, "north", player) is False

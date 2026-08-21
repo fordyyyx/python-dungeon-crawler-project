@@ -13,6 +13,15 @@ def test_room_with_no_exit_returns_none():
     a = Room("A")
     assert a.get_exit("east") is None
 
+def test_room_lock_exit_records_required_item():
+    a = Room("A")
+    a.lock_exit("north", "Bronze Key")
+    assert a.locked_exits["north"] == "Bronze Key"
+
+def test_room_initialises_with_no_locked_exits():
+    a = Room("A")
+    assert a.locked_exits == {}
+
 def test_room_add_item_adds_to_room():
     a = Room("A")
     sword = Weapon(name="sword", description="", damage=3)

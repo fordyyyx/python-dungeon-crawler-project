@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_xiphos, create_chiron, create_hades, create_minotaur, create_skeleton_warrior, create_spear_of_ares, build_world
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_xiphos, create_chiron, create_dummy_head, create_hades, create_mentor, create_minotaur, create_skeleton_warrior, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, build_world
 
 
 def test_create_minotaur_has_correct_stats():
@@ -71,6 +71,40 @@ def test_create_chiron_talk_returns_hint():
     chiron = create_chiron()
     assert chiron.talk() == chiron.hint
 
+def test_create_training_dummy_has_correct_stats():
+    training_dummy = create_training_dummy()
+    assert training_dummy.name == "Training Dummy"
+    assert training_dummy.hp == 5
+    assert training_dummy.attack_damage == 5
+    assert training_dummy.armour == 0
+    assert len(training_dummy.loot) == 0
+
+def test_create_wooden_sword_has_correct_damage_and_description():
+    sword = create_wooden_sword()
+    assert sword.name == "Wooden Sword"
+    assert sword.description == "Blunt, splintered, and entirely harmless to anyone but a straw dummy — exactly as intended."
+    assert sword.damage == 1
+
+def test_create_wooden_shield_has_correct_defence_and_description():
+    shield = create_wooden_shield()
+    assert shield.name == "Wooden Shield"
+    assert shield.description == "Warped and dry-rotted at the edges, but it'll turn aside a training blow well enough."
+    assert shield.defence == 1
+
+def test_create_mentor_has_correct_name_and_description():
+    mentor = create_mentor()
+    assert mentor.name == "Mentor"
+    assert mentor.description == "He nods once in greeting, the kind of nod that says he's seen a lot of hopefuls pass through here."
+
+def test_create_mentor_talk_returns_hint():
+    mentor = create_mentor()
+    assert mentor.talk() == mentor.hint
+
+def test_create_dummy_head_has_correct_name_and_description():
+    dummy_head = create_dummy_head()
+    assert dummy_head.name == "Dummy Head"
+    assert dummy_head.description == "A straw-stuffed head, still faintly dented from your practice blows — proof enough for Chiron that the lesson's been learned."
+
 def test_build_world_returns_five_rooms():
     dungeon, entrance = build_world()
     assert len(dungeon) == 5
@@ -115,5 +149,45 @@ def test_build_world_entrance_has_chiron_as_ally():
     dungeon, entrance = build_world()
     ally_names = [ally.name for ally in entrance.allies]
     assert "Chiron" in ally_names
+
+def test_build_world_south_room_has_training_dummy_enemy():
+    dungeon, entrance = build_world()
+    south_room = dungeon.get_room("Chamber of Chiron (South)")
+    assert south_room is not None
+    enemy_names = [enemy.name for enemy in south_room.enemies]
+    assert "Training Dummy" in enemy_names
+
+def test_build_world_north_room_has_wooden_sword_item():
+    dungeon, entrance = build_world()
+    north_room = dungeon.get_room("Chamber of Chiron (North)")
+    assert north_room is not None
+    item_names = [item.name for item in north_room.items]
+    assert "Wooden Sword" in item_names
+
+def test_build_world_east_room_has_wooden_shield_item():
+    dungeon, entrance = build_world()
+    east_room = dungeon.get_room("Chamber of Chiron (East)")
+    assert east_room is not None
+    item_names = [item.name for item in east_room.items]
+    assert "Wooden Shield" in item_names
+
+def test_build_world_west_room_has_mentor_as_ally():
+    dungeon, entrance = build_world()
+    west_room = dungeon.get_room("Chamber of Chiron (West)")
+    assert west_room is not None
+    ally_names = [ally.name for ally in west_room.allies]
+    assert "Mentor" in ally_names
+
+def test_build_world_locks_east_exit_requiring_wooden_sword():
+    dungeon, entrance = build_world()
+    assert entrance.locked_exits["east"] == "Wooden Sword"
+
+def test_build_world_locks_south_exit_requiring_wooden_shield():
+    dungeon, entrance = build_world()
+    assert entrance.locked_exits["south"] == "Wooden Shield"
+
+def test_build_world_locks_west_exit_requiring_dummy_head():
+    dungeon, entrance = build_world()
+    assert entrance.locked_exits["west"] == "Dummy Head"
 
 
