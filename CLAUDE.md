@@ -33,3 +33,11 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
 
 ## When generating tests for existing files
 Match the existing test files' style exactly (check `tests/test_characters.py` and `tests/test_items.py` for the established pattern before writing anything new). Do not introduce `pytest.raises`, `unittest.mock`, fixtures beyond `capsys`, or any testing library/pattern not already in use, without asking first.
+
+## Type-checking pattern
+`Room.get_exit()` and `Map.get_room()` return `Room | None`. Any test that
+calls one of these and then uses the result must first assert it isn't
+None (`assert result is not None`) before accessing attributes or calling
+methods on it — this narrows the type for Pylance and prevents
+"attribute not on None" warnings. Never skip this check just to shorten
+a test.
