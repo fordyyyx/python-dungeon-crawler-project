@@ -2,10 +2,13 @@
   "permissions": {
     "defaultMode": "default",
     "allow": [
-      "Read",
-      "Edit(tests/**)",
-      "Write(tests/**)",
-      "Bash(pytest*)"
+        "Read",
+        "Edit(tests/**)",
+        "Write(tests/**)",
+        "Bash(pytest*)",
+        "Bash(git status)",
+        "Bash(git diff*)",
+        "Bash(git log*)"
     ],
     "deny": [
       "Edit(src/**)",
