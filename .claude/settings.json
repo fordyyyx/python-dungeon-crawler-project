@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Read",
+      "Edit(tests/**)",
+      "Write(tests/**)",
+      "Bash(pytest*)"
+    ],
+    "deny": [
+      "Edit(src/**)",
+      "Write(src/**)"
+    ]
+  }
+}
