@@ -30,6 +30,13 @@ def handle_enemy_defeat(room: Room, enemy: Enemy) -> None:
     for item in enemy.loot:
         room.add_item(item)
 
+def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
+    if direction not in room.locked_exits:
+        return False
+    required_item_name = room.locked_exits[direction]
+    return required_item_name not in [item.name for item in player.inventory.items]
+
+
 def main() -> None:
     dungeon, current_room = build_world()
     player = Player(name="Hero", hp=100, attack_damage=20)
@@ -52,7 +59,11 @@ def main() -> None:
             break
 
         elif command in current_room.exits:
-            current_room = current_room.exits[command]
+            if is_exit_locked(current_room, command, player):
+                required = current_room.locked_exits[command]
+                print(f"That way is locked. You need the {required} first.")
+            else:
+                current_room = current_room.exits[command]
 
         elif command == "attack":
             if current_room.enemies:

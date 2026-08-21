@@ -3,6 +3,7 @@ class Room:
         self.name = name
         self.description = description
         self.exits: dict[str, "Room"] = {}
+        self.locked_exits: dict[str, str] = {}
         self._items: list = []
         self._enemies: list = []
         self._allies: list = []
@@ -12,6 +13,10 @@ class Room:
 
     def get_exit(self, direction: str) -> "Room | None":
         return self.exits.get(direction)
+
+    def lock_exit(self, direction: str, required_item_name: str) -> None:
+        self.locked_exits[direction] = required_item_name
+
 
     def add_item(self, item):
         self._items.append(item)

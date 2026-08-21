@@ -142,5 +142,9 @@ def build_world() -> tuple[Map, Room]:
     chamber_of_chiron_east.add_item(create_wooden_shield())
     chamber_of_chiron_west.add_ally(create_mentor())
 
+    """Lock rooms"""
+    chamber_of_chiron.lock_exit("east", "Wooden Sword")
+    chamber_of_chiron.lock_exit("south", "Wooden Shield")
+    chamber_of_chiron.lock_exit("west", "Dummy Head")
 
     return dungeon, entrance
