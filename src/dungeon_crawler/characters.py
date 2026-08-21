@@ -61,3 +61,22 @@ class Enemy(Character):
 
     def choose_action(self, player):
         pass
+
+
+class Ally():
+    def __init__(self, name: str, description: str ='', hint: str =''):
+        self.name = name
+        self.description = description
+        self.hint = hint
+        self.inventory = Inventory()
+
+    def talk(self) -> str:
+        return self.hint if self.hint else f"{self.name} has nothing to say."
+
+    def give_item(self, item_name : str, player) -> str:
+        for item in self.inventory.items:
+            if item_name.lower() == item.name.lower():
+                self.inventory._items.remove(item)
+                player.inventory.add(item)
+                return f"{self.name} gives you the {item.name}."
+        return f"{self.name} does not have that item."
