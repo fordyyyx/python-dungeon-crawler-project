@@ -49,6 +49,18 @@ def test_character_on_death_prints_default_message(capsys):
     captured = capsys.readouterr()
     assert "Hero has died" in captured.out
 
+def test_take_damage_lethal_damage_calls_on_death(capsys):
+    character = Character(name="Hero", hp=10, attack_damage=5)
+    character.take_damage(10)
+    captured = capsys.readouterr()
+    assert "Hero has died" in captured.out
+
+def test_take_damage_non_lethal_damage_does_not_call_on_death(capsys):
+    character = Character(name="Hero", hp=10, attack_damage=5)
+    character.take_damage(5)
+    captured = capsys.readouterr()
+    assert captured.out == ""
+
 def test_attack_reduces_target_hp():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
     target = Character(name="Goblin", hp=20, attack_damage=5)
@@ -79,6 +91,10 @@ def test_player_initialises_at_level_one_with_no_experience():
     assert player.experience == 0
 
 
+def test_player_initialises_with_default_attack_damage():
+    player = Player(name="Hero", hp=10)
+    assert player.attack_damage == 5
+
 def test_player_on_death_prints_game_over(capsys):
     player = Player(name="Hero", hp=10)
     player.on_death()
@@ -95,6 +111,10 @@ def test_enemy_initialises_with_correct_stats():
 def test_enemy_initialises_with_empty_loot_by_default():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
     assert enemy.loot == []
+
+def test_enemy_initialises_with_description():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, description="A grumbling goblin, unhappy to be disturbed.")
+    assert enemy.description == "A grumbling goblin, unhappy to be disturbed."
 
 def test_enemy_on_death_prints_defeated_message(capsys):
     enemy = Enemy(name="Hades", hp=60, attack_damage=20)
@@ -125,6 +145,10 @@ def test_ally_initialises_with_empty_inventory():
     ally = Ally(name="Chiron")
     assert isinstance(ally.inventory, Inventory)
     assert len(ally.inventory) == 0
+
+def test_ally_initialises_with_description():
+    ally = Ally(name="Chiron", description="Half man, half horse, entirely patient.")
+    assert ally.description == "Half man, half horse, entirely patient."
 
 def test_ally_talk_returns_hint_when_set():
     ally = Ally(name="Chiron", hint="Beware the minotaur.")
@@ -163,3 +187,11 @@ def test_ally_give_item_returns_message_when_item_not_found():
     player = Player(name="Hero", hp=50)
     message = ally.give_item("Bronze Xiphos", player)
     assert message == "Chiron does not have that item."
+
+def test_ally_give_item_matches_item_name_case_insensitively():
+    ally = Ally(name="Chiron")
+    player = Player(name="Hero", hp=50)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    ally.inventory.add(sword)
+    ally.give_item("bronze xiphos", player)
+    assert sword in player.inventory.items

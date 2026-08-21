@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -100,3 +100,31 @@ def test_resolve_combat_round_returns_fallen_message_when_player_defeated():
     result = resolve_combat_round(player, enemy)
 
     assert "Hero has fallen." in result
+
+def test_handle_enemy_defeat_removes_enemy_from_room():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+
+    handle_enemy_defeat(room, enemy)
+
+    assert enemy not in room.enemies
+
+def test_handle_enemy_defeat_adds_loot_to_room():
+    room = Room("Armoury")
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5, loot=[sword])
+    room.add_enemy(enemy)
+
+    handle_enemy_defeat(room, enemy)
+
+    assert sword in room.items
+
+def test_handle_enemy_defeat_with_no_loot_adds_nothing_to_room():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+
+    handle_enemy_defeat(room, enemy)
+
+    assert room.items == []

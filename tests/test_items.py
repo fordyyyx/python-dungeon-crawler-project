@@ -191,4 +191,33 @@ def test_inventory_len_returns_item_count():
     player.inventory.add(sword)
     assert len(player.inventory) == 1
 
+def test_inventory_remove_removes_item():
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    player.inventory.remove(sword)
+    assert player.inventory.items == []
+
+def test_inventory_repr_includes_item_names(capsys):
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    print(player.inventory)
+    captured = capsys.readouterr()
+    assert "Inventory(['Bronze Xiphos'])" in captured.out
+
+def test_inventory_use_item_matches_item_name_case_insensitively():
+    player = Player(name="hero", hp=100)
+    potion = Consumable(name="Potion", heal_amount=10)
+    player.inventory.add(potion)
+    player.inventory.use_item("potion", player)
+    assert player.inventory.items == []
+
+def test_inventory_drop_item_matches_item_name_case_insensitively():
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    dropped = player.inventory.drop_item("bronze xiphos")
+    assert dropped is sword
+
 

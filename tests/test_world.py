@@ -1,6 +1,6 @@
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.characters import Enemy
-from dungeon_crawler.content import create_hades, create_minotaur
+from dungeon_crawler.characters import Enemy, Ally
+from dungeon_crawler.content import create_hades, create_minotaur, create_chiron
 from dungeon_crawler.items import Weapon
 
 def test_room_connects_to_another_room():
@@ -52,6 +52,27 @@ def test_room_enemies_property_returns_copy():
     room.add_enemy(hades)
     room.enemies.append(minotaur)
     assert room.enemies == [hades]
+
+def test_room_add_ally_adds_to_room():
+    room = Room("Chamber of Chiron")
+    chiron = create_chiron()
+    room.add_ally(chiron)
+    assert chiron in room.allies
+
+def test_room_remove_ally_removes_from_room():
+    room = Room("Chamber of Chiron")
+    chiron = create_chiron()
+    room.add_ally(chiron)
+    room.remove_ally(chiron)
+    assert room.allies == []
+
+def test_room_allies_property_returns_copy():
+    room = Room("Chamber of Chiron")
+    chiron = create_chiron()
+    other_ally = Ally(name="Nestor", description="", hint="")
+    room.add_ally(chiron)
+    room.allies.append(other_ally)
+    assert room.allies == [chiron]
 
 def test_map_stores_and_retrieves_rooms():
     dungeon = Map()

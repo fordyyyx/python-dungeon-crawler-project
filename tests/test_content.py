@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_xiphos, create_hades, create_minotaur, create_skeleton_warrior, build_world
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_xiphos, create_chiron, create_hades, create_minotaur, create_skeleton_warrior, create_spear_of_ares, build_world
 
 
 def test_create_minotaur_has_correct_stats():
@@ -56,6 +56,21 @@ def test_create_ambrosia_has_correct_heal_amount_and_description():
     assert potion.heal_amount == 20
     assert potion.description == "Golden and faintly humming - mortal hands were never meant to hold this."
 
+def test_create_spear_of_ares_has_correct_damage_and_description():
+    spear = create_spear_of_ares()
+    assert spear.name == "Spear of Ares"
+    assert spear.description == "Bronze-tipped and still warm, as if recently thrown in anger."
+    assert spear.damage == 8
+
+def test_create_chiron_has_correct_name_and_description():
+    chiron = create_chiron()
+    assert chiron.name == "Chiron"
+    assert chiron.description == "Half man, half horse, entirely patient — he's trained more heroes than he can easily count, and it shows."
+
+def test_create_chiron_talk_returns_hint():
+    chiron = create_chiron()
+    assert chiron.talk() == chiron.hint
+
 def test_build_world_returns_five_rooms():
     dungeon, entrance = build_world()
     assert len(dungeon) == 5
@@ -95,5 +110,10 @@ def test_build_world_west_room_connects_back_to_entrance():
     west_room = dungeon.get_room("Chamber of Chiron (West)")
     assert west_room is not None
     assert west_room.get_exit("east") is entrance
+
+def test_build_world_entrance_has_chiron_as_ally():
+    dungeon, entrance = build_world()
+    ally_names = [ally.name for ally in entrance.allies]
+    assert "Chiron" in ally_names
 
 
