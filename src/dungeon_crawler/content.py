@@ -59,35 +59,29 @@ def create_ambrosia() -> Consumable:
 
 def build_world() -> tuple[Map, Room]:
     """Build the rooms"""
-    entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
-    styx_crossing = Room("Styx Crossing", "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.")
-    library_of_athena = Room("Library of Athena", "Towering shelves of scrolls creak under their own weight; an owl watches from the rafters, unblinking.")
-    armoury_of_ares = Room("Armoury of Ares", "Racks of corroded bronze weapons line the walls, still faintly warm to the touch.")
-    hall_of_hades = Room("Hall of Hades", "The chamber opens into a vast black hall lit by pale fire, a throne of bone waits at its centre.")
-    sunken_vault = Room("Sunken Vault", "Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.")
+    chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with military precision. Chiron waits at the centre, patient as ever.")
+    chamber_of_chiron_north = Room("Chamber of Chiron (North)", "A quiet alcove lined with old scrolls on swordplay and stance. Dust motes drift in a shaft of light from somewhere above.")
+    chamber_of_chiron_east = Room("Chamber of Chiron (East)", "A narrow training yard, sand-floored and scarred with the marks of countless practice bouts.")
+    chamber_of_chiron_south = Room("Chamber of Chiron (South)", "A straw-stuffed dummy stands bolted to the floor, dented from years of use.")
+    chamber_of_chiron_west = Room("Chamber of Chiron (West)", "A small resting nook with a low bench, where those who've trained here catch their breath before what comes next.")
 
     """Connect the rooms"""
-    entrance.connect("north", styx_crossing)
-    styx_crossing.connect("south", entrance)
-    entrance.connect("down", sunken_vault)
-    sunken_vault.connect("up", entrance)
-    styx_crossing.connect("east", library_of_athena)
-    library_of_athena.connect("west", styx_crossing)
-    styx_crossing.connect("west", armoury_of_ares)
-    armoury_of_ares.connect("east", styx_crossing)
-    styx_crossing.connect("north", hall_of_hades)
-    hall_of_hades.connect("south", styx_crossing)
+    chamber_of_chiron.connect("north", chamber_of_chiron_north)
+    chamber_of_chiron.connect("east", chamber_of_chiron_east)
+    chamber_of_chiron.connect("south", chamber_of_chiron_south)
+    chamber_of_chiron.connect("west", chamber_of_chiron_west)
+    chamber_of_chiron_north.connect("south", chamber_of_chiron)
+    chamber_of_chiron_east.connect("west", chamber_of_chiron)
+    chamber_of_chiron_south.connect("north", chamber_of_chiron)
+    chamber_of_chiron_west.connect("east", chamber_of_chiron)
 
     """Build the connected dungeon map"""
     dungeon = Map()
-    for room in (entrance, styx_crossing, library_of_athena, armoury_of_ares, hall_of_hades, sunken_vault):
+    for room in (chamber_of_chiron, chamber_of_chiron_north, chamber_of_chiron_east, chamber_of_chiron_south, chamber_of_chiron_west):
         dungeon.add_room(room)
+    entrance = chamber_of_chiron
 
     """Add enemies and items to rooms"""
-    sunken_vault.add_enemy(create_skeleton_warrior())
-    sunken_vault.add_item(create_ambrosia())
-    armoury_of_ares.add_item(create_bronze_xiphos())
-    library_of_athena.add_item(create_aegis_fragment())
-    hall_of_hades.add_enemy(create_hades())
+
 
     return dungeon, entrance
