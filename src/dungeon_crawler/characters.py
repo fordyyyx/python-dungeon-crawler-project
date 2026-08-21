@@ -50,9 +50,10 @@ class Player(Character):
         return stat_string
 
 class Enemy(Character):
-    def __init__(self, name: str, hp: int, attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):
         super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
+        self.description = description
 
     def on_death(self) -> None:
         print(f"{self.name} has been defeated.")
@@ -76,7 +77,7 @@ class Ally():
     def give_item(self, item_name : str, player) -> str:
         for item in self.inventory.items:
             if item_name.lower() == item.name.lower():
-                self.inventory._items.remove(item)
+                self.inventory.remove(item)
                 player.inventory.add(item)
                 return f"{self.name} gives you the {item.name}."
         return f"{self.name} does not have that item."

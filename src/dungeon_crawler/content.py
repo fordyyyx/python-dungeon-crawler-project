@@ -1,6 +1,6 @@
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Item, Weapon, Armour, Consumable
-from dungeon_crawler.characters import Enemy, Player
+from dungeon_crawler.characters import Enemy, Player, Ally
 
 def create_skeleton_warrior() -> Enemy:
     """Create a skeleton warrior enemy"""
@@ -9,6 +9,7 @@ def create_skeleton_warrior() -> Enemy:
         hp=8,
         attack_damage=3,
         armour=0,
+        description="Bones held together by little more than old habit, still gripping a rusted blade with mechanical resolve.",
         )
 
 def create_minotaur() -> Enemy:
@@ -18,6 +19,7 @@ def create_minotaur() -> Enemy:
         attack_damage=8,
         armour=2,
         loot=[create_bronze_xiphos()],
+        description="Massive and bull-headed, it turns toward you with a snort that shakes dust from the walls.",
     )
 
 def create_hades() -> Enemy:
@@ -27,6 +29,7 @@ def create_hades() -> Enemy:
         attack_damage=15,
         armour=5,
         loot=[create_ambrosia()],
+        description="He doesn't rise from the throne immediately — he doesn't need to.",
     )
 
 def create_bronze_xiphos() -> Weapon:
@@ -57,6 +60,19 @@ def create_ambrosia() -> Consumable:
         description="Golden and faintly humming - mortal hands were never meant to hold this.",
     )
 
+def create_chiron() -> Ally:
+    return Ally(
+        name="Chiron",
+        description="Half man, half horse, entirely patient — he's trained more heroes than he can easily count, and it shows.",
+        hint="The old centaur looks up as you enter, unsurprised. "
+            "\"Another one sent down by the gods, then. Good. The Underworld never runs short of monsters, "
+            "only ever short of heroes who know what they're doing.\"\n\n"
+            "He gestures to the doorways around the chamber.\n\n"
+            "\"Before you go anywhere, learn to move. This chamber has four ways out — "
+            "north, east, south, and west. Type the direction, and you'll go there. "
+            "Try each one. See what waits behind each door, then come back and tell me what you've learned.\""
+    )
+
 def build_world() -> tuple[Map, Room]:
     """Build the rooms"""
     chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with military precision. Chiron waits at the centre, patient as ever.")
@@ -82,6 +98,7 @@ def build_world() -> tuple[Map, Room]:
     entrance = chamber_of_chiron
 
     """Add enemies and items to rooms"""
+    chamber_of_chiron.add_ally(create_chiron())
 
 
     return dungeon, entrance

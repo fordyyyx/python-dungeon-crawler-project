@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import Player, Enemy
+from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.items import Weapon
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
@@ -37,11 +37,14 @@ def main() -> None:
         print(f"\n{current_room.name}: {current_room.description}")
         if current_room.enemies:
             enemy = current_room.enemies[0]
-            print(f"A {enemy.name} blocks your path!")
+            print(f"A {enemy.name} blocks your path! {enemy.description}")
+        if current_room.allies:
+            ally = current_room.allies[0]
+            print(f"{ally.name} is here. {ally.description}")
 
         command = input("> ").strip().lower()
 
-        if command.startswith("take "):
+        if command.startswith("take ") and " from " not in command:
             item_name = command.removeprefix("take ").strip()
             print(pick_up(current_room, item_name, player))
 
@@ -81,6 +84,18 @@ def main() -> None:
 
         elif command == "stats" or command == "inventory":
             print(player.get_stats())
+
+        elif command == "talk":
+            ally = current_room.allies[0]
+            print(ally.talk())
+
+        elif command.startswith("take ") and " from " in command:
+            item_name, ally_name = command.removeprefix("take ").split(" from ")
+            ally = next((a for a in current_room.allies if a.name.lower() == ally_name.strip().lower()), None)
+            if ally is not None:
+                print(ally.give_item(item_name.strip(), player))
+            else:
+                print("There is no one here by that name.")
 
         else:
             print("Nothing happens.")

@@ -5,6 +5,7 @@ class Room:
         self.exits: dict[str, "Room"] = {}
         self._items: list = []
         self._enemies: list = []
+        self._allies: list = []
 
     def connect(self, direction: str, other_room: "Room") -> None:
         self.exits[direction] = other_room
@@ -24,6 +25,12 @@ class Room:
     def remove_enemy(self, enemy):
         self._enemies.remove(enemy)
 
+    def add_ally(self, ally):
+        self._allies.append(ally)
+
+    def remove_ally(self, ally):
+        self._allies.remove(ally)
+
     @property
     def items(self) -> list:
         return list(self._items)
@@ -31,6 +38,10 @@ class Room:
     @property
     def enemies(self) -> list:
         return list(self._enemies)
+
+    @property
+    def allies(self) -> list:
+        return list(self._allies)
 
     def __repr__(self) -> str:
         return f"Room({self.name!r})"
