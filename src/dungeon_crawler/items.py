@@ -46,6 +46,10 @@ class Consumable(Item):
         character.hp = min(character.hp + self.heal_amount, character.max_hp)
         return f"{character.name} uses {self.name}, healing {self.heal_amount} HP."
 
+class QuestItem(Item):
+    def use(self, character) -> str:
+        return f"{self.name} doesn't do anything on its own - it is meant for someone else."
+
 class Inventory:
     def __init__(self):
         self._items: list[Item] = []

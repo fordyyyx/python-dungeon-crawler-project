@@ -1,5 +1,5 @@
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, QuestItem
 from dungeon_crawler.characters import Enemy, Player, Ally
 
 def create_skeleton_warrior() -> Enemy:
@@ -73,6 +73,44 @@ def create_chiron() -> Ally:
             "Try each one. See what waits behind each door, then come back and tell me what you've learned.\""
     )
 
+def create_training_dummy() -> Enemy:
+    return Enemy(
+        name="Training Dummy",
+        hp=5,
+        description="Straw and old rope, bolted to the floor. It has never once landed a real hit, and it isn't about to start now.",
+        armour=0
+    )
+
+def create_wooden_sword() -> Weapon:
+    return Weapon(
+        name="Wooden Sword",
+        description="Blunt, splintered, and entirely harmless to anyone but a straw dummy — exactly as intended.",
+        damage=1
+    )
+
+def create_wooden_shield() -> Armour:
+    return Armour(
+        name="Wooden Shield",
+        description="Warped and dry-rotted at the edges, but it'll turn aside a training blow well enough.",
+        defence=1
+    )
+
+def create_mentor() -> Ally:
+    return Ally(
+        name="Mentor",
+        description="He nods once in greeting, the kind of nod that says he's seen a lot of hopefuls pass through here.",
+        hint="\"You've got the sword and shield now, I take it. Good.\" "
+            "He tilts his head toward the main chamber. "
+            "\"That's all Chiron needs to see. Go back to him, hand over what you've collected, "
+            "and he'll give you Charon's Coin in return — you'll need it to cross the Styx.\""
+    )
+
+def create_dummy_head() -> QuestItem:
+    return QuestItem(
+        name="Dummy Head",
+        description="A straw-stuffed head, still faintly dented from your practice blows — proof enough for Chiron that the lesson's been learned.",
+    )
+
 def build_world() -> tuple[Map, Room]:
     """Build the rooms"""
     chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with military precision. Chiron waits at the centre, patient as ever.")
@@ -99,6 +137,10 @@ def build_world() -> tuple[Map, Room]:
 
     """Add enemies and items to rooms"""
     chamber_of_chiron.add_ally(create_chiron())
+    chamber_of_chiron_south.add_enemy(create_training_dummy())
+    chamber_of_chiron_north.add_item(create_wooden_sword())
+    chamber_of_chiron_east.add_item(create_wooden_shield())
+    chamber_of_chiron_west.add_ally(create_mentor())
 
 
     return dungeon, entrance
