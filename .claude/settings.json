@@ -9,7 +9,14 @@
     ],
     "deny": [
       "Edit(src/**)",
-      "Write(src/**)"
+      "Write(src/**)",
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(git add*)",
+      "Bash(git checkout*)",
+      "Bash(git reset*)",
+      "Bash(git merge*)",
+      "Bash(git rebase*)"
     ]
   }
 }
