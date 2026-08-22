@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
-from dungeon_crawler.items import Weapon
+from dungeon_crawler.items import Weapon, Item
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.content import build_world
+from dungeon_crawler.content import build_world, create_charons_coin
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     for item in room.items:
@@ -35,6 +35,20 @@ def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
         return False
     required_item_name = room.locked_exits[direction]
     return required_item_name not in [item.name for item in player.inventory.items]
+
+def trade_with_ally(ally: Ally, player: Player, required_item_names: list[str], reward: Item):
+    player_item_names = [item.name for item in player.inventory.items]
+    missing = [name for name in required_item_names if name not in player_item_names]
+
+    if missing:
+        return f"{ally.name} shakes their head. \"You're still missing: {', '.join(missing)}.\""
+
+    for name in required_item_names:
+        item = next(item for item in player.inventory.items if item.name == name)
+        player.inventory.remove(item)
+
+    player.inventory.add(reward)
+    return f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {reward.name}."
 
 
 def main() -> None:
@@ -97,8 +111,11 @@ def main() -> None:
             print(player.get_stats())
 
         elif command == "talk":
-            ally = current_room.allies[0]
-            print(ally.talk())
+            if current_room.allies:
+                ally = current_room.allies[0]
+                print(ally.talk(player))
+            else:
+                print("There's no one here to talk to.")
 
         elif command.startswith("take ") and " from " in command:
             item_name, ally_name = command.removeprefix("take ").split(" from ")
@@ -107,6 +124,20 @@ def main() -> None:
                 print(ally.give_item(item_name.strip(), player))
             else:
                 print("There is no one here by that name.")
+
+        elif command == "trade":
+            if current_room.allies:
+                ally = current_room.allies[0]
+                if ally.name == "Chiron":
+                    result = trade_with_ally(
+                        ally,
+                        player,
+                        required_item_names =["Wooden Sword", "Wooden Shield", "Dummy Head", "Mentor's Token"],
+                        reward=create_charons_coin()
+                    )
+                    print(result)
+                else:
+                    print(f"{ally.name} has nothing to trade.")
 
         else:
             print("Nothing happens.")

@@ -64,13 +64,18 @@ def create_chiron() -> Ally:
     return Ally(
         name="Chiron",
         description="Half man, half horse, entirely patient — he's trained more heroes than he can easily count, and it shows.",
-        hint="The old centaur looks up as you enter, unsurprised. "
+        hint=("The old centaur looks up as you enter, unsurprised. "
             "\"Another one sent down by the gods, then. Good. The Underworld never runs short of monsters, "
             "only ever short of heroes who know what they're doing.\"\n\n"
             "He gestures to the doorways around the chamber.\n\n"
             "\"Before you go anywhere, learn to move. This chamber has four ways out — "
             "north, east, south, and west. Type the direction, and you'll go there. "
-            "Try each one. See what waits behind each door, then come back and tell me what you've learned.\""
+            "Try each one. See what waits behind each door, then come back and tell me what you've learned.\""),
+        hint_complete=(
+            "\"You've gathered everything, then? Good.\" "
+            "He looks over the sword, the shield, the dummy's head, and the token from his old friend. "
+            "\"Type 'trade' and I'll see what you've brought me.\""),
+        items=[]
     )
 
 def create_training_dummy() -> Enemy:
@@ -78,7 +83,8 @@ def create_training_dummy() -> Enemy:
         name="Training Dummy",
         hp=5,
         description="Straw and old rope, bolted to the floor. It has never once landed a real hit, and it isn't about to start now.",
-        armour=0
+        armour=0,
+        loot=[create_dummy_head()]
     )
 
 def create_wooden_sword() -> Weapon:
@@ -102,13 +108,26 @@ def create_mentor() -> Ally:
         hint="\"You've got the sword and shield now, I take it. Good.\" "
             "He tilts his head toward the main chamber. "
             "\"That's all Chiron needs to see. Go back to him, hand over what you've collected, "
-            "and he'll give you Charon's Coin in return — you'll need it to cross the Styx.\""
+            "and he'll give you Charon's Coin in return — you'll need it to cross the Styx.\"",
+        items=[create_mentors_token()],
     )
 
 def create_dummy_head() -> QuestItem:
     return QuestItem(
         name="Dummy Head",
         description="A straw-stuffed head, still faintly dented from your practice blows — proof enough for Chiron that the lesson's been learned.",
+    )
+
+def create_charons_coin() -> QuestItem:
+    return QuestItem(
+        name="Charon's Coin",
+        description="Cold and unnaturally heavy for its size — the ferryman won't so much as glance at you without it."
+    )
+
+def create_mentors_token() -> QuestItem:
+    return QuestItem(
+        name="Mentor's Token",
+        description="A small carved token, worn smooth — Mentor's simple way of saying you've earned his approval."
     )
 
 def build_world() -> tuple[Map, Room]:

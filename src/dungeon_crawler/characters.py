@@ -65,13 +65,23 @@ class Enemy(Character):
 
 
 class Ally():
-    def __init__(self, name: str, description: str ='', hint: str =''):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[Item] | None = None, items: list[Item] | None = None):
         self.name = name
         self.description = description
         self.hint = hint
+        self.hint_complete = hint_complete
         self.inventory = Inventory()
+        self.items = items
+        self.required_items = required_items
+        for item in self.items or []:
+            self.inventory.add(item)
 
-    def talk(self) -> str:
+
+    def talk(self, player) -> str:
+        if self.required_items:
+            player_item_names = [item for item in player.inventory.items]
+            if all(name in player_item_names for name in self.required_items):
+                return self.hint_complete or self.hint
         return self.hint if self.hint else f"{self.name} has nothing to say."
 
     def give_item(self, item_name : str, player) -> str:

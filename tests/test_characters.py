@@ -151,12 +151,14 @@ def test_ally_initialises_with_description():
     assert ally.description == "Half man, half horse, entirely patient."
 
 def test_ally_talk_returns_hint_when_set():
+    player = Player(name="hero", hp=10)
     ally = Ally(name="Chiron", hint="Beware the minotaur.")
-    assert ally.talk() == "Beware the minotaur."
+    assert ally.talk(player) == "Beware the minotaur."
 
 def test_ally_talk_returns_default_message_when_no_hint():
+    player = Player(name="hero", hp=10)
     ally = Ally(name="Chiron")
-    assert ally.talk() == "Chiron has nothing to say."
+    assert ally.talk(player) == "Chiron has nothing to say."
 
 def test_ally_give_item_adds_item_to_player_inventory():
     ally = Ally(name="Chiron")
