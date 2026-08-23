@@ -83,6 +83,7 @@ def create_training_dummy() -> Enemy:
     return Enemy(
         name="Training Dummy",
         hp=5,
+        attack_damage=0,
         description="Straw and old rope, bolted to the floor. It has never once landed a real hit, and it isn't about to start now.",
         armour=0,
         loot=[create_dummy_head()]
@@ -136,8 +137,42 @@ def create_mentors_token() -> QuestItem:
         description="A small carved token, worn smooth — Mentor's simple way of saying you've earned his approval."
     )
 
+def create_wounded_soldier() -> Ally:
+    return Ally(
+        name="Wounded Soldier",
+        description="Bandaged and pale, but still sharp-eyed — clearly more useful than his condition suggests.",
+        hint="",
+        hint_complete="",
+        required_items=[],
+        items=[create_bronze_xiphos(), create_bronze_breastplate(), create_small_healing_potion()],
+    )
+
+def create_charon() -> Ally:
+    return Ally(
+        name="Charon",
+        description="He holds out one weathered hand, saying nothing, waiting for the coin he already knows you'll need.",
+        hint=(
+            "\"You have the coin. Good.\" His voice is dry, unhurried. "
+            "\"Cross when you're ready — the water won't wait for anyone, but it won't rush you either.\""
+        ),
+    )
+
+def create_bronze_breastplate() -> Armour:
+    return Armour(
+        name="Bronze Breastplate",
+        defence=2,
+        description="Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just."
+    )
+
+def create_small_healing_potion() -> Consumable:
+    return Consumable(
+        name="Small Healing Potion",
+        heal_amount=5,
+        description="A cloudy vial, more herb than magic - enough to steady a shaking hand, not much more."
+    )
+
 def build_world() -> tuple[Map, Room]:
-    """Build the rooms"""
+    """Floor 0"""
     chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with "
     "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
     "waiting — say 'talk' if you want to know why you're here.")
@@ -152,7 +187,6 @@ def build_world() -> tuple[Map, Room]:
     "Chiron's voice calls from behind you: \"Go on — type 'attack' and show me what you've got.\"")
     chamber_of_chiron_west = Room("Chamber of Chiron (West)", "A small resting nook with a low bench, where those who've trained here catch their breath before what comes next.")
 
-    """Connect the rooms"""
     chamber_of_chiron.connect("north", chamber_of_chiron_north)
     chamber_of_chiron.connect("east", chamber_of_chiron_east)
     chamber_of_chiron.connect("south", chamber_of_chiron_south)
@@ -162,9 +196,27 @@ def build_world() -> tuple[Map, Room]:
     chamber_of_chiron_south.connect("north", chamber_of_chiron)
     chamber_of_chiron_west.connect("east", chamber_of_chiron)
 
+    """Floor 0.5"""
+    cave_entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
+
+    chamber_of_chiron.connect("descend", cave_entrance)
+
+    """Floor 1"""
+    styx_crossing = Room("Styx Crossing", "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.")
+    fields_of_asphodel = Room("Fields of Asphodel", "An endless grey meadow beneath a colourless sky, where the ordinary dead wander without purpose or memory.")
+    sunken_vault = Room("Sunken Vault", "Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.")
+
+    cave_entrance.connect("descend", styx_crossing)
+    styx_crossing.connect("ascend", cave_entrance)
+    styx_crossing.connect("east", fields_of_asphodel)
+    fields_of_asphodel.connect("west", styx_crossing)
+    styx_crossing.connect("down", sunken_vault)
+    sunken_vault.connect("up", styx_crossing)
+
+
     """Build the connected dungeon map"""
     dungeon = Map()
-    for room in (chamber_of_chiron, chamber_of_chiron_north, chamber_of_chiron_east, chamber_of_chiron_south, chamber_of_chiron_west):
+    for room in (chamber_of_chiron, chamber_of_chiron_north, chamber_of_chiron_east, chamber_of_chiron_south, chamber_of_chiron_west, cave_entrance, styx_crossing, fields_of_asphodel, sunken_vault):
         dungeon.add_room(room)
     entrance = chamber_of_chiron
 
@@ -175,9 +227,14 @@ def build_world() -> tuple[Map, Room]:
     chamber_of_chiron_east.add_item(create_wooden_shield())
     chamber_of_chiron_west.add_ally(create_mentor())
 
+    cave_entrance.add_ally(create_wounded_soldier())
+    styx_crossing.add_ally(create_charon())
+    sunken_vault.add_enemy(create_skeleton_warrior())
+
     """Lock rooms"""
     chamber_of_chiron.lock_exit("east", "Wooden Sword")
     chamber_of_chiron.lock_exit("south", "Wooden Shield")
     chamber_of_chiron.lock_exit("west", "Dummy Head")
+    chamber_of_chiron.lock_exit("descend", "Charon's Coin")
 
     return dungeon, entrance

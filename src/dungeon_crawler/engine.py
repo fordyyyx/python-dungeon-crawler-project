@@ -70,10 +70,11 @@ def print_room(room: Room):
 
 def main() -> None:
     dungeon, current_room = build_world()
-    player = Player(name="Hero", hp=100, attack_damage=20)
+    player = Player(name="Hero", hp=20, attack_damage=3)
     print_room(current_room)
     while player.is_alive():
         command = input("> ").strip().lower()
+        print("\n\n")
 
         if command.startswith("take ") and " from " not in command:
             item_name = command.removeprefix("take ").strip()
