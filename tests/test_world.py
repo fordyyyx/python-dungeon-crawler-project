@@ -108,3 +108,28 @@ def test_room_repr_includes_name(capsys):
     print(room)
     captured = capsys.readouterr()
     assert "Room('Armoury')" in captured.out
+
+def test_room_initialises_with_no_exits():
+    room = Room("A")
+    assert room.exits == {}
+
+def test_room_initialises_with_no_items():
+    room = Room("A")
+    assert room.items == []
+
+def test_room_initialises_with_no_enemies():
+    room = Room("A")
+    assert room.enemies == []
+
+def test_room_initialises_with_no_allies():
+    room = Room("A")
+    assert room.allies == []
+
+def test_map_add_room_overwrites_room_with_same_name():
+    dungeon = Map()
+    original = Room("Entrance")
+    replacement = Room("Entrance")
+    dungeon.add_room(original)
+    dungeon.add_room(replacement)
+    assert dungeon.get_room("Entrance") is replacement
+    assert len(dungeon) == 1

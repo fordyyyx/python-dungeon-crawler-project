@@ -318,4 +318,14 @@ def test_inventory_unequip_item_matches_item_name_case_insensitively():
     message = player.inventory.unequip_item("bronze xiphos", player)
     assert message == "hero unequips Bronze Xiphos (-3 ATK)"
 
+def test_inventory_remove_raises_error_when_item_not_in_inventory():
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+
+    try:
+        player.inventory.remove(sword)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
 

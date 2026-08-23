@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -237,3 +237,62 @@ def test_trade_with_ally_does_not_remove_equipped_item_when_blocked():
     trade_with_ally(ally, player, ["Wooden Sword"], coin)
 
     assert sword in player.inventory.items
+
+def test_print_room_prints_name_and_description(capsys):
+    room = Room("Armoury", "A dusty room full of old weapons.")
+
+    print_room(room)
+
+    captured = capsys.readouterr()
+    assert "Armoury: A dusty room full of old weapons." in captured.out
+
+def test_print_room_with_items_prints_item_names(capsys):
+    room = Room("Armoury")
+    room.add_item(Weapon(name="Bronze Xiphos", description="", damage=3))
+
+    print_room(room)
+
+    captured = capsys.readouterr()
+    assert "You see: Bronze Xiphos" in captured.out
+
+def test_print_room_with_no_items_does_not_print_you_see(capsys):
+    room = Room("Armoury")
+
+    print_room(room)
+
+    captured = capsys.readouterr()
+    assert "You see" not in captured.out
+
+def test_print_room_with_enemy_prints_enemy_description(capsys):
+    room = Room("Armoury")
+    room.add_enemy(Enemy(name="Goblin", hp=10, description="A snarling goblin."))
+
+    print_room(room)
+
+    captured = capsys.readouterr()
+    assert "A Goblin blocks your path! A snarling goblin." in captured.out
+
+def test_print_room_with_no_enemies_does_not_print_blocks_your_path(capsys):
+    room = Room("Armoury")
+
+    print_room(room)
+
+    captured = capsys.readouterr()
+    assert "blocks your path" not in captured.out
+
+def test_print_room_with_ally_prints_ally_description(capsys):
+    room = Room("Armoury")
+    room.add_ally(Ally(name="Chiron", description="A wise centaur."))
+
+    print_room(room)
+
+    captured = capsys.readouterr()
+    assert "Chiron is here. A wise centaur." in captured.out
+
+def test_print_room_with_no_allies_does_not_print_is_here(capsys):
+    room = Room("Armoury")
+
+    print_room(room)
+
+    captured = capsys.readouterr()
+    assert "is here" not in captured.out

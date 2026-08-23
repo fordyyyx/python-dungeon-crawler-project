@@ -229,3 +229,18 @@ def test_ally_give_item_matches_item_name_case_insensitively():
     ally.inventory.add(sword)
     ally.give_item("bronze xiphos", player)
     assert sword in player.inventory.items
+
+def test_character_initialises_with_max_hp_equal_to_hp():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.max_hp == 30
+
+def test_enemy_on_death_drops_multiple_loot_items_lists_all_names():
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    shield = Weapon(name="Bronze Shield", description="", damage=0)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5, loot=[sword, shield])
+    message = enemy.on_death()
+    assert "Iron Sword, Bronze Shield" in message
+
+def test_ally_initialises_with_empty_description_by_default():
+    ally = Ally(name="Chiron")
+    assert ally.description == ""

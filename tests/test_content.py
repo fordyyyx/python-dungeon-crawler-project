@@ -67,6 +67,14 @@ def test_create_chiron_has_correct_name_and_description():
     assert chiron.name == "Chiron"
     assert chiron.description == "Half man, half horse, entirely patient — he's trained more heroes than he can easily count, and it shows."
 
+def test_create_chiron_has_correct_required_items():
+    chiron = create_chiron()
+    assert chiron.required_items == ["Wooden Sword", "Wooden Shield", "Dummy Head", "Mentor's Token"]
+
+def test_create_chiron_has_empty_inventory():
+    chiron = create_chiron()
+    assert len(chiron.inventory) == 0
+
 def test_create_chiron_talk_returns_hint_when_player_missing_required_items():
     chiron = create_chiron()
     player = Player(name="hero", hp=100)
@@ -112,6 +120,10 @@ def test_create_mentor_talk_returns_hint():
     mentor = create_mentor()
     player = Player(name="hero", hp=100)
     assert mentor.talk(player) == mentor.hint
+
+def test_create_mentor_has_no_required_items():
+    mentor = create_mentor()
+    assert mentor.required_items == []
 
 def test_create_mentor_carries_mentors_token():
     mentor = create_mentor()
