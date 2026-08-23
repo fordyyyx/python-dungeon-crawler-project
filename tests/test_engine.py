@@ -1,7 +1,7 @@
-from dungeon_crawler.characters import Player, Enemy
+from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked
+from dungeon_crawler.items import Armour, QuestItem, Weapon
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -91,7 +91,7 @@ def test_resolve_combat_round_returns_fallen_message_when_enemy_defeated():
 
     result = resolve_combat_round(player, enemy)
 
-    assert "The Goblin has fallen." in result
+    assert "Goblin has been defeated." in result
 
 def test_resolve_combat_round_returns_fallen_message_when_player_defeated():
     player = Player(name="Hero", hp=5, attack_damage=1)
@@ -150,3 +150,54 @@ def test_is_exit_locked_returns_false_when_player_has_required_item():
     player.inventory.add(key)
 
     assert is_exit_locked(room, "north", player) is False
+
+def test_trade_with_ally_returns_missing_message_when_player_lacks_required_items():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    message = trade_with_ally(ally, player, ["Wooden Sword", "Wooden Shield"], coin)
+
+    assert message == "Chiron shakes their head. \"You're still missing: Wooden Sword, Wooden Shield.\""
+
+def test_trade_with_ally_does_not_add_reward_when_items_missing():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    trade_with_ally(ally, player, ["Wooden Sword"], coin)
+
+    assert coin not in player.inventory.items
+
+def test_trade_with_ally_removes_required_items_from_player_inventory_when_complete():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    trade_with_ally(ally, player, ["Wooden Sword"], coin)
+
+    assert sword not in player.inventory.items
+
+def test_trade_with_ally_adds_reward_to_player_inventory_when_complete():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    trade_with_ally(ally, player, ["Wooden Sword"], coin)
+
+    assert coin in player.inventory.items
+
+def test_trade_with_ally_returns_confirmation_message_when_complete():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    message = trade_with_ally(ally, player, ["Wooden Sword"], coin)
+
+    assert message == "Chiron nods, accepting each item in turn. \"You've done well.\" They hand you the Charon's Coin."

@@ -15,13 +15,9 @@ def resolve_combat_round(player: Player, enemy: Enemy):
     messages = [player.attack(enemy)]
 
     if not enemy.is_alive():
-        messages.append(f"The {enemy.name} has fallen.")
         return "\n".join(messages)
 
     messages.append(enemy.attack(player))
-
-    if not player.is_alive():
-        messages.append(f"{player.name} has fallen.")
 
     return "\n".join(messages)
 

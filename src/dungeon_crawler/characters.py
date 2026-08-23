@@ -9,23 +9,27 @@ class Character:
         self.max_hp = hp
 
     def attack(self, target):
-        target.take_damage(self.attack_damage)
-        return f"{self.name} attacks {target.name}"
+        death_message = target.take_damage(self.attack_damage)
+        message = f"{self.name} attacks {target.name}."
+        if death_message:
+            message += f"\n{death_message}"
+        return message
 
-    def take_damage(self, amount: int) -> None:
+    def take_damage(self, amount: int) -> str:
         reduced = max(0, amount - self.armour)
         self.hp -= reduced
         if self.hp < 0:
             self.hp = 0
         if not self.is_alive():
-            self.on_death()
+            return self.on_death()
+        return ""
 
 
     def is_alive(self) -> bool:
         return self.hp > 0
 
-    def on_death(self) -> None:
-        print(f"{self.name} has died.")
+    def on_death(self) -> str:
+        return (f"{self.name} has died.")
 
 class Player(Character):
     def __init__(self, name: str, hp: int, attack_damage: int = 5, armour: int = 0):
@@ -34,8 +38,8 @@ class Player(Character):
         self.experience = 0
         self.inventory = Inventory()
 
-    def on_death(self) -> None:
-        print(f"{self.name} has fallen. Game Over.")
+    def on_death(self) -> str:
+        return f"{self.name} has fallen. Game Over."
 
     def get_stats(self) -> str:
         inv_string = ", ".join(item.name for item in self.inventory.items)
@@ -55,31 +59,33 @@ class Enemy(Character):
         self.loot = loot or []
         self.description = description
 
-    def on_death(self) -> None:
-        print(f"{self.name} has been defeated.")
+    def on_death(self) -> str:
+        message = f"{self.name} has been defeated."
         if self.loot:
-            print(f"{self.name} dropped: {', '.join(item.name for item in self.loot)}")
+            item_names = ", ".join(item.name for item in self.loot)
+            message += f"\nIt dropped: {item_names}"
+        return message
 
     def choose_action(self, player):
         pass
 
 
 class Ally():
-    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[Item] | None = None, items: list[Item] | None = None):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None):
         self.name = name
         self.description = description
         self.hint = hint
         self.hint_complete = hint_complete
         self.inventory = Inventory()
         self.items = items
-        self.required_items = required_items
+        self.required_items = required_items or []
         for item in self.items or []:
             self.inventory.add(item)
 
 
     def talk(self, player) -> str:
         if self.required_items:
-            player_item_names = [item for item in player.inventory.items]
+            player_item_names = [item.name for item in player.inventory.items]
             if all(name in player_item_names for name in self.required_items):
                 return self.hint_complete or self.hint
         return self.hint if self.hint else f"{self.name} has nothing to say."

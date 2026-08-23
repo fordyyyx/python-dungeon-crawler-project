@@ -1,4 +1,6 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_xiphos, create_chiron, create_dummy_head, create_hades, create_mentor, create_minotaur, create_skeleton_warrior, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, build_world
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_xiphos, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, build_world
+from dungeon_crawler.characters import Player
+from dungeon_crawler.items import QuestItem
 
 
 def test_create_minotaur_has_correct_stats():
@@ -9,11 +11,10 @@ def test_create_minotaur_has_correct_stats():
     assert minotaur.armour == 2
     assert len(minotaur.loot) == 1
 
-def test_create_minotaur_drops_bronze_xiphos(capsys):
+def test_create_minotaur_drops_bronze_xiphos():
     minotaur = create_minotaur()
-    minotaur.on_death()
-    captured = capsys.readouterr()
-    assert "Bronze Xiphos" in captured.out
+    message = minotaur.on_death()
+    assert "Bronze Xiphos" in message
 
 def test_create_skeleton_warrior_has_correct_stats():
     skeleton_warrior = create_skeleton_warrior()
@@ -32,11 +33,10 @@ def test_create_hades_has_correct_stats():
     assert hades.armour == 5
     assert len(hades.loot) == 1
 
-def test_create_hades_drops_ambrosia(capsys):
+def test_create_hades_drops_ambrosia():
     hades = create_hades()
-    hades.on_death()
-    captured = capsys.readouterr()
-    assert "Vial of Ambrosia" in captured.out
+    message = hades.on_death()
+    assert "Vial of Ambrosia" in message
 
 def test_create_bronze_xiphos_has_correct_damage_and_description():
     sword = create_bronze_xiphos()
@@ -67,9 +67,17 @@ def test_create_chiron_has_correct_name_and_description():
     assert chiron.name == "Chiron"
     assert chiron.description == "Half man, half horse, entirely patient — he's trained more heroes than he can easily count, and it shows."
 
-def test_create_chiron_talk_returns_hint():
+def test_create_chiron_talk_returns_hint_when_player_missing_required_items():
     chiron = create_chiron()
-    assert chiron.talk() == chiron.hint
+    player = Player(name="hero", hp=100)
+    assert chiron.talk(player) == chiron.hint
+
+def test_create_chiron_talk_returns_hint_complete_when_player_has_required_items():
+    chiron = create_chiron()
+    player = Player(name="hero", hp=100)
+    for item_name in chiron.required_items:
+        player.inventory.add(QuestItem(name=item_name, description=""))
+    assert chiron.talk(player) == chiron.hint_complete
 
 def test_create_training_dummy_has_correct_stats():
     training_dummy = create_training_dummy()
@@ -77,7 +85,11 @@ def test_create_training_dummy_has_correct_stats():
     assert training_dummy.hp == 5
     assert training_dummy.attack_damage == 5
     assert training_dummy.armour == 0
-    assert len(training_dummy.loot) == 0
+
+def test_create_training_dummy_drops_dummy_head():
+    training_dummy = create_training_dummy()
+    message = training_dummy.on_death()
+    assert "Dummy Head" in message
 
 def test_create_wooden_sword_has_correct_damage_and_description():
     sword = create_wooden_sword()
@@ -98,12 +110,28 @@ def test_create_mentor_has_correct_name_and_description():
 
 def test_create_mentor_talk_returns_hint():
     mentor = create_mentor()
-    assert mentor.talk() == mentor.hint
+    player = Player(name="hero", hp=100)
+    assert mentor.talk(player) == mentor.hint
+
+def test_create_mentor_carries_mentors_token():
+    mentor = create_mentor()
+    item_names = [item.name for item in mentor.inventory.items]
+    assert "Mentor's Token" in item_names
 
 def test_create_dummy_head_has_correct_name_and_description():
     dummy_head = create_dummy_head()
     assert dummy_head.name == "Dummy Head"
     assert dummy_head.description == "A straw-stuffed head, still faintly dented from your practice blows — proof enough for Chiron that the lesson's been learned."
+
+def test_create_charons_coin_has_correct_name_and_description():
+    coin = create_charons_coin()
+    assert coin.name == "Charon's Coin"
+    assert coin.description == "Cold and unnaturally heavy for its size — the ferryman won't so much as glance at you without it."
+
+def test_create_mentors_token_has_correct_name_and_description():
+    token = create_mentors_token()
+    assert token.name == "Mentor's Token"
+    assert token.description == "A small carved token, worn smooth — Mentor's simple way of saying you've earned his approval."
 
 def test_build_world_returns_five_rooms():
     dungeon, entrance = build_world()

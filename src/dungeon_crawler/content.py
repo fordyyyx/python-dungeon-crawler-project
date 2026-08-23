@@ -75,6 +75,7 @@ def create_chiron() -> Ally:
             "\"You've gathered everything, then? Good.\" "
             "He looks over the sword, the shield, the dummy's head, and the token from his old friend. "
             "\"Type 'trade' and I'll see what you've brought me.\""),
+        required_items=["Wooden Sword", "Wooden Shield", "Dummy Head", "Mentor's Token"],
         items=[]
     )
 
