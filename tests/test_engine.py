@@ -201,3 +201,39 @@ def test_trade_with_ally_returns_confirmation_message_when_complete():
     message = trade_with_ally(ally, player, ["Wooden Sword"], coin)
 
     assert message == "Chiron nods, accepting each item in turn. \"You've done well.\" They hand you the Charon's Coin."
+
+def test_trade_with_ally_returns_unequip_message_when_required_item_is_equipped():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    player.inventory.use_item("Wooden Sword", player)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    message = trade_with_ally(ally, player, ["Wooden Sword"], coin)
+
+    assert message == "Chiron shakes their head. \"You'll need to unequip: Wooden Sword.\""
+
+def test_trade_with_ally_does_not_add_reward_when_required_item_is_equipped():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    player.inventory.use_item("Wooden Sword", player)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    trade_with_ally(ally, player, ["Wooden Sword"], coin)
+
+    assert coin not in player.inventory.items
+
+def test_trade_with_ally_does_not_remove_equipped_item_when_blocked():
+    ally = Ally(name="Chiron")
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    player.inventory.use_item("Wooden Sword", player)
+    coin = QuestItem(name="Charon's Coin", description="")
+
+    trade_with_ally(ally, player, ["Wooden Sword"], coin)
+
+    assert sword in player.inventory.items

@@ -17,7 +17,7 @@ def test_weapon_use_returns_equip_message():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     sword = Weapon(name="Iron Sword", description="", damage=5)
     message = sword.use(hero)
-    assert message == "Hero equips Iron Sword, (+5 attack)."
+    assert message == "Hero equips Iron Sword, (+5 ATK)."
 
 def test_weapon_use_sets_equipped_flag():
     hero = Character(name="Hero", hp=100, attack_damage=10)
@@ -39,6 +39,33 @@ def test_weapon_use_when_already_equipped_returns_already_equipped_message():
     message = sword.use(hero)
     assert message == "Iron Sword already equipped."
 
+def test_weapon_unequip_when_not_equipped_returns_not_equipped_message():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    message = sword.unequip(hero)
+    assert message == "Iron Sword is not equipped."
+
+def test_weapon_unequip_when_equipped_decreases_attack_power():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    sword.use(hero)
+    sword.unequip(hero)
+    assert hero.attack_damage == 10
+
+def test_weapon_unequip_when_equipped_clears_equipped_flag():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    sword.use(hero)
+    sword.unequip(hero)
+    assert sword.equipped is False
+
+def test_weapon_unequip_when_equipped_returns_unequip_message():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    sword.use(hero)
+    message = sword.unequip(hero)
+    assert message == "Hero unequips Iron Sword (-5 ATK)"
+
 def test_armour_use_increases_armour():
     hero = Character(name="hero", hp=100, attack_damage=10)
     armour = Armour(name="helmet", description="", defence=3)
@@ -49,7 +76,7 @@ def test_armour_use_returns_equip_message():
     hero = Character(name="hero", hp=100, attack_damage=10)
     armour = Armour(name="helmet", description="", defence=3)
     message = armour.use(hero)
-    assert message == "hero equips helmet, (+3 armour)."
+    assert message == "hero equips helmet, (+3 DEF)."
 
 def test_armour_use_sets_equipped_flag():
     hero = Character(name="hero", hp=100, attack_damage=10)
@@ -70,6 +97,33 @@ def test_armour_use_when_already_equipped_returns_already_equipped_message():
     armour.use(hero)
     message = armour.use(hero)
     assert message == "helmet already equipped"
+
+def test_armour_unequip_when_not_equipped_returns_not_equipped_message():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    armour = Armour(name="helmet", description="", defence=3)
+    message = armour.unequip(hero)
+    assert message == "helmet is not equipped."
+
+def test_armour_unequip_when_equipped_decreases_armour():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    armour = Armour(name="helmet", description="", defence=3)
+    armour.use(hero)
+    armour.unequip(hero)
+    assert hero.armour == 0
+
+def test_armour_unequip_when_equipped_clears_equipped_flag():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    armour = Armour(name="helmet", description="", defence=3)
+    armour.use(hero)
+    armour.unequip(hero)
+    assert armour.equipped is False
+
+def test_armour_unequip_when_equipped_returns_unequip_message():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    armour = Armour(name="helmet", description="", defence=3)
+    armour.use(hero)
+    message = armour.unequip(hero)
+    assert message == "hero unequips helmet (-3 DEF)"
 
 def test_consumable_use_heals_character():
     hero = Character(name="hero", hp=100, attack_damage=10)
@@ -104,6 +158,12 @@ def test_quest_item_use_does_not_change_character_stats():
     assert hero.attack_damage == 10
     assert hero.armour == 0
     assert hero.hp == 100
+
+def test_quest_item_unequip_returns_cannot_be_unequipped_message():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    key = QuestItem(name="Bronze Key", description="")
+    message = key.unequip(hero)
+    assert message == "Bronze Key cannot be unequipped."
 
 def test_item_repr_includes_class_name_and_name(capsys):
     potion = Consumable(name="potion", heal_amount=3)
@@ -232,5 +292,30 @@ def test_inventory_drop_item_matches_item_name_case_insensitively():
     player.inventory.add(sword)
     dropped = player.inventory.drop_item("bronze xiphos")
     assert dropped is sword
+
+def test_inventory_unequip_item_returns_items_unequip_message():
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    player.inventory.use_item("Bronze Xiphos", player)
+    message = player.inventory.unequip_item("Bronze Xiphos", player)
+    assert message == "hero unequips Bronze Xiphos (-3 ATK)"
+
+def test_inventory_unequip_item_raises_error_when_item_not_found():
+    player = Player(name="hero", hp=100)
+
+    try:
+        player.inventory.unequip_item("Bronze Xiphos", player)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_inventory_unequip_item_matches_item_name_case_insensitively():
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    player.inventory.use_item("Bronze Xiphos", player)
+    message = player.inventory.unequip_item("bronze xiphos", player)
+    assert message == "hero unequips Bronze Xiphos (-3 ATK)"
 
 

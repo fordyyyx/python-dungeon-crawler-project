@@ -140,6 +140,11 @@ def test_player_get_stats(capsys):
     captured = capsys.readouterr()
     assert "hero:" in captured.out
 
+def test_player_get_stats_has_no_leading_whitespace():
+    player = Player(name="hero", hp=100)
+    stats = player.get_stats()
+    assert stats.startswith("hero:")
+
 def test_ally_initialises_with_empty_inventory():
     ally = Ally(name="Chiron")
     assert isinstance(ally.inventory, Inventory)
