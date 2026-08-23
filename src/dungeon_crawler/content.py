@@ -106,10 +106,13 @@ def create_mentor() -> Ally:
     return Ally(
         name="Mentor",
         description="He nods once in greeting, the kind of nod that says he's seen a lot of hopefuls pass through here.",
-        hint="\"You've got the sword and shield now, I take it. Good.\" "
-            "He tilts his head toward the main chamber. "
-            "\"That's all Chiron needs to see. Go back to him, hand over what you've collected, "
-            "and he'll give you Charon's Coin in return — you'll need it to cross the Styx.\"",
+        hint=(
+            "\"You've got the sword and shield now, I take it. Good.\" "
+            "He reaches into his coat and produces a small, worn token. "
+            "\"Here — take this. Say 'take mentor's token from mentor', and it's yours. "
+            "Bring it to Chiron along with the rest, and he'll see you're ready.\""
+        ),
+        required_items=[],
         items=[create_mentors_token()],
     )
 

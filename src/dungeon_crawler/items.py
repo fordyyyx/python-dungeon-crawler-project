@@ -13,6 +13,9 @@ class Item(ABC):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name!r})"
+
+    def unequip(self, character) -> str:
+        return f"{self.name} cannot be unequipped."
 class Weapon(Item):
     def __init__(self, name: str, description: str, damage: int):
         super().__init__(name, description)
@@ -23,7 +26,14 @@ class Weapon(Item):
             return f"{self.name} already equipped."
         character.attack_damage += self.damage
         self.equipped = True
-        return f"{character.name} equips {self.name}, (+{self.damage} attack)."
+        return f"{character.name} equips {self.name}, (+{self.damage} ATK)."
+
+    def unequip(self, character) -> str:
+        if not self.equipped:
+            return f"{self.name} is not equipped."
+        character.attack_damage -= self.damage
+        self.equipped = False
+        return f"{character.name} unequips {self.name} (-{self.damage} ATK)"
 
 class Armour(Item):
     def __init__(self, name: str, description: str, defence: int):
@@ -35,7 +45,14 @@ class Armour(Item):
             return f"{self.name} already equipped"
         character.armour += self.defence
         self.equipped = True
-        return f"{character.name} equips {self.name}, (+{self.defence} armour)."
+        return f"{character.name} equips {self.name}, (+{self.defence} DEF)."
+
+    def unequip(self, character) -> str:
+        if not self.equipped:
+            return f"{self.name} is not equipped."
+        character.armour -= self.defence
+        self.equipped = False
+        return f"{character.name} unequips {self.name} (-{self.defence} DEF)"
     
 class Consumable(Item):
     def __init__(self, name: str, heal_amount: int, description: str = ""):
@@ -76,6 +93,12 @@ class Inventory:
                     raise ValueError(f"Cannot drop {item.name} while it is equipped.")
                 self._items.remove(item)
                 return item
+        raise ValueError(f"No item named {item_name} in inventory.")
+
+    def unequip_item(self, item_name: str, character) -> str:
+        for item in self.items:
+            if item.name.lower() == item_name.lower():
+                return item.unequip(character)
         raise ValueError(f"No item named {item_name} in inventory.")
 
     @property

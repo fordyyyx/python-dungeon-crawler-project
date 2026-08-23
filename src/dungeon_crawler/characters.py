@@ -1,4 +1,5 @@
 from dungeon_crawler.items import Inventory, Item
+from textwrap import dedent
 
 class Character:
     def __init__(self, name: str, hp: int, attack_damage: int, armour: int = 0):
@@ -51,7 +52,7 @@ class Player(Character):
         {self.armour} DEF
         Inventory: {inv_string}
         """
-        return stat_string
+        return dedent(stat_string).strip()
 
 class Enemy(Character):
     def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):

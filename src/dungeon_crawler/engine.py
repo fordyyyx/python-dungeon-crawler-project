@@ -39,6 +39,15 @@ def trade_with_ally(ally: Ally, player: Player, required_item_names: list[str], 
     if missing:
         return f"{ally.name} shakes their head. \"You're still missing: {', '.join(missing)}.\""
 
+    equipped_items = [
+        item for item in player.inventory.items
+        if item.name in required_item_names and item.equipped
+    ]
+
+    if equipped_items:
+        equipped_names = ", ".join(item.name for item in equipped_items)
+        return f"{ally.name} shakes their head. \"You'll need to unequip: {equipped_names}.\""
+
     for name in required_item_names:
         item = next(item for item in player.inventory.items if item.name == name)
         player.inventory.remove(item)
@@ -58,6 +67,9 @@ def main() -> None:
         if current_room.allies:
             ally = current_room.allies[0]
             print(f"{ally.name} is here. {ally.description}")
+        if current_room.items:
+            item_names = ", ".join([item.name for item in current_room.items])
+            print(f"You see: {item_names}")
 
         command = input("> ").strip().lower()
 
@@ -91,6 +103,13 @@ def main() -> None:
             item_name = command.removeprefix("use ").strip()
             try:
                 print(player.inventory.use_item(item_name, player))
+            except ValueError as e:
+                print(e)
+
+        elif command.startswith("unequip "):
+            item_name = command.removeprefix("unequip ").strip()
+            try:
+                print(player.inventory.unequip_item(item_name, player))
             except ValueError as e:
                 print(e)
 
