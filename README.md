@@ -30,9 +30,15 @@ run ```python -m dungeon_crawler```
 * east - move east
 * south - move south
 * west - move west
+* talk - talk to ally in room
 * attack - attack enemy
 * take *item* - pick up item from room
 * use *item* - use item from inventory
+* unequip *item* - unequip item from person
+* drop *item* - drop item in room
+* take *item* from *ally* - take item from ally's inventory
+* trade - trade required items with ally
+* inventory/stats - display stats
 * quit/exit - quit game
 
 ## License
