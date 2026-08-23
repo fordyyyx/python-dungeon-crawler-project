@@ -110,7 +110,9 @@ def create_mentor() -> Ally:
             "\"You've got the sword and shield now, I take it. Good.\" "
             "He reaches into his coat and produces a small, worn token. "
             "\"Here — take this. Say 'take mentor's token from mentor', and it's yours. "
-            "Bring it to Chiron along with the rest, and he'll see you're ready.\""
+            "Bring it to Chiron along with the rest, and he'll see you're ready.\"\n\n"
+            "He adds, almost as an afterthought: \"And should you ever pick up more than you can "
+            "carry, 'drop' works just as well as 'take' — no shame in travelling light.\""
         ),
         required_items=[],
         items=[create_mentors_token()],
@@ -136,10 +138,18 @@ def create_mentors_token() -> QuestItem:
 
 def build_world() -> tuple[Map, Room]:
     """Build the rooms"""
-    chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with military precision. Chiron waits at the centre, patient as ever.")
-    chamber_of_chiron_north = Room("Chamber of Chiron (North)", "A quiet alcove lined with old scrolls on swordplay and stance. Dust motes drift in a shaft of light from somewhere above.")
-    chamber_of_chiron_east = Room("Chamber of Chiron (East)", "A narrow training yard, sand-floored and scarred with the marks of countless practice bouts.")
-    chamber_of_chiron_south = Room("Chamber of Chiron (South)", "A straw-stuffed dummy stands bolted to the floor, dented from years of use.")
+    chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with "
+    "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
+    "waiting — say 'talk' if you want to know why you're here.")
+    chamber_of_chiron_north = Room("Chamber of Chiron (North)", "A quiet alcove lined with old scrolls on swordplay and stance. Dust motes drift in a shaft "
+    "of light from somewhere above. A wooden sword rests against the wall. "
+    "Chiron's voice follows you in: \"Say 'take wooden sword' to pick it up, then 'use wooden sword' "
+    "to ready it properly.\"")
+    chamber_of_chiron_east = Room("Chamber of Chiron (East)", "A narrow training yard, sand-floored and scarred with the marks of countless practice bouts. "
+    "A wooden shield leans against a post. \"Use it the same way as the sword,\" Chiron calls. "
+    "\"And if you ever need it off your arm again, 'unequip wooden shield' does the job.\"")
+    chamber_of_chiron_south = Room("Chamber of Chiron (South)", "A straw-stuffed dummy stands bolted to the floor, dented from years of use. "
+    "Chiron's voice calls from behind you: \"Go on — type 'attack' and show me what you've got.\"")
     chamber_of_chiron_west = Room("Chamber of Chiron (West)", "A small resting nook with a low bench, where those who've trained here catch their breath before what comes next.")
 
     """Connect the rooms"""

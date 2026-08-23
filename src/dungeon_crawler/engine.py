@@ -55,22 +55,24 @@ def trade_with_ally(ally: Ally, player: Player, required_item_names: list[str], 
     player.inventory.add(reward)
     return f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {reward.name}."
 
+def print_room(room: Room):
+    print(f"{room.name}: {room.description}")
+    if room.items:
+        print(f"You see: {', '.join(item.name for item in room.items)}")
+    if room.enemies:
+        enemy = room.enemies[0]
+        print(f"A {enemy.name} blocks your path! {enemy.description}")
+    if room.allies:
+        ally = room.allies[0]
+        print(f"{ally.name} is here. {ally.description}")
+
+
 
 def main() -> None:
     dungeon, current_room = build_world()
     player = Player(name="Hero", hp=100, attack_damage=20)
+    print_room(current_room)
     while player.is_alive():
-        print(f"\n{current_room.name}: {current_room.description}")
-        if current_room.enemies:
-            enemy = current_room.enemies[0]
-            print(f"A {enemy.name} blocks your path! {enemy.description}")
-        if current_room.allies:
-            ally = current_room.allies[0]
-            print(f"{ally.name} is here. {ally.description}")
-        if current_room.items:
-            item_names = ", ".join([item.name for item in current_room.items])
-            print(f"You see: {item_names}")
-
         command = input("> ").strip().lower()
 
         if command.startswith("take ") and " from " not in command:
@@ -86,6 +88,10 @@ def main() -> None:
                 print(f"That way is locked. You need the {required} first.")
             else:
                 current_room = current_room.exits[command]
+                print_room(current_room)
+
+        elif command == "look":
+            print_room(current_room)
 
         elif command == "attack":
             if current_room.enemies:

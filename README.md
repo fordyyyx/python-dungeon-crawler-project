@@ -26,6 +26,7 @@ It is built purely in Python to demonstrate my skills in object oriented program
 run ```python -m dungeon_crawler```
 
 ## Controls
+* look - display room name and description
 * north - move north
 * east - move east
 * south - move south
