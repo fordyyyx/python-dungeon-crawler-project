@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_xiphos, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, build_world
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_bronze_xiphos, create_charon, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -91,7 +91,7 @@ def test_create_training_dummy_has_correct_stats():
     training_dummy = create_training_dummy()
     assert training_dummy.name == "Training Dummy"
     assert training_dummy.hp == 5
-    assert training_dummy.attack_damage == 5
+    assert training_dummy.attack_damage == 0
     assert training_dummy.armour == 0
 
 def test_create_training_dummy_drops_dummy_head():
@@ -145,9 +145,64 @@ def test_create_mentors_token_has_correct_name_and_description():
     assert token.name == "Mentor's Token"
     assert token.description == "A small carved token, worn smooth — Mentor's simple way of saying you've earned his approval."
 
-def test_build_world_returns_five_rooms():
+def test_create_wounded_soldier_has_correct_name_and_description():
+    wounded_soldier = create_wounded_soldier()
+    assert wounded_soldier.name == "Wounded Soldier"
+    assert wounded_soldier.description == "Bandaged and pale, but still sharp-eyed — clearly more useful than his condition suggests."
+
+def test_create_wounded_soldier_has_no_required_items():
+    wounded_soldier = create_wounded_soldier()
+    assert wounded_soldier.required_items == []
+
+def test_create_wounded_soldier_talk_returns_default_message():
+    wounded_soldier = create_wounded_soldier()
+    player = Player(name="hero", hp=100)
+    assert wounded_soldier.talk(player) == "Wounded Soldier has nothing to say."
+
+def test_create_wounded_soldier_carries_bronze_xiphos():
+    wounded_soldier = create_wounded_soldier()
+    item_names = [item.name for item in wounded_soldier.inventory.items]
+    assert "Bronze Xiphos" in item_names
+
+def test_create_wounded_soldier_carries_bronze_breastplate():
+    wounded_soldier = create_wounded_soldier()
+    item_names = [item.name for item in wounded_soldier.inventory.items]
+    assert "Bronze Breastplate" in item_names
+
+def test_create_wounded_soldier_carries_small_healing_potion():
+    wounded_soldier = create_wounded_soldier()
+    item_names = [item.name for item in wounded_soldier.inventory.items]
+    assert "Small Healing Potion" in item_names
+
+def test_create_charon_has_correct_name_and_description():
+    charon = create_charon()
+    assert charon.name == "Charon"
+    assert charon.description == "He holds out one weathered hand, saying nothing, waiting for the coin he already knows you'll need."
+
+def test_create_charon_has_empty_inventory():
+    charon = create_charon()
+    assert len(charon.inventory) == 0
+
+def test_create_charon_talk_returns_hint():
+    charon = create_charon()
+    player = Player(name="hero", hp=100)
+    assert charon.talk(player) == charon.hint
+
+def test_create_bronze_breastplate_has_correct_defence_and_description():
+    breastplate = create_bronze_breastplate()
+    assert breastplate.name == "Bronze Breastplate"
+    assert breastplate.description == "Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just."
+    assert breastplate.defence == 2
+
+def test_create_small_healing_potion_has_correct_heal_amount_and_description():
+    potion = create_small_healing_potion()
+    assert potion.name == "Small Healing Potion"
+    assert potion.description == "A cloudy vial, more herb than magic - enough to steady a shaking hand, not much more."
+    assert potion.heal_amount == 5
+
+def test_build_world_returns_nine_rooms():
     dungeon, entrance = build_world()
-    assert len(dungeon) == 5
+    assert len(dungeon) == 9
 
 def test_build_world_entrance_is_chamber_of_chiron():
     dungeon, entrance = build_world()
@@ -229,5 +284,73 @@ def test_build_world_locks_south_exit_requiring_wooden_shield():
 def test_build_world_locks_west_exit_requiring_dummy_head():
     dungeon, entrance = build_world()
     assert entrance.locked_exits["west"] == "Dummy Head"
+
+def test_build_world_locks_descend_exit_requiring_charons_coin():
+    dungeon, entrance = build_world()
+    assert entrance.locked_exits["descend"] == "Charon's Coin"
+
+def test_build_world_entrance_connects_to_cave_entrance_via_descend():
+    dungeon, entrance = build_world()
+    assert entrance.get_exit("descend") is dungeon.get_room("Cave Entrance")
+
+def test_build_world_cave_entrance_connects_to_styx_crossing_via_descend():
+    dungeon, entrance = build_world()
+    cave_entrance = dungeon.get_room("Cave Entrance")
+    assert cave_entrance is not None
+    assert cave_entrance.get_exit("descend") is dungeon.get_room("Styx Crossing")
+
+def test_build_world_styx_crossing_connects_back_to_cave_entrance_via_ascend():
+    dungeon, entrance = build_world()
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    cave_entrance = dungeon.get_room("Cave Entrance")
+    assert styx_crossing is not None
+    assert styx_crossing.get_exit("ascend") is cave_entrance
+
+def test_build_world_styx_crossing_connects_to_fields_of_asphodel_via_east():
+    dungeon, entrance = build_world()
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert styx_crossing is not None
+    assert styx_crossing.get_exit("east") is dungeon.get_room("Fields of Asphodel")
+
+def test_build_world_fields_of_asphodel_connects_back_to_styx_crossing_via_west():
+    dungeon, entrance = build_world()
+    fields_of_asphodel = dungeon.get_room("Fields of Asphodel")
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert fields_of_asphodel is not None
+    assert fields_of_asphodel.get_exit("west") is styx_crossing
+
+def test_build_world_styx_crossing_connects_to_sunken_vault_via_down():
+    dungeon, entrance = build_world()
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert styx_crossing is not None
+    assert styx_crossing.get_exit("down") is dungeon.get_room("Sunken Vault")
+
+def test_build_world_sunken_vault_connects_back_to_styx_crossing_via_up():
+    dungeon, entrance = build_world()
+    sunken_vault = dungeon.get_room("Sunken Vault")
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert sunken_vault is not None
+    assert sunken_vault.get_exit("up") is styx_crossing
+
+def test_build_world_cave_entrance_has_wounded_soldier_as_ally():
+    dungeon, entrance = build_world()
+    cave_entrance = dungeon.get_room("Cave Entrance")
+    assert cave_entrance is not None
+    ally_names = [ally.name for ally in cave_entrance.allies]
+    assert "Wounded Soldier" in ally_names
+
+def test_build_world_styx_crossing_has_charon_as_ally():
+    dungeon, entrance = build_world()
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert styx_crossing is not None
+    ally_names = [ally.name for ally in styx_crossing.allies]
+    assert "Charon" in ally_names
+
+def test_build_world_sunken_vault_has_skeleton_warrior_enemy():
+    dungeon, entrance = build_world()
+    sunken_vault = dungeon.get_room("Sunken Vault")
+    assert sunken_vault is not None
+    enemy_names = [enemy.name for enemy in sunken_vault.enemies]
+    assert "Skeleton Warrior" in enemy_names
 
 

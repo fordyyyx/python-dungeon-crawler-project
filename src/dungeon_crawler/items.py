@@ -24,15 +24,24 @@ class Weapon(Item):
     def use(self, character) -> str:
         if self.equipped:
             return f"{self.name} already equipped."
+
+        messages = []
+        if character.equipped_weapon is not None:
+            messages.append(character.equipped_weapon.unequip(character))
+
         character.attack_damage += self.damage
         self.equipped = True
-        return f"{character.name} equips {self.name}, (+{self.damage} ATK)."
+        character.equipped_weapon = self
+        messages.append(f"{character.name} equips {self.name} (+{self.damage} ATK).")
+        return "\n".join(messages)
 
     def unequip(self, character) -> str:
         if not self.equipped:
             return f"{self.name} is not equipped."
         character.attack_damage -= self.damage
         self.equipped = False
+        if character.equipped_weapon is self:
+            character.equipped_weapon = None
         return f"{character.name} unequips {self.name} (-{self.damage} ATK)"
 
 class Armour(Item):
@@ -43,15 +52,23 @@ class Armour(Item):
     def use(self, character) -> str:
         if self.equipped:
             return f"{self.name} already equipped"
+
+        messages = []
+        if character.equipped_armour is not None:
+            messages.append(character.equipped_armour.unequip(character))
         character.armour += self.defence
         self.equipped = True
-        return f"{character.name} equips {self.name}, (+{self.defence} DEF)."
+        character.equipped_armour = self
+        messages.append(f"{character.name} equips {self.name}, (+{self.defence} DEF).")
+        return "\n".join(messages)
 
     def unequip(self, character) -> str:
         if not self.equipped:
             return f"{self.name} is not equipped."
         character.armour -= self.defence
         self.equipped = False
+        if character.equipped_armour is self:
+            character.equipped_armour = None
         return f"{character.name} unequips {self.name} (-{self.defence} DEF)"
     
 class Consumable(Item):

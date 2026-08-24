@@ -17,7 +17,7 @@ def test_weapon_use_returns_equip_message():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     sword = Weapon(name="Iron Sword", description="", damage=5)
     message = sword.use(hero)
-    assert message == "Hero equips Iron Sword, (+5 ATK)."
+    assert message == "Hero equips Iron Sword (+5 ATK)."
 
 def test_weapon_use_sets_equipped_flag():
     hero = Character(name="Hero", hp=100, attack_damage=10)
@@ -65,6 +65,51 @@ def test_weapon_unequip_when_equipped_returns_unequip_message():
     sword.use(hero)
     message = sword.unequip(hero)
     assert message == "Hero unequips Iron Sword (-5 ATK)"
+
+def test_weapon_use_sets_character_equipped_weapon():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    sword.use(hero)
+    assert hero.equipped_weapon is sword
+
+def test_weapon_unequip_clears_character_equipped_weapon():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    sword.use(hero)
+    sword.unequip(hero)
+    assert hero.equipped_weapon is None
+
+def test_weapon_use_replacing_equipped_weapon_unequips_old_weapon():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    old_sword = Weapon(name="Iron Sword", description="", damage=5)
+    new_sword = Weapon(name="Steel Sword", description="", damage=8)
+    old_sword.use(hero)
+    new_sword.use(hero)
+    assert old_sword.equipped is False
+
+def test_weapon_use_replacing_equipped_weapon_updates_character_equipped_weapon():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    old_sword = Weapon(name="Iron Sword", description="", damage=5)
+    new_sword = Weapon(name="Steel Sword", description="", damage=8)
+    old_sword.use(hero)
+    new_sword.use(hero)
+    assert hero.equipped_weapon is new_sword
+
+def test_weapon_use_replacing_equipped_weapon_updates_attack_damage():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    old_sword = Weapon(name="Iron Sword", description="", damage=5)
+    new_sword = Weapon(name="Steel Sword", description="", damage=8)
+    old_sword.use(hero)
+    new_sword.use(hero)
+    assert hero.attack_damage == 18
+
+def test_weapon_use_replacing_equipped_weapon_returns_combined_message():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    old_sword = Weapon(name="Iron Sword", description="", damage=5)
+    new_sword = Weapon(name="Steel Sword", description="", damage=8)
+    old_sword.use(hero)
+    message = new_sword.use(hero)
+    assert message == "Hero unequips Iron Sword (-5 ATK)\nHero equips Steel Sword (+8 ATK)."
 
 def test_armour_use_increases_armour():
     hero = Character(name="hero", hp=100, attack_damage=10)
@@ -124,6 +169,51 @@ def test_armour_unequip_when_equipped_returns_unequip_message():
     armour.use(hero)
     message = armour.unequip(hero)
     assert message == "hero unequips helmet (-3 DEF)"
+
+def test_armour_use_sets_character_equipped_armour():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    armour = Armour(name="helmet", description="", defence=3)
+    armour.use(hero)
+    assert hero.equipped_armour is armour
+
+def test_armour_unequip_clears_character_equipped_armour():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    armour = Armour(name="helmet", description="", defence=3)
+    armour.use(hero)
+    armour.unequip(hero)
+    assert hero.equipped_armour is None
+
+def test_armour_use_replacing_equipped_armour_unequips_old_armour():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    old_armour = Armour(name="helmet", description="", defence=3)
+    new_armour = Armour(name="Iron Helm", description="", defence=5)
+    old_armour.use(hero)
+    new_armour.use(hero)
+    assert old_armour.equipped is False
+
+def test_armour_use_replacing_equipped_armour_updates_character_equipped_armour():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    old_armour = Armour(name="helmet", description="", defence=3)
+    new_armour = Armour(name="Iron Helm", description="", defence=5)
+    old_armour.use(hero)
+    new_armour.use(hero)
+    assert hero.equipped_armour is new_armour
+
+def test_armour_use_replacing_equipped_armour_updates_defence():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    old_armour = Armour(name="helmet", description="", defence=3)
+    new_armour = Armour(name="Iron Helm", description="", defence=5)
+    old_armour.use(hero)
+    new_armour.use(hero)
+    assert hero.armour == 5
+
+def test_armour_use_replacing_equipped_armour_returns_combined_message():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    old_armour = Armour(name="helmet", description="", defence=3)
+    new_armour = Armour(name="Iron Helm", description="", defence=5)
+    old_armour.use(hero)
+    message = new_armour.use(hero)
+    assert message == "hero unequips helmet (-3 DEF)\nhero equips Iron Helm, (+5 DEF)."
 
 def test_consumable_use_heals_character():
     hero = Character(name="hero", hp=100, attack_damage=10)

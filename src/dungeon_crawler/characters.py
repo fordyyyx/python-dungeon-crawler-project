@@ -1,4 +1,4 @@
-from dungeon_crawler.items import Inventory, Item
+from dungeon_crawler.items import Inventory, Item, Weapon, Armour
 from textwrap import dedent
 
 class Character:
@@ -8,6 +8,8 @@ class Character:
         self.attack_damage = attack_damage
         self.armour = armour
         self.max_hp = hp
+        self.equipped_weapon: "Weapon | None" = None
+        self.equipped_armour: "Armour | None" = None
 
     def attack(self, target):
         death_message = target.take_damage(self.attack_damage)

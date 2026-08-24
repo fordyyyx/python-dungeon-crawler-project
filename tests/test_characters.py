@@ -244,3 +244,11 @@ def test_enemy_on_death_drops_multiple_loot_items_lists_all_names():
 def test_ally_initialises_with_empty_description_by_default():
     ally = Ally(name="Chiron")
     assert ally.description == ""
+
+def test_character_initialises_with_no_equipped_weapon():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.equipped_weapon is None
+
+def test_character_initialises_with_no_equipped_armour():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.equipped_armour is None
