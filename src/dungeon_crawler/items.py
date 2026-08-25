@@ -84,6 +84,15 @@ class QuestItem(Item):
     def use(self, character) -> str:
         return f"{self.name} doesn't do anything on its own - it is meant for someone else."
 
+class SkillPointReward(Item):
+    def __init__(self, name: str, description: str, points: int = 1):
+        super().__init__(name, description)
+        self.points = points
+
+    def use(self, character) -> str:
+        character.skill_tree.skill_points += self.points
+        return f"{character.name} gains {self.points} skill point(s) from {self.name}."
+
 class Inventory:
     def __init__(self):
         self._items: list[Item] = []

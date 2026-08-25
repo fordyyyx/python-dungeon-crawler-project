@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -265,18 +265,25 @@ def test_create_hermes_has_correct_name_and_description():
     assert hermes.name == "Hermes"
     assert hermes.description == "Never quite still, halfway through some errand even while talking to you."
 
-def test_create_hermes_has_no_required_items():
+def test_create_hermes_has_correct_required_items():
     hermes = create_hermes()
-    assert hermes.required_items == []
+    assert hermes.required_items == ["Skeleton Bone"]
 
-def test_create_hermes_has_no_reward():
+def test_create_hermes_reward_is_hermes_favour():
     hermes = create_hermes()
-    assert hermes.reward is None
+    assert hermes.reward is not None
+    assert hermes.reward.name == "Favour of Hermes"
 
-def test_create_hermes_talk_returns_default_message():
+def test_create_hermes_talk_returns_default_message_when_player_missing_required_items():
     hermes = create_hermes()
     player = Player(name="hero", hp=100)
     assert hermes.talk(player) == "Hermes has nothing to say."
+
+def test_create_hermes_talk_returns_empty_string_when_player_has_required_items():
+    hermes = create_hermes()
+    player = Player(name="hero", hp=100)
+    player.inventory.add(QuestItem(name="Skeleton Bone", description=""))
+    assert hermes.talk(player) == ""
 
 def test_create_prometheus_has_correct_name_and_description():
     prometheus = create_prometheus()
@@ -311,6 +318,15 @@ def test_create_centaurs_broken_bow_has_correct_name_and_description():
     bow = create_centaurs_broken_bow()
     assert bow.name == "Centaur's Broken Bow"
     assert bow.description == "Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off."
+
+def test_create_hermes_favour_has_correct_name_and_description():
+    favour = create_hermes_favour()
+    assert favour.name == "Favour of Hermes"
+    assert favour.description == "Quick, light, and gone before you've noticed - much like the god who gave it."
+
+def test_create_hermes_favour_has_correct_points():
+    favour = create_hermes_favour()
+    assert favour.points == 1
 
 def test_build_world_returns_thirteen_rooms():
     dungeon, entrance, floors = build_world()

@@ -195,6 +195,23 @@ def main() -> None:
             else:
                 print("There is no one here to trade with.")
 
+        elif command == "skills":
+            for path_name, path in player.skill_tree.paths.items():
+                next_skill = path.next_skill
+                if next_skill is not None:
+                    print(f"{path.name}: next unlock is {next_skill.name} - {next_skill.description}")
+                else:
+                    print(f"{path.name}: fully unlocked")
+            print(f"Skill Points available: {player.skill_tree.skill_points}")
+
+        elif command.startswith("learn "):
+            path_name = command.removeprefix("learn ").strip()
+            try:
+                print(player.skill_tree.invest(path_name, player))
+            except ValueError as e:
+                print(e)
+        
+
         else:
             print("Nothing happens.")
 

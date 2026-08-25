@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import Character, Player, Enemy, Ally
+from dungeon_crawler.characters import Character, Player, Enemy, Ally, Skill, AttackBoostSkill, DefenceBoostSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Inventory, QuestItem
 
 def test_character_initialises_with_correct_stats():
@@ -327,3 +327,147 @@ def test_get_inventory_display_lists_multiple_quest_items_together():
     player.inventory.add(QuestItem(name="Dummy Head", description=""))
     player.inventory.add(QuestItem(name="Mentor's Token", description=""))
     assert player.get_inventory_display() == "\nQuest Items: Dummy Head, Mentor's Token"
+
+def test_player_initialises_with_skill_tree():
+    player = Player(name="hero", hp=100)
+    assert isinstance(player.skill_tree, SkillTree)
+
+def test_skill_apply_raises_not_implemented_error():
+    skill = Skill(name="Mystery Skill", description="")
+    character = Character(name="Hero", hp=100, attack_damage=10)
+
+    try:
+        skill.apply(character)
+        assert False, "Expected a NotImplementedError but none was raised"
+    except NotImplementedError:
+        pass
+
+def test_attack_boost_skill_initialises_with_correct_bonus():
+    skill = AttackBoostSkill(name="Iron Grip", description="Steadier strikes.", bonus=2)
+    assert skill.name == "Iron Grip"
+    assert skill.description == "Steadier strikes."
+    assert skill.bonus == 2
+
+def test_attack_boost_skill_apply_increases_attack_damage():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = AttackBoostSkill(name="Iron Grip", description="", bonus=3)
+    skill.apply(character)
+    assert character.attack_damage == 13
+
+def test_attack_boost_skill_apply_returns_message():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = AttackBoostSkill(name="Iron Grip", description="", bonus=3)
+    message = skill.apply(character)
+    assert message == "Hero gains +3 attack from Iron Grip."
+
+def test_defence_boost_skill_initialises_with_correct_bonus():
+    skill = DefenceBoostSkill(name="Hardened Skin", description="Blows land softer.", bonus=2)
+    assert skill.name == "Hardened Skin"
+    assert skill.description == "Blows land softer."
+    assert skill.bonus == 2
+
+def test_defence_boost_skill_apply_increases_armour():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DefenceBoostSkill(name="Hardened Skin", description="", bonus=3)
+    skill.apply(character)
+    assert character.armour == 3
+
+def test_defence_boost_skill_apply_returns_message():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DefenceBoostSkill(name="Hardened Skin", description="", bonus=3)
+    message = skill.apply(character)
+    assert message == "Hero gains +3 armour from Hardened Skin."
+
+def test_skill_path_initialises_with_zero_unlocked_count():
+    path = SkillPath(name="Defence", skills=[DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)])
+    assert path.unlocked_count == 0
+
+def test_skill_path_next_skill_returns_first_skill_when_none_unlocked():
+    skill = DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)
+    path = SkillPath(name="Defence", skills=[skill])
+    assert path.next_skill is skill
+
+def test_skill_path_unlock_next_increments_unlocked_count():
+    path = SkillPath(name="Defence", skills=[DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)])
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+    assert path.unlocked_count == 1
+
+def test_skill_path_unlock_next_applies_skill_to_character():
+    path = SkillPath(name="Defence", skills=[DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)])
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+    assert character.armour == 2
+
+def test_skill_path_unlock_next_returns_skills_apply_message():
+    path = SkillPath(name="Defence", skills=[DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)])
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    message = path.unlock_next(character)
+    assert message == "Hero gains +2 armour from Hardened Skin."
+
+def test_skill_path_unlock_next_raises_error_when_fully_unlocked():
+    path = SkillPath(name="Defence", skills=[DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)])
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+
+    try:
+        path.unlock_next(character)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_skill_path_next_skill_returns_none_when_fully_unlocked():
+    path = SkillPath(name="Defence", skills=[DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)])
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+    assert path.next_skill is None
+
+def test_skill_path_skills_property_returns_copy():
+    skill = DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)
+    path = SkillPath(name="Defence", skills=[skill])
+    path.skills.append(DefenceBoostSkill(name="Aegis Ward", description="", bonus=4))
+    assert path.skills == [skill]
+
+def test_skill_tree_initialises_with_zero_skill_points():
+    skill_tree = SkillTree()
+    assert skill_tree.skill_points == 0
+
+def test_skill_tree_has_attack_and_defence_paths():
+    skill_tree = SkillTree()
+    assert "attack" in skill_tree.paths
+    assert "defence" in skill_tree.paths
+
+def test_skill_tree_invest_raises_error_when_no_skill_points():
+    skill_tree = SkillTree()
+    character = Character(name="Hero", hp=100, attack_damage=10)
+
+    try:
+        skill_tree.invest("defence", character)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_skill_tree_invest_raises_error_for_invalid_path_name():
+    skill_tree = SkillTree()
+    skill_tree.skill_points = 1
+    character = Character(name="Hero", hp=100, attack_damage=10)
+
+    try:
+        skill_tree.invest("nonexistent", character)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_skill_tree_invest_decrements_skill_points():
+    skill_tree = SkillTree()
+    skill_tree.skill_points = 1
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill_tree.invest("defence", character)
+    assert skill_tree.skill_points == 0
+
+def test_skill_tree_invest_applies_skill_from_path():
+    skill_tree = SkillTree()
+    skill_tree.skill_points = 1
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill_tree.invest("defence", character)
+    assert character.armour == 2

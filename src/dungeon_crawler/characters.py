@@ -40,6 +40,9 @@ class Player(Character):
         self.level = 1
         self.experience = 0
         self.inventory = Inventory()
+        self.skill_tree = SkillTree()
+        self.equipped_weapon = None
+        self.equipped_armour = None
 
     def on_death(self) -> str:
         return f"{self.name} has fallen. Game Over."
@@ -127,3 +130,78 @@ class Ally():
                 player.inventory.add(item)
                 return f"{self.name} gives you the {item.name}."
         return f"{self.name} does not have that item."
+
+class Skill:
+    def __init__(self, name: str, description: str):
+        self.name = name
+        self.description = description
+
+    def apply(self, character) -> str:
+        raise NotImplementedError
+
+class AttackBoostSkill(Skill):
+    def __init__(self, name: str, description: str, bonus: int):
+        super().__init__(name, description)
+        self.bonus = bonus
+
+    def apply(self, character) -> str:
+        character.attack_damage += self.bonus
+        return f"{character.name} gains +{self.bonus} attack from {self.name}."
+
+class DefenceBoostSkill(Skill):
+    def __init__(self, name: str, description: str, bonus: int):
+        super().__init__(name, description)
+        self.bonus = bonus
+
+    def apply(self, character):
+        character.armour += self.bonus
+        return f"{character.name} gains +{self.bonus} armour from {self.name}."
+
+class SkillPath:
+    def __init__(self, name: str, skills: list[Skill]):
+        self.name = name
+        self._skills = skills
+        self.unlocked_count = 0
+
+    def unlock_next(self, character) -> str:
+        if self.unlocked_count >= len(self._skills):
+            raise ValueError(f"{self.name} path is fully unlocked")
+        skill = self._skills[self.unlocked_count]
+        self.unlocked_count += 1
+        return skill.apply(character)
+
+    @property
+    def next_skill(self) -> "Skill | None":
+        if self.unlocked_count >= len(self._skills):
+            return None
+        return self._skills[self.unlocked_count]
+
+    @property
+    def skills(self) -> list[Skill]:
+        return list(self._skills)
+
+class SkillTree:
+    def __init__(self):
+        self.skill_points = 0
+        self.paths: dict[str, SkillPath] = {
+            "attack": SkillPath("Attack", [
+                AttackBoostSkill("Iron Grip", "Steadier strikes.", bonus=2),
+                AttackBoostSkill("Warrior's Fury", "A hero's strength awakens.", bonus=4),
+                AttackBoostSkill("Blessing of Ares", "The war god lends his might.", bonus=6),
+            ]),
+            "defence": SkillPath("Defence", [
+                DefenceBoostSkill("Hardened Skin", "Blows land softer.", bonus=2),
+                DefenceBoostSkill("Aegis Ward", "A sliver of divine protection.", bonus=4),
+                DefenceBoostSkill("Bronze Resolve", "Nearly unbreakable.", bonus=6),
+            ]),
+        }
+
+    def invest(self, path_name: str, character) -> str:
+        if self.skill_points <= 0:
+            raise ValueError("No skill points available")
+        path = self.paths.get(path_name)
+        if path is None:
+            raise ValueError(f"No such path: {path_name}")
+        message = path.unlock_next(character)
+        self.skill_points -= 1
+        return message

@@ -1,5 +1,5 @@
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, QuestItem
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, QuestItem, SkillPointReward
 from dungeon_crawler.characters import Enemy, Player, Ally
 
 def create_skeleton_warrior() -> Enemy:
@@ -201,7 +201,8 @@ def create_hermes() -> Ally:
         description="Never quite still, halfway through some errand even while talking to you.",
         hint="",
         hint_complete="",
-        required_items=[],
+        required_items=["Skeleton Bone"],
+        reward=create_hermes_favour(),
         items=[]
     )
 
@@ -232,6 +233,13 @@ def create_centaurs_broken_bow() -> QuestItem:
     return QuestItem(
         name="Centaur's Broken Bow",
         description="Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off."
+    )
+
+def create_hermes_favour() -> SkillPointReward:
+    return SkillPointReward(
+        name="Favour of Hermes",
+        description="Quick, light, and gone before you've noticed - much like the god who gave it.",
+        points = 1
     )
 
 def build_floor_0() -> tuple[Room, dict[str, Room]]:
