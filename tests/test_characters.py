@@ -1,5 +1,5 @@
 from dungeon_crawler.characters import Character, Player, Enemy, Ally
-from dungeon_crawler.items import Weapon, Inventory
+from dungeon_crawler.items import Weapon, Inventory, QuestItem
 
 def test_character_initialises_with_correct_stats():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -50,13 +50,18 @@ def test_character_on_death_returns_default_message():
 
 def test_take_damage_lethal_damage_returns_death_message():
     character = Character(name="Hero", hp=10, attack_damage=5)
-    message = character.take_damage(10)
+    damage_dealt, message = character.take_damage(10)
     assert "Hero has died" in message
 
 def test_take_damage_non_lethal_damage_returns_empty_string():
     character = Character(name="Hero", hp=10, attack_damage=5)
-    message = character.take_damage(5)
+    damage_dealt, message = character.take_damage(5)
     assert message == ""
+
+def test_take_damage_returns_damage_dealt():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=3)
+    damage_dealt, message = character.take_damage(10)
+    assert damage_dealt == 7
 
 def test_attack_reduces_target_hp():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
@@ -68,13 +73,19 @@ def test_attack_returns_message_naming_attacker_and_target():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
     target = Character(name="Goblin", hp=20, attack_damage=5)
     message = attacker.attack(target)
-    assert message == "Hero attacks Goblin."
+    assert message == "Hero attacks Goblin for 10 damage."
 
 def test_attack_appends_death_message_when_target_dies():
     attacker = Character(name="Hero", hp=30, attack_damage=100)
     target = Character(name="Goblin", hp=20, attack_damage=5)
     message = attacker.attack(target)
-    assert message == "Hero attacks Goblin.\nGoblin has died."
+    assert message == "Hero attacks Goblin for 100 damage.\nGoblin has died."
+
+def test_attack_message_shows_armour_reduced_damage():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=20, attack_damage=5, armour=4)
+    message = attacker.attack(target)
+    assert message == "Hero attacks Goblin for 6 damage."
 
 def test_player_initialises_with_inventory():
     player = Player(name="Hero", hp=10)
@@ -126,7 +137,7 @@ def test_enemy_on_death_returns_defeated_message():
 def test_enemy_on_death_drops_loot():
     sword = Weapon(name="Iron Sword", description="", damage=5)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5, loot=[sword])
-    message = enemy.take_damage(10)
+    damage_dealt, message = enemy.take_damage(10)
     assert "Iron Sword" in message
 
 def test_enemy_on_death_with_no_loot_does_not_include_drop_message():
@@ -290,3 +301,20 @@ def test_get_inventory_display_marks_duplicate_group_equipped_if_any_instance_eq
     player.inventory.add(spare_sword)
     equipped_sword.use(player)
     assert player.get_inventory_display() == "Bronze Xiphos x2 (equipped)"
+
+def test_get_inventory_display_lists_quest_item_in_separate_section():
+    player = Player(name="hero", hp=100)
+    player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    player.inventory.add(QuestItem(name="Dummy Head", description=""))
+    assert player.get_inventory_display() == "Bronze Xiphos\n\nQuest Items: Dummy Head"
+
+def test_get_inventory_display_with_only_quest_items():
+    player = Player(name="hero", hp=100)
+    player.inventory.add(QuestItem(name="Dummy Head", description=""))
+    assert player.get_inventory_display() == "\nQuest Items: Dummy Head"
+
+def test_get_inventory_display_lists_multiple_quest_items_together():
+    player = Player(name="hero", hp=100)
+    player.inventory.add(QuestItem(name="Dummy Head", description=""))
+    player.inventory.add(QuestItem(name="Mentor's Token", description=""))
+    assert player.get_inventory_display() == "\nQuest Items: Dummy Head, Mentor's Token"

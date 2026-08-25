@@ -339,6 +339,28 @@ def test_inventory_drop_item_when_equipped_does_not_remove_it():
         pass
     assert player.inventory.items == [sword]
 
+def test_inventory_drop_item_raises_error_when_item_is_quest_item():
+    player = Player(name="hero", hp=100)
+    key = QuestItem(name="Bronze Key", description="")
+    player.inventory.add(key)
+
+    try:
+        player.inventory.drop_item("Bronze Key")
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_inventory_drop_item_does_not_remove_quest_item_when_blocked():
+    player = Player(name="hero", hp=100)
+    key = QuestItem(name="Bronze Key", description="")
+    player.inventory.add(key)
+
+    try:
+        player.inventory.drop_item("Bronze Key")
+    except ValueError:
+        pass
+    assert player.inventory.items == [key]
+
 def test_inventory_drop_item_raises_error_when_item_not_found():
     player = Player(name="hero", hp=100)
 

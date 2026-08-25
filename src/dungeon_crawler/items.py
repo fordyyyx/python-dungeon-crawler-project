@@ -106,6 +106,8 @@ class Inventory:
     def drop_item(self, item_name: str):
         for item in self._items:
             if item.name.lower() == item_name.lower():
+                if isinstance(item, QuestItem):
+                    raise ValueError(f"{item.name} is too important to drop.")
                 if item.equipped:
                     raise ValueError(f"Cannot drop {item.name} while it is equipped.")
                 self._items.remove(item)

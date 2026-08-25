@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_bronze_xiphos, create_charon, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_bronze_xiphos, create_charon, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -206,156 +206,192 @@ def test_create_small_healing_potion_has_correct_heal_amount_and_description():
     assert potion.heal_amount == 5
 
 def test_build_world_returns_nine_rooms():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert len(dungeon) == 9
 
 def test_build_world_entrance_is_chamber_of_chiron():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert entrance.name == "Chamber of Chiron"
     assert entrance is dungeon.get_room("Chamber of Chiron")
 
 def test_build_world_entrance_connects_to_all_four_directions():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert entrance.get_exit("north") is dungeon.get_room("Chamber of Chiron (North)")
     assert entrance.get_exit("east") is dungeon.get_room("Chamber of Chiron (East)")
     assert entrance.get_exit("south") is dungeon.get_room("Chamber of Chiron (South)")
     assert entrance.get_exit("west") is dungeon.get_room("Chamber of Chiron (West)")
 
 def test_build_world_north_room_connects_back_to_entrance():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     north_room = dungeon.get_room("Chamber of Chiron (North)")
     assert north_room is not None
     assert north_room.get_exit("south") is entrance
 
 def test_build_world_east_room_connects_back_to_entrance():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     east_room = dungeon.get_room("Chamber of Chiron (East)")
     assert east_room is not None
     assert east_room.get_exit("west") is entrance
 
 def test_build_world_south_room_connects_back_to_entrance():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     south_room = dungeon.get_room("Chamber of Chiron (South)")
     assert south_room is not None
     assert south_room.get_exit("north") is entrance
 
 def test_build_world_west_room_connects_back_to_entrance():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     west_room = dungeon.get_room("Chamber of Chiron (West)")
     assert west_room is not None
     assert west_room.get_exit("east") is entrance
 
 def test_build_world_entrance_has_chiron_as_ally():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     ally_names = [ally.name for ally in entrance.allies]
     assert "Chiron" in ally_names
 
 def test_build_world_south_room_has_training_dummy_enemy():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     south_room = dungeon.get_room("Chamber of Chiron (South)")
     assert south_room is not None
     enemy_names = [enemy.name for enemy in south_room.enemies]
     assert "Training Dummy" in enemy_names
 
 def test_build_world_north_room_has_wooden_sword_item():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     north_room = dungeon.get_room("Chamber of Chiron (North)")
     assert north_room is not None
     item_names = [item.name for item in north_room.items]
     assert "Wooden Sword" in item_names
 
 def test_build_world_east_room_has_wooden_shield_item():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     east_room = dungeon.get_room("Chamber of Chiron (East)")
     assert east_room is not None
     item_names = [item.name for item in east_room.items]
     assert "Wooden Shield" in item_names
 
 def test_build_world_west_room_has_mentor_as_ally():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     west_room = dungeon.get_room("Chamber of Chiron (West)")
     assert west_room is not None
     ally_names = [ally.name for ally in west_room.allies]
     assert "Mentor" in ally_names
 
 def test_build_world_locks_east_exit_requiring_wooden_sword():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert entrance.locked_exits["east"] == "Wooden Sword"
 
 def test_build_world_locks_south_exit_requiring_wooden_shield():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert entrance.locked_exits["south"] == "Wooden Shield"
 
 def test_build_world_locks_west_exit_requiring_dummy_head():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert entrance.locked_exits["west"] == "Dummy Head"
 
 def test_build_world_locks_descend_exit_requiring_charons_coin():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert entrance.locked_exits["descend"] == "Charon's Coin"
 
 def test_build_world_entrance_connects_to_cave_entrance_via_descend():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     assert entrance.get_exit("descend") is dungeon.get_room("Cave Entrance")
 
 def test_build_world_cave_entrance_connects_to_styx_crossing_via_descend():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     cave_entrance = dungeon.get_room("Cave Entrance")
     assert cave_entrance is not None
     assert cave_entrance.get_exit("descend") is dungeon.get_room("Styx Crossing")
 
 def test_build_world_styx_crossing_connects_back_to_cave_entrance_via_ascend():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     styx_crossing = dungeon.get_room("Styx Crossing")
     cave_entrance = dungeon.get_room("Cave Entrance")
     assert styx_crossing is not None
     assert styx_crossing.get_exit("ascend") is cave_entrance
 
 def test_build_world_styx_crossing_connects_to_fields_of_asphodel_via_east():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     styx_crossing = dungeon.get_room("Styx Crossing")
     assert styx_crossing is not None
     assert styx_crossing.get_exit("east") is dungeon.get_room("Fields of Asphodel")
 
 def test_build_world_fields_of_asphodel_connects_back_to_styx_crossing_via_west():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     fields_of_asphodel = dungeon.get_room("Fields of Asphodel")
     styx_crossing = dungeon.get_room("Styx Crossing")
     assert fields_of_asphodel is not None
     assert fields_of_asphodel.get_exit("west") is styx_crossing
 
 def test_build_world_styx_crossing_connects_to_sunken_vault_via_down():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     styx_crossing = dungeon.get_room("Styx Crossing")
     assert styx_crossing is not None
     assert styx_crossing.get_exit("down") is dungeon.get_room("Sunken Vault")
 
 def test_build_world_sunken_vault_connects_back_to_styx_crossing_via_up():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     sunken_vault = dungeon.get_room("Sunken Vault")
     styx_crossing = dungeon.get_room("Styx Crossing")
     assert sunken_vault is not None
     assert sunken_vault.get_exit("up") is styx_crossing
 
 def test_build_world_cave_entrance_has_wounded_soldier_as_ally():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     cave_entrance = dungeon.get_room("Cave Entrance")
     assert cave_entrance is not None
     ally_names = [ally.name for ally in cave_entrance.allies]
     assert "Wounded Soldier" in ally_names
 
 def test_build_world_styx_crossing_has_charon_as_ally():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     styx_crossing = dungeon.get_room("Styx Crossing")
     assert styx_crossing is not None
     ally_names = [ally.name for ally in styx_crossing.allies]
     assert "Charon" in ally_names
 
 def test_build_world_sunken_vault_has_skeleton_warrior_enemy():
-    dungeon, entrance = build_world()
+    dungeon, entrance, floors = build_world()
     sunken_vault = dungeon.get_room("Sunken Vault")
     assert sunken_vault is not None
     enemy_names = [enemy.name for enemy in sunken_vault.enemies]
     assert "Skeleton Warrior" in enemy_names
+
+def test_build_world_returns_floors_dict_with_floor_0_and_floor_1_keys():
+    dungeon, entrance, floors = build_world()
+    assert set(floors.keys()) == {"floor_0", "floor_1"}
+
+def test_build_world_floor_0_rooms_dict_contains_five_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_0"]) == 5
+
+def test_build_world_floor_1_rooms_dict_contains_four_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_1"]) == 4
+
+def test_build_floor_0_returns_chamber_of_chiron_as_start_room():
+    start, rooms = build_floor_0()
+    assert start.name == "Chamber of Chiron"
+
+def test_build_floor_0_returns_rooms_dict_with_five_rooms():
+    start, rooms = build_floor_0()
+    assert len(rooms) == 5
+
+def test_build_floor_0_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_0()
+    assert rooms["Chamber of Chiron"] is start
+
+def test_build_floor_1_returns_cave_entrance_as_start_room():
+    start, rooms = build_floor_1()
+    assert start.name == "Cave Entrance"
+
+def test_build_floor_1_returns_rooms_dict_with_four_rooms():
+    start, rooms = build_floor_1()
+    assert len(rooms) == 4
+
+def test_build_floor_1_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_1()
+    assert rooms["Cave Entrance"] is start
 
 

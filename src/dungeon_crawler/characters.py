@@ -1,4 +1,4 @@
-from dungeon_crawler.items import Inventory, Item, Weapon, Armour
+from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem
 from textwrap import dedent
 
 class Character:
@@ -11,21 +11,21 @@ class Character:
         self.equipped_weapon: "Weapon | None" = None
         self.equipped_armour: "Armour | None" = None
 
-    def attack(self, target):
-        death_message = target.take_damage(self.attack_damage)
-        message = f"{self.name} attacks {target.name}."
+    def attack(self, target: "Character") -> str:
+        damage_dealt, death_message = target.take_damage(self.attack_damage)
+        message = f"{self.name} attacks {target.name} for {damage_dealt} damage."
         if death_message:
             message += f"\n{death_message}"
         return message
 
-    def take_damage(self, amount: int) -> str:
+    def take_damage(self, amount: int) -> tuple[int, str]:
         reduced = max(0, amount - self.armour)
         self.hp -= reduced
         if self.hp < 0:
             self.hp = 0
         if not self.is_alive():
-            return self.on_death()
-        return ""
+            return reduced, self.on_death()
+        return reduced, ""
 
 
     def is_alive(self) -> bool:
@@ -58,12 +58,15 @@ class Player(Character):
         if not self.inventory.items:
             return "Your inventory is empty."
 
+        regular_items = [item for item in self.inventory.items if not isinstance(item, QuestItem)]
+        quest_items = [item for item in self.inventory.items if isinstance(item, QuestItem)]
+
         counts: dict[str, int] = {}
-        for item in self.inventory.items:
+        for item in regular_items:
             counts[item.name] = counts.get(item.name, 0) + 1
 
         equipped_names = {
-            item.name for item in self.inventory.items if item.equipped
+            item.name for item in regular_items if item.equipped
         }
 
         lines =[]
@@ -72,7 +75,11 @@ class Player(Character):
             if name in equipped_names:
                 line += " (equipped)"
             lines.append(line)
-            
+
+        if quest_items:
+            quest_names = ", ".join(item.name for item in quest_items)
+            lines.append(f"\nQuest Items: {quest_names}")
+
         return "\n".join(lines)
 
 class Enemy(Character):

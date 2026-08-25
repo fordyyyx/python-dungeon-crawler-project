@@ -69,7 +69,8 @@ def print_room(room: Room):
 
 
 def main() -> None:
-    dungeon, current_room = build_world()
+    dungeon, current_room, all_floors = build_world()
+    current_floor_rooms = all_floors["floor_0"]
     player = Player(name="Hero", hp=20, attack_damage=3)
     print_room(current_room)
     while player.is_alive():

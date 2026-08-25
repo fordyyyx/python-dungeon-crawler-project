@@ -172,22 +172,21 @@ def create_small_healing_potion() -> Consumable:
         description="A cloudy vial, more herb than magic - enough to steady a shaking hand, not much more."
     )
 
-def build_world() -> tuple[Map, Room]:
-    """Floor 0"""
+def build_floor_0() -> tuple[Room, dict[str, Room]]:
     chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with "
-    "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
-    "waiting — say 'talk' if you want to know why you're here.")
+        "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
+        "waiting — say 'talk' if you want to know why you're here.")
     chamber_of_chiron_north = Room("Chamber of Chiron (North)", "A quiet alcove lined with old scrolls on swordplay and stance. Dust motes drift in a shaft "
-    "of light from somewhere above. A wooden sword rests against the wall. "
-    "Chiron's voice follows you in: \"Say 'take wooden sword' to pick it up, then 'use wooden sword' "
-    "to ready it properly.\"")
+        "of light from somewhere above. A wooden sword rests against the wall. "
+        "Chiron's voice follows you in: \"Say 'take wooden sword' to pick it up, then 'use wooden sword' "
+        "to ready it properly.\"")
     chamber_of_chiron_east = Room("Chamber of Chiron (East)", "A narrow training yard, sand-floored and scarred with the marks of countless practice bouts. "
-    "A wooden shield leans against a post. \"Use it the same way as the sword,\" Chiron calls. "
-    "\"And if you ever need it off your arm again, 'unequip wooden shield' does the job.\"")
+        "A wooden shield leans against a post. \"Use it the same way as the sword,\" Chiron calls. "
+        "\"And if you ever need it off your arm again, 'unequip wooden shield' does the job.\"")
     chamber_of_chiron_south = Room("Chamber of Chiron (South)", "A straw-stuffed dummy stands bolted to the floor, dented from years of use. "
-    "Chiron's voice calls from behind you: \"Go on — type 'attack' and show me what you've got.\"")
+        "Chiron's voice calls from behind you: \"Go on — type 'attack' and show me what you've got.\"")
     chamber_of_chiron_west = Room("Chamber of Chiron (West)", "A small resting nook with a low bench, where those who've trained here catch their breath before what comes next.")
-
+    
     chamber_of_chiron.connect("north", chamber_of_chiron_north)
     chamber_of_chiron.connect("east", chamber_of_chiron_east)
     chamber_of_chiron.connect("south", chamber_of_chiron_south)
@@ -197,12 +196,26 @@ def build_world() -> tuple[Map, Room]:
     chamber_of_chiron_south.connect("north", chamber_of_chiron)
     chamber_of_chiron_west.connect("east", chamber_of_chiron)
 
-    """Floor 0.5"""
+    chamber_of_chiron.add_ally(create_chiron())
+    chamber_of_chiron_south.add_enemy(create_training_dummy())
+    chamber_of_chiron_north.add_item(create_wooden_sword())
+    chamber_of_chiron_east.add_item(create_wooden_shield())
+    chamber_of_chiron_west.add_ally(create_mentor())
+
+    chamber_of_chiron.lock_exit("east", "Wooden Sword")
+    chamber_of_chiron.lock_exit("south", "Wooden Shield")
+    chamber_of_chiron.lock_exit("west", "Dummy Head")
+    chamber_of_chiron.lock_exit("descend", "Charon's Coin")
+
+    return chamber_of_chiron, {
+        room.name: room for room in (
+            chamber_of_chiron, chamber_of_chiron_north, chamber_of_chiron_east, chamber_of_chiron_south, chamber_of_chiron_west,
+        )
+    }
+
+def build_floor_1() -> tuple[Room, dict[str, Room]]:
     cave_entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
 
-    chamber_of_chiron.connect("descend", cave_entrance)
-
-    """Floor 1"""
     styx_crossing = Room("Styx Crossing", "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.")
     fields_of_asphodel = Room("Fields of Asphodel", "An endless grey meadow beneath a colourless sky, where the ordinary dead wander without purpose or memory.")
     sunken_vault = Room("Sunken Vault", "Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.")
@@ -214,28 +227,30 @@ def build_world() -> tuple[Map, Room]:
     styx_crossing.connect("down", sunken_vault)
     sunken_vault.connect("up", styx_crossing)
 
-
-    """Build the connected dungeon map"""
-    dungeon = Map()
-    for room in (chamber_of_chiron, chamber_of_chiron_north, chamber_of_chiron_east, chamber_of_chiron_south, chamber_of_chiron_west, cave_entrance, styx_crossing, fields_of_asphodel, sunken_vault):
-        dungeon.add_room(room)
-    entrance = chamber_of_chiron
-
-    """Add enemies and items to rooms"""
-    chamber_of_chiron.add_ally(create_chiron())
-    chamber_of_chiron_south.add_enemy(create_training_dummy())
-    chamber_of_chiron_north.add_item(create_wooden_sword())
-    chamber_of_chiron_east.add_item(create_wooden_shield())
-    chamber_of_chiron_west.add_ally(create_mentor())
-
     cave_entrance.add_ally(create_wounded_soldier())
     styx_crossing.add_ally(create_charon())
     sunken_vault.add_enemy(create_skeleton_warrior())
 
-    """Lock rooms"""
-    chamber_of_chiron.lock_exit("east", "Wooden Sword")
-    chamber_of_chiron.lock_exit("south", "Wooden Shield")
-    chamber_of_chiron.lock_exit("west", "Dummy Head")
-    chamber_of_chiron.lock_exit("descend", "Charon's Coin")
+    return cave_entrance, {
+        room.name: room for room in (cave_entrance, styx_crossing, fields_of_asphodel, sunken_vault)
+    }
 
-    return dungeon, entrance
+def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
+    dungeon = Map()
+
+    floor_0_start, floor_0_rooms = build_floor_0()
+    floor_1_start, floor_1_rooms = build_floor_1()
+
+    floor_0_rooms["Chamber of Chiron"].connect("descend", floor_1_rooms["Cave Entrance"])
+
+    all_floors = {
+        "floor_0": floor_0_rooms,
+        "floor_1": floor_1_rooms,
+    }
+
+    for floor_rooms in all_floors.values():
+        for room in floor_rooms.values():
+            dungeon.add_room(room)
+
+    return dungeon, floor_0_start, all_floors
+        
