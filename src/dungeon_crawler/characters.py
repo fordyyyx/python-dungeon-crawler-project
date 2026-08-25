@@ -45,16 +45,35 @@ class Player(Character):
         return f"{self.name} has fallen. Game Over."
 
     def get_stats(self) -> str:
-        inv_string = ", ".join(item.name for item in self.inventory.items)
         stat_string = f"""
         {self.name}:
         LVL {self.level} --- {self.experience} XP
         {self.hp} HP
         {self.attack_damage} ATK
         {self.armour} DEF
-        Inventory: {inv_string}
         """
         return dedent(stat_string).strip()
+
+    def get_inventory_display(self) -> str:
+        if not self.inventory.items:
+            return "Your inventory is empty."
+
+        counts: dict[str, int] = {}
+        for item in self.inventory.items:
+            counts[item.name] = counts.get(item.name, 0) + 1
+
+        equipped_names = {
+            item.name for item in self.inventory.items if item.equipped
+        }
+
+        lines =[]
+        for name, count in counts.items():
+            line = f"{name} x{count}" if count > 1 else name
+            if name in equipped_names:
+                line += " (equipped)"
+            lines.append(line)
+            
+        return "\n".join(lines)
 
 class Enemy(Character):
     def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):

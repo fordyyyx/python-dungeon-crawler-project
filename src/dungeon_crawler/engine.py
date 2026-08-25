@@ -129,8 +129,11 @@ def main() -> None:
             except ValueError as e:
                 print(e)
 
-        elif command == "stats" or command == "inventory":
+        elif command == "stats":
             print(player.get_stats())
+
+        elif command == "inventory":
+            print(player.get_inventory_display())
 
         elif command == "talk":
             if current_room.allies:

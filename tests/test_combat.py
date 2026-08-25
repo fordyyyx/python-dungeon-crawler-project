@@ -1,5 +1,5 @@
-from dungeon_crawler.characters import Character
-from dungeon_crawler.content import create_minotaur, create_bronze_xiphos, create_skeleton_warrior
+from dungeon_crawler.characters import Character, Enemy
+from dungeon_crawler.content import create_minotaur, create_bronze_xiphos
 from dungeon_crawler.world import Room
 from dungeon_crawler.engine import handle_enemy_defeat
 
@@ -24,7 +24,7 @@ def test_handle_enemy_defeat_moves_loot_into_room():
 
 def test_handle_enemy_defeat_with_no_loot_adds_no_items():
     room = Room("Labyrinth")
-    enemy = create_skeleton_warrior()
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
     room.add_enemy(enemy)
 
     handle_enemy_defeat(room, enemy)

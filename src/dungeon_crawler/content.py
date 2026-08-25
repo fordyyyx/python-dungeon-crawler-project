@@ -9,6 +9,7 @@ def create_skeleton_warrior() -> Enemy:
         hp=8,
         attack_damage=3,
         armour=0,
+        loot=[create_small_healing_potion()],
         description="Bones held together by little more than old habit, still gripping a rusted blade with mechanical resolve.",
         )
 

@@ -22,7 +22,12 @@ def test_create_skeleton_warrior_has_correct_stats():
     assert skeleton_warrior.hp == 8
     assert skeleton_warrior.attack_damage == 3
     assert skeleton_warrior.armour == 0
-    assert len(skeleton_warrior.loot) == 0
+    assert len(skeleton_warrior.loot) == 1
+
+def test_create_skeleton_warrior_drops_small_healing_potion():
+    skeleton_warrior = create_skeleton_warrior()
+    message = skeleton_warrior.on_death()
+    assert "Small Healing Potion" in message
 
 
 def test_create_hades_has_correct_stats():

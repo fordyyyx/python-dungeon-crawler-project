@@ -252,3 +252,41 @@ def test_character_initialises_with_no_equipped_weapon():
 def test_character_initialises_with_no_equipped_armour():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.equipped_armour is None
+
+def test_get_inventory_display_returns_empty_message_when_no_items():
+    player = Player(name="hero", hp=100)
+    assert player.get_inventory_display() == "Your inventory is empty."
+
+def test_get_inventory_display_lists_single_item():
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    assert player.get_inventory_display() == "Bronze Xiphos"
+
+def test_get_inventory_display_shows_count_for_duplicate_items():
+    player = Player(name="hero", hp=100)
+    player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    assert player.get_inventory_display() == "Bronze Xiphos x2"
+
+def test_get_inventory_display_lists_multiple_items_on_separate_lines():
+    player = Player(name="hero", hp=100)
+    player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    player.inventory.add(Weapon(name="Shield", description="", damage=1))
+    assert player.get_inventory_display() == "Bronze Xiphos\nShield"
+
+def test_get_inventory_display_marks_equipped_item():
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    sword.use(player)
+    assert player.get_inventory_display() == "Bronze Xiphos (equipped)"
+
+def test_get_inventory_display_marks_duplicate_group_equipped_if_any_instance_equipped():
+    player = Player(name="hero", hp=100)
+    equipped_sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    spare_sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(equipped_sword)
+    player.inventory.add(spare_sword)
+    equipped_sword.use(player)
+    assert player.get_inventory_display() == "Bronze Xiphos x2 (equipped)"
