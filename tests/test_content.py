@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_bronze_xiphos, create_charon, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -64,8 +64,8 @@ def test_create_ambrosia_has_correct_heal_amount_and_description():
 def test_create_spear_of_ares_has_correct_damage_and_description():
     spear = create_spear_of_ares()
     assert spear.name == "Spear of Ares"
-    assert spear.description == "Bronze-tipped and still warm, as if recently thrown in anger."
-    assert spear.damage == 8
+    assert spear.description == "Bronze-tipped and perfectly balanced - it feels less like you're holding a weapon, and more like it's holding you steady"
+    assert spear.damage == 6
 
 def test_create_chiron_has_correct_name_and_description():
     chiron = create_chiron()
@@ -79,6 +79,11 @@ def test_create_chiron_has_correct_required_items():
 def test_create_chiron_has_empty_inventory():
     chiron = create_chiron()
     assert len(chiron.inventory) == 0
+
+def test_create_chiron_reward_is_charons_coin():
+    chiron = create_chiron()
+    assert chiron.reward is not None
+    assert chiron.reward.name == "Charon's Coin"
 
 def test_create_chiron_talk_returns_hint_when_player_missing_required_items():
     chiron = create_chiron()
@@ -204,6 +209,108 @@ def test_create_small_healing_potion_has_correct_heal_amount_and_description():
     assert potion.name == "Small Healing Potion"
     assert potion.description == "A cloudy vial, more herb than magic - enough to steady a shaking hand, not much more."
     assert potion.heal_amount == 5
+
+def test_create_athena_has_correct_name_and_description():
+    athena = create_athena()
+    assert athena.name == "Athena"
+    assert athena.description == "Calm, measured, and faintly amused — as if she already knows exactly how this ends."
+
+def test_create_athena_has_correct_required_items():
+    athena = create_athena()
+    assert athena.required_items == ["Centaur's Broken Bow"]
+
+def test_create_athena_reward_is_breastplate_of_athena():
+    athena = create_athena()
+    assert athena.reward is not None
+    assert athena.reward.name == "Breastplate of Athena"
+
+def test_create_athena_talk_returns_default_message_when_player_missing_required_items():
+    athena = create_athena()
+    player = Player(name="hero", hp=100)
+    assert athena.talk(player) == "Athena has nothing to say."
+
+def test_create_athena_talk_returns_empty_string_when_player_has_required_items():
+    athena = create_athena()
+    player = Player(name="hero", hp=100)
+    player.inventory.add(QuestItem(name="Centaur's Broken Bow", description=""))
+    assert athena.talk(player) == ""
+
+def test_create_ares_has_correct_name_and_description():
+    ares = create_ares()
+    assert ares.name == "Ares"
+    assert ares.description == "He barely looks up from sharpening a blade, though he's clearly aware of every move you make."
+
+def test_create_ares_has_correct_required_items():
+    ares = create_ares()
+    assert ares.required_items == ["Cyclops' Eye"]
+
+def test_create_ares_reward_is_spear_of_ares():
+    ares = create_ares()
+    assert ares.reward is not None
+    assert ares.reward.name == "Spear of Ares"
+
+def test_create_ares_talk_returns_default_message_when_player_missing_required_items():
+    ares = create_ares()
+    player = Player(name="hero", hp=100)
+    assert ares.talk(player) == "Ares has nothing to say."
+
+def test_create_ares_talk_returns_empty_string_when_player_has_required_items():
+    ares = create_ares()
+    player = Player(name="hero", hp=100)
+    player.inventory.add(QuestItem(name="Cyclops' Eye", description=""))
+    assert ares.talk(player) == ""
+
+def test_create_hermes_has_correct_name_and_description():
+    hermes = create_hermes()
+    assert hermes.name == "Hermes"
+    assert hermes.description == "Never quite still, halfway through some errand even while talking to you."
+
+def test_create_hermes_has_no_required_items():
+    hermes = create_hermes()
+    assert hermes.required_items == []
+
+def test_create_hermes_has_no_reward():
+    hermes = create_hermes()
+    assert hermes.reward is None
+
+def test_create_hermes_talk_returns_default_message():
+    hermes = create_hermes()
+    player = Player(name="hero", hp=100)
+    assert hermes.talk(player) == "Hermes has nothing to say."
+
+def test_create_prometheus_has_correct_name_and_description():
+    prometheus = create_prometheus()
+    assert prometheus.name == "Prometheus"
+    assert prometheus.description == "Chained but unbroken, watching you with the weary patience of someone who's paid dearly for helping before."
+
+def test_create_prometheus_has_no_required_items():
+    prometheus = create_prometheus()
+    assert prometheus.required_items == []
+
+def test_create_prometheus_has_no_reward():
+    prometheus = create_prometheus()
+    assert prometheus.reward is None
+
+def test_create_prometheus_talk_returns_default_message():
+    prometheus = create_prometheus()
+    player = Player(name="hero", hp=100)
+    assert prometheus.talk(player) == "Prometheus has nothing to say."
+
+def test_create_cyclops_eye_has_correct_name_and_description():
+    eye = create_cyclops_eye()
+    assert eye.name == "Cyclops' Eye"
+    assert eye.description == "Still faintly warm and unsettlingly heavy for its size - Ares will know exactly what this cost you."
+
+def test_create_breastplate_of_athena_has_correct_defence_and_description():
+    breastplate = create_breastplate_of_athena()
+    assert breastplate.name == "Breastplate of Athena"
+    assert breastplate.description == "Cool to the touch even in the deepest heat, etched with an owl that seems to watch whichever way danger comes from."
+    assert breastplate.defence == 4
+
+def test_create_centaurs_broken_bow_has_correct_name_and_description():
+    bow = create_centaurs_broken_bow()
+    assert bow.name == "Centaur's Broken Bow"
+    assert bow.description == "Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off."
 
 def test_build_world_returns_thirteen_rooms():
     dungeon, entrance, floors = build_world()

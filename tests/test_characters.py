@@ -184,6 +184,15 @@ def test_ally_initialises_with_default_required_items_as_empty_list():
     ally = Ally(name="Chiron")
     assert ally.required_items == []
 
+def test_ally_initialises_with_no_reward_by_default():
+    ally = Ally(name="Chiron")
+    assert ally.reward is None
+
+def test_ally_initialises_with_reward():
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    ally = Ally(name="Chiron", reward=sword)
+    assert ally.reward is sword
+
 def test_ally_talk_returns_hint_when_player_missing_required_items():
     player = Player(name="hero", hp=10)
     ally = Ally(name="Chiron", hint="Learn to move first.", hint_complete="Well done.", required_items=["Wooden Sword"])

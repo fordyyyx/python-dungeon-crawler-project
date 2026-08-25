@@ -43,8 +43,8 @@ def create_bronze_xiphos() -> Weapon:
 def create_spear_of_ares() -> Weapon:
     return Weapon(
         name="Spear of Ares",
-        damage=8,
-        description="Bronze-tipped and still warm, as if recently thrown in anger.",
+        damage=6,
+        description="Bronze-tipped and perfectly balanced - it feels less like you're holding a weapon, and more like it's holding you steady",
     )
 
 def create_aegis_fragment() -> Armour:
@@ -77,6 +77,7 @@ def create_chiron() -> Ally:
             "He looks over the sword, the shield, the dummy's head, and the token from his old friend. "
             "\"Type 'trade' and I'll see what you've brought me.\""),
         required_items=["Wooden Sword", "Wooden Shield", "Dummy Head", "Mentor's Token"],
+        reward=create_charons_coin(),
         items=[]
     )
 
@@ -170,6 +171,67 @@ def create_small_healing_potion() -> Consumable:
         name="Small Healing Potion",
         heal_amount=5,
         description="A cloudy vial, more herb than magic - enough to steady a shaking hand, not much more."
+    )
+
+def create_athena() -> Ally:
+    return Ally(
+        name="Athena",
+        description="Calm, measured, and faintly amused — as if she already knows exactly how this ends.",
+        hint="",
+        hint_complete="",
+        required_items = ["Centaur's Broken Bow"],
+        items=[],
+        reward=create_breastplate_of_athena()
+    )
+
+def create_ares() -> Ally:
+    return Ally(
+        name="Ares",
+        description="He barely looks up from sharpening a blade, though he's clearly aware of every move you make.",
+        hint="",
+        hint_complete="",
+        required_items=["Cyclops' Eye"],
+        items=[],
+        reward=create_spear_of_ares()
+    )
+
+def create_hermes() -> Ally:
+    return Ally(
+        name="Hermes",
+        description="Never quite still, halfway through some errand even while talking to you.",
+        hint="",
+        hint_complete="",
+        required_items=[],
+        items=[]
+    )
+
+def create_prometheus() -> Ally:
+    return Ally(
+        name="Prometheus",
+        description="Chained but unbroken, watching you with the weary patience of someone who's paid dearly for helping before.",
+        hint="",
+        hint_complete="",
+        required_items=[],
+        items=[]
+    )
+
+def create_cyclops_eye() -> QuestItem:
+    return QuestItem(
+        name="Cyclops' Eye",
+        description="Still faintly warm and unsettlingly heavy for its size - Ares will know exactly what this cost you."
+    )
+
+def create_breastplate_of_athena() -> Armour:
+    return Armour(
+        name="Breastplate of Athena",
+        description="Cool to the touch even in the deepest heat, etched with an owl that seems to watch whichever way danger comes from.",
+        defence=4,
+    )
+
+def create_centaurs_broken_bow() -> QuestItem:
+    return QuestItem(
+        name="Centaur's Broken Bow",
+        description="Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off."
     )
 
 def build_floor_0() -> tuple[Room, dict[str, Room]]:

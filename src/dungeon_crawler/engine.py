@@ -32,28 +32,31 @@ def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     required_item_name = room.locked_exits[direction]
     return required_item_name not in [item.name for item in player.inventory.items]
 
-def trade_with_ally(ally: Ally, player: Player, required_item_names: list[str], reward: Item):
+def trade_with_ally(ally: Ally, player: Player):
+    if not ally.required_items or ally.reward is None:
+        return f"{ally.name} has nothing to trade."
+
     player_item_names = [item.name for item in player.inventory.items]
-    missing = [name for name in required_item_names if name not in player_item_names]
+    missing = [name for name in ally.required_items if name not in player_item_names]
 
     if missing:
         return f"{ally.name} shakes their head. \"You're still missing: {', '.join(missing)}.\""
 
     equipped_items = [
         item for item in player.inventory.items
-        if item.name in required_item_names and item.equipped
+        if item.name in ally.required_items and item.equipped
     ]
 
     if equipped_items:
         equipped_names = ", ".join(item.name for item in equipped_items)
         return f"{ally.name} shakes their head. \"You'll need to unequip: {equipped_names}.\""
 
-    for name in required_item_names:
+    for name in ally.required_items:
         item = next(item for item in player.inventory.items if item.name == name)
         player.inventory.remove(item)
 
-    player.inventory.add(reward)
-    return f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {reward.name}."
+    player.inventory.add(ally.reward)
+    return f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {ally.reward.name}."
 
 def print_room(room: Room):
     print(f"{room.name}: {room.description}")
@@ -188,16 +191,9 @@ def main() -> None:
         elif command == "trade":
             if current_room.allies:
                 ally = current_room.allies[0]
-                if ally.name == "Chiron":
-                    result = trade_with_ally(
-                        ally,
-                        player,
-                        required_item_names =["Wooden Sword", "Wooden Shield", "Dummy Head", "Mentor's Token"],
-                        reward=create_charons_coin()
-                    )
-                    print(result)
-                else:
-                    print(f"{ally.name} has nothing to trade.")
+                print(trade_with_ally(ally, player))
+            else:
+                print("There is no one here to trade with.")
 
         else:
             print("Nothing happens.")
