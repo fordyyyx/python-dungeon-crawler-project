@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_bronze_xiphos, create_charon, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_bronze_xiphos, create_charon, create_charons_coin, create_chiron, create_dummy_head, create_hades, create_mentor, create_mentors_token, create_minotaur, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -205,9 +205,9 @@ def test_create_small_healing_potion_has_correct_heal_amount_and_description():
     assert potion.description == "A cloudy vial, more herb than magic - enough to steady a shaking hand, not much more."
     assert potion.heal_amount == 5
 
-def test_build_world_returns_nine_rooms():
+def test_build_world_returns_thirteen_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(dungeon) == 9
+    assert len(dungeon) == 13
 
 def test_build_world_entrance_is_chamber_of_chiron():
     dungeon, entrance, floors = build_world()
@@ -358,9 +358,9 @@ def test_build_world_sunken_vault_has_skeleton_warrior_enemy():
     enemy_names = [enemy.name for enemy in sunken_vault.enemies]
     assert "Skeleton Warrior" in enemy_names
 
-def test_build_world_returns_floors_dict_with_floor_0_and_floor_1_keys():
+def test_build_world_returns_floors_dict_with_floor_0_floor_1_and_floor_2_keys():
     dungeon, entrance, floors = build_world()
-    assert set(floors.keys()) == {"floor_0", "floor_1"}
+    assert set(floors.keys()) == {"floor_0", "floor_1", "floor_2"}
 
 def test_build_world_floor_0_rooms_dict_contains_five_rooms():
     dungeon, entrance, floors = build_world()
@@ -369,6 +369,23 @@ def test_build_world_floor_0_rooms_dict_contains_five_rooms():
 def test_build_world_floor_1_rooms_dict_contains_four_rooms():
     dungeon, entrance, floors = build_world()
     assert len(floors["floor_1"]) == 4
+
+def test_build_world_floor_2_rooms_dict_contains_four_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_2"]) == 4
+
+def test_build_world_styx_crossing_connects_to_library_of_athena_via_descend():
+    dungeon, entrance, floors = build_world()
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert styx_crossing is not None
+    assert styx_crossing.get_exit("descend") is dungeon.get_room("Library of Athena")
+
+def test_build_world_library_of_athena_connects_back_to_styx_crossing_via_ascend():
+    dungeon, entrance, floors = build_world()
+    library_of_athena = dungeon.get_room("Library of Athena")
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert library_of_athena is not None
+    assert library_of_athena.get_exit("ascend") is styx_crossing
 
 def test_build_floor_0_returns_chamber_of_chiron_as_start_room():
     start, rooms = build_floor_0()
@@ -393,5 +410,45 @@ def test_build_floor_1_returns_rooms_dict_with_four_rooms():
 def test_build_floor_1_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_1()
     assert rooms["Cave Entrance"] is start
+
+def test_build_floor_2_returns_library_of_athena_as_start_room():
+    start, rooms = build_floor_2()
+    assert start.name == "Library of Athena"
+
+def test_build_floor_2_returns_rooms_dict_with_four_rooms():
+    start, rooms = build_floor_2()
+    assert len(rooms) == 4
+
+def test_build_floor_2_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_2()
+    assert rooms["Library of Athena"] is start
+
+def test_build_floor_2_library_connects_to_armoury_via_west():
+    start, rooms = build_floor_2()
+    assert start.get_exit("west") is rooms["Armoury of Ares"]
+
+def test_build_floor_2_armoury_connects_back_to_library_via_east():
+    start, rooms = build_floor_2()
+    armoury = rooms["Armoury of Ares"]
+    assert armoury.get_exit("east") is start
+
+def test_build_floor_2_library_connects_to_hall_of_hermes_via_south():
+    start, rooms = build_floor_2()
+    assert start.get_exit("south") is rooms["Hall of Hermes"]
+
+def test_build_floor_2_hall_of_hermes_connects_back_to_library_via_north():
+    start, rooms = build_floor_2()
+    hall_of_hermes = rooms["Hall of Hermes"]
+    assert hall_of_hermes.get_exit("north") is start
+
+def test_build_floor_2_hall_of_hermes_connects_to_forge_via_south():
+    start, rooms = build_floor_2()
+    hall_of_hermes = rooms["Hall of Hermes"]
+    assert hall_of_hermes.get_exit("south") is rooms["Forge of Prometheus"]
+
+def test_build_floor_2_forge_connects_back_to_hall_of_hermes_via_north():
+    start, rooms = build_floor_2()
+    forge = rooms["Forge of Prometheus"]
+    assert forge.get_exit("north") is rooms["Hall of Hermes"]
 
 

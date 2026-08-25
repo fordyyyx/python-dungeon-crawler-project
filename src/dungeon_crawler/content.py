@@ -235,17 +235,38 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
         room.name: room for room in (cave_entrance, styx_crossing, fields_of_asphodel, sunken_vault)
     }
 
+def build_floor_2() -> tuple[Room, dict[str, Room]]:
+    library_of_athena = Room(name="Library of Athena", description="Towering shelves of scrolls creak under their own weight; an owl watches from the rafters, unblinking.")
+    armoury_of_ares = Room(name="Armoury of Ares", description="Racks of corroded bronze weapons line the walls, still faintly warm to the touch.")
+    hall_of_hermes = Room(name="Hall of Hermes", description="A cluttered waypoint stacked with parcels and letters never delivered, sandals of every size hung along one wall.")
+    forge_of_prometheus = Room(name="Forge of Prometheus", description="The air shimmers with heat from a fire that never seems to go out, chained tools scattered across a worn anvil.")
+
+    library_of_athena.connect("west", armoury_of_ares)
+    library_of_athena.connect("south", hall_of_hermes)
+    armoury_of_ares.connect("east", library_of_athena)
+    hall_of_hermes.connect("north", library_of_athena)
+    hall_of_hermes.connect("south", forge_of_prometheus)
+    forge_of_prometheus.connect("north", hall_of_hermes)
+
+    return library_of_athena, {
+        room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus)
+    }
+
 def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     dungeon = Map()
 
     floor_0_start, floor_0_rooms = build_floor_0()
     floor_1_start, floor_1_rooms = build_floor_1()
+    floor_2_start, floor_2_rooms = build_floor_2()
 
     floor_0_rooms["Chamber of Chiron"].connect("descend", floor_1_rooms["Cave Entrance"])
+    floor_1_rooms["Styx Crossing"].connect("descend", floor_2_rooms["Library of Athena"])
+    floor_2_rooms["Library of Athena"].connect("ascend", floor_1_rooms["Styx Crossing"])
 
     all_floors = {
         "floor_0": floor_0_rooms,
         "floor_1": floor_1_rooms,
+        "floor_2": floor_2_rooms,
     }
 
     for floor_rooms in all_floors.values():
