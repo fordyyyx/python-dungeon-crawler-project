@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -296,3 +296,55 @@ def test_print_room_with_no_allies_does_not_print_is_here(capsys):
 
     captured = capsys.readouterr()
     assert "is here" not in captured.out
+
+def test_find_floor_for_room_returns_floor_name_when_room_present():
+    room_a = Room("A")
+    all_floors = {"floor_0": {"A": room_a}}
+    assert find_floor_for_room(room_a, all_floors) == "floor_0"
+
+def test_find_floor_for_room_returns_none_when_room_not_present():
+    room_a = Room("A")
+    all_floors = {"floor_0": {}}
+    assert find_floor_for_room(room_a, all_floors) is None
+
+def test_find_floor_for_room_finds_room_in_second_floor():
+    room_a = Room("A")
+    room_b = Room("B")
+    all_floors = {"floor_0": {"A": room_a}, "floor_1": {"B": room_b}}
+    assert find_floor_for_room(room_b, all_floors) == "floor_1"
+
+def test_display_map_single_room_with_no_exits():
+    room = Room("A")
+    player = Player(name="hero", hp=10)
+    assert display_map(room, player) == "\nA"
+
+def test_display_map_lists_unlocked_exit():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    player = Player(name="hero", hp=10)
+    assert display_map(room_a, player) == "\nA\n  north -> B\n\nB"
+
+def test_display_map_shows_locked_door_for_locked_exit():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    room_a.lock_exit("north", "Key")
+    player = Player(name="hero", hp=10)
+    assert display_map(room_a, player) == "\nA\n  north -> Locked Door"
+
+def test_display_map_does_not_explore_beyond_locked_exit():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    room_a.lock_exit("north", "Key")
+    player = Player(name="hero", hp=10)
+    assert "B" not in display_map(room_a, player)
+
+def test_display_map_does_not_revisit_room_in_cycle():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    room_b.connect("south", room_a)
+    player = Player(name="hero", hp=10)
+    assert display_map(room_a, player) == "\nA\n  north -> B\n\nB\n  south -> A"

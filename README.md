@@ -46,7 +46,9 @@ pytest --cov=src/dungeon_crawler
 * `drop <item>` — drop an item into the room
 * `take <item> from <ally>` — take an item from an ally's inventory
 * `trade` — trade required items with an ally
-* `inventory` / `stats` — display your stats and inventory
+* `inventory` — display your inventory
+* `stats` - display your stats
+* `map` - display the unlocked map of the floor
 * `quit` / `exit` — quit the game
 
 ## Project structure

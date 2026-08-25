@@ -66,7 +66,35 @@ def print_room(room: Room):
         ally = room.allies[0]
         print(f"{ally.name} is here. {ally.description}")
 
+def display_map(current_room: Room, player: Player) -> str:
+    visited: set[str] = set()
+    lines = []
 
+    def explore(room: Room) -> None:
+        if room.name in visited:
+            return
+        visited.add(room.name)
+        lines.append(f"\n{room.name}")
+
+        unlocked_targets = []
+        for direction, target in room.exits.items():
+            if is_exit_locked(room, direction, player):
+                lines.append(f"  {direction} -> Locked Door")
+            else:
+                lines.append(f"  {direction} -> {target.name}")
+                unlocked_targets.append(target)
+
+        for target in unlocked_targets:
+            explore(target)
+
+    explore(current_room)
+    return "\n".join(lines)
+
+def find_floor_for_room(room: Room, all_floors: dict[str, dict[str, Room]]) -> str | None:
+    for floor_name, rooms in all_floors.items():
+        if room.name in rooms:
+            return floor_name
+    return None
 
 def main() -> None:
     dungeon, current_room, all_floors = build_world()
@@ -84,12 +112,18 @@ def main() -> None:
         elif command in ("quit", "exit"):
             break
 
+        elif command == "map":
+            print(display_map(current_room, player))
+
         elif command in current_room.exits:
             if is_exit_locked(current_room, command, player):
                 required = current_room.locked_exits[command]
                 print(f"That way is locked. You need the {required} first.")
             else:
                 current_room = current_room.exits[command]
+                found_floor = find_floor_for_room(current_room, all_floors)
+                if found_floor is not None:
+                    current_floor_rooms = all_floors[found_floor]
                 print_room(current_room)
 
         elif command == "look":
