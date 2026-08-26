@@ -10,16 +10,33 @@ class Character:
         self.max_hp = hp
         self.equipped_weapon: "Weapon | None" = None
         self.equipped_armour: "Armour | None" = None
+        self.has_double_strike = False
+        self.has_last_stand = False
 
     def attack(self, target: "Character") -> str:
         damage_dealt, death_message = target.take_damage(self.attack_damage)
         message = f"{self.name} attacks {target.name} for {damage_dealt} damage."
         if death_message:
             message += f"\n{death_message}"
+            return message
+
+        if getattr(self, "has_double_strike", False):
+            second_damage, second_death = target.take_damage(self.attack_damage // 2)
+            message += f"\n{self.name} strikes again for {second_damage} damage."
+            if second_death:
+                message += f"\n{second_death}"
+
         return message
+
 
     def take_damage(self, amount: int) -> tuple[int, str]:
         reduced = max(0, amount - self.armour)
+        would_be_lethal = (self.hp - reduced) <= 0
+
+        if would_be_lethal and getattr(self, "has_last_stand", False) and self.hp > 1:
+            self.hp = 1
+            return reduced, f"{self.name} refuses to fall, clinging to life at 1 HP."
+
         self.hp -= reduced
         if self.hp < 0:
             self.hp = 0
@@ -205,3 +222,13 @@ class SkillTree:
         message = path.unlock_next(character)
         self.skill_points -= 1
         return message
+
+class DoubleStrikeSkill(Skill):
+    def apply(self, character) -> str:
+        character.has_double_strike = True
+        return f"{character.name} learns to strike twice in quick succession."
+
+class LastStandSkill(Skill):
+    def apply(self, character) -> str:
+        character.has_last_stand = True
+        return f"{character.name} will not fall easily - death itself will have to try twice."

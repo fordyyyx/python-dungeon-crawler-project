@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import Character, Player, Enemy, Ally, Skill, AttackBoostSkill, DefenceBoostSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import Character, Player, Enemy, Ally, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Inventory, QuestItem
 
 def test_character_initialises_with_correct_stats():
@@ -63,6 +63,32 @@ def test_take_damage_returns_damage_dealt():
     damage_dealt, message = character.take_damage(10)
     assert damage_dealt == 7
 
+def test_take_damage_with_last_stand_survives_lethal_hit_at_one_hp():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.has_last_stand = True
+    damage_dealt, message = character.take_damage(50)
+    assert character.hp == 1
+
+def test_take_damage_with_last_stand_returns_refuses_to_fall_message():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.has_last_stand = True
+    damage_dealt, message = character.take_damage(50)
+    assert message == "Hero refuses to fall, clinging to life at 1 HP."
+
+def test_take_damage_with_last_stand_does_not_trigger_when_already_at_one_hp():
+    character = Character(name="Hero", hp=1, attack_damage=5)
+    character.has_last_stand = True
+    damage_dealt, message = character.take_damage(10)
+    assert character.hp == 0
+    assert character.is_alive() is False
+
+def test_take_damage_with_last_stand_does_not_affect_non_lethal_hit():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.has_last_stand = True
+    damage_dealt, message = character.take_damage(10)
+    assert character.hp == 20
+    assert message == ""
+
 def test_attack_reduces_target_hp():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
     target = Character(name="Goblin", hp=20, attack_damage=5)
@@ -86,6 +112,35 @@ def test_attack_message_shows_armour_reduced_damage():
     target = Character(name="Goblin", hp=20, attack_damage=5, armour=4)
     message = attacker.attack(target)
     assert message == "Hero attacks Goblin for 6 damage."
+
+def test_attack_with_double_strike_deals_second_hit():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_double_strike = True
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target)
+    assert target.hp == 85
+
+def test_attack_with_double_strike_message_includes_second_strike():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_double_strike = True
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target)
+    assert "Hero strikes again for 5 damage." in message
+
+def test_attack_with_double_strike_skips_second_hit_when_target_dies_from_first():
+    attacker = Character(name="Hero", hp=30, attack_damage=100)
+    attacker.has_double_strike = True
+    target = Character(name="Goblin", hp=20, attack_damage=5)
+    message = attacker.attack(target)
+    assert message == "Hero attacks Goblin for 100 damage.\nGoblin has died."
+
+def test_attack_with_double_strike_second_hit_can_finish_off_target():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_double_strike = True
+    target = Character(name="Goblin", hp=12, attack_damage=5)
+    message = attacker.attack(target)
+    assert message == "Hero attacks Goblin for 10 damage.\nHero strikes again for 5 damage.\nGoblin has died."
+    assert target.is_alive() is False
 
 def test_player_initialises_with_inventory():
     player = Player(name="Hero", hp=10)
@@ -471,3 +526,43 @@ def test_skill_tree_invest_applies_skill_from_path():
     character = Character(name="Hero", hp=100, attack_damage=10)
     skill_tree.invest("defence", character)
     assert character.armour == 2
+
+def test_double_strike_skill_apply_returns_message():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DoubleStrikeSkill(name="Twin Blades", description="")
+    message = skill.apply(character)
+    assert message == "Hero learns to strike twice in quick succession."
+
+def test_double_strike_skill_apply_sets_has_double_strike_flag():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DoubleStrikeSkill(name="Twin Blades", description="")
+    skill.apply(character)
+    assert character.has_double_strike is True
+
+def test_double_strike_skill_enables_second_hit_on_attack():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    skill = DoubleStrikeSkill(name="Twin Blades", description="")
+    skill.apply(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target)
+    assert target.hp == 85
+    assert "Hero strikes again for 5 damage." in message
+
+def test_last_stand_skill_apply_returns_message():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = LastStandSkill(name="Unbreakable", description="")
+    message = skill.apply(character)
+    assert message == "Hero will not fall easily - death itself will have to try twice."
+
+def test_last_stand_skill_apply_sets_has_last_stand_flag():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = LastStandSkill(name="Unbreakable", description="")
+    skill.apply(character)
+    assert character.has_last_stand is True
+
+def test_last_stand_skill_enables_surviving_lethal_hit():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    skill = LastStandSkill(name="Unbreakable", description="")
+    skill.apply(character)
+    damage_dealt, message = character.take_damage(50)
+    assert character.hp == 1

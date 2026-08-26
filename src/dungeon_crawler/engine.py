@@ -181,12 +181,16 @@ def main() -> None:
                 print("There's no one here to talk to.")
 
         elif command.startswith("take ") and " from " in command:
-            item_name, ally_name = command.removeprefix("take ").split(" from ")
-            ally = next((a for a in current_room.allies if a.name.lower() == ally_name.strip().lower()), None)
-            if ally is not None:
-                print(ally.give_item(item_name.strip(), player))
+            parts = command.removeprefix("take ").split(" from ")
+            if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+                print("Try: take <item> from <ally>")
             else:
-                print("There is no one here by that name.")
+                item_name, ally_name = parts
+                ally = next((a for a in current_room.allies if a.name.lower() == ally_name.strip().lower()), None)
+                if ally is not None:
+                    print(ally.give_item(item_name.strip(), player))
+                else:
+                    print("There is no one here by that name.")
 
         elif command == "trade":
             if current_room.allies:
