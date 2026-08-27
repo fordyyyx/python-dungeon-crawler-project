@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import Character, Player, Enemy, Ally, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import Character, Player, Enemy, Ally, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Inventory, QuestItem
 
 def test_character_initialises_with_correct_stats():
@@ -89,6 +89,54 @@ def test_take_damage_with_last_stand_does_not_affect_non_lethal_hit():
     assert character.hp == 20
     assert message == ""
 
+def test_take_damage_with_thorns_deals_counter_damage_to_attacker():
+    target = Character(name="Goblin", hp=30, attack_damage=5)
+    target.has_thorns = True
+    attacker = Character(name="Hero", hp=50, attack_damage=10)
+    target.take_damage(10, attacker=attacker)
+    assert attacker.hp == 48
+
+def test_take_damage_with_thorns_counter_damage_message():
+    target = Character(name="Goblin", hp=30, attack_damage=5)
+    target.has_thorns = True
+    attacker = Character(name="Hero", hp=50, attack_damage=10)
+    damage_dealt, message = target.take_damage(10, attacker=attacker)
+    assert message == "Hero takes 2 damage from the counter-strike."
+
+def test_take_damage_with_thorns_counter_damage_minimum_is_one():
+    target = Character(name="Goblin", hp=30, attack_damage=5)
+    target.has_thorns = True
+    attacker = Character(name="Hero", hp=50, attack_damage=10)
+    target.take_damage(2, attacker=attacker)
+    assert attacker.hp == 49
+
+def test_take_damage_with_thorns_does_nothing_without_attacker():
+    target = Character(name="Goblin", hp=30, attack_damage=5)
+    target.has_thorns = True
+    damage_dealt, message = target.take_damage(10)
+    assert message == ""
+
+def test_take_damage_with_thorns_does_not_trigger_when_damage_fully_blocked_by_armour():
+    target = Character(name="Goblin", hp=30, attack_damage=5, armour=10)
+    target.has_thorns = True
+    attacker = Character(name="Hero", hp=50, attack_damage=10)
+    target.take_damage(4, attacker=attacker)
+    assert attacker.hp == 50
+
+def test_take_damage_with_thorns_counter_damage_cannot_go_below_zero():
+    attacker = Character(name="Hero", hp=1, attack_damage=10)
+    target = Character(name="Goblin", hp=30, attack_damage=5)
+    target.has_thorns = True
+    target.take_damage(10, attacker=attacker)
+    assert attacker.hp == 0
+
+def test_take_damage_with_thorns_includes_counter_message_with_death_message():
+    target = Character(name="Goblin", hp=5, attack_damage=5)
+    target.has_thorns = True
+    attacker = Character(name="Hero", hp=50, attack_damage=10)
+    damage_dealt, message = target.take_damage(10, attacker=attacker)
+    assert message == "Hero takes 2 damage from the counter-strike.\nGoblin has died."
+
 def test_attack_reduces_target_hp():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
     target = Character(name="Goblin", hp=20, attack_damage=5)
@@ -141,6 +189,14 @@ def test_attack_with_double_strike_second_hit_can_finish_off_target():
     message = attacker.attack(target)
     assert message == "Hero attacks Goblin for 10 damage.\nHero strikes again for 5 damage.\nGoblin has died."
     assert target.is_alive() is False
+
+def test_attack_triggers_thorns_counter_attack_on_attacker():
+    attacker = Character(name="Hero", hp=50, attack_damage=10)
+    target = Character(name="Goblin", hp=30, attack_damage=5)
+    target.has_thorns = True
+    message = attacker.attack(target)
+    assert attacker.hp == 48
+    assert "Hero takes 2 damage from the counter-strike." in message
 
 def test_player_initialises_with_inventory():
     player = Player(name="Hero", hp=10)
@@ -327,6 +383,18 @@ def test_character_initialises_with_no_equipped_weapon():
 def test_character_initialises_with_no_equipped_armour():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.equipped_armour is None
+
+def test_character_initialises_with_has_double_strike_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_double_strike is False
+
+def test_character_initialises_with_has_last_stand_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_last_stand is False
+
+def test_character_initialises_with_has_thorns_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_thorns is False
 
 def test_get_inventory_display_returns_empty_message_when_no_items():
     player = Player(name="hero", hp=100)
@@ -566,3 +634,26 @@ def test_last_stand_skill_enables_surviving_lethal_hit():
     skill.apply(character)
     damage_dealt, message = character.take_damage(50)
     assert character.hp == 1
+
+def test_thorns_skill_apply_returns_message():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = ThornsSkill(name="Retribution", description="")
+    message = skill.apply(character)
+    assert message == "Hero learns to turn an enemy's own strength against them."
+
+def test_thorns_skill_apply_sets_has_thorns_flag():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = ThornsSkill(name="Retribution", description="")
+    skill.apply(character)
+    assert character.has_thorns is True
+
+def test_skill_tree_has_abilities_path_with_three_skills():
+    skill_tree = SkillTree()
+    assert len(skill_tree.paths["abilities"].skills) == 3
+
+def test_skill_tree_invest_abilities_path_applies_double_strike_skill_first():
+    skill_tree = SkillTree()
+    skill_tree.skill_points = 1
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill_tree.invest("abilities", character)
+    assert character.has_double_strike is True

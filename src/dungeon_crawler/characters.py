@@ -12,16 +12,17 @@ class Character:
         self.equipped_armour: "Armour | None" = None
         self.has_double_strike = False
         self.has_last_stand = False
+        self.has_thorns = False
 
     def attack(self, target: "Character") -> str:
-        damage_dealt, death_message = target.take_damage(self.attack_damage)
+        damage_dealt, death_message = target.take_damage(self.attack_damage, attacker=self)
         message = f"{self.name} attacks {target.name} for {damage_dealt} damage."
         if death_message:
             message += f"\n{death_message}"
             return message
 
         if getattr(self, "has_double_strike", False):
-            second_damage, second_death = target.take_damage(self.attack_damage // 2)
+            second_damage, second_death = target.take_damage(self.attack_damage // 2, attacker=self)
             message += f"\n{self.name} strikes again for {second_damage} damage."
             if second_death:
                 message += f"\n{second_death}"
@@ -29,7 +30,7 @@ class Character:
         return message
 
 
-    def take_damage(self, amount: int) -> tuple[int, str]:
+    def take_damage(self, amount: int, attacker: "Character | None" = None) -> tuple[int, str]:
         reduced = max(0, amount - self.armour)
         would_be_lethal = (self.hp - reduced) <= 0
 
@@ -40,9 +41,19 @@ class Character:
         self.hp -= reduced
         if self.hp < 0:
             self.hp = 0
+
+        message = ""
+        if self.has_thorns and attacker is not None and reduced > 0:
+            thorns_damage = max(1, reduced // 4)
+            attacker.hp -= thorns_damage
+            if attacker.hp < 0:
+                attacker.hp = 0
+            message += f"\n{attacker.name} takes {thorns_damage} damage from the counter-strike."
+        
         if not self.is_alive():
-            return reduced, self.on_death()
-        return reduced, ""
+            death_message = self.on_death()
+            return reduced, (message + f"\n{death_message}").strip()
+        return reduced, message.strip()
 
 
     def is_alive(self) -> bool:
@@ -211,6 +222,11 @@ class SkillTree:
                 DefenceBoostSkill("Aegis Ward", "A sliver of divine protection.", bonus=4),
                 DefenceBoostSkill("Bronze Resolve", "Nearly unbreakable.", bonus=6),
             ]),
+            "abilities": SkillPath("Abilities", [
+                DoubleStrikeSkill("Twin Strike", "A second blow follows the first, fast and true."),
+                ThornsSkill("Retribution", "Every blow against you leaves a mark of its own."),
+                LastStandSkill("Last Stand", "Even death hesitates before one so stubborn"),
+            ])
         }
 
     def invest(self, path_name: str, character) -> str:
@@ -232,3 +248,8 @@ class LastStandSkill(Skill):
     def apply(self, character) -> str:
         character.has_last_stand = True
         return f"{character.name} will not fall easily - death itself will have to try twice."
+
+class ThornsSkill(Skill):
+    def apply(self, character) -> str:
+        character.has_thorns = True
+        return f"{character.name} learns to turn an enemy's own strength against them."
