@@ -104,6 +104,17 @@ def find_floor_for_room(room: Room, all_floors: dict[str, dict[str, Room]]) -> s
             return floor_name
     return None
 
+def display_local_exits(room: Room, player: Player) -> str:
+    if not room.exits:
+        return "There are no exits from this room."
+    lines = []
+    for direction, target in room.exits.items():
+        if is_exit_locked(room, direction, player):
+            lines.append(f"{direction} -> Locked Door")
+        else:
+            lines.append(f"{direction} -> {target.name}")
+    return "\n".join(lines)
+
 def main() -> None:
     dungeon, current_room, all_floors = build_world()
     current_floor_rooms = all_floors["floor_0"]
@@ -124,6 +135,9 @@ def main() -> None:
             break
 
         elif command == "map":
+            print(display_local_exits(current_room, player))
+
+        elif command in ("fullmap", "world"):
             print(display_map(current_room, player))
 
         elif command in current_room.exits:

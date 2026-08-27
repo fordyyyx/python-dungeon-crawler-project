@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -391,3 +391,41 @@ def test_display_map_does_not_revisit_room_in_cycle():
     room_b.connect("south", room_a)
     player = Player(name="hero", hp=10)
     assert display_map(room_a, player) == "\nA\n  north -> B\n\nB\n  south -> A"
+
+def test_display_local_exits_with_no_exits_returns_message():
+    room = Room("A")
+    player = Player(name="hero", hp=10)
+    assert display_local_exits(room, player) == "There are no exits from this room."
+
+def test_display_local_exits_lists_unlocked_exit():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    player = Player(name="hero", hp=10)
+    assert display_local_exits(room_a, player) == "north -> B"
+
+def test_display_local_exits_shows_locked_door_for_locked_exit():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    room_a.lock_exit("north", "Key")
+    player = Player(name="hero", hp=10)
+    assert display_local_exits(room_a, player) == "north -> Locked Door"
+
+def test_display_local_exits_lists_multiple_exits():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_c = Room("C")
+    room_a.connect("north", room_b)
+    room_a.connect("east", room_c)
+    player = Player(name="hero", hp=10)
+    assert display_local_exits(room_a, player) == "north -> B\neast -> C"
+
+def test_display_local_exits_does_not_recurse_into_connected_rooms():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_c = Room("C")
+    room_a.connect("north", room_b)
+    room_b.connect("east", room_c)
+    player = Player(name="hero", hp=10)
+    assert display_local_exits(room_a, player) == "north -> B"

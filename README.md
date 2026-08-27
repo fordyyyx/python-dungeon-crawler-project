@@ -1,65 +1,81 @@
 # Greek Mythology Dungeon Crawler
 ## A text-based dungeon crawler RPG set in Greek mythology, built in pure Python to demonstrate OOP design
 
-This game follows a hero (you) on the descent into the Underworld, facing monsters and mortals from legend on your path to defeat Hades. Train under Chiron, gather relics blessed by the Gods, and take on creatures from across Greek mythology.
+This game follows a hero (you) on the descent into the Underworld, facing monsters and mortals from legend on your path to defeat Hades. Train under Chiron, gather relics blessed by the Gods, trade with the friendly and the fallen alike, and grow stronger through a branching skill tree as you push deeper.
 
 It is built purely in Python to demonstrate my skills in object-oriented programming, as well as brush up on things I hadn't used for a while.
 
 ## Features
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
-* Explore a connected map of rooms
-* Turn-based combat
-* Item pickup, inventory, use, and unequip
-* Friendly NPCs who offer hints, dialogue, and items to trade
-* A trading system with equip-state restrictions
+* Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements
+* Turn-based combat, with remaining HP shown after every round
+* Item pickup, inventory, use, and unequip — with duplicate equips correctly replacing rather than stacking
+* Friendly NPCs with hints, conditional dialogue, and items to trade
+* A trading system that checks for both missing and still-equipped items
+* Quest items — untradeable, undroppable, and displayed separately from regular gear
+* A branching skill tree (Attack, Defence, and Abilities paths) unlocked via skill points earned through trades
+* Special combat abilities — Double Strike, Thorns, and Last Stand
 * Enemies with loot drops
 * Win/lose conditions
 
 ## Design Highlights
-* **Abstract base class + inheritance** — `Character` → `Player`/`Enemy`; `Item` → `Weapon`/`Armour`/`Consumable`
-* **Composition over inheritance** — `Player` *has an* `Inventory`, rather than inheriting one; `Ally` similarly holds its own `Inventory` for items it can give away
+* **Abstract base class + inheritance** — `Character` → `Player`/`Enemy`; `Item` → `Weapon`/`Armour`/`Consumable`/`QuestItem`
+* **Composition over inheritance** — `Player` *has an* `Inventory` and a `SkillTree`, rather than inheriting either; `Ally` similarly holds its own `Inventory` for items it can give away
 * **Encapsulation** — private attributes with controlled access via methods/`@property`, e.g. `Room._items`, `Inventory._items`
-* **Polymorphism** — `on_death()` behaves differently per subclass; `use()`/`unequip()` behave differently per `Item` subclass
+* **Polymorphism** — `on_death()` behaves differently per subclass; `use()`/`unequip()` behave differently per `Item` subclass; each `Skill` subclass applies its own effect via `apply()`
 * **A standalone `Ally` class** (not inheriting `Character`) — friendly NPCs don't carry unused combat stats they'd never use, a deliberate design choice over blanket inheritance
+* **Data-driven NPC behaviour** — trade requirements, rewards, and conditional dialogue live as attributes on each `Ally` object, rather than name-based branching in the game loop
 
 ## Installation
 * Clone the repo
 * Create and activate a virtual environment
 * Run:
+```
 pip install -e ".[dev]"
+```
 
 ## Playing the game
+```
 python -m dungeon_crawler
+```
+or, once installed:
+```
+dungeon-crawler
+```
 
 ## Running tests
+```
 pytest --cov=src/dungeon_crawler
-
+```
 
 ## Controls
 * `look` — display room name and description
-* `north` / `east` / `south` / `west` — move in that direction
+* `north` / `east` / `south` / `west` / `descend` / etc. — move in that direction
+* `map` — show the exits available from your current room
+* `fullmap` / `world` — show every reachable room on the current floor
 * `talk` — talk to an ally in the room
 * `attack` — attack an enemy in the room
 * `take <item>` — pick up an item from the room
 * `use <item>` — use or equip an item from your inventory
 * `unequip <item>` — unequip an item
-* `drop <item>` — drop an item into the room
+* `drop <item>` — drop an item into the room (quest items can't be dropped)
 * `take <item> from <ally>` — take an item from an ally's inventory
-* `trade` — trade required items with an ally
-* `inventory` — display your inventory
-* `stats` - display your stats
-* `map` - display the unlocked map of the floor
+* `trade` — trade required items with an ally for their reward
+* `skills` — view your skill tree progress and available points
+* `learn <path>` — spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`)
+* `inventory` — display carried items, with equipped gear and quest items marked separately
+* `stats` — display your core stats
 * `quit` / `exit` — quit the game
 
 ## Project structure
-* `characters.py` — `Character`, `Player`, `Enemy`, `Ally`
-* `items.py` — `Item`, `Weapon`, `Armour`, `Consumable`, `Inventory`
+* `characters.py` — `Character`, `Player`, `Enemy`, `Ally`, `Skill`, `SkillPath`, `SkillTree`
+* `items.py` — `Item`, `Weapon`, `Armour`, `Consumable`, `QuestItem`, `Inventory`
 * `world.py` — `Room`, `Map`
-* `content.py` — the actual game content: specific rooms, enemies, allies, and items
-* `engine.py` — the game loop and command-handling logic
+* `content.py` — the actual game content: specific rooms, enemies, allies, and items, organized by floor
+* `engine.py` — the game loop and standalone command-handling functions
 
 ## Roadmap
-The current release covers a training prologue and the foundational systems (combat, inventory, trading, allies). Planned expansion includes further floors drawing on the Iliad and Odyssey, a skill tree, and additional bosses.
+The current release covers a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), and the first main floor. Planned additions include character customization at game start, developer/testing commands, further floors drawing on the Iliad and Odyssey, and additional bosses.
 
 ## License
 MIT — https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE
