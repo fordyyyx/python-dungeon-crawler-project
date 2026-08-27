@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -429,3 +429,139 @@ def test_display_local_exits_does_not_recurse_into_connected_rooms():
     room_b.connect("east", room_c)
     player = Player(name="hero", hp=10)
     assert display_local_exits(room_a, player) == "north -> B"
+
+def test_find_item_by_name_returns_item_for_known_name():
+    item = find_item_by_name("wooden sword")
+    assert item is not None
+    assert item.name == "Wooden Sword"
+
+def test_find_item_by_name_is_case_insensitive():
+    item = find_item_by_name("WOODEN SWORD")
+    assert item is not None
+    assert item.name == "Wooden Sword"
+
+def test_find_item_by_name_returns_none_for_unknown_name():
+    item = find_item_by_name("nonexistent item")
+    assert item is None
+
+def test_find_item_by_name_returns_new_instance_each_call():
+    item1 = find_item_by_name("wooden sword")
+    item2 = find_item_by_name("wooden sword")
+    assert item1 is not item2
+
+def test_handle_dev_command_add_known_item_adds_to_inventory():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("add wooden sword", player, room)
+    item_names = [item.name for item in player.inventory.items]
+    assert "Wooden Sword" in item_names
+
+def test_handle_dev_command_add_known_item_returns_confirmation_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("add wooden sword", player, room)
+    assert message == "[DEV] Added Wooden Sword to inventory."
+
+def test_handle_dev_command_add_unknown_item_returns_error_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("add nonexistent thing", player, room)
+    assert message == "[DEV] No known item named 'nonexistent thing'."
+
+def test_handle_dev_command_add_unknown_item_does_not_add_to_inventory():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("add nonexistent thing", player, room)
+    assert len(player.inventory) == 0
+
+def test_handle_dev_command_set_hp_updates_player_hp():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set hp 50", player, room)
+    assert player.hp == 50
+
+def test_handle_dev_command_set_hp_returns_confirmation_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("set hp 50", player, room)
+    assert message == "[DEV] HP set to 50."
+
+def test_handle_dev_command_set_hp_with_invalid_value_returns_error_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("set hp abc", player, room)
+    assert message == "[DEV] Invalid HP value."
+
+def test_handle_dev_command_set_hp_with_invalid_value_does_not_change_hp():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set hp abc", player, room)
+    assert player.hp == 100
+
+def test_handle_dev_command_unlock_all_clears_locked_exits():
+    room = Room("A")
+    room.lock_exit("north", "Key")
+    room.lock_exit("east", "Shield")
+    player = Player(name="hero", hp=100)
+    handle_dev_command("unlock all", player, room)
+    assert room.locked_exits == {}
+
+def test_handle_dev_command_unlock_all_returns_message_listing_unlocked_directions():
+    room = Room("A")
+    room.lock_exit("north", "Key")
+    player = Player(name="hero", hp=100)
+    message = handle_dev_command("unlock all", player, room)
+    assert message == "[DEV] Unlocked: north."
+
+def test_handle_dev_command_unlock_all_with_no_locked_exits_returns_message():
+    room = Room("A")
+    player = Player(name="hero", hp=100)
+    message = handle_dev_command("unlock all", player, room)
+    assert message == "[DEV] No locked exits in this room."
+
+def test_handle_dev_command_unlock_direction_removes_lock():
+    room = Room("A")
+    room.lock_exit("north", "Key")
+    player = Player(name="hero", hp=100)
+    handle_dev_command("unlock north", player, room)
+    assert "north" not in room.locked_exits
+
+def test_handle_dev_command_unlock_direction_returns_confirmation_message():
+    room = Room("A")
+    room.lock_exit("north", "Key")
+    player = Player(name="hero", hp=100)
+    message = handle_dev_command("unlock north", player, room)
+    assert message == "[DEV] Unlocked exit: north."
+
+def test_handle_dev_command_unlock_direction_not_locked_returns_message():
+    room = Room("A")
+    player = Player(name="hero", hp=100)
+    message = handle_dev_command("unlock north", player, room)
+    assert message == "[DEV] north is not a locked exit here."
+
+def test_handle_dev_command_skillpoints_increments_skill_points():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("skillpoints", player, room)
+    assert player.skill_tree.skill_points == 1
+
+def test_handle_dev_command_skillpoints_returns_confirmation_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("skillpoints", player, room)
+    assert message == "[DEV] Skill points: 1."
+
+def test_handle_dev_command_help_returns_help_text():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("help", player, room)
+    assert message == (
+        "[DEV] Commands: dev add <item>, dev set hp <n>, "
+        "dev unlock <direction>, dev unlock all, dev skillpoints"
+    )
+
+def test_handle_dev_command_unrecognised_command_returns_error_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("frobnicate", player, room)
+    assert message == "[DEV] Unrecognised dev command: frobnicate. Try 'dev help'."

@@ -1,7 +1,77 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.items import Weapon, Item
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.content import build_world, create_charons_coin
+from dungeon_crawler.content import build_world
+from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour
+from collections.abc import Callable
+
+
+DEV_MODE = False
+
+ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
+    "wooden sword": create_wooden_sword,
+    "wooden shield": create_wooden_shield,
+    "dummy head": create_dummy_head,
+    "mentor's token": create_mentors_token,
+    "charon's coin": create_charons_coin,
+    "bronze xiphos": create_bronze_xiphos,
+    "shield of aegis (fragment)": create_aegis_fragment,
+    "vial of ambrosia": create_ambrosia,
+    "bronze breastplate": create_bronze_breastplate,
+    "small healing potion": create_small_healing_potion,
+    "cyclops eye": create_cyclops_eye,
+    "spear of ares": create_spear_of_ares,
+    "centaur's broken bow": create_centaurs_broken_bow,
+    "breastplate of athena": create_breastplate_of_athena,
+    "favour of hermes": create_hermes_favour,
+}
+
+def find_item_by_name(name: str) -> Item | None:
+    factory = ITEM_REGISTRY.get(name.lower())
+    return factory() if factory else None
+
+def handle_dev_command(command: str, player: Player, room: Room) -> str:
+    if command.startswith("add "):
+        item_name = command.removeprefix("add ").strip()
+        item = find_item_by_name(item_name)
+        if item is None:
+            return f"[DEV] No known item named '{item_name}'."
+        player.inventory.add(item)
+        return f"[DEV] Added {item.name} to inventory."
+
+    if command.startswith("set hp "):
+        try:
+            value = int(command.removeprefix("set hp ").strip())
+        except ValueError:
+            return "[DEV] Invalid HP value."
+        player.hp = value
+        return f"[DEV] HP set to {value}."
+
+    if command == "unlock all":
+        cleared = list(room.locked_exits.keys())
+        room.locked_exits.clear()
+        if not cleared:
+            return "[DEV] No locked exits in this room."
+        return f"[DEV] Unlocked: {', '.join(cleared)}."
+
+    if command.startswith("unlock "):
+        direction = command.removeprefix("unlock ").strip()
+        if direction in room.locked_exits:
+            del room.locked_exits[direction]
+            return f"[DEV] Unlocked exit: {direction}."
+        return f"[DEV] {direction} is not a locked exit here."
+
+    if command == "skillpoints":
+        player.skill_tree.skill_points += 1
+        return f"[DEV] Skill points: {player.skill_tree.skill_points}."
+
+    if command == "help":
+        return (
+            "[DEV] Commands: dev add <item>, dev set hp <n>, "
+            "dev unlock <direction>, dev unlock all, dev skillpoints"
+        )
+
+    return f"[DEV] Unrecognised dev command: {command}. Try 'dev help'."
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     for item in room.items:
@@ -133,6 +203,9 @@ def main() -> None:
 
         elif command in ("quit", "exit"):
             break
+
+        elif command.startswith("dev ") and DEV_MODE:
+            print(handle_dev_command(command.removeprefix("dev ").strip(), player, current_room))
 
         elif command == "map":
             print(display_local_exits(current_room, player))

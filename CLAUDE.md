@@ -30,6 +30,7 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
 - `Ally` is a standalone class, NOT `Ally(Character)` — allies don't have hp/combat stats, deliberately, to avoid unused capability.
 - Functions that coordinate two independent classes (e.g. moving an item between a `Room` and a `Player`) live as standalone functions in `engine.py`, not as a method on either class. Functions that only touch one class's own state are methods on that class.
 - Don't add `__eq__`, extra attributes, or extra methods "for flexibility" unless something in the actual design already needs them.
+- Any new create_*() item function should also be added to ITEM_REGISTRY in engine.py.
 
 ## When generating tests for existing files
 Match the existing test files' style exactly (check `tests/test_characters.py` and `tests/test_items.py` for the established pattern before writing anything new). Do not introduce `pytest.raises`, `unittest.mock`, fixtures beyond `capsys`, or any testing library/pattern not already in use, without asking first.
