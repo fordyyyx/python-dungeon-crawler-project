@@ -85,6 +85,10 @@ def test_create_chiron_reward_is_charons_coin():
     assert chiron.reward is not None
     assert chiron.reward.name == "Charon's Coin"
 
+def test_create_chiron_has_correct_post_trade_message():
+    chiron = create_chiron()
+    assert chiron.post_trade_message == "You feel ready. Type 'descend' when you're prepared to leave this place behind."
+
 def test_create_chiron_talk_returns_hint_when_player_missing_required_items():
     chiron = create_chiron()
     player = Player(name="hero", hp=100)

@@ -304,6 +304,14 @@ def test_ally_initialises_with_reward():
     ally = Ally(name="Chiron", reward=sword)
     assert ally.reward is sword
 
+def test_ally_initialises_with_empty_post_trade_message_by_default():
+    ally = Ally(name="Chiron")
+    assert ally.post_trade_message == ""
+
+def test_ally_initialises_with_post_trade_message():
+    ally = Ally(name="Chiron", post_trade_message="Safe travels, hero.")
+    assert ally.post_trade_message == "Safe travels, hero."
+
 def test_ally_talk_returns_hint_when_player_missing_required_items():
     player = Player(name="hero", hp=10)
     ally = Ally(name="Chiron", hint="Learn to move first.", hint_complete="Well done.", required_items=["Wooden Sword"])

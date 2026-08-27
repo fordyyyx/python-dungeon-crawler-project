@@ -131,7 +131,7 @@ class Enemy(Character):
 
 
 class Ally():
-    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = ""):
         self.name = name
         self.description = description
         self.hint = hint
@@ -140,6 +140,7 @@ class Ally():
         self.items = items
         self.required_items = required_items or []
         self.reward = reward
+        self.post_trade_message = post_trade_message
         for item in self.items or []:
             self.inventory.add(item)
 

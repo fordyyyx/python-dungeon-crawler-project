@@ -15,9 +15,11 @@ def resolve_combat_round(player: Player, enemy: Enemy):
     messages = [player.attack(enemy)]
 
     if not enemy.is_alive():
+        messages.append(f"{player.name}: {player.hp}/{player.max_hp} HP")
         return "\n".join(messages)
 
     messages.append(enemy.attack(player))
+    messages.append(f"{player.name}: {player.hp}/{player.max_hp} HP  |  {enemy.name}: {enemy.hp}/{enemy.max_hp} HP")
 
     return "\n".join(messages)
 
@@ -56,7 +58,10 @@ def trade_with_ally(ally: Ally, player: Player):
         player.inventory.remove(item)
 
     player.inventory.add(ally.reward)
-    return f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {ally.reward.name}."
+    result = f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {ally.reward.name}."
+    if ally.post_trade_message:
+        result += f"\n\n{ally.post_trade_message}"
+    return result
 
 def print_room(room: Room):
     print(f"{room.name}: {room.description}")
@@ -103,7 +108,10 @@ def main() -> None:
     dungeon, current_room, all_floors = build_world()
     current_floor_rooms = all_floors["floor_0"]
     player = Player(name="Hero", hp=20, attack_damage=3)
+
     print_room(current_room)
+    print("\nNot sure where to start? Try talking to whoever is in the room with you.")
+
     while player.is_alive():
         command = input("> ").strip().lower()
         print("\n\n")

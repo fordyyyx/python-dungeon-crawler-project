@@ -101,6 +101,22 @@ def test_resolve_combat_round_returns_fallen_message_when_player_defeated():
 
     assert "Hero has fallen." in result
 
+def test_resolve_combat_round_returns_full_message_when_both_survive():
+    player = Player(name="Hero", hp=100, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+
+    result = resolve_combat_round(player, enemy)
+
+    assert result == "Hero attacks Goblin for 10 damage.\nGoblin attacks Hero for 5 damage.\nHero: 95/100 HP  |  Goblin: 10/20 HP"
+
+def test_resolve_combat_round_returns_full_message_when_enemy_defeated():
+    player = Player(name="Hero", hp=100, attack_damage=20)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+
+    result = resolve_combat_round(player, enemy)
+
+    assert result == "Hero attacks Goblin for 20 damage.\nGoblin has been defeated.\nHero: 100/100 HP"
+
 def test_handle_enemy_defeat_removes_enemy_from_room():
     room = Room("Armoury")
     enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
@@ -253,6 +269,17 @@ def test_trade_with_ally_returns_nothing_to_trade_message_when_ally_has_no_rewar
     message = trade_with_ally(ally, player)
 
     assert message == "Prometheus has nothing to trade."
+
+def test_trade_with_ally_appends_post_trade_message_when_set():
+    coin = QuestItem(name="Charon's Coin", description="")
+    ally = Ally(name="Chiron", required_items=["Wooden Sword"], reward=coin, post_trade_message="Safe travels, hero.")
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    message = trade_with_ally(ally, player)
+
+    assert message == "Chiron nods, accepting each item in turn. \"You've done well.\" They hand you the Charon's Coin.\n\nSafe travels, hero."
 
 def test_print_room_prints_name_and_description(capsys):
     room = Room("Armoury", "A dusty room full of old weapons.")

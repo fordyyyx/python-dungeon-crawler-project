@@ -78,6 +78,7 @@ def create_chiron() -> Ally:
             "\"Type 'trade' and I'll see what you've brought me.\""),
         required_items=["Wooden Sword", "Wooden Shield", "Dummy Head", "Mentor's Token"],
         reward=create_charons_coin(),
+        post_trade_message = "You feel ready. Type 'descend' when you're prepared to leave this place behind.",
         items=[]
     )
 
