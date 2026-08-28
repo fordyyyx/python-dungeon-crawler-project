@@ -4,7 +4,7 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world, ANCESTRIES
 from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour
 from collections.abc import Callable
-
+import random
 
 DEV_MODE = False
 
@@ -221,6 +221,76 @@ def create_player(name: str, ancestry_key: str) -> Player:
         player.skill_tree.skill_points += 1
     return player
 
+def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room) -> str:
+    if command == "attack":
+        result = resolve_combat_round(player, enemy)
+        if not enemy.is_alive():
+            player.in_combat = False
+            player.current_target = None
+            handle_enemy_defeat(room, enemy)
+        return result
+
+    if command == "flee":
+        result = flee_combat(player, enemy)
+        player.in_combat = False
+        player.current_target = None
+        return result
+
+    if command.startswith("use "):
+        item_name = command.removeprefix("use ").strip()
+        try:
+            result = player.inventory.use_item(item_name, player)
+        except ValueError as e:
+            result = str(e)
+
+        if enemy.is_alive():
+            enemy_message = enemy.attack(player)
+            result += f"\n{enemy_message}"
+            if not player.is_alive():
+                player.in_combat = False
+                player.current_target = None
+        return result
+
+    if command == "stats":
+        return player.get_stats()
+
+    if command == "skills":
+        return display_skills(player)
+
+    if command.startswith("learn "):
+        path_name = command.removeprefix("learn ").strip()
+        try:
+            return player.skill_tree.invest(path_name, player)
+        except ValueError as e:
+            return str(e)
+
+    if command == "inventory":
+        return player.get_inventory_display()
+
+    return "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'." 
+
+def flee_combat(player: Player, enemy: Enemy) -> str:
+    chance_of_free_hit = enemy.hp / enemy.max_hp
+    if random.random() < chance_of_free_hit:
+        damage_dealt, death_message = player.take_damage(enemy.attack_damage, attacker=enemy)
+        message = f"You disengage, but the {enemy.name} gets a hit in as you go - {damage_dealt} damage."
+        if death_message:
+            message += f"\n{death_message}"
+        return message
+    return f"You disengage cleanly, leaving the {enemy.name} behind."
+
+def display_skills(player: Player) -> str:
+    lines = []
+    for path_name, path in player.skill_tree.paths.items():
+        next_skill = path.next_skill
+        if next_skill is not None:
+            lines.append(f"{path.name}: next unlock is {next_skill.name} - {next_skill.description}")
+        else:
+            lines.append(f"{path.name}: fully unlocked")
+    lines.append(f"Skill Points available: {player.skill_tree.skill_points}")
+    return "\n".join(lines)
+
+
 
 def main() -> None:
     global DEV_MODE
@@ -239,12 +309,19 @@ def main() -> None:
         command = input("> ").strip().lower()
         print("\n\n")
 
-        if command.startswith("take ") and " from " not in command:
+        if command in ("quit", "exit"):
+            break
+
+        elif player.in_combat:
+            if player.current_target is not None:
+                print(handle_combat_command(command, player, player.current_target, current_room))
+            else:
+                player.in_combat = False
+                print("You are no longer in combat.")
+
+        elif command.startswith("take ") and " from " not in command:
             item_name = command.removeprefix("take ").strip()
             print(pick_up(current_room, item_name, player))
-
-        elif command in ("quit", "exit"):
-            break
 
         elif command == "developer mode":
             DEV_MODE = not DEV_MODE
@@ -275,12 +352,13 @@ def main() -> None:
         elif command == "attack":
             if current_room.enemies:
                 enemy = current_room.enemies[0]
-                print(resolve_combat_round(player, enemy))
+                player.in_combat = True
+                player.current_target = enemy
+                result = resolve_combat_round(player, enemy)
                 if not enemy.is_alive():
-                    handle_enemy_defeat(current_room, enemy)
-                    if enemy.name == "Hades":
-                        print(f"\n{player.name} has defeated Hades. You win!")
-                        break
+                    player.in_combat = False
+                    player.current_target = None
+                print(result)
             else:
                 print("There's nothing here to attack.")
 
@@ -340,13 +418,7 @@ def main() -> None:
                 print("There is no one here to trade with.")
 
         elif command == "skills":
-            for path_name, path in player.skill_tree.paths.items():
-                next_skill = path.next_skill
-                if next_skill is not None:
-                    print(f"{path.name}: next unlock is {next_skill.name} - {next_skill.description}")
-                else:
-                    print(f"{path.name}: fully unlocked")
-            print(f"Skill Points available: {player.skill_tree.skill_points}")
+            print(display_skills(player))
 
         elif command.startswith("learn "):
             path_name = command.removeprefix("learn ").strip()

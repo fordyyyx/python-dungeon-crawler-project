@@ -417,6 +417,14 @@ def test_character_initialises_with_has_thorns_false():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.has_thorns is False
 
+def test_character_initialises_with_in_combat_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.in_combat is False
+
+def test_character_initialises_with_no_current_target():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.current_target is None
+
 def test_get_inventory_display_returns_empty_message_when_no_items():
     player = Player(name="hero", hp=100)
     assert player.get_inventory_display() == "Your inventory is empty."

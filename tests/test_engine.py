@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player
+from dungeon_crawler.items import Armour, Consumable, QuestItem, Weapon
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player, handle_combat_command, flee_combat, display_skills
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -641,3 +641,256 @@ def test_create_player_with_bonus_skill_point_ancestry_grants_skill_point():
 def test_create_player_without_bonus_skill_point_ancestry_grants_no_skill_point():
     player = create_player("Hero", "basic")
     assert player.skill_tree.skill_points == 0
+
+def test_flee_combat_clean_escape_when_enemy_at_zero_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 0
+
+    message = flee_combat(player, enemy)
+
+    assert message == "You disengage cleanly, leaving the Goblin behind."
+
+def test_flee_combat_clean_escape_does_not_damage_player():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 0
+
+    flee_combat(player, enemy)
+
+    assert player.hp == 50
+
+def test_flee_combat_gets_hit_when_enemy_at_full_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+
+    message = flee_combat(player, enemy)
+
+    assert message == "You disengage, but the Goblin gets a hit in as you go - 5 damage."
+    assert player.hp == 45
+
+def test_flee_combat_hit_can_defeat_player():
+    player = Player(name="Hero", hp=5, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=20)
+
+    message = flee_combat(player, enemy)
+
+    assert message == "You disengage, but the Goblin gets a hit in as you go - 20 damage.\nHero has fallen. Game Over."
+    assert player.hp == 0
+
+def test_display_skills_shows_next_skill_for_each_path():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    result = display_skills(player)
+    assert "Attack: next unlock is Iron Grip - Steadier strikes." in result
+    assert "Defence: next unlock is Hardened Skin - Blows land softer." in result
+    assert "Abilities: next unlock is Twin Strike - A second blow follows the first, fast and true." in result
+
+def test_display_skills_shows_fully_unlocked_when_path_exhausted():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 3
+    player.skill_tree.invest("attack", player)
+    player.skill_tree.invest("attack", player)
+    player.skill_tree.invest("attack", player)
+    result = display_skills(player)
+    assert "Attack: fully unlocked" in result
+
+def test_display_skills_shows_available_skill_points():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 2
+    result = display_skills(player)
+    assert "Skill Points available: 2" in result
+
+def test_handle_combat_command_attack_reduces_enemy_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("attack", player, enemy, room)
+
+    assert enemy.hp == 10
+
+def test_handle_combat_command_attack_returns_combat_round_result():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("attack", player, enemy, room)
+
+    assert "Hero attacks Goblin for 10 damage." in message
+
+def test_handle_combat_command_attack_when_enemy_defeated_clears_combat_state():
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player.in_combat = True
+    player.current_target = enemy
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    handle_combat_command("attack", player, enemy, room)
+
+    assert player.in_combat is False
+    assert player.current_target is None
+
+def test_handle_combat_command_attack_when_enemy_defeated_removes_enemy_from_room():
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    handle_combat_command("attack", player, enemy, room)
+
+    assert enemy not in room.enemies
+
+def test_handle_combat_command_attack_when_enemy_survives_does_not_clear_combat_state():
+    player = Player(name="Hero", hp=50, attack_damage=5)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    player.in_combat = True
+    player.current_target = enemy
+    room = Room("Arena")
+
+    handle_combat_command("attack", player, enemy, room)
+
+    assert player.in_combat is True
+    assert player.current_target is enemy
+
+def test_handle_combat_command_flee_clears_combat_state():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 0
+    player.in_combat = True
+    player.current_target = enemy
+    room = Room("Arena")
+
+    handle_combat_command("flee", player, enemy, room)
+
+    assert player.in_combat is False
+    assert player.current_target is None
+
+def test_handle_combat_command_flee_returns_flee_result():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 0
+    room = Room("Arena")
+
+    message = handle_combat_command("flee", player, enemy, room)
+
+    assert message == "You disengage cleanly, leaving the Goblin behind."
+
+def test_handle_combat_command_use_item_heals_player():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.hp = 30
+    potion = Consumable(name="Potion", heal_amount=10)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 0
+    room = Room("Arena")
+
+    handle_combat_command("use potion", player, enemy, room)
+
+    assert player.hp == 40
+
+def test_handle_combat_command_use_item_returns_use_message_when_enemy_not_alive():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.hp = 30
+    potion = Consumable(name="Potion", heal_amount=10)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 0
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, room)
+
+    assert message == "Hero uses Potion, healing 10 HP."
+
+def test_handle_combat_command_use_item_with_invalid_name_returns_error_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 0
+    room = Room("Arena")
+
+    message = handle_combat_command("use nonexistent", player, enemy, room)
+
+    assert message == "No item named' nonexistent' in inventory."
+
+def test_handle_combat_command_use_item_triggers_enemy_counterattack_when_enemy_alive():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    potion = Consumable(name="Potion", heal_amount=5)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, room)
+
+    assert message == "Hero uses Potion, healing 5 HP.\nGoblin attacks Hero for 5 damage."
+    assert player.hp == 45
+
+def test_handle_combat_command_use_item_enemy_counterattack_can_defeat_player_clears_combat_state():
+    player = Player(name="Hero", hp=5, attack_damage=10)
+    potion = Consumable(name="Potion", heal_amount=1)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=20)
+    player.in_combat = True
+    player.current_target = enemy
+    room = Room("Arena")
+
+    handle_combat_command("use potion", player, enemy, room)
+
+    assert player.in_combat is False
+    assert player.current_target is None
+    assert player.hp == 0
+
+def test_handle_combat_command_stats_returns_player_stats():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("stats", player, enemy, room)
+
+    assert message.startswith("Hero ():")
+
+def test_handle_combat_command_skills_returns_skills_display():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("skills", player, enemy, room)
+
+    assert "Skill Points available: 0" in message
+
+def test_handle_combat_command_learn_invests_skill():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 1
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("learn defence", player, enemy, room)
+
+    assert player.armour == 2
+    assert message == "Hero gains +2 armour from Hardened Skin."
+
+def test_handle_combat_command_learn_with_no_skill_points_returns_error_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("learn defence", player, enemy, room)
+
+    assert message == "No skill points available"
+
+def test_handle_combat_command_inventory_returns_inventory_display():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("inventory", player, enemy, room)
+
+    assert message == "Your inventory is empty."
+
+def test_handle_combat_command_unrecognised_command_returns_error_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("dance", player, enemy, room)
+
+    assert message == "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'."

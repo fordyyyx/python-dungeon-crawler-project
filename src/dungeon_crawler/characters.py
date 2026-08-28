@@ -13,6 +13,8 @@ class Character:
         self.has_double_strike = False
         self.has_last_stand = False
         self.has_thorns = False
+        self.in_combat = False
+        self.current_target: "Enemy | None" = None
 
     def attack(self, target: "Character") -> str:
         damage_dealt, death_message = target.take_damage(self.attack_damage, attacker=self)
