@@ -45,7 +45,19 @@ def handle_dev_command(command: str, player: Player, room: Room) -> str:
         except ValueError:
             return "[DEV] Invalid HP value."
         player.hp = value
-        return f"[DEV] HP set to {value}."
+        if value > player.max_hp:
+            player.max_hp = value
+        return f"[DEV] HP set to {value} (max HP: {player.max_hp})"
+
+    if command.startswith("set maxhp "):
+        try:
+            value = int(command.removeprefix("set maxhp ").strip())
+        except ValueError:
+            return "[DEV] Invalid max HP value."
+        player.max_hp = value
+        if player.hp > value:
+            player.hp = value
+        return f"[DEV] Max HP set to {value}"
 
     if command == "unlock all":
         cleared = list(room.locked_exits.keys())
@@ -186,6 +198,7 @@ def display_local_exits(room: Room, player: Player) -> str:
     return "\n".join(lines)
 
 def main() -> None:
+    global DEV_MODE
     dungeon, current_room, all_floors = build_world()
     current_floor_rooms = all_floors["floor_0"]
     player = Player(name="Hero", hp=20, attack_damage=3)
@@ -203,6 +216,9 @@ def main() -> None:
 
         elif command in ("quit", "exit"):
             break
+
+        elif command == "developer mode":
+            DEV_MODE = not DEV_MODE
 
         elif command.startswith("dev ") and DEV_MODE:
             print(handle_dev_command(command.removeprefix("dev ").strip(), player, current_room))

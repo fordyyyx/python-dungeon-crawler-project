@@ -484,7 +484,7 @@ def test_handle_dev_command_set_hp_returns_confirmation_message():
     player = Player(name="hero", hp=100)
     room = Room("A")
     message = handle_dev_command("set hp 50", player, room)
-    assert message == "[DEV] HP set to 50."
+    assert message == "[DEV] HP set to 50 (max HP: 100)"
 
 def test_handle_dev_command_set_hp_with_invalid_value_returns_error_message():
     player = Player(name="hero", hp=100)
@@ -496,6 +496,60 @@ def test_handle_dev_command_set_hp_with_invalid_value_does_not_change_hp():
     player = Player(name="hero", hp=100)
     room = Room("A")
     handle_dev_command("set hp abc", player, room)
+    assert player.hp == 100
+
+def test_handle_dev_command_set_hp_above_max_hp_raises_max_hp():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set hp 150", player, room)
+    assert player.max_hp == 150
+
+def test_handle_dev_command_set_hp_above_max_hp_returns_updated_max_hp_in_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("set hp 150", player, room)
+    assert message == "[DEV] HP set to 150 (max HP: 150)"
+
+def test_handle_dev_command_set_hp_below_max_hp_does_not_change_max_hp():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set hp 50", player, room)
+    assert player.max_hp == 100
+
+def test_handle_dev_command_set_maxhp_updates_max_hp():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set maxhp 150", player, room)
+    assert player.max_hp == 150
+
+def test_handle_dev_command_set_maxhp_returns_confirmation_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("set maxhp 150", player, room)
+    assert message == "[DEV] Max HP set to 150"
+
+def test_handle_dev_command_set_maxhp_with_invalid_value_returns_error_message():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    message = handle_dev_command("set maxhp abc", player, room)
+    assert message == "[DEV] Invalid max HP value."
+
+def test_handle_dev_command_set_maxhp_with_invalid_value_does_not_change_max_hp():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set maxhp abc", player, room)
+    assert player.max_hp == 100
+
+def test_handle_dev_command_set_maxhp_below_current_hp_clamps_hp_down():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set maxhp 50", player, room)
+    assert player.hp == 50
+
+def test_handle_dev_command_set_maxhp_above_current_hp_does_not_change_hp():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    handle_dev_command("set maxhp 150", player, room)
     assert player.hp == 100
 
 def test_handle_dev_command_unlock_all_clears_locked_exits():
