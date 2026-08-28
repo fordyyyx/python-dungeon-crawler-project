@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, Consumable, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player, handle_combat_command, flee_combat, display_skills
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player, handle_combat_command, flee_combat, display_skills, resolve_attack_and_check_defeat
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -217,6 +217,26 @@ def test_trade_with_ally_returns_confirmation_message_when_complete():
     message = trade_with_ally(ally, player)
 
     assert message == "Chiron nods, accepting each item in turn. \"You've done well.\" They hand you the Charon's Coin."
+
+def test_trade_with_ally_marks_trade_completed_on_success():
+    coin = QuestItem(name="Charon's Coin", description="")
+    ally = Ally(name="Chiron", required_items=["Wooden Sword"], reward=coin)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    trade_with_ally(ally, player)
+
+    assert ally.trade_completed is True
+
+def test_trade_with_ally_does_not_mark_trade_completed_when_items_missing():
+    coin = QuestItem(name="Charon's Coin", description="")
+    ally = Ally(name="Chiron", required_items=["Wooden Sword"], reward=coin)
+    player = Player(name="hero", hp=100)
+
+    trade_with_ally(ally, player)
+
+    assert ally.trade_completed is False
 
 def test_trade_with_ally_returns_unequip_message_when_required_item_is_equipped():
     coin = QuestItem(name="Charon's Coin", description="")
@@ -894,3 +914,56 @@ def test_handle_combat_command_unrecognised_command_returns_error_message():
     message = handle_combat_command("dance", player, enemy, room)
 
     assert message == "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'."
+
+def test_resolve_attack_and_check_defeat_reduces_enemy_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert enemy.hp == 10
+
+def test_resolve_attack_and_check_defeat_returns_combat_round_result():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert "Hero attacks Goblin for 10 damage." in message
+
+def test_resolve_attack_and_check_defeat_when_enemy_defeated_clears_combat_state():
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player.in_combat = True
+    player.current_target = enemy
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert player.in_combat is False
+    assert player.current_target is None
+
+def test_resolve_attack_and_check_defeat_when_enemy_defeated_removes_enemy_from_room():
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert enemy not in room.enemies
+
+def test_resolve_attack_and_check_defeat_when_enemy_survives_does_not_clear_combat_state():
+    player = Player(name="Hero", hp=50, attack_damage=5)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    player.in_combat = True
+    player.current_target = enemy
+    room = Room("Arena")
+
+    resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert player.in_combat is True
+    assert player.current_target is enemy

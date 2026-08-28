@@ -168,10 +168,10 @@ def test_create_wounded_soldier_has_no_required_items():
     wounded_soldier = create_wounded_soldier()
     assert wounded_soldier.required_items == []
 
-def test_create_wounded_soldier_talk_returns_default_message():
+def test_create_wounded_soldier_talk_returns_hint():
     wounded_soldier = create_wounded_soldier()
     player = Player(name="hero", hp=100)
-    assert wounded_soldier.talk(player) == "Wounded Soldier has nothing to say."
+    assert wounded_soldier.talk(player) == wounded_soldier.hint
 
 def test_create_wounded_soldier_carries_bronze_xiphos():
     wounded_soldier = create_wounded_soldier()

@@ -159,7 +159,13 @@ def test_attack_message_shows_armour_reduced_damage():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
     target = Character(name="Goblin", hp=20, attack_damage=5, armour=4)
     message = attacker.attack(target)
-    assert message == "Hero attacks Goblin for 6 damage."
+    assert message == "Hero attacks Goblin for 6 damage. (4 deflected by armour)"
+
+def test_attack_message_shows_full_deflection_when_armour_blocks_all_damage():
+    attacker = Character(name="Hero", hp=30, attack_damage=5)
+    target = Character(name="Goblin", hp=20, attack_damage=5, armour=10)
+    message = attacker.attack(target)
+    assert message == "Hero attacks Goblin for 0 damage. (5 deflected by armour)"
 
 def test_attack_with_double_strike_deals_second_hit():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
@@ -280,6 +286,28 @@ def test_get_stats_header_line_includes_ancestry_label_when_set():
     stats = player.get_stats()
     assert stats.startswith("hero (Descendant of Zeus):")
 
+def test_get_stats_does_not_include_unlocked_skills_section_by_default():
+    player = Player(name="hero", hp=100)
+    stats = player.get_stats()
+    assert "Unlocked Skills" not in stats
+
+def test_get_stats_includes_unlocked_skills_section_when_skill_unlocked():
+    player = Player(name="hero", hp=100)
+    player.skill_tree.skill_points = 1
+    player.skill_tree.invest("defence", player)
+    stats = player.get_stats()
+    assert "Unlocked Skills:" in stats
+    assert "  - Hardened Skin" in stats
+
+def test_get_stats_unlocked_skills_section_lists_skills_from_multiple_paths():
+    player = Player(name="hero", hp=100)
+    player.skill_tree.skill_points = 2
+    player.skill_tree.invest("defence", player)
+    player.skill_tree.invest("attack", player)
+    stats = player.get_stats()
+    assert "  - Hardened Skin" in stats
+    assert "  - Iron Grip" in stats
+
 def test_ally_initialises_with_empty_inventory():
     ally = Ally(name="Chiron")
     assert isinstance(ally.inventory, Inventory)
@@ -324,6 +352,22 @@ def test_ally_initialises_with_empty_post_trade_message_by_default():
 def test_ally_initialises_with_post_trade_message():
     ally = Ally(name="Chiron", post_trade_message="Safe travels, hero.")
     assert ally.post_trade_message == "Safe travels, hero."
+
+def test_ally_initialises_with_trade_completed_false():
+    ally = Ally(name="Chiron")
+    assert ally.trade_completed is False
+
+def test_ally_talk_returns_hint_complete_when_trade_completed_even_if_missing_required_items():
+    player = Player(name="hero", hp=10)
+    ally = Ally(name="Chiron", hint="Learn to move first.", hint_complete="Well done.", required_items=["Wooden Sword"])
+    ally.trade_completed = True
+    assert ally.talk(player) == "Well done."
+
+def test_ally_talk_falls_back_to_hint_when_trade_completed_but_no_hint_complete_set():
+    player = Player(name="hero", hp=10)
+    ally = Ally(name="Chiron", hint="Learn to move first.", required_items=["Wooden Sword"])
+    ally.trade_completed = True
+    assert ally.talk(player) == "Learn to move first."
 
 def test_ally_talk_returns_hint_when_player_missing_required_items():
     player = Player(name="hero", hp=10)
