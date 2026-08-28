@@ -2,6 +2,20 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Item, Weapon, Armour, Consumable, QuestItem, SkillPointReward
 from dungeon_crawler.characters import Enemy, Player, Ally
 
+ANCESTRIES: dict[str, dict] = {
+    "basic":    {"label": "No lineage",                 "attack": 3, "armour": 1, "hp": 20, "bonus_skill_point": False},
+    "ares":     {"label": "Descendant of Ares",         "attack": 5, "armour": 1, "hp": 19, "bonus_skill_point": False},
+    "athena":   {"label": "Descendant of Athena",       "attack": 4, "armour": 3, "hp": 20, "bonus_skill_point": False},
+    "hermes":   {"label": "Descendant of Hermes",       "attack": 4, "armour": 1, "hp": 22, "bonus_skill_point": False},
+    "poseidon": {"label": "Descendant of Poseidon",     "attack": 2, "armour": 5, "hp": 19, "bonus_skill_point": False},
+    "achilles": {"label": "Descendant of Achilles",     "attack": 6, "armour": 1, "hp": 16, "bonus_skill_point": False},
+    "odysseus": {"label": "Descendant of Odysseus",     "attack": 3, "armour": 1, "hp": 20, "bonus_skill_point": True},
+    "atalanta": {"label": "Descendant of Atalanta",     "attack": 5, "armour": 1, "hp": 20, "bonus_skill_point": False},
+    "medusa":   {"label": "Descendant of Medusa",       "attack": 2, "armour": 4, "hp": 19, "bonus_skill_point": False},
+    "minotaur": {"label": "Descendant of the Minotaur", "attack": 6, "armour": 0, "hp": 21, "bonus_skill_point": False},
+    "cyclops":  {"label": "Descendant of a Cyclops",    "attack": 3, "armour": 0, "hp": 25, "bonus_skill_point": False},
+}
+
 def create_skeleton_warrior() -> Enemy:
     """Create a skeleton warrior enemy"""
     return Enemy(

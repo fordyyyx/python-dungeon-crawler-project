@@ -63,7 +63,7 @@ class Character:
         return (f"{self.name} has died.")
 
 class Player(Character):
-    def __init__(self, name: str, hp: int, attack_damage: int = 5, armour: int = 0):
+    def __init__(self, name: str, hp: int, attack_damage: int = 5, armour: int = 0, ancestry_label: str = ""):
         super().__init__(name, hp, attack_damage, armour)
         self.level = 1
         self.experience = 0
@@ -71,13 +71,15 @@ class Player(Character):
         self.skill_tree = SkillTree()
         self.equipped_weapon = None
         self.equipped_armour = None
+        self.ancestry_label = ancestry_label
 
     def on_death(self) -> str:
         return f"{self.name} has fallen. Game Over."
 
     def get_stats(self) -> str:
+        heritage = f"{self.ancestry_label}" if self.ancestry_label else ""
         stat_string = f"""
-        {self.name}:
+        {self.name} ({heritage}):
         LVL {self.level} --- {self.experience} XP
         {self.hp} HP
         {self.attack_damage} ATK

@@ -260,12 +260,25 @@ def test_player_get_stats(capsys):
     player = Player(name="hero", hp=100)
     print(player.get_stats())
     captured = capsys.readouterr()
-    assert "hero:" in captured.out
+    assert "hero ():" in captured.out
 
 def test_player_get_stats_has_no_leading_whitespace():
     player = Player(name="hero", hp=100)
     stats = player.get_stats()
-    assert stats.startswith("hero:")
+    assert stats.startswith("hero ():")
+
+def test_player_initialises_with_empty_ancestry_label_by_default():
+    player = Player(name="hero", hp=100)
+    assert player.ancestry_label == ""
+
+def test_player_initialises_with_ancestry_label():
+    player = Player(name="hero", hp=100, ancestry_label="Descendant of Zeus")
+    assert player.ancestry_label == "Descendant of Zeus"
+
+def test_get_stats_header_line_includes_ancestry_label_when_set():
+    player = Player(name="hero", hp=100, ancestry_label="Descendant of Zeus")
+    stats = player.get_stats()
+    assert stats.startswith("hero ( Descendant of Zeus):")
 
 def test_ally_initialises_with_empty_inventory():
     ally = Ally(name="Chiron")

@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -619,3 +619,25 @@ def test_handle_dev_command_unrecognised_command_returns_error_message():
     room = Room("A")
     message = handle_dev_command("frobnicate", player, room)
     assert message == "[DEV] Unrecognised dev command: frobnicate. Try 'dev help'."
+
+def test_create_player_sets_name():
+    player = create_player("Hero", "basic")
+    assert player.name == "Hero"
+
+def test_create_player_sets_stats_from_ancestry():
+    player = create_player("Hero", "basic")
+    assert player.hp == 20
+    assert player.attack_damage == 3
+    assert player.armour == 1
+
+def test_create_player_sets_ancestry_label():
+    player = create_player("Hero", "basic")
+    assert player.ancestry_label == "No lineage"
+
+def test_create_player_with_bonus_skill_point_ancestry_grants_skill_point():
+    player = create_player("Hero", "odysseus")
+    assert player.skill_tree.skill_points == 1
+
+def test_create_player_without_bonus_skill_point_ancestry_grants_no_skill_point():
+    player = create_player("Hero", "basic")
+    assert player.skill_tree.skill_points == 0

@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.items import Weapon, Item
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.content import build_world
+from dungeon_crawler.content import build_world, ANCESTRIES
 from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour
 from collections.abc import Callable
 
@@ -197,11 +197,40 @@ def display_local_exits(room: Room, player: Player) -> str:
             lines.append(f"{direction} -> {target.name}")
     return "\n".join(lines)
 
+def choose_ancestry() -> str:
+    print("\nBefore your descent begins, tell me - whose blood runs in you?\n")
+    for key, data in ANCESTRIES.items():
+        print(f"    {key} - {data['label']} ATK {data['attack']} / DEF {data['armour']} / HP {data['hp']})")
+
+    while True:
+        choice = input("\n> ").strip().lower()
+        if choice in ANCESTRIES:
+            return choice
+        print("That name means nothing to me. Choose from the list above.")
+
+def create_player(name: str, ancestry_key: str) -> Player:
+    data = ANCESTRIES[ancestry_key]
+    player = Player(
+        name=name,
+        hp=data['hp'],
+        attack_damage=data["attack"],
+        armour=data["armour"],
+        ancestry_label=data["label"]
+    )
+    if data["bonus_skill_point"]:
+        player.skill_tree.skill_points += 1
+    return player
+
+
 def main() -> None:
     global DEV_MODE
     dungeon, current_room, all_floors = build_world()
     current_floor_rooms = all_floors["floor_0"]
-    player = Player(name="Hero", hp=20, attack_damage=3)
+    print("What is your name, hero?")
+    name = input("> ").strip() or "Hero"
+
+    ancestry_key = choose_ancestry()
+    player = create_player(name, ancestry_key)
 
     print_room(current_room)
     print("\nNot sure where to start? Try talking to whoever is in the room with you.")

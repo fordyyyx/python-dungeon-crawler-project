@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -201,6 +201,16 @@ def test_create_charon_talk_returns_hint():
     charon = create_charon()
     player = Player(name="hero", hp=100)
     assert charon.talk(player) == charon.hint
+
+def test_ancestries_contains_expected_keys():
+    assert set(ANCESTRIES.keys()) == {
+        "basic", "ares", "athena", "hermes", "poseidon", "achilles",
+        "odysseus", "atalanta", "medusa", "minotaur", "cyclops",
+    }
+
+def test_ancestries_only_odysseus_grants_bonus_skill_point():
+    bonus_keys = [key for key, data in ANCESTRIES.items() if data["bonus_skill_point"]]
+    assert bonus_keys == ["odysseus"]
 
 def test_create_bronze_breastplate_has_correct_defence_and_description():
     breastplate = create_bronze_breastplate()
