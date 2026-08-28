@@ -17,8 +17,13 @@ class Character:
         self.current_target: "Enemy | None" = None
 
     def attack(self, target: "Character") -> str:
-        damage_dealt, death_message = target.take_damage(self.attack_damage, attacker=self)
+        incoming = self.attack_damage
+        damage_dealt, death_message = target.take_damage(incoming, attacker=self)
+        deflected = incoming - damage_dealt
+
         message = f"{self.name} attacks {target.name} for {damage_dealt} damage."
+        if deflected > 0:
+            message += f" ({deflected} deflected by armour)"
         if death_message:
             message += f"\n{death_message}"
             return message
@@ -80,12 +85,19 @@ class Player(Character):
 
     def get_stats(self) -> str:
         heritage = f"{self.ancestry_label}" if self.ancestry_label else ""
+        unlocked_lines = []
+        for path in self.skill_tree.paths.values():
+            for skill in path.skills[:path.unlocked_count]:
+                unlocked_lines.append(f"  - {skill.name}")
+        unlocked_section = "\nUnlocked Skills:\n" + "\n".join(unlocked_lines) if unlocked_lines else ""
+
         stat_string = f"""
         {self.name} ({heritage}):
         LVL {self.level} --- {self.experience} XP
         {self.hp} HP
         {self.attack_damage} ATK
         {self.armour} DEF
+        {unlocked_section}
         """
         return dedent(stat_string).strip()
 
@@ -145,11 +157,14 @@ class Ally():
         self.required_items = required_items or []
         self.reward = reward
         self.post_trade_message = post_trade_message
+        self.trade_completed = False
         for item in self.items or []:
             self.inventory.add(item)
 
 
     def talk(self, player) -> str:
+        if self.trade_completed:
+            return self.hint_complete or self.hint
         if self.required_items:
             player_item_names = [item.name for item in player.inventory.items]
             if all(name in player_item_names for name in self.required_items):

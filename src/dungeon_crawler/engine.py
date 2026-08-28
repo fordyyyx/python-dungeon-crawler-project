@@ -140,6 +140,7 @@ def trade_with_ally(ally: Ally, player: Player):
         player.inventory.remove(item)
 
     player.inventory.add(ally.reward)
+    ally.trade_completed = True
     result = f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {ally.reward.name}."
     if ally.post_trade_message:
         result += f"\n\n{ally.post_trade_message}"
@@ -200,7 +201,7 @@ def display_local_exits(room: Room, player: Player) -> str:
 def choose_ancestry() -> str:
     print("\nBefore your descent begins, tell me - whose blood runs in you?\n")
     for key, data in ANCESTRIES.items():
-        print(f"    {key} - {data['label']} ATK {data['attack']} / DEF {data['armour']} / HP {data['hp']})")
+        print(f"    {key} - {data['label']} (ATK {data['attack']} / DEF {data['armour']} / HP {data['hp']})")
 
     while True:
         choice = input("\n> ").strip().lower()
@@ -223,12 +224,7 @@ def create_player(name: str, ancestry_key: str) -> Player:
 
 def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room) -> str:
     if command == "attack":
-        result = resolve_combat_round(player, enemy)
-        if not enemy.is_alive():
-            player.in_combat = False
-            player.current_target = None
-            handle_enemy_defeat(room, enemy)
-        return result
+        return resolve_attack_and_check_defeat(player, enemy, room)
 
     if command == "flee":
         result = flee_combat(player, enemy)
@@ -289,6 +285,14 @@ def display_skills(player: Player) -> str:
             lines.append(f"{path.name}: fully unlocked")
     lines.append(f"Skill Points available: {player.skill_tree.skill_points}")
     return "\n".join(lines)
+
+def resolve_attack_and_check_defeat(player: Player, enemy: Enemy, room: Room) -> str:
+    result = resolve_combat_round(player, enemy)
+    if not enemy.is_alive():
+        player.in_combat = False
+        player.current_target = None
+        handle_enemy_defeat(room, enemy)
+    return result
 
 
 
@@ -354,11 +358,7 @@ def main() -> None:
                 enemy = current_room.enemies[0]
                 player.in_combat = True
                 player.current_target = enemy
-                result = resolve_combat_round(player, enemy)
-                if not enemy.is_alive():
-                    player.in_combat = False
-                    player.current_target = None
-                print(result)
+                print(resolve_attack_and_check_defeat(player, enemy, current_room))
             else:
                 print("There's nothing here to attack.")
 

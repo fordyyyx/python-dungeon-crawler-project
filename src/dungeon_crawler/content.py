@@ -158,7 +158,11 @@ def create_wounded_soldier() -> Ally:
     return Ally(
         name="Wounded Soldier",
         description="Bandaged and pale, but still sharp-eyed — clearly more useful than his condition suggests.",
-        hint="",
+        hint=(
+            "\"Take these, if you're heading further down,\" he says, nodding at a Bronze Xiphos, a Bronze Breastplate "
+            "and a Small Healing Potion beside him. \"I won't need them where I'm going. "
+            "Say 'take <item> from wounded soldier' for each - you'll want all three."
+        ),
         hint_complete="",
         required_items=[],
         items=[create_bronze_xiphos(), create_bronze_breastplate(), create_small_healing_potion()],

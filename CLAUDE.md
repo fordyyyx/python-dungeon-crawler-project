@@ -36,6 +36,9 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
 - **Private attributes**: `Room` and `Inventory` use private lists (`_items`, `_enemies`, `_allies`) with controlled methods and a read-only `@property` for reading. Tests must go through public methods/properties, never `._items` etc. directly.
 - Tests involving printed output use `capsys` — but note most methods that used to print now **return strings instead** (see below). Check whether `capsys` is actually still needed before using it.
 - **Type-checking pattern**: `Room.get_exit()` and `Map.get_room()` return `Room | None`. Any test using the result must `assert result is not None` before accessing attributes, to satisfy Pylance's type narrowing.
+- **Never call `resolve_combat_round()` directly.** Always go through `resolve_attack_and_check_defeat(player, enemy, room)`, which also resets
+combat-lock state and calls `handle_enemy_defeat()` on a kill. This consolidation exists because the defeat-handling call was independently
+forgotten at two seperate call sites before being merged into one function
 
 ## Design principles already established - don't fight these
 - Composition over inheritance where the relationship is "has-a" (`Player.inventory`, `Player.skill_tree`), inheritance only for genuine "is-a" relationships.
