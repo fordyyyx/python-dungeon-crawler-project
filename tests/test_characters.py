@@ -278,7 +278,7 @@ def test_player_initialises_with_ancestry_label():
 def test_get_stats_header_line_includes_ancestry_label_when_set():
     player = Player(name="hero", hp=100, ancestry_label="Descendant of Zeus")
     stats = player.get_stats()
-    assert stats.startswith("hero ( Descendant of Zeus):")
+    assert stats.startswith("hero (Descendant of Zeus):")
 
 def test_ally_initialises_with_empty_inventory():
     ally = Ally(name="Chiron")
