@@ -79,6 +79,7 @@ class Player(Character):
         self.equipped_weapon = None
         self.equipped_armour = None
         self.ancestry_label = ancestry_label
+        self.auto_talk = False
 
     def on_death(self) -> str:
         return f"{self.name} has fallen. Game Over."

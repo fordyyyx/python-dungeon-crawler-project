@@ -281,6 +281,10 @@ def test_player_initialises_with_ancestry_label():
     player = Player(name="hero", hp=100, ancestry_label="Descendant of Zeus")
     assert player.ancestry_label == "Descendant of Zeus"
 
+def test_player_initialises_with_auto_talk_false():
+    player = Player(name="hero", hp=100)
+    assert player.auto_talk is False
+
 def test_get_stats_header_line_includes_ancestry_label_when_set():
     player = Player(name="hero", hp=100, ancestry_label="Descendant of Zeus")
     stats = player.get_stats()

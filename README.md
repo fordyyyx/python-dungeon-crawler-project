@@ -9,7 +9,8 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Character creation — name your hero and choose an ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
 * Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements
-* Turn-based combat, with remaining HP shown after every round
+* Turn-based combat that locks you into an encounter — attack, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
+* An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time
 * Item pickup, inventory, use, and unequip — equipping a new weapon or armour piece correctly replaces the old one rather than stacking
 * Friendly NPCs with hints, conditional dialogue, and items to trade
 * A trading system that checks for both missing and still-equipped items
@@ -56,17 +57,19 @@ pytest --cov=src/dungeon_crawler
 * `map` - show the exits available from your current room
 * `fullmap` / `world` - show every reachable room on the current floor
 * `talk` - talk to an ally in the room
-* `attack` - attack an enemy in the room
+* `toggle auto talk` - allies speak automatically on room entry, without needing `talk` each time
+* `attack` - attack an enemy in the room; this locks you into combat until the enemy is defeated or you flee
+* `flee` - disengage from combat (mid-combat only)
 * `take <item>` - pick up an item from the room
-* `use <item>` - use or equip an item from your inventory
+* `use <item>` - use or equip an item from your inventory (mid-combat, this uses your turn, and the enemy still acts)
 * `unequip <item>` - unequip an item
 * `drop <item>` - drop an item into the room (quest items can't be dropped)
 * `take <item> from <ally>` - take an item from an ally's inventory
 * `trade` - trade required items with an ally for their reward
-* `skills` - view your skill tree progress and available points
-* `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`)
-* `inventory` - display carried items, with equipped gear and quest items marked separately
-* `stats` - display your core stats and ancestry
+* `skills` - view your skill tree progress and available points (also available mid-combat)
+* `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`) (also available mid-combat)
+* `inventory` - display carried items, with equipped gear and quest items marked separately (also available mid-combat)
+* `stats` - display your core stats and ancestry (also available mid-combat)
 * `quit` / `exit` - quit the game
 
 ## Project structure

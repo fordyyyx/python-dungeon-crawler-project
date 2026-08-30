@@ -110,7 +110,7 @@ class Inventory:
                 if isinstance(item, Consumable):
                     self._items.remove(item)
                 return message
-        raise ValueError(f"No item named' {item_name}' in inventory.")
+        raise ValueError(f"No item named '{item_name}' in inventory.")
     
     def drop_item(self, item_name: str):
         for item in self._items:

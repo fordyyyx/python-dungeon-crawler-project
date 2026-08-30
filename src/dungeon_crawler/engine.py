@@ -3,6 +3,8 @@ from dungeon_crawler.items import Weapon, Item
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world, ANCESTRIES
 from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour
+from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades
+from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
 from collections.abc import Callable
 import random
 
@@ -26,64 +28,207 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "favour of hermes": create_hermes_favour,
 }
 
+ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
+    "training dummy": create_training_dummy,
+    "skeleton warrior": create_skeleton_warrior,
+    "minotaur": create_minotaur,
+    "hades": create_hades,
+}
+
+ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {
+    "chiron": create_chiron,
+    "mentor": create_mentor,
+    "wounded soldier": create_wounded_soldier,
+    "charon": create_charon,
+    "athena": create_athena,
+    "ares": create_ares,
+    "hermes": create_hermes,
+    "prometheus": create_prometheus,
+
+}
+
+STAT_ALIASES = {
+    "atk": "attack_damage",
+    "def": "armour",
+    "hp": "hp",
+    "maxhp": "max_hp",
+    "skillpoints": "skillpoints",
+}
+
+def handle_dev_set(stat_name: str, value_str: str, player: Player) -> str:
+    stat_name = stat_name.strip().lower()
+    try:
+        value = int(value_str.strip())
+    except ValueError:
+        return f"[DEV] Invalid value '{value_str.strip()}'."
+
+    if stat_name == "skillpoints":
+        player.skill_tree.skill_points = value
+        return f"[DEV] Skill points set to {value}."
+
+    attr_name = STAT_ALIASES.get(stat_name, stat_name)
+    if not hasattr(player, attr_name):
+        return f"[DEV] Unknown stat '{stat_name}'."
+
+    setattr(player, attr_name, value)
+
+    if attr_name == "hp" and value > player.max_hp:
+        player.max_hp = value
+    if attr_name == "max_hp" and player.hp > value:
+        player.hp = value
+
+    return f"[DEV] {stat_name} set to {value}."
+ 
 def find_item_by_name(name: str) -> Item | None:
     factory = ITEM_REGISTRY.get(name.lower())
     return factory() if factory else None
 
-def handle_dev_command(command: str, player: Player, room: Room) -> str:
+def find_enemy_by_name(name: str) -> Enemy | None:
+    factory = ENEMY_REGISTRY.get(name.lower())
+    return factory() if factory else None
+
+def find_ally_by_name(name: str) -> Ally | None:
+    factory = ALLY_REGISTRY.get(name.lower())
+    return factory() if factory else None
+
+def handle_dev_kill(player: Player, room: Room) -> str:
+    if player.current_target is not None and player.current_target in room.enemies:
+        enemy = player.current_target
+    elif room.enemies:
+        enemy = room.enemies[0]
+    else:
+        return "[DEV] No enemy here to kill."
+
+    enemy.hp = 0
+    handle_enemy_defeat(room, enemy)
+    player.in_combat = False
+    player.current_target = None
+
+    loot_text = f" Dropped: {', '.join(item.name for item in enemy.loot)}." if enemy.loot else ""
+    return f"[DEV] Killed {enemy.name}.{loot_text}"
+
+def find_room_by_name_ci(dungeon: Map, name: str) -> "Room | None":
+    target = name.lower()
+    for room_name, room_obj in dungeon.rooms.items():
+        if room_name.lower() == target:
+            return room_obj
+    return None
+
+def handle_dev_remove(character_name: str, room: Room) -> str:
+    character_name = character_name.strip().lower()
+    for enemy in room.enemies:
+        if enemy.name.lower() == character_name:
+            room.remove_enemy(enemy)
+            return f"[DEV] Removed {enemy.name}."
+    for ally in room.allies:
+        if ally.name.lower() == character_name:
+            room.remove_ally(ally)
+            return f"[DEV] Removed {ally.name}."
+    return f"[DEV] No character named '{character_name}' found here."
+
+def handle_dev_remove_all(character_name: str, room: Room) -> str:
+    character_name = character_name.strip().lower()
+    removed = 0
+    for enemy in list(room.enemies):
+        if enemy.name.lower() == character_name:
+            room.remove_enemy(enemy)
+            removed += 1
+    for ally in list(room.allies):
+        if ally.name.lower() == character_name:
+            room.remove_ally(ally)
+            removed += 1
+    if removed == 0:
+        return f"[DEV] No character named '{character_name}' found here."
+    return f"[DEV] Removed {removed} instance(s) of '{character_name}'."
+
+def handle_dev_clear_room(room: Room) -> str:
+    enemy_count = len(room.enemies)
+    ally_count = len(room.allies)
+    for enemy in list(room.enemies):
+        room.remove_enemy(enemy)
+    for ally in list(room.allies):
+        room.remove_ally(ally)
+    return f"[DEV] Cleared room: removed {enemy_count} enemies and {ally_count} allies."
+
+
+def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -> tuple[str, "Room | None"]:
+    if command.startswith("set "):
+        parts = command.removeprefix("set ").split(" ", 1)
+        if len(parts) != 2:
+            return "[DEV] Usage: dev set <stat> <value>", None
+        return handle_dev_set(parts[0], parts[1], player), None
+
     if command.startswith("add "):
         item_name = command.removeprefix("add ").strip()
         item = find_item_by_name(item_name)
         if item is None:
-            return f"[DEV] No known item named '{item_name}'."
+            return f"[DEV] No known item named '{item_name}'.", None
         player.inventory.add(item)
-        return f"[DEV] Added {item.name} to inventory."
+        return f"[DEV] Added {item.name} to inventory.", None
 
-    if command.startswith("set hp "):
-        try:
-            value = int(command.removeprefix("set hp ").strip())
-        except ValueError:
-            return "[DEV] Invalid HP value."
-        player.hp = value
-        if value > player.max_hp:
-            player.max_hp = value
-        return f"[DEV] HP set to {value} (max HP: {player.max_hp})"
+    if command.startswith("spawn "):
+        character_name = command.removeprefix("spawn ").strip()
+        enemy = find_enemy_by_name(character_name)
+        if enemy is not None:
+            room.add_enemy(enemy)
+            return f"[DEV] Spawned {enemy.name}.", None
+        ally = find_ally_by_name(character_name)
+        if ally is not None:
+            room.add_ally(ally)
+            return f"[DEV] Spawned {ally.name}.", None
+        return f"[DEV] No known character names {character_name}.", None
 
-    if command.startswith("set maxhp "):
+    if command.startswith("remove all "):
+        return handle_dev_remove_all(command.removeprefix("remove all "), room), None
+
+    if command.startswith("remove "):
+        return handle_dev_remove(command.removeprefix("remove "), room), None
+
+    if command == "clear room":
+        return handle_dev_clear_room(room), None
+
+    if command == "kill":
+        return handle_dev_kill(player, room), None
+
+    if command.startswith("teleport "):
+        room_name = command.removeprefix("teleport ").strip()
+        target_room = find_room_by_name_ci(dungeon, room_name)
+        if target_room == None:
+            return f"[DEV] No room named '{room_name}'.", None
+        player.in_combat = False
+        player.current_target = None
+        return f"[DEV] Teleported to {target_room.name}.", target_room
+
+    if command.startswith("learn "):
+        path_name = command.removeprefix("learn ").strip()
+        player.skill_tree.skill_points += 1
         try:
-            value = int(command.removeprefix("set maxhp ").strip())
-        except ValueError:
-            return "[DEV] Invalid max HP value."
-        player.max_hp = value
-        if player.hp > value:
-            player.hp = value
-        return f"[DEV] Max HP set to {value}"
+            return "[DEV] " + player.skill_tree.invest(path_name, player), None
+        except ValueError as e:
+            player.skill_tree.skill_points -= 1
+            return f"[DEV] {e}", None
 
     if command == "unlock all":
         cleared = list(room.locked_exits.keys())
         room.locked_exits.clear()
         if not cleared:
-            return "[DEV] No locked exits in this room."
-        return f"[DEV] Unlocked: {', '.join(cleared)}."
+            return "[DEV] No locked exits in this room.", None
+        return f"[DEV] Unlocked: {', '.join(cleared)}.", None
 
     if command.startswith("unlock "):
         direction = command.removeprefix("unlock ").strip()
         if direction in room.locked_exits:
             del room.locked_exits[direction]
-            return f"[DEV] Unlocked exit: {direction}."
-        return f"[DEV] {direction} is not a locked exit here."
-
-    if command == "skillpoints":
-        player.skill_tree.skill_points += 1
-        return f"[DEV] Skill points: {player.skill_tree.skill_points}."
+            return f"[DEV] Unlocked exit: {direction}.", None
+        return f"[DEV] {direction} is not a locked exit here.", None
 
     if command == "help":
         return (
             "[DEV] Commands: dev add <item>, dev set hp <n>, "
             "dev unlock <direction>, dev unlock all, dev skillpoints"
-        )
-
-    return f"[DEV] Unrecognised dev command: {command}. Try 'dev help'."
+        ), None
+        
+    return f"[DEV] Unrecognised dev command: {command}. Try 'dev help'.", None
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     for item in room.items:
@@ -101,7 +246,7 @@ def resolve_combat_round(player: Player, enemy: Enemy):
         return "\n".join(messages)
 
     messages.append(enemy.attack(player))
-    messages.append(f"{player.name}: {player.hp}/{player.max_hp} HP  |  {enemy.name}: {enemy.hp}/{enemy.max_hp} HP")
+    messages.append(format_hp_line(player, enemy))
 
     return "\n".join(messages)
 
@@ -146,16 +291,21 @@ def trade_with_ally(ally: Ally, player: Player):
         result += f"\n\n{ally.post_trade_message}"
     return result
 
-def print_room(room: Room):
+def print_room(room: Room, player: Player):
     print(f"{room.name}: {room.description}")
+
     if room.items:
         print(f"You see: {', '.join(item.name for item in room.items)}")
+
     if room.enemies:
         enemy = room.enemies[0]
         print(f"A {enemy.name} blocks your path! {enemy.description}")
+
     if room.allies:
         ally = room.allies[0]
         print(f"{ally.name} is here. {ally.description}")
+        if player.auto_talk:
+            print("\n" + ally.talk(player))
 
 def display_map(current_room: Room, player: Player) -> str:
     visited: set[str] = set()
@@ -237,11 +387,12 @@ def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room
         try:
             result = player.inventory.use_item(item_name, player)
         except ValueError as e:
-            result = str(e)
+            return str(e)
 
         if enemy.is_alive():
             enemy_message = enemy.attack(player)
             result += f"\n{enemy_message}"
+            result += "\n" + format_hp_line(player, enemy)
             if not player.is_alive():
                 player.in_combat = False
                 player.current_target = None
@@ -275,6 +426,9 @@ def flee_combat(player: Player, enemy: Enemy) -> str:
         return message
     return f"You disengage cleanly, leaving the {enemy.name} behind."
 
+def format_hp_line(player: Player, enemy: Enemy) -> str:
+    return f"{player.name}: {player.hp}/{player.max_hp} HP  |  {enemy.name}: {enemy.hp}/{enemy.max_hp} HP"
+
 def display_skills(player: Player) -> str:
     lines = []
     for path_name, path in player.skill_tree.paths.items():
@@ -298,15 +452,36 @@ def resolve_attack_and_check_defeat(player: Player, enemy: Enemy, room: Room) ->
 
 def main() -> None:
     global DEV_MODE
-    dungeon, current_room, all_floors = build_world()
-    current_floor_rooms = all_floors["floor_0"]
     print("What is your name, hero?")
     name = input("> ").strip() or "Hero"
+
+    starting_floor_key = "floor_0"
+    if name.lower() == "developer mode":
+        DEV_MODE = True
+        print("[DEV] Developer mode activated.")
+        name = "Dev"
 
     ancestry_key = choose_ancestry()
     player = create_player(name, ancestry_key)
 
-    print_room(current_room)
+    dungeon, current_room, all_floors = build_world()
+
+    if DEV_MODE:
+        print("\n[DEV] Which floor should you start on?")
+        for floor_key in all_floors:
+            print(f"  {floor_key}")
+        while True:
+            choice = input("> ").strip().lower()
+            if choice in all_floors:
+                starting_floor_key = choice
+                break
+            print("[DEV] Unknown floor. Try again.")
+
+    current_floor_rooms = all_floors[starting_floor_key]
+    if starting_floor_key != "floor_0":
+        current_room = next(iter(current_floor_rooms.values()))
+
+    print_room(current_room, player)
     print("\nNot sure where to start? Try talking to whoever is in the room with you.")
 
     while player.is_alive():
@@ -316,6 +491,16 @@ def main() -> None:
         if command in ("quit", "exit"):
             break
 
+        elif command == "developer mode":
+            DEV_MODE = not DEV_MODE
+
+        elif command.startswith("dev ") and DEV_MODE:
+            message, new_room = handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
+            print(message)
+            if new_room is not None:
+                current_room = new_room
+                print_room(current_room, player)
+
         elif player.in_combat:
             if player.current_target is not None:
                 print(handle_combat_command(command, player, player.current_target, current_room))
@@ -323,15 +508,14 @@ def main() -> None:
                 player.in_combat = False
                 print("You are no longer in combat.")
 
+        elif command == "toggle auto talk":
+            player.auto_talk = not player.auto_talk
+            status = "on" if player.auto_talk else "off"
+            print(f"Auto-talk is now {status}.")
+
         elif command.startswith("take ") and " from " not in command:
             item_name = command.removeprefix("take ").strip()
             print(pick_up(current_room, item_name, player))
-
-        elif command == "developer mode":
-            DEV_MODE = not DEV_MODE
-
-        elif command.startswith("dev ") and DEV_MODE:
-            print(handle_dev_command(command.removeprefix("dev ").strip(), player, current_room))
 
         elif command == "map":
             print(display_local_exits(current_room, player))
@@ -348,10 +532,10 @@ def main() -> None:
                 found_floor = find_floor_for_room(current_room, all_floors)
                 if found_floor is not None:
                     current_floor_rooms = all_floors[found_floor]
-                print_room(current_room)
+                print_room(current_room, player)
 
         elif command == "look":
-            print_room(current_room)
+            print_room(current_room, player)
 
         elif command == "attack":
             if current_room.enemies:
