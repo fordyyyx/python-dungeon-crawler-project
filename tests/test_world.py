@@ -133,3 +133,41 @@ def test_map_add_room_overwrites_room_with_same_name():
     dungeon.add_room(replacement)
     assert dungeon.get_room("Entrance") is replacement
     assert len(dungeon) == 1
+
+def test_room_initialises_with_description():
+    room = Room("A", description="A dusty stone chamber.")
+    assert room.description == "A dusty stone chamber."
+
+def test_room_initialises_with_empty_description_by_default():
+    room = Room("A")
+    assert room.description == ""
+
+def test_room_remove_item_raises_error_when_item_not_in_room():
+    room = Room("A")
+    sword = Weapon(name="sword", description="", damage=3)
+
+    try:
+        room.remove_item(sword)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_room_remove_enemy_raises_error_when_enemy_not_in_room():
+    room = Room("A")
+    hades = create_hades()
+
+    try:
+        room.remove_enemy(hades)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_room_remove_ally_raises_error_when_ally_not_in_room():
+    room = Room("A")
+    chiron = create_chiron()
+
+    try:
+        room.remove_ally(chiron)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass

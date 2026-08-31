@@ -13,6 +13,32 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
   - `content.py` — actual game content (instances, not class definitions), organized by floor via `build_floor_0()`, `build_floor_1()`, etc., assembled by `build_world()`. Also holds `ANCESTRIES`, the ancestry-selection data.
   - `engine.py` — the game loop, standalone command-handling functions, and dev tooling (`ITEM_REGISTRY`, `handle_dev_command`)
 
+## Docstrings and comments — required on all new code going forward
+This is a standing convention starting now, specifically to shrink the
+eventual retrofit pass (roadmap item: "Add docstrings and comments
+throughout") rather than leave everything until then.
+- **Every new function and class gets a docstring** — one line for
+  anything simple and self-explanatory from its name/signature, a
+  short paragraph only when the behaviour genuinely needs explaining
+  (e.g. a non-obvious return shape, a side effect, a design decision
+  worth a future reader knowing). Match the project's existing terse
+  style — no need for full Google/NumPy-style docstring sections
+  (Args/Returns/Raises) unless a function is genuinely complex enough
+  to need them.
+- **Comments explain *why*, not *what*.** The code should already say
+  what it does; a comment earns its place by explaining a
+  non-obvious reason, a bug it's guarding against, or a design
+  decision that isn't visible from the code alone (e.g. "// ordering
+  matters here — see the take_damage() signature history" is a good
+  comment; "// add the item to inventory" above `inventory.add(item)`
+  is not).
+- **Retrofitting old code is explicitly out of scope for now** — that's
+  its own dedicated roadmap item, deliberately placed after the
+  engine.py reorganisation, so block-level comments can be grouped by
+  the new file structure rather than needing to be redone. Don't go
+  back and add docstrings to old functions opportunistically while
+  working on something else; keep the two passes separate.
+
 ## Canonical attribute names — do not drift from these
 - `Character.attack_damage` — **not** `attack_power`. This project has used `attack_power` inconsistently in earlier design discussion; `attack_damage` is the real, current name. Always check the actual file before assuming.
 - `Character.armour`, `Character.hp`, `Character.max_hp` — as expected.
@@ -44,7 +70,7 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
 - **Per-ally behaviour is data, not branching.** Trade requirements (`Ally.required_items`), rewards (`Ally.reward`), and conditional dialogue (`Ally.hint_complete`) live as attributes on the `Ally` object. Never write `if ally.name == "X"` in `engine.py` - if new per-ally behaviour is needed, add a new attribute to `Ally` instead.
 - **`take_damage()` returns `tuple[int, str]`**: the actual damage dealt (after armour reduction) and a message (empty string if the target survived). It takes an optional `attacker: Character | None = None` parameter, used only for the Thorns ability to reflect damage back.
 - **HP status lines use the shared `format_hp_line(player, enemy)` helper — never rebuild the "X: n/max HP | Y: n/max HP" string inline in more than one place.** This was independently duplicated once (in `resolve_combat_round()` and separately in `handle_combat_command()`'s `use` branch), and only one copy got updated when the HP-display feature was added, causing a real bug. Any new combat-message code that needs to show HP should call this helper, not reformat it again.
-- **A failed action never consumes the player's turn in combat.** If `use <item>` fails (item not found, per `Inventory.use_item()`'s `ValueError`), `handle_combat_command()` must `return` immediately with the error message, before the enemy gets a turn — never fall through into the enemy's attack. This was a real bug once (the `use` branch caught the exception but still ran the enemy's attack unconditionally afterward). The same rule will apply to spells (#11 on the roadmap) once they exist — a failed cast (no mana, on cooldown) should not cost a turn either.
+- **A failed action never consumes the player's turn in combat.** If `use <item>` fails (item not found, per `Inventory.use_item()`'s `ValueError`), `handle_combat_command()` must `return` immediately with the error message, before the enemy gets a turn — never fall through into the enemy's attack. This was a real bug once (the `use` branch caught the exception but still ran the enemy's attack unconditionally afterward). The same rule will apply to Spells (see `roadmap.md`) once they exist — a failed cast (no mana, on cooldown) should not cost a turn either.
 - **`on_death()` returns a string, does not print.** All defeat/loot messaging is assembled and printed once, at the `engine.py` level, in the correct order - never print directly from inside `Character`/`Enemy`/`Player` methods.
 - **Equip is single-slot per category.** A `Character` has `equipped_weapon`/`equipped_armour` (max one of each). Equipping a new weapon automatically unequips the old one first - it does not stack. Do not add multi-weapon/dual-wielding support without an explicit design discussion first.
 - **Quest items** (`QuestItem` subclass) cannot be dropped (`Inventory.drop_item` raises `ValueError`) and are displayed separately, on their own line, at the bottom of `get_inventory_display()`.
@@ -60,6 +86,26 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
 - `handle_dev_command()` returns `tuple[str, Room | None]` — the second element is only non-`None` for `dev teleport`, letting `main()` reassign `current_room`. Every branch must return the tuple shape, including `None` for the room when not teleporting — a bare string return here was a real bug once (`dev spawn` printed the raw tuple because a stale call site hadn't been updated after this return type changed).
 - Dev commands are checked **before** the `in_combat` branch in `main()`'s routing, not inside the exploration-only path — they must always work regardless of combat state. This was a real bug, now fixed; don't reintroduce it by nesting the `dev ` check inside another branch.
 - Maintenance: every new enemy/ally `create_*()` function needs a matching line in `ENEMY_REGISTRY`/`ALLY_REGISTRY` (mirroring `ITEM_REGISTRY`), so `dev spawn` can find it.
+
+## Keeping documentation in sync with code
+- **`get_controls_text()` (engine.py) and the README's Controls section
+  describe the same command list in two places.** There's no shared
+  source for this — when a command changes, both must be updated
+  by hand. Check both whenever a command is added, removed, or renamed.
+- **When `engine.py` is split into multiple files (roadmap item:
+  "Reorganise engine.py"), the following all need updating to match
+  the new structure, not just the code itself**: `CLAUDE.md`'s module
+  ownership list at the top of this file, the README's Project
+  Structure section, `roadmap.md`'s own references to `engine.py` by
+  name throughout its items, and the Claude Code slash commands in
+  `.claude/commands/` — particularly `/gen-tests`, which currently
+  assumes a simple one-file-to-one-test-file mapping
+  (`characters.py -> tests/test_characters.py`) that won't hold once
+  a single old file's logic is spread across `combat.py`,
+  `exploration.py`, `character_creation.py`, `dev_tools.py`, etc.,
+  each needing its own test file. Treat this documentation/tooling
+  update as part of the reorganisation item itself, not an
+  afterthought once the code split is done.
 
 ## Ancestry / character creation system
 - `content.py` holds `ANCESTRIES: dict[str, dict]` - each entry has `label`, `attack`, `armour`, `hp`, `bonus_skill_point`.

@@ -131,10 +131,14 @@ class Player(Character):
         return "\n".join(lines)
 
 class Enemy(Character):
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None):
         super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
         self.description = description
+        self.next_phase_factory = next_phase_factory
+        self.has_been_fled_from = False
+        """Set to True the first time the player succesfully flees from this enemy;
+            used to vary the room-entry message on a second encounter."""
 
     def on_death(self) -> str:
         message = f"{self.name} has been defeated."

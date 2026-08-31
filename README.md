@@ -70,6 +70,7 @@ pytest --cov=src/dungeon_crawler
 * `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`) (also available mid-combat)
 * `inventory` - display carried items, with equipped gear and quest items marked separately (also available mid-combat)
 * `stats` - display your core stats and ancestry (also available mid-combat)
+* `controls` - show the full list of available commands (always available, regardless of state)
 * `quit` / `exit` - quit the game
 
 ## Project structure

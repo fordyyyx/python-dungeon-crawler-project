@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Armour, Consumable, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player, handle_combat_command, flee_combat, display_skills, resolve_attack_and_check_defeat, handle_dev_set, find_enemy_by_name, find_ally_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, format_hp_line
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player, handle_combat_command, flee_combat, display_skills, resolve_attack_and_check_defeat, handle_dev_set, find_enemy_by_name, find_ally_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, format_hp_line, get_controls_text
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -1344,3 +1344,22 @@ def test_format_hp_line_returns_expected_format():
     line = format_hp_line(player, enemy)
 
     assert line == "Hero: 95/100 HP  |  Goblin: 10/20 HP"
+
+def test_get_controls_text_lists_movement_and_combat_commands():
+    text = get_controls_text()
+
+    assert "attack - attack an enemy in the room (locks you into combat)" in text
+    assert "flee - disengages from combat (mid-combat only)" in text
+    assert "north / east / south / west / descend / ascend - move in that direction" in text
+
+def test_get_controls_text_lists_inventory_and_ally_commands():
+    text = get_controls_text()
+
+    assert "take <item> - pick up an item from the room" in text
+    assert "trade - trade required items with an ally for their reward" in text
+    assert "inventory - display carried items" in text
+
+def test_get_controls_text_lists_quit_command():
+    text = get_controls_text()
+
+    assert "quit / exit - quit the game" in text

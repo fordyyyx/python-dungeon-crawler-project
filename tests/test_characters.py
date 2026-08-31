@@ -734,3 +734,21 @@ def test_skill_tree_invest_abilities_path_applies_double_strike_skill_first():
     character = Character(name="Hero", hp=100, attack_damage=10)
     skill_tree.invest("abilities", character)
     assert character.has_double_strike is True
+
+def test_enemy_initialises_with_no_next_phase_factory_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.next_phase_factory is None
+
+def test_enemy_initialises_with_next_phase_factory():
+    factory = lambda: Enemy(name="Goblin Chief", hp=25, attack_damage=6)
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, next_phase_factory=factory)
+    assert enemy.next_phase_factory is factory
+
+def test_enemy_initialises_with_has_been_fled_from_false():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.has_been_fled_from is False
+
+def test_enemy_choose_action_base_implementation_returns_none():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    player = Player(name="Hero", hp=50)
+    assert enemy.choose_action(player) is None

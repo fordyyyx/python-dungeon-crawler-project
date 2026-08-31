@@ -292,6 +292,8 @@ def trade_with_ally(ally: Ally, player: Player):
     return result
 
 def print_room(room: Room, player: Player):
+    """Display a room's name, description, contents, and occupants on entry.
+    Ally dialogue fires automatically here if player.auto_talk is enabled."""
     print(f"{room.name}: {room.description}")
 
     if room.items:
@@ -299,7 +301,10 @@ def print_room(room: Room, player: Player):
 
     if room.enemies:
         enemy = room.enemies[0]
-        print(f"A {enemy.name} blocks your path! {enemy.description}")
+        if enemy.has_been_fled_from:
+            print(f"The {enemy.name} is still here - it hasn't forgotten you either.")
+        else:
+            print(f"A {enemy.name} blocks your path! {enemy.description}")
 
     if room.allies:
         ally = room.allies[0]
@@ -417,7 +422,10 @@ def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room
     return "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'." 
 
 def flee_combat(player: Player, enemy: Enemy) -> str:
+    """Attempt to disengage from combat. Always succeeds, but a healthier enemy has a higher chance
+    of landing a free hit as the player disengages."""
     chance_of_free_hit = enemy.hp / enemy.max_hp
+    enemy.has_been_fled_from = True
     if random.random() < chance_of_free_hit:
         damage_dealt, death_message = player.take_damage(enemy.attack_damage, attacker=enemy)
         message = f"You disengage, but the {enemy.name} gets a hit in as you go - {damage_dealt} damage."
@@ -447,6 +455,32 @@ def resolve_attack_and_check_defeat(player: Player, enemy: Enemy, room: Room) ->
         player.current_target = None
         handle_enemy_defeat(room, enemy)
     return result
+
+def get_controls_text() -> str:
+    """Return the full player-facing command list, unchanged regardless of whether the player is currently
+    locked in combat. Mirrors the README's Controls section - keep both in sync when commands change."""
+    return (
+        "look - display room name and description\n"
+        "north / east / south / west / descend / ascend - move in that direction\n"
+        "map - show the exits available from your current room\n"
+        "fullmap / world - show every reachable room on the current floor\n"
+        "talk - talk to an ally in the room\n"
+        "toggle auto talk - allies speak automatically on room entry\n"
+        "attack - attack an enemy in the room (locks you into combat)\n"
+        "flee - disengages from combat (mid-combat only)\n"
+        "take <item> - pick up an item from the room\n"
+        "use <item> - use or equip an item from your inventory\n"
+        "unequip <item> - unequip an item\n"
+        "drop <item> - drop an item into the room (quest items can't be dropped)\n"
+        "take <item> from <ally> - take an item from an ally's inventory\n"
+        "trade - trade required items with an ally for their reward\n"
+        "skills - view your skill tree progress and available points\n"
+        "learn <path> - spend a skill point (attack, defence, or abilities)\n"
+        "inventory - display carried items\n"
+        "stats - display your core stats and ancestry\n"
+        "controls - show this list\n"
+        "quit / exit - quit the game" 
+    )
 
 
 
@@ -490,6 +524,9 @@ def main() -> None:
 
         if command in ("quit", "exit"):
             break
+
+        elif command == "controls":
+            print(get_controls_text())
 
         elif command == "developer mode":
             DEV_MODE = not DEV_MODE

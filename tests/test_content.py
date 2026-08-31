@@ -212,6 +212,83 @@ def test_ancestries_only_odysseus_grants_bonus_skill_point():
     bonus_keys = [key for key, data in ANCESTRIES.items() if data["bonus_skill_point"]]
     assert bonus_keys == ["odysseus"]
 
+def test_ancestries_basic_has_correct_stats():
+    basic = ANCESTRIES["basic"]
+    assert basic["label"] == "No lineage"
+    assert basic["attack"] == 3
+    assert basic["armour"] == 1
+    assert basic["hp"] == 20
+
+def test_ancestries_ares_has_correct_stats():
+    ares = ANCESTRIES["ares"]
+    assert ares["label"] == "Descendant of Ares"
+    assert ares["attack"] == 5
+    assert ares["armour"] == 1
+    assert ares["hp"] == 19
+
+def test_ancestries_athena_has_correct_stats():
+    athena = ANCESTRIES["athena"]
+    assert athena["label"] == "Descendant of Athena"
+    assert athena["attack"] == 4
+    assert athena["armour"] == 3
+    assert athena["hp"] == 20
+
+def test_ancestries_hermes_has_correct_stats():
+    hermes = ANCESTRIES["hermes"]
+    assert hermes["label"] == "Descendant of Hermes"
+    assert hermes["attack"] == 4
+    assert hermes["armour"] == 1
+    assert hermes["hp"] == 22
+
+def test_ancestries_poseidon_has_correct_stats():
+    poseidon = ANCESTRIES["poseidon"]
+    assert poseidon["label"] == "Descendant of Poseidon"
+    assert poseidon["attack"] == 2
+    assert poseidon["armour"] == 5
+    assert poseidon["hp"] == 19
+
+def test_ancestries_achilles_has_correct_stats():
+    achilles = ANCESTRIES["achilles"]
+    assert achilles["label"] == "Descendant of Achilles"
+    assert achilles["attack"] == 6
+    assert achilles["armour"] == 1
+    assert achilles["hp"] == 16
+
+def test_ancestries_odysseus_has_correct_stats():
+    odysseus = ANCESTRIES["odysseus"]
+    assert odysseus["label"] == "Descendant of Odysseus"
+    assert odysseus["attack"] == 3
+    assert odysseus["armour"] == 1
+    assert odysseus["hp"] == 20
+
+def test_ancestries_atalanta_has_correct_stats():
+    atalanta = ANCESTRIES["atalanta"]
+    assert atalanta["label"] == "Descendant of Atalanta"
+    assert atalanta["attack"] == 5
+    assert atalanta["armour"] == 1
+    assert atalanta["hp"] == 20
+
+def test_ancestries_medusa_has_correct_stats():
+    medusa = ANCESTRIES["medusa"]
+    assert medusa["label"] == "Descendant of Medusa"
+    assert medusa["attack"] == 2
+    assert medusa["armour"] == 4
+    assert medusa["hp"] == 19
+
+def test_ancestries_minotaur_has_correct_stats():
+    minotaur = ANCESTRIES["minotaur"]
+    assert minotaur["label"] == "Descendant of the Minotaur"
+    assert minotaur["attack"] == 6
+    assert minotaur["armour"] == 0
+    assert minotaur["hp"] == 21
+
+def test_ancestries_cyclops_has_correct_stats():
+    cyclops = ANCESTRIES["cyclops"]
+    assert cyclops["label"] == "Descendant of a Cyclops"
+    assert cyclops["attack"] == 3
+    assert cyclops["armour"] == 0
+    assert cyclops["hp"] == 25
+
 def test_create_bronze_breastplate_has_correct_defence_and_description():
     breastplate = create_bronze_breastplate()
     assert breastplate.name == "Bronze Breastplate"
