@@ -8,14 +8,15 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 ## Features
 * Character creation — name your hero and choose an ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
-* Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements
+* Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements — some passages are hidden entirely until you stop and `examine` your surroundings
 * Turn-based combat that locks you into an encounter — attack, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
 * An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time
 * Item pickup, inventory, use, and unequip — equipping a new weapon or armour piece correctly replaces the old one rather than stacking
 * Friendly NPCs with hints, conditional dialogue, and items to trade
 * A trading system that checks for both missing and still-equipped items
 * Quest items — untradeable, undroppable, and displayed separately from regular gear
-* A branching skill tree (Attack, Defence, and Abilities paths) unlocked via skill points earned through trades
+* A branching skill tree (Attack, Defence, and Abilities paths) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience
+* Gold, earned from defeating enemies, tracked separately from your core stats
 * Special combat abilities — Double Strike, Thorns, and Last Stand
 * Enemies with loot drops
 * Win/lose conditions
@@ -53,6 +54,8 @@ pytest --cov=src/dungeon_crawler
 
 ## Controls
 * `look` - display room name and description
+* `examine` - look closer at your surroundings; may reveal hidden passages
+* `examine <item>` - view an item's description
 * `north` / `east` / `south` / `west` / `descend` / etc. - move in that direction
 * `map` - show the exits available from your current room
 * `fullmap` / `world` - show every reachable room on the current floor
@@ -68,8 +71,8 @@ pytest --cov=src/dungeon_crawler
 * `trade` - trade required items with an ally for their reward
 * `skills` - view your skill tree progress and available points (also available mid-combat)
 * `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`) (also available mid-combat)
-* `inventory` - display carried items, with equipped gear and quest items marked separately (also available mid-combat)
-* `stats` - display your core stats and ancestry (also available mid-combat)
+* `inventory` - display carried items, with equipped gear, quest items, and gold marked separately (also available mid-combat)
+* `stats` - display your core stats, ancestry, level, and experience (also available mid-combat)
 * `controls` - show the full list of available commands (always available, regardless of state)
 * `quit` / `exit` - quit the game
 

@@ -72,6 +72,13 @@ for later. Add to it whenever something occurs to you mid-build.
 - The three-path, three-tier structure is a natural fit for a visual skill
   tree UI (the genre-standard branching-node look) — `SkillPath.unlocked_count`
   already tracks exactly what a UI would need to show progress per branch.
+- `level_up()`'s return message is a good hook for a "Level Up!" moment —
+  a flash, a sound, a brief pause — same pattern as `on_death()` already
+  being a natural animation trigger point.
+- Gold (`Player.gold`) and XP toward the next level are the two obvious
+  candidates for a persistent HUD element (a counter and a progress bar
+  respectively) rather than something only checked via a menu, the way
+  the text version's `inventory`/`stats` commands currently work.
 
 ## Character Creation
 - Ancestry selection is a natural fit for a character-select screen with
