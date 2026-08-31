@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Armour, Consumable, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player, handle_combat_command, flee_combat, display_skills, resolve_attack_and_check_defeat, handle_dev_set, find_enemy_by_name, find_ally_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, format_hp_line, get_controls_text
+from dungeon_crawler.engine import pick_up, resolve_combat_round, handle_enemy_defeat, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, find_item_by_name, handle_dev_command, create_player, handle_combat_command, flee_combat, display_skills, resolve_attack_and_check_defeat, handle_dev_set, find_enemy_by_name, find_ally_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, format_hp_line, get_controls_text, handle_examine
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -1363,3 +1363,41 @@ def test_get_controls_text_lists_quit_command():
     text = get_controls_text()
 
     assert "quit / exit - quit the game" in text
+
+def test_handle_examine_with_examine_text_returns_examine_text():
+    room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.")
+    message = handle_examine(room)
+    assert "The stonework here looks subtly disturbed." in message
+
+def test_handle_examine_without_examine_text_returns_default_message():
+    room = Room("A")
+    message = handle_examine(room)
+    assert message == "You look closer, but find nothing you hadn't already noticed."
+
+def test_handle_examine_reveals_hidden_exit_in_room_exits():
+    room = Room("Styx Crossing")
+    vault = Room("Sunken Vault")
+    room.add_hidden_exit("down", vault)
+    handle_examine(room)
+    assert room.get_exit("down") is vault
+
+def test_handle_examine_appends_message_naming_revealed_direction():
+    room = Room("Styx Crossing")
+    vault = Room("Sunken Vault")
+    room.add_hidden_exit("down", vault)
+    message = handle_examine(room)
+    assert "Your search reveals a hidden passage: down." in message
+
+def test_handle_examine_with_no_hidden_exits_does_not_mention_hidden_passage():
+    room = Room("A")
+    message = handle_examine(room)
+    assert "hidden passage" not in message
+
+def test_handle_examine_reveals_multiple_hidden_exits_lists_all_directions():
+    room = Room("A")
+    b = Room("B")
+    c = Room("C")
+    room.add_hidden_exit("down", b)
+    room.add_hidden_exit("up", c)
+    message = handle_examine(room)
+    assert "Your search reveals a hidden passage: down, up." in message

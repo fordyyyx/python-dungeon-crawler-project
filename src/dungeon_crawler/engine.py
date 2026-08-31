@@ -482,6 +482,20 @@ def get_controls_text() -> str:
         "quit / exit - quit the game" 
     )
 
+def handle_examine(room: Room) -> str:
+    """Show a room's extra flavour text and reveal any hidden exits ot has."""
+    messages = []
+    if room.examine_text:
+        messages.append(room.examine_text)
+    else:
+        messages.append("You look closer, but find nothing you hadn't already noticed.")
+
+    revealed = room.reveal_hidden_exits()
+    if revealed:
+        messages.append(f"Your search reveals a hidden passage: {', '.join(revealed)}.")
+
+    return "\n".join(messages)
+
 
 
 def main() -> None:
@@ -544,6 +558,20 @@ def main() -> None:
             else:
                 player.in_combat = False
                 print("You are no longer in combat.")
+
+        elif command == "examine":
+            print(handle_examine(current_room))
+
+        elif command.startswith("examine "):
+            item_name = command.removeprefix("examine ").strip()
+            item = next((i for i in current_room.items if i.name.lower() == item_name.lower()), None)
+            if item is None:
+                item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
+            if item is not None:
+                print(f"{item.name}: {item.description}")
+            else:
+                print("You don't see that here.")
+
 
         elif command == "toggle auto talk":
             player.auto_talk = not player.auto_talk

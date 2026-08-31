@@ -171,3 +171,65 @@ def test_room_remove_ally_raises_error_when_ally_not_in_room():
         assert False, "Expected a ValueError but none was raised"
     except ValueError:
         pass
+
+def test_room_initialises_with_examine_text():
+    room = Room("A", examine_text="A faint draft comes from somewhere below.")
+    assert room.examine_text == "A faint draft comes from somewhere below."
+
+def test_room_initialises_with_empty_examine_text_by_default():
+    room = Room("A")
+    assert room.examine_text == ""
+
+def test_room_initialises_with_no_hidden_exits():
+    room = Room("A")
+    assert room.hidden_exits == {}
+
+def test_room_add_hidden_exit_records_room_without_affecting_exits():
+    a = Room("A")
+    b = Room("B")
+    a.add_hidden_exit("down", b)
+    assert a.hidden_exits["down"] is b
+    assert a.exits == {}
+
+def test_room_add_hidden_exit_does_not_appear_via_get_exit():
+    a = Room("A")
+    b = Room("B")
+    a.add_hidden_exit("down", b)
+    assert a.get_exit("down") is None
+
+def test_room_reveal_hidden_exits_promotes_exit_into_exits():
+    a = Room("A")
+    b = Room("B")
+    a.add_hidden_exit("down", b)
+    a.reveal_hidden_exits()
+    assert a.get_exit("down") is b
+
+def test_room_reveal_hidden_exits_clears_hidden_exits():
+    a = Room("A")
+    b = Room("B")
+    a.add_hidden_exit("down", b)
+    a.reveal_hidden_exits()
+    assert a.hidden_exits == {}
+
+def test_room_reveal_hidden_exits_returns_revealed_directions():
+    a = Room("A")
+    b = Room("B")
+    c = Room("C")
+    a.add_hidden_exit("down", b)
+    a.add_hidden_exit("up", c)
+    revealed = a.reveal_hidden_exits()
+    assert revealed == ["down", "up"]
+
+def test_room_reveal_hidden_exits_with_none_hidden_returns_empty_list():
+    room = Room("A")
+    assert room.reveal_hidden_exits() == []
+
+def test_room_reveal_hidden_exits_does_not_affect_existing_normal_exits():
+    a = Room("A")
+    b = Room("B")
+    c = Room("C")
+    a.connect("north", b)
+    a.add_hidden_exit("down", c)
+    a.reveal_hidden_exits()
+    assert a.get_exit("north") is b
+    assert a.get_exit("down") is c

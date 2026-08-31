@@ -313,7 +313,12 @@ def build_floor_0() -> tuple[Room, dict[str, Room]]:
 def build_floor_1() -> tuple[Room, dict[str, Room]]:
     cave_entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
 
-    styx_crossing = Room("Styx Crossing", "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.")
+    styx_crossing = Room("Styx Crossing",
+                          "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.", 
+                          examine_text=(
+        "The stonework here looks subtly disturbed — as if something below "
+        "has shifted, recently, on its own."
+    ))
     fields_of_asphodel = Room("Fields of Asphodel", "An endless grey meadow beneath a colourless sky, where the ordinary dead wander without purpose or memory.")
     sunken_vault = Room("Sunken Vault", "Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.")
 
@@ -321,8 +326,10 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     styx_crossing.connect("ascend", cave_entrance)
     styx_crossing.connect("east", fields_of_asphodel)
     fields_of_asphodel.connect("west", styx_crossing)
-    styx_crossing.connect("down", sunken_vault)
     sunken_vault.connect("up", styx_crossing)
+    styx_crossing.add_hidden_exit("down", sunken_vault)
+    styx_crossing.examine_text
+
 
     cave_entrance.add_ally(create_wounded_soldier())
     styx_crossing.add_ally(create_charon())

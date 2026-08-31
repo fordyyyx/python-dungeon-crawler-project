@@ -560,11 +560,28 @@ def test_build_world_fields_of_asphodel_connects_back_to_styx_crossing_via_west(
     assert fields_of_asphodel is not None
     assert fields_of_asphodel.get_exit("west") is styx_crossing
 
-def test_build_world_styx_crossing_connects_to_sunken_vault_via_down():
+def test_build_world_styx_crossing_down_exit_to_sunken_vault_is_hidden_until_revealed():
     dungeon, entrance, floors = build_world()
     styx_crossing = dungeon.get_room("Styx Crossing")
     assert styx_crossing is not None
+    assert styx_crossing.get_exit("down") is None
+    assert styx_crossing.hidden_exits["down"] is dungeon.get_room("Sunken Vault")
+
+def test_build_world_styx_crossing_down_exit_revealed_via_reveal_hidden_exits():
+    dungeon, entrance, floors = build_world()
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert styx_crossing is not None
+    styx_crossing.reveal_hidden_exits()
     assert styx_crossing.get_exit("down") is dungeon.get_room("Sunken Vault")
+
+def test_build_world_styx_crossing_has_examine_text():
+    dungeon, entrance, floors = build_world()
+    styx_crossing = dungeon.get_room("Styx Crossing")
+    assert styx_crossing is not None
+    assert styx_crossing.examine_text == (
+        "The stonework here looks subtly disturbed — as if something below "
+        "has shifted, recently, on its own."
+    )
 
 def test_build_world_sunken_vault_connects_back_to_styx_crossing_via_up():
     dungeon, entrance, floors = build_world()
