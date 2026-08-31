@@ -121,8 +121,9 @@ def test_handle_enemy_defeat_removes_enemy_from_room():
     room = Room("Armoury")
     enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
     room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
 
-    handle_enemy_defeat(room, enemy)
+    handle_enemy_defeat(room, enemy, player)
 
     assert enemy not in room.enemies
 
@@ -131,8 +132,9 @@ def test_handle_enemy_defeat_adds_loot_to_room():
     sword = Weapon(name="Bronze Xiphos", description="", damage=3)
     enemy = Enemy(name="Goblin", hp=0, attack_damage=5, loot=[sword])
     room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
 
-    handle_enemy_defeat(room, enemy)
+    handle_enemy_defeat(room, enemy, player)
 
     assert sword in room.items
 
@@ -140,10 +142,189 @@ def test_handle_enemy_defeat_with_no_loot_adds_nothing_to_room():
     room = Room("Armoury")
     enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
     room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
 
-    handle_enemy_defeat(room, enemy)
+    handle_enemy_defeat(room, enemy, player)
 
     assert room.items == []
+
+def test_handle_enemy_defeat_returns_defeated_message():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert message == "Goblin has been defeated."
+
+def test_handle_enemy_defeat_message_includes_dropped_loot():
+    room = Room("Armoury")
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5, loot=[sword])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert message == "Goblin has been defeated.\nIt dropped: Bronze Xiphos"
+
+def test_handle_enemy_defeat_message_omits_drop_line_when_no_loot():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert "dropped" not in message.lower()
+
+def test_handle_enemy_defeat_adds_gold_reward_to_player():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5, gold_reward=10)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.gold == 10
+
+def test_handle_enemy_defeat_message_includes_gold_reward():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5, gold_reward=10)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert "Hero picked up 10 gold." in message
+
+def test_handle_enemy_defeat_with_no_gold_reward_does_not_change_player_gold():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.gold == 0
+
+def test_handle_enemy_defeat_with_no_gold_reward_omits_gold_line():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert "gold" not in message.lower()
+
+def test_handle_enemy_defeat_grants_experience_reward_to_player():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5, experience_reward=15)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.experience == 15
+
+def test_handle_enemy_defeat_message_includes_experience_gain():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5, experience_reward=15)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert "Hero gains 15 experience." in message
+
+def test_handle_enemy_defeat_with_no_experience_reward_does_not_change_player_experience():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.experience == 0
+
+def test_handle_enemy_defeat_with_no_experience_reward_omits_experience_line():
+    room = Room("Armoury")
+    enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert "experience" not in message.lower()
+
+def test_handle_enemy_defeat_with_next_phase_factory_removes_original_enemy():
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, next_phase_factory=lambda: next_phase)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert enemy not in room.enemies
+
+def test_handle_enemy_defeat_with_next_phase_factory_adds_next_phase_to_room():
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, next_phase_factory=lambda: next_phase)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert next_phase in room.enemies
+
+def test_handle_enemy_defeat_with_next_phase_factory_sets_player_current_target():
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, next_phase_factory=lambda: next_phase)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.current_target is next_phase
+
+def test_handle_enemy_defeat_with_next_phase_factory_keeps_player_in_combat():
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, next_phase_factory=lambda: next_phase)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.in_combat is True
+
+def test_handle_enemy_defeat_with_next_phase_factory_returns_transition_message():
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, next_phase_factory=lambda: next_phase)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert message == "Hades falls, but something rises to take its place - Hades (Enraged)."
+
+def test_handle_enemy_defeat_with_next_phase_factory_does_not_grant_gold_or_experience():
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, gold_reward=50, experience_reward=50, next_phase_factory=lambda: next_phase)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.gold == 0
+    assert player.experience == 0
 
 def test_is_exit_locked_returns_false_when_direction_not_locked():
     room = Room("Armoury")
@@ -1217,6 +1398,26 @@ def test_handle_dev_kill_with_no_loot_does_not_include_dropped_text():
     message = handle_dev_kill(player, room)
 
     assert "Dropped" not in message
+
+def test_handle_dev_kill_grants_gold_reward_to_player():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5, gold_reward=7)
+    room.add_enemy(enemy)
+
+    handle_dev_kill(player, room)
+
+    assert player.gold == 7
+
+def test_handle_dev_kill_grants_experience_reward_to_player():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5, experience_reward=12)
+    room.add_enemy(enemy)
+
+    handle_dev_kill(player, room)
+
+    assert player.experience == 12
 
 def test_handle_dev_kill_clears_combat_state():
     player = Player(name="hero", hp=100)

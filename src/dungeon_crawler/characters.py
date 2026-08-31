@@ -74,6 +74,9 @@ class Player(Character):
         super().__init__(name, hp, attack_damage, armour)
         self.level = 1
         self.experience = 0
+        self.experience_to_next_level = 50
+        self.gold = 0
+        """currency earned from defeating enemies. Displayed in the inventory listing, not stats - it isn't a character stat, it's a resource"""
         self.inventory = Inventory()
         self.skill_tree = SkillTree()
         self.equipped_weapon = None
@@ -103,7 +106,7 @@ class Player(Character):
         return dedent(stat_string).strip()
 
     def get_inventory_display(self) -> str:
-        if not self.inventory.items:
+        if not self.inventory.items and self.gold == 0:
             return "Your inventory is empty."
 
         regular_items = [item for item in self.inventory.items if not isinstance(item, QuestItem)]
@@ -128,10 +131,31 @@ class Player(Character):
             quest_names = ", ".join(item.name for item in quest_items)
             lines.append(f"\nQuest Items: {quest_names}")
 
+        if self.gold > 0:
+            lines.append(f"\nGold: {self.gold}")
+
         return "\n".join(lines)
 
+    def gain_experience(self, amount: int) -> str:
+        """Add XP; automatically levels up if the threshold is reached. Returns a message describing what happened, doesn't print."""
+        self.experience += amount
+        message = f"{self.name} gains {amount} experience."
+        if self.experience >= self.experience_to_next_level:
+            message += f"\n{self.level_up()}"
+        return message
+
+    def level_up(self) -> str:
+        """Raise level, roll the XP threshold forward, grant one skill point."""
+        self.level += 1
+        self.experience -= self.experience_to_next_level
+        self.skill_tree.skill_points += 1
+        self.experience_to_next_level = int(self.experience_to_next_level * 1.5)
+        return f"{self.name} reaches level {self.level}! A skill point is available."
+
+
 class Enemy(Character):
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, experience_reward=0, gold_reward=0):
+        """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py"""
         super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
         self.description = description
@@ -139,6 +163,8 @@ class Enemy(Character):
         self.has_been_fled_from = False
         """Set to True the first time the player succesfully flees from this enemy;
             used to vary the room-entry message on a second encounter."""
+        self.experience_reward = experience_reward
+        self.gold_reward = gold_reward
 
     def on_death(self) -> str:
         message = f"{self.name} has been defeated."

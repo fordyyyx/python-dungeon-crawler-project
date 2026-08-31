@@ -10,6 +10,8 @@ def test_create_minotaur_has_correct_stats():
     assert minotaur.attack_damage == 8
     assert minotaur.armour == 2
     assert len(minotaur.loot) == 1
+    assert minotaur.experience_reward == 30
+    assert minotaur.gold_reward == 18
 
 def test_create_minotaur_drops_bronze_xiphos():
     minotaur = create_minotaur()
@@ -23,6 +25,8 @@ def test_create_skeleton_warrior_has_correct_stats():
     assert skeleton_warrior.attack_damage == 3
     assert skeleton_warrior.armour == 0
     assert len(skeleton_warrior.loot) == 1
+    assert skeleton_warrior.experience_reward == 5
+    assert skeleton_warrior.gold_reward == 2
 
 def test_create_skeleton_warrior_drops_small_healing_potion():
     skeleton_warrior = create_skeleton_warrior()
@@ -37,6 +41,8 @@ def test_create_hades_has_correct_stats():
     assert hades.attack_damage == 15
     assert hades.armour == 5
     assert len(hades.loot) == 1
+    assert hades.experience_reward == 80
+    assert hades.gold_reward == 55
 
 def test_create_hades_drops_ambrosia():
     hades = create_hades()
@@ -107,6 +113,8 @@ def test_create_training_dummy_has_correct_stats():
     assert training_dummy.hp == 5
     assert training_dummy.attack_damage == 0
     assert training_dummy.armour == 0
+    assert training_dummy.experience_reward == 0
+    assert training_dummy.gold_reward == 0
 
 def test_create_training_dummy_drops_dummy_head():
     training_dummy = create_training_dummy()

@@ -100,7 +100,7 @@ def handle_dev_kill(player: Player, room: Room) -> str:
         return "[DEV] No enemy here to kill."
 
     enemy.hp = 0
-    handle_enemy_defeat(room, enemy)
+    handle_enemy_defeat(room, enemy, player)
     player.in_combat = False
     player.current_target = None
 
@@ -250,10 +250,32 @@ def resolve_combat_round(player: Player, enemy: Enemy):
 
     return "\n".join(messages)
 
-def handle_enemy_defeat(room: Room, enemy: Enemy) -> None:
+def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
+    """Remove the defeated enemy, drop loot (or trigger a phase transition), and grant XP/gold. Assembles one combined message, does not print."""
+    if enemy.next_phase_factory is not None:
+        next_phase = enemy.next_phase_factory()
+        room.remove_enemy(enemy)
+        room.add_enemy(next_phase)
+        player.in_combat = True
+        player.current_target = next_phase
+        return f"{enemy.name} falls, but something rises to take its place - {next_phase.name}."
+
     room.remove_enemy(enemy)
-    for item in enemy.loot:
-        room.add_item(item)
+    messages = [f"{enemy.name} has been defeated."]
+
+    if enemy.loot:
+        for item in enemy.loot:
+            room.add_item(item)
+        messages.append(f"It dropped: {', '.join(item.name for item in enemy.loot)}")
+
+    if enemy.gold_reward > 0:
+        player.gold += enemy.gold_reward
+        messages.append(f"{player.name} picked up {enemy.gold_reward} gold.")
+
+    if enemy.experience_reward > 0:
+        messages.append(player.gain_experience(enemy.experience_reward))
+
+    return "\n".join(messages)
 
 def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     if direction not in room.locked_exits:
@@ -453,7 +475,7 @@ def resolve_attack_and_check_defeat(player: Player, enemy: Enemy, room: Room) ->
     if not enemy.is_alive():
         player.in_combat = False
         player.current_target = None
-        handle_enemy_defeat(room, enemy)
+        handle_enemy_defeat(room, enemy, player)
     return result
 
 def get_controls_text() -> str:

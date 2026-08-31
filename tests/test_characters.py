@@ -221,6 +221,75 @@ def test_player_initialises_at_level_one_with_no_experience():
     assert player.level == 1
     assert player.experience == 0
 
+def test_player_initialises_with_default_experience_to_next_level():
+    player = Player(name="Hero", hp=10)
+    assert player.experience_to_next_level == 50
+
+def test_player_initialises_with_no_gold():
+    player = Player(name="Hero", hp=10)
+    assert player.gold == 0
+
+def test_gain_experience_increases_experience():
+    player = Player(name="Hero", hp=10)
+    player.gain_experience(10)
+    assert player.experience == 10
+
+def test_gain_experience_returns_message_when_below_threshold():
+    player = Player(name="Hero", hp=10)
+    message = player.gain_experience(10)
+    assert message == "Hero gains 10 experience."
+
+def test_gain_experience_below_threshold_does_not_level_up():
+    player = Player(name="Hero", hp=10)
+    player.gain_experience(10)
+    assert player.level == 1
+
+def test_gain_experience_at_threshold_levels_up():
+    player = Player(name="Hero", hp=10)
+    player.gain_experience(50)
+    assert player.level == 2
+
+def test_gain_experience_at_threshold_returns_combined_message():
+    player = Player(name="Hero", hp=10)
+    message = player.gain_experience(50)
+    assert message == "Hero gains 50 experience.\nHero reaches level 2! A skill point is available."
+
+def test_gain_experience_over_threshold_carries_remainder_forward():
+    player = Player(name="Hero", hp=10)
+    player.gain_experience(70)
+    assert player.experience == 20
+
+def test_gain_experience_with_excess_experience_only_levels_up_once():
+    player = Player(name="Hero", hp=10)
+    player.gain_experience(200)
+    assert player.level == 2
+
+def test_level_up_increments_level():
+    player = Player(name="Hero", hp=10)
+    player.level_up()
+    assert player.level == 2
+
+def test_level_up_subtracts_threshold_from_experience():
+    player = Player(name="Hero", hp=10)
+    player.experience = 60
+    player.level_up()
+    assert player.experience == 10
+
+def test_level_up_grants_a_skill_point():
+    player = Player(name="Hero", hp=10)
+    player.level_up()
+    assert player.skill_tree.skill_points == 1
+
+def test_level_up_scales_experience_threshold():
+    player = Player(name="Hero", hp=10)
+    player.level_up()
+    assert player.experience_to_next_level == 75
+
+def test_level_up_returns_level_up_message():
+    player = Player(name="Hero", hp=10)
+    message = player.level_up()
+    assert message == "Hero reaches level 2! A skill point is available."
+
 
 def test_player_initialises_with_default_attack_damage():
     player = Player(name="Hero", hp=10)
@@ -528,6 +597,22 @@ def test_get_inventory_display_lists_multiple_quest_items_together():
     player.inventory.add(QuestItem(name="Mentor's Token", description=""))
     assert player.get_inventory_display() == "\nQuest Items: Dummy Head, Mentor's Token"
 
+def test_get_inventory_display_with_gold_and_no_items_is_not_empty_message():
+    player = Player(name="hero", hp=100)
+    player.gold = 10
+    assert player.get_inventory_display() != "Your inventory is empty."
+
+def test_get_inventory_display_with_only_gold_shows_gold_line():
+    player = Player(name="hero", hp=100)
+    player.gold = 10
+    assert player.get_inventory_display() == "\nGold: 10"
+
+def test_get_inventory_display_appends_gold_line_after_items():
+    player = Player(name="hero", hp=100)
+    player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    player.gold = 5
+    assert player.get_inventory_display() == "Bronze Xiphos\n\nGold: 5"
+
 def test_player_initialises_with_skill_tree():
     player = Player(name="hero", hp=100)
     assert isinstance(player.skill_tree, SkillTree)
@@ -752,3 +837,19 @@ def test_enemy_choose_action_base_implementation_returns_none():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
     player = Player(name="Hero", hp=50)
     assert enemy.choose_action(player) is None
+
+def test_enemy_initialises_with_no_experience_reward_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.experience_reward == 0
+
+def test_enemy_initialises_with_no_gold_reward_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.gold_reward == 0
+
+def test_enemy_initialises_with_experience_reward():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, experience_reward=10)
+    assert enemy.experience_reward == 10
+
+def test_enemy_initialises_with_gold_reward():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, gold_reward=5)
+    assert enemy.gold_reward == 5

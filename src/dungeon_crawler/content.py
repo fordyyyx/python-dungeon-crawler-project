@@ -25,6 +25,8 @@ def create_skeleton_warrior() -> Enemy:
         armour=0,
         loot=[create_small_healing_potion()],
         description="Bones held together by little more than old habit, still gripping a rusted blade with mechanical resolve.",
+        experience_reward=5,
+        gold_reward=2,
         )
 
 def create_minotaur() -> Enemy:
@@ -35,6 +37,8 @@ def create_minotaur() -> Enemy:
         armour=2,
         loot=[create_bronze_xiphos()],
         description="Massive and bull-headed, it turns toward you with a snort that shakes dust from the walls.",
+        experience_reward=30,
+        gold_reward=18
     )
 
 def create_hades() -> Enemy:
@@ -45,6 +49,8 @@ def create_hades() -> Enemy:
         armour=5,
         loot=[create_ambrosia()],
         description="He doesn't rise from the throne immediately — he doesn't need to.",
+        experience_reward=80,
+        gold_reward=55
     )
 
 def create_bronze_xiphos() -> Weapon:
@@ -103,7 +109,9 @@ def create_training_dummy() -> Enemy:
         attack_damage=0,
         description="Straw and old rope, bolted to the floor. It has never once landed a real hit, and it isn't about to start now.",
         armour=0,
-        loot=[create_dummy_head()]
+        loot=[create_dummy_head()],
+        experience_reward=0,
+        gold_reward=0
     )
 
 def create_wooden_sword() -> Weapon:
