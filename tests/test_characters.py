@@ -229,6 +229,10 @@ def test_player_initialises_with_no_gold():
     player = Player(name="Hero", hp=10)
     assert player.gold == 0
 
+def test_player_initialises_with_no_intellect():
+    player = Player(name="Hero", hp=10)
+    assert player.intellect == 0
+
 def test_gain_experience_increases_experience():
     player = Player(name="Hero", hp=10)
     player.gain_experience(10)
@@ -290,6 +294,11 @@ def test_level_up_returns_level_up_message():
     message = player.level_up()
     assert message == "Hero reaches level 2! A skill point is available."
 
+def test_level_up_increases_intellect():
+    player = Player(name="Hero", hp=10)
+    player.level_up()
+    assert player.intellect == 1
+
 
 def test_player_initialises_with_default_attack_damage():
     player = Player(name="Hero", hp=10)
@@ -336,6 +345,12 @@ def test_player_get_stats(capsys):
     print(player.get_stats())
     captured = capsys.readouterr()
     assert "hero ():" in captured.out
+
+def test_get_stats_includes_intellect_line():
+    player = Player(name="hero", hp=100)
+    player.intellect = 3
+    stats = player.get_stats()
+    assert "3 INT" in stats
 
 def test_player_get_stats_has_no_leading_whitespace():
     player = Player(name="hero", hp=100)

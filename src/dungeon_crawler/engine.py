@@ -395,6 +395,7 @@ def create_player(name: str, ancestry_key: str) -> Player:
         armour=data["armour"],
         ancestry_label=data["label"]
     )
+    player.intellect = data["intellect"]
     if data["bonus_skill_point"]:
         player.skill_tree.skill_points += 1
     return player
@@ -504,11 +505,14 @@ def get_controls_text() -> str:
         "quit / exit - quit the game" 
     )
 
-def handle_examine(room: Room) -> str:
+def handle_examine(room: Room, player: Player) -> str:
     """Show a room's extra flavour text and reveal any hidden exits ot has."""
     messages = []
     if room.examine_text:
-        messages.append(room.examine_text)
+        if room.required_intellect <= player.intellect:
+            messages.append(room.examine_text)
+        else:
+            messages.append("There's something here, but you can't quite make sense of it.")
     else:
         messages.append("You look closer, but find nothing you hadn't already noticed.")
 
@@ -582,7 +586,7 @@ def main() -> None:
                 print("You are no longer in combat.")
 
         elif command == "examine":
-            print(handle_examine(current_room))
+            print(handle_examine(current_room, player))
 
         elif command.startswith("examine "):
             item_name = command.removeprefix("examine ").strip()

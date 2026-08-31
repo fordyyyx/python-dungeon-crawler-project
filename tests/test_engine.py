@@ -940,6 +940,10 @@ def test_create_player_without_bonus_skill_point_ancestry_grants_no_skill_point(
     player = create_player("Hero", "basic")
     assert player.skill_tree.skill_points == 0
 
+def test_create_player_sets_intellect_from_ancestry():
+    player = create_player("Hero", "athena")
+    assert player.intellect == 5
+
 def test_flee_combat_clean_escape_when_enemy_at_zero_hp():
     player = Player(name="Hero", hp=50, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
@@ -1567,31 +1571,36 @@ def test_get_controls_text_lists_quit_command():
 
 def test_handle_examine_with_examine_text_returns_examine_text():
     room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.")
-    message = handle_examine(room)
+    player = Player(name="Hero", hp=50)
+    message = handle_examine(room, player)
     assert "The stonework here looks subtly disturbed." in message
 
 def test_handle_examine_without_examine_text_returns_default_message():
     room = Room("A")
-    message = handle_examine(room)
+    player = Player(name="Hero", hp=50)
+    message = handle_examine(room, player)
     assert message == "You look closer, but find nothing you hadn't already noticed."
 
 def test_handle_examine_reveals_hidden_exit_in_room_exits():
     room = Room("Styx Crossing")
     vault = Room("Sunken Vault")
     room.add_hidden_exit("down", vault)
-    handle_examine(room)
+    player = Player(name="Hero", hp=50)
+    handle_examine(room, player)
     assert room.get_exit("down") is vault
 
 def test_handle_examine_appends_message_naming_revealed_direction():
     room = Room("Styx Crossing")
     vault = Room("Sunken Vault")
     room.add_hidden_exit("down", vault)
-    message = handle_examine(room)
+    player = Player(name="Hero", hp=50)
+    message = handle_examine(room, player)
     assert "Your search reveals a hidden passage: down." in message
 
 def test_handle_examine_with_no_hidden_exits_does_not_mention_hidden_passage():
     room = Room("A")
-    message = handle_examine(room)
+    player = Player(name="Hero", hp=50)
+    message = handle_examine(room, player)
     assert "hidden passage" not in message
 
 def test_handle_examine_reveals_multiple_hidden_exits_lists_all_directions():
@@ -1600,5 +1609,36 @@ def test_handle_examine_reveals_multiple_hidden_exits_lists_all_directions():
     c = Room("C")
     room.add_hidden_exit("down", b)
     room.add_hidden_exit("up", c)
-    message = handle_examine(room)
+    player = Player(name="Hero", hp=50)
+    message = handle_examine(room, player)
     assert "Your search reveals a hidden passage: down, up." in message
+
+def test_handle_examine_with_sufficient_intellect_returns_examine_text():
+    room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.", required_intellect=3)
+    player = Player(name="Hero", hp=50)
+    player.intellect = 3
+    message = handle_examine(room, player)
+    assert "The stonework here looks subtly disturbed." in message
+
+def test_handle_examine_with_insufficient_intellect_returns_cant_make_sense_message():
+    room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.", required_intellect=3)
+    player = Player(name="Hero", hp=50)
+    player.intellect = 2
+    message = handle_examine(room, player)
+    assert "There's something here, but you can't quite make sense of it." in message
+
+def test_handle_examine_with_insufficient_intellect_does_not_reveal_examine_text():
+    room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.", required_intellect=3)
+    player = Player(name="Hero", hp=50)
+    player.intellect = 2
+    message = handle_examine(room, player)
+    assert "The stonework here looks subtly disturbed." not in message
+
+def test_handle_examine_with_insufficient_intellect_still_reveals_hidden_exits():
+    room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.", required_intellect=3)
+    vault = Room("Sunken Vault")
+    room.add_hidden_exit("down", vault)
+    player = Player(name="Hero", hp=50)
+    player.intellect = 0
+    handle_examine(room, player)
+    assert room.get_exit("down") is vault

@@ -180,6 +180,14 @@ def test_room_initialises_with_empty_examine_text_by_default():
     room = Room("A")
     assert room.examine_text == ""
 
+def test_room_initialises_with_required_intellect():
+    room = Room("A", required_intellect=3)
+    assert room.required_intellect == 3
+
+def test_room_initialises_with_zero_required_intellect_by_default():
+    room = Room("A")
+    assert room.required_intellect == 0
+
 def test_room_initialises_with_no_hidden_exits():
     room = Room("A")
     assert room.hidden_exits == {}

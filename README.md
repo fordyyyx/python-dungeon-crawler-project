@@ -9,6 +9,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Character creation — name your hero and choose an ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
 * Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements — some passages are hidden entirely until you stop and `examine` your surroundings
+* An Intellect stat, set by ancestry and grown through levelling, that unlocks additional flavour text and lore when examining — never anything required to progress
 * Turn-based combat that locks you into an encounter — attack, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
 * An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time
 * Item pickup, inventory, use, and unequip — equipping a new weapon or armour piece correctly replaces the old one rather than stacking
@@ -72,7 +73,7 @@ pytest --cov=src/dungeon_crawler
 * `skills` - view your skill tree progress and available points (also available mid-combat)
 * `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`) (also available mid-combat)
 * `inventory` - display carried items, with equipped gear, quest items, and gold marked separately (also available mid-combat)
-* `stats` - display your core stats, ancestry, level, and experience (also available mid-combat)
+* `stats` - display your core stats (including Intellect), ancestry, level, and experience (also available mid-combat)
 * `controls` - show the full list of available commands (always available, regardless of state)
 * `quit` / `exit` - quit the game
 

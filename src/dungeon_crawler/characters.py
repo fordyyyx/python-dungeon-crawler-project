@@ -83,6 +83,7 @@ class Player(Character):
         self.equipped_armour = None
         self.ancestry_label = ancestry_label
         self.auto_talk = False
+        self.intellect = 0
 
     def on_death(self) -> str:
         return f"{self.name} has fallen. Game Over."
@@ -101,6 +102,7 @@ class Player(Character):
         {self.hp} HP
         {self.attack_damage} ATK
         {self.armour} DEF
+        {self.intellect} INT
         {unlocked_section}
         """
         return dedent(stat_string).strip()
@@ -150,6 +152,7 @@ class Player(Character):
         self.experience -= self.experience_to_next_level
         self.skill_tree.skill_points += 1
         self.experience_to_next_level = int(self.experience_to_next_level * 1.5)
+        self.intellect += 1
         return f"{self.name} reaches level {self.level}! A skill point is available."
 
 

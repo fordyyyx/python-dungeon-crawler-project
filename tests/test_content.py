@@ -226,6 +226,7 @@ def test_ancestries_basic_has_correct_stats():
     assert basic["attack"] == 3
     assert basic["armour"] == 1
     assert basic["hp"] == 20
+    assert basic["intellect"] == 2
 
 def test_ancestries_ares_has_correct_stats():
     ares = ANCESTRIES["ares"]
@@ -233,6 +234,7 @@ def test_ancestries_ares_has_correct_stats():
     assert ares["attack"] == 5
     assert ares["armour"] == 1
     assert ares["hp"] == 19
+    assert ares["intellect"] == 1
 
 def test_ancestries_athena_has_correct_stats():
     athena = ANCESTRIES["athena"]
@@ -240,6 +242,7 @@ def test_ancestries_athena_has_correct_stats():
     assert athena["attack"] == 4
     assert athena["armour"] == 3
     assert athena["hp"] == 20
+    assert athena["intellect"] == 5
 
 def test_ancestries_hermes_has_correct_stats():
     hermes = ANCESTRIES["hermes"]
@@ -247,6 +250,7 @@ def test_ancestries_hermes_has_correct_stats():
     assert hermes["attack"] == 4
     assert hermes["armour"] == 1
     assert hermes["hp"] == 22
+    assert hermes["intellect"] == 3
 
 def test_ancestries_poseidon_has_correct_stats():
     poseidon = ANCESTRIES["poseidon"]
@@ -254,6 +258,7 @@ def test_ancestries_poseidon_has_correct_stats():
     assert poseidon["attack"] == 2
     assert poseidon["armour"] == 5
     assert poseidon["hp"] == 19
+    assert poseidon["intellect"] == 2
 
 def test_ancestries_achilles_has_correct_stats():
     achilles = ANCESTRIES["achilles"]
@@ -261,6 +266,7 @@ def test_ancestries_achilles_has_correct_stats():
     assert achilles["attack"] == 6
     assert achilles["armour"] == 1
     assert achilles["hp"] == 16
+    assert achilles["intellect"] == 1
 
 def test_ancestries_odysseus_has_correct_stats():
     odysseus = ANCESTRIES["odysseus"]
@@ -268,6 +274,7 @@ def test_ancestries_odysseus_has_correct_stats():
     assert odysseus["attack"] == 3
     assert odysseus["armour"] == 1
     assert odysseus["hp"] == 20
+    assert odysseus["intellect"] == 4
 
 def test_ancestries_atalanta_has_correct_stats():
     atalanta = ANCESTRIES["atalanta"]
@@ -275,6 +282,7 @@ def test_ancestries_atalanta_has_correct_stats():
     assert atalanta["attack"] == 5
     assert atalanta["armour"] == 1
     assert atalanta["hp"] == 20
+    assert atalanta["intellect"] == 2
 
 def test_ancestries_medusa_has_correct_stats():
     medusa = ANCESTRIES["medusa"]
@@ -282,6 +290,7 @@ def test_ancestries_medusa_has_correct_stats():
     assert medusa["attack"] == 2
     assert medusa["armour"] == 4
     assert medusa["hp"] == 19
+    assert medusa["intellect"] == 3
 
 def test_ancestries_minotaur_has_correct_stats():
     minotaur = ANCESTRIES["minotaur"]
@@ -289,6 +298,7 @@ def test_ancestries_minotaur_has_correct_stats():
     assert minotaur["attack"] == 6
     assert minotaur["armour"] == 0
     assert minotaur["hp"] == 21
+    assert minotaur["intellect"] == 0
 
 def test_ancestries_cyclops_has_correct_stats():
     cyclops = ANCESTRIES["cyclops"]
@@ -296,6 +306,7 @@ def test_ancestries_cyclops_has_correct_stats():
     assert cyclops["attack"] == 3
     assert cyclops["armour"] == 0
     assert cyclops["hp"] == 25
+    assert cyclops["intellect"] == 0
 
 def test_create_bronze_breastplate_has_correct_defence_and_description():
     breastplate = create_bronze_breastplate()

@@ -1,9 +1,10 @@
 class Room:
-    def __init__(self, name: str, description: str = "", examine_text: str = ""):
+    def __init__(self, name: str, description: str = "", examine_text: str = "", required_intellect = 0):
         self.name = name
         self.description = description
         self.examine_text = examine_text
         """Extra flavour/hint text shown only via the 'examine' command, distinct from the description shown automatically on room entry."""
+        self.required_intellect = required_intellect
         self.exits: dict[str, "Room"] = {}
         self.hidden_exits: dict[str, "Room"] = {}
         """Exits that dont appear in .exits (and therefore not in map/fullmap) until revealed via reveal_hidden_exits()."""
