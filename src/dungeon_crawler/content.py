@@ -261,6 +261,14 @@ def create_hermes_favour() -> SkillPointReward:
         points = 1
     )
 
+def build_blank_test_room() -> Room:
+    """A single, deliberately empty room for dev testing - not connected to anything via exits, only ever reached by 
+    'dev teleport dev test room'. Nothing pre-populated; use dev spawn / dev add once inside. """
+    return Room(
+        "Dev Test Room",
+        "A featureless void, useful for exactly nothing except testing things in isolation."
+    )
+
 def build_floor_0() -> tuple[Room, dict[str, Room]]:
     chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with "
         "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
@@ -361,6 +369,9 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     for floor_rooms in all_floors.values():
         for room in floor_rooms.values():
             dungeon.add_room(room)
+
+    dev_test_room = build_blank_test_room()
+    dungeon.add_room(dev_test_room)
 
     return dungeon, floor_0_start, all_floors
         

@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_blank_test_room, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -419,9 +419,31 @@ def test_create_hermes_favour_has_correct_points():
     favour = create_hermes_favour()
     assert favour.points == 1
 
-def test_build_world_returns_thirteen_rooms():
+def test_build_world_returns_fourteen_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(dungeon) == 13
+    assert len(dungeon) == 14
+
+def test_build_blank_test_room_has_correct_name_and_description():
+    room = build_blank_test_room()
+    assert room.name == "Dev Test Room"
+    assert room.description == "A featureless void, useful for exactly nothing except testing things in isolation."
+
+def test_build_blank_test_room_has_no_exits():
+    room = build_blank_test_room()
+    assert room.exits == {}
+
+def test_build_world_includes_dev_test_room():
+    dungeon, entrance, floors = build_world()
+    dev_test_room = dungeon.get_room("Dev Test Room")
+    assert dev_test_room is not None
+    assert dev_test_room.name == "Dev Test Room"
+
+def test_build_world_dev_test_room_is_not_part_of_any_floor():
+    dungeon, entrance, floors = build_world()
+    all_floor_room_names = {
+        name for floor_rooms in floors.values() for name in floor_rooms
+    }
+    assert "Dev Test Room" not in all_floor_room_names
 
 def test_build_world_entrance_is_chamber_of_chiron():
     dungeon, entrance, floors = build_world()
