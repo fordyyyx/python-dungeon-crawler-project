@@ -132,6 +132,30 @@ tests are fine. This will happen again on every subsequent
 - `engine.py`'s `choose_ancestry()` and `create_player()` handle selection and construction, called in `main()` before the world is built.
 - If adding a new ancestry: keep its total "power budget" roughly proportional to existing entries (no strict upgrades over `"basic"` in every stat at once) - see the existing table for the balance pattern (offence-leaning options sacrifice defence, defence-leaning options sacrifice offence, HP-heavy options sacrifice both).
 
+## Testing main() — refined now that monkeypatch is approved
+`main()` is no longer entirely off-limits, but it's tested
+differently from everything else, and sparingly.
+- **A small number of end-to-end smoke tests are worth having** —
+  using `monkeypatch.setattr("builtins.input", ...)` fed from an
+  iterator of scripted commands, plus `capsys` to capture output.
+  These test the whole routing chain in one go (input parsing ->
+  dispatch -> the real handler -> the printed result), which unit
+  tests on individual handlers can't catch (e.g. a command routed to
+  the wrong module after the engine.py split).
+- **This is a genuinely different category from every other test in
+  this project** — an integration/smoke test, not an isolated
+  Arrange-Act-Assert unit test. Don't try to exhaustively script
+  every command/state combination through `main()` this way; that's
+  combinatorial and belongs to manual playtesting instead. A handful
+  of high-value scripted playthroughs (a full happy path, dev-command
+  routing) is the right scope — not a replacement for playtesting,
+  a complement to it.
+- If asked to generate tests for `engine.py`/`main()` specifically,
+  this is the one place `monkeypatch` extends beyond its other two
+  approved uses (randomness, input/file mocking) — scripted `input()`
+  sequences for `main()` smoke tests fall under the same
+  input-mocking approval.
+
 ## monkeypatch — approved, but only for two specific purposes
 `pytest`'s built-in `monkeypatch` fixture is approved as an exception
 to the "no new test patterns without asking" rule, but **only** for:

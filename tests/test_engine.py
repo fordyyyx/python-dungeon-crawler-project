@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Armour, Consumable, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, choose_ancestry, create_player, get_controls_text, handle_examine
+from dungeon_crawler.engine import pick_up, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, choose_ancestry, create_player, get_controls_text, handle_examine, main
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -569,3 +569,86 @@ def test_handle_examine_with_insufficient_intellect_still_reveals_hidden_exits()
     player.intellect = 0
     handle_examine(room, player)
     assert room.get_exit("down") is vault
+
+def test_main_happy_path_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough of the full routing chain: name/ancestry prompts, movement, take, use, and quit."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "Hero",
+        "basic",
+        "north",
+        "take wooden sword",
+        "use wooden sword",
+        "south",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Chamber of Chiron (North)" in captured.out
+    assert "You take the Wooden Sword." in captured.out
+    assert "Hero equips Wooden Sword (+1 ATK)." in captured.out
+    assert "Hero has died" not in captured.out
+
+def test_main_dev_command_routing_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough covering dev-mode activation via the 'developer mode' name, the floor-select
+    prompt it unlocks, and dispatch of a dev command - all routed before the in_combat check."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "developer mode",
+        "basic",
+        "floor_0",
+        "dev set hp 999",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "[DEV] Developer mode activated." in captured.out
+    assert "[DEV] hp set to 999." in captured.out
+
+def test_main_combat_routing_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough covering both combat-entry paths: the 'attack' elif branch starts combat,
+    then the earlier player.in_combat elif branch takes over for the follow-up 'attack'."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "developer mode",
+        "basic",
+        "floor_0",
+        "dev spawn training dummy",
+        "attack",
+        "attack",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "[DEV] Spawned Training Dummy." in captured.out
+    assert "Training Dummy has been defeated." in captured.out
+    assert "It dropped: Dummy Head" in captured.out
+
+def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,
+    and the game-over message prints afterwards."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "developer mode",
+        "basic",
+        "floor_0",
+        "dev set hp 1",
+        "dev spawn skeleton warrior",
+        "attack",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Dev has fallen. Game Over." in captured.out
+    assert "Dev has died. Game over." not in captured.out

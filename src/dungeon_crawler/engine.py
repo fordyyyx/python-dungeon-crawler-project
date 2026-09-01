@@ -362,8 +362,5 @@ def main() -> None:
         else:
             print("Nothing happens.")
 
-    if not player.is_alive():
-        print(f"\n{player.name} has died. Game over.")
-
 if __name__ == "__main__":
     main()
