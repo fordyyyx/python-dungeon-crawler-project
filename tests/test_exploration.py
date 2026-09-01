@@ -260,6 +260,25 @@ def test_display_map_does_not_revisit_room_in_cycle():
     player = Player(name="hero", hp=10)
     assert display_map(room_a, player) == "\nA\n  north -> B\n\nB\n  south -> A"
 
+def test_display_map_explores_past_locked_exit_when_player_has_required_item():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    room_a.lock_exit("north", "Key")
+    player = Player(name="hero", hp=10)
+    key = Weapon(name="Key", description="", damage=0)
+    player.inventory.add(key)
+    assert display_map(room_a, player) == "\nA\n  north -> B\n\nB"
+
+def test_display_map_lists_multiple_branches_from_same_room():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_c = Room("C")
+    room_a.connect("north", room_b)
+    room_a.connect("east", room_c)
+    player = Player(name="hero", hp=10)
+    assert display_map(room_a, player) == "\nA\n  north -> B\n  east -> C\n\nB\n\nC"
+
 def test_display_local_exits_with_no_exits_returns_message():
     room = Room("A")
     player = Player(name="hero", hp=10)
@@ -296,6 +315,16 @@ def test_display_local_exits_does_not_recurse_into_connected_rooms():
     room_a.connect("north", room_b)
     room_b.connect("east", room_c)
     player = Player(name="hero", hp=10)
+    assert display_local_exits(room_a, player) == "north -> B"
+
+def test_display_local_exits_shows_destination_when_player_has_required_item():
+    room_a = Room("A")
+    room_b = Room("B")
+    room_a.connect("north", room_b)
+    room_a.lock_exit("north", "Key")
+    player = Player(name="hero", hp=10)
+    key = Weapon(name="Key", description="", damage=0)
+    player.inventory.add(key)
     assert display_local_exits(room_a, player) == "north -> B"
 
 def test_handle_examine_with_examine_text_returns_examine_text():
@@ -363,11 +392,22 @@ def test_handle_examine_with_insufficient_intellect_does_not_reveal_examine_text
     message = handle_examine(room, player)
     assert "The stonework here looks subtly disturbed." not in message
 
-def test_handle_examine_with_insufficient_intellect_still_reveals_hidden_exits():
+def test_handle_examine_with_insufficient_intellect_does_not_reveal_hidden_exits():
+    """Revised design: required_intellect now gates the hidden-exit reveal too, not just the flavour text -
+    see CLAUDE.md's revised Intellect hard rule (reachability, not permanent inaccessibility, is the guardrail)."""
     room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.", required_intellect=3)
     vault = Room("Sunken Vault")
     room.add_hidden_exit("down", vault)
     player = Player(name="Hero", hp=50)
     player.intellect = 0
+    handle_examine(room, player)
+    assert room.get_exit("down") is None
+
+def test_handle_examine_with_sufficient_intellect_reveals_hidden_exits():
+    room = Room("Styx Crossing", examine_text="The stonework here looks subtly disturbed.", required_intellect=3)
+    vault = Room("Sunken Vault")
+    room.add_hidden_exit("down", vault)
+    player = Player(name="Hero", hp=50)
+    player.intellect = 3
     handle_examine(room, player)
     assert room.get_exit("down") is vault

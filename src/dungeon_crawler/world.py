@@ -1,7 +1,5 @@
 """World classes - Room (a single location with exits, items, enemies, and allies) and Map (the collection of all rooms, keyed by name)."""
 
-
-
 class Room:
     """A single location in the world - holds its own items/enemies/allies, and its exits (including locked and hidden ones) to other rooms."""
 

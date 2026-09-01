@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_blank_test_room, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -438,9 +438,9 @@ def test_create_hermes_favour_has_correct_points():
     favour = create_hermes_favour()
     assert favour.points == 1
 
-def test_build_world_returns_fourteen_rooms():
+def test_build_world_returns_fifty_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(dungeon) == 14
+    assert len(dungeon) == 50
 
 def test_build_blank_test_room_has_correct_name_and_description():
     room = build_blank_test_room()
@@ -630,9 +630,12 @@ def test_build_world_sunken_vault_has_skeleton_warrior_enemy():
     enemy_names = [enemy.name for enemy in sunken_vault.enemies]
     assert "Skeleton Warrior" in enemy_names
 
-def test_build_world_returns_floors_dict_with_floor_0_floor_1_and_floor_2_keys():
+def test_build_world_returns_floors_dict_with_ten_floor_keys():
     dungeon, entrance, floors = build_world()
-    assert set(floors.keys()) == {"floor_0", "floor_1", "floor_2"}
+    assert set(floors.keys()) == {
+        "floor_0", "floor_1", "floor_2", "floor_3", "floor_4",
+        "floor_5", "floor_6", "floor_7", "floor_8", "floor_9",
+    }
 
 def test_build_world_floor_0_rooms_dict_contains_five_rooms():
     dungeon, entrance, floors = build_world()
@@ -642,9 +645,181 @@ def test_build_world_floor_1_rooms_dict_contains_four_rooms():
     dungeon, entrance, floors = build_world()
     assert len(floors["floor_1"]) == 4
 
-def test_build_world_floor_2_rooms_dict_contains_four_rooms():
+def test_build_world_floor_2_rooms_dict_contains_five_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(floors["floor_2"]) == 4
+    assert len(floors["floor_2"]) == 5
+
+def test_build_world_floor_3_rooms_dict_contains_five_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_3"]) == 5
+
+def test_build_world_floor_4_rooms_dict_contains_eight_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_4"]) == 8
+
+def test_build_world_floor_5_rooms_dict_contains_six_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_5"]) == 6
+
+def test_build_world_floor_6_rooms_dict_contains_ten_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_6"]) == 10
+
+def test_build_world_floor_7_rooms_dict_contains_three_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_7"]) == 3
+
+def test_build_world_floor_8_rooms_dict_contains_two_rooms():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_8"]) == 2
+
+def test_build_world_floor_9_rooms_dict_contains_one_room():
+    dungeon, entrance, floors = build_world()
+    assert len(floors["floor_9"]) == 1
+
+def test_build_world_forge_of_prometheus_connects_to_bony_crypt_via_descend():
+    dungeon, entrance, floors = build_world()
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert forge is not None
+    assert forge.get_exit("descend") is dungeon.get_room("Bony Crypt")
+
+def test_build_world_bony_crypt_connects_back_to_forge_of_prometheus_via_ascend():
+    dungeon, entrance, floors = build_world()
+    bony_crypt = dungeon.get_room("Bony Crypt")
+    assert bony_crypt is not None
+    assert bony_crypt.get_exit("ascend") is dungeon.get_room("Forge of Prometheus")
+
+def test_build_world_overgrown_forest_connects_to_labyrinth_via_descend():
+    dungeon, entrance, floors = build_world()
+    overgrown_forest = dungeon.get_room("Overgrown Forest")
+    assert overgrown_forest is not None
+    assert overgrown_forest.get_exit("descend") is dungeon.get_room("Labyrinth of the Minotaur")
+
+def test_build_world_labyrinth_connects_back_to_overgrown_forest_via_ascend():
+    dungeon, entrance, floors = build_world()
+    labyrinth = dungeon.get_room("Labyrinth of the Minotaur")
+    assert labyrinth is not None
+    assert labyrinth.get_exit("ascend") is dungeon.get_room("Overgrown Forest")
+
+def test_build_world_lair_of_medusa_connects_to_shadow_of_army_camp_via_descend():
+    dungeon, entrance, floors = build_world()
+    lair_of_medusa = dungeon.get_room("Lair of Medusa")
+    assert lair_of_medusa is not None
+    assert lair_of_medusa.get_exit("descend") is dungeon.get_room("Shadow of Army Camp")
+
+def test_build_world_shadow_of_army_camp_connects_back_to_lair_of_medusa_via_ascend():
+    dungeon, entrance, floors = build_world()
+    shadow_of_army_camp = dungeon.get_room("Shadow of Army Camp")
+    assert shadow_of_army_camp is not None
+    assert shadow_of_army_camp.get_exit("ascend") is dungeon.get_room("Lair of Medusa")
+
+def test_build_world_shadow_of_pylos_connects_to_bright_cave_via_descend():
+    dungeon, entrance, floors = build_world()
+    shadow_of_pylos = dungeon.get_room("Shadow of Pylos")
+    assert shadow_of_pylos is not None
+    assert shadow_of_pylos.get_exit("descend") is dungeon.get_room("Bright Cave")
+
+def test_build_world_bright_cave_connects_back_to_shadow_of_pylos_via_ascend():
+    dungeon, entrance, floors = build_world()
+    bright_cave = dungeon.get_room("Bright Cave")
+    assert bright_cave is not None
+    assert bright_cave.get_exit("ascend") is dungeon.get_room("Shadow of Pylos")
+
+def test_build_world_bedchamber_of_odysseus_connects_to_chamber_of_the_oracle_via_descend():
+    dungeon, entrance, floors = build_world()
+    bedchamber_of_odysseus = dungeon.get_room("Bedchamber of Odysseus")
+    assert bedchamber_of_odysseus is not None
+    assert bedchamber_of_odysseus.get_exit("descend") is dungeon.get_room("Chamber of the Oracle")
+
+def test_build_world_chamber_of_the_oracle_connects_back_to_bedchamber_of_odysseus_via_ascend():
+    dungeon, entrance, floors = build_world()
+    chamber_of_the_oracle = dungeon.get_room("Chamber of the Oracle")
+    assert chamber_of_the_oracle is not None
+    assert chamber_of_the_oracle.get_exit("ascend") is dungeon.get_room("Bedchamber of Odysseus")
+
+def test_build_world_bedchamber_of_persephone_connects_to_gate_of_cerberus_via_descend():
+    dungeon, entrance, floors = build_world()
+    bedchamber_of_persephone = dungeon.get_room("Bedchamber of Persephone")
+    assert bedchamber_of_persephone is not None
+    assert bedchamber_of_persephone.get_exit("descend") is dungeon.get_room("Gate of Cerberus")
+
+def test_build_world_gate_of_cerberus_connects_back_to_bedchamber_of_persephone_via_ascend():
+    dungeon, entrance, floors = build_world()
+    gate_of_cerberus = dungeon.get_room("Gate of Cerberus")
+    assert gate_of_cerberus is not None
+    assert gate_of_cerberus.get_exit("ascend") is dungeon.get_room("Bedchamber of Persephone")
+
+def test_build_world_hall_of_hades_connects_to_tartarus_via_descend():
+    dungeon, entrance, floors = build_world()
+    hall_of_hades = dungeon.get_room("Hall of Hades")
+    assert hall_of_hades is not None
+    assert hall_of_hades.get_exit("descend") is dungeon.get_room("Tartarus")
+
+def test_build_world_tartarus_connects_back_to_hall_of_hades_via_ascend():
+    dungeon, entrance, floors = build_world()
+    tartarus = dungeon.get_room("Tartarus")
+    assert tartarus is not None
+    assert tartarus.get_exit("ascend") is dungeon.get_room("Hall of Hades")
+
+def test_build_world_includes_trophy_room_of_zeus():
+    dungeon, entrance, floors = build_world()
+    assert dungeon.get_room("Trophy Room of Zeus") is not None
+
+def test_build_world_trophy_room_of_zeus_is_part_of_floor_2():
+    dungeon, entrance, floors = build_world()
+    assert "Trophy Room of Zeus" in floors["floor_2"]
+
+def test_build_world_armoury_of_ares_north_exit_to_trophy_room_is_hidden_until_revealed():
+    dungeon, entrance, floors = build_world()
+    armoury = dungeon.get_room("Armoury of Ares")
+    assert armoury is not None
+    assert armoury.get_exit("north") is None
+    assert armoury.hidden_exits["north"] is dungeon.get_room("Trophy Room of Zeus")
+
+def test_build_world_armoury_of_ares_north_exit_revealed_via_reveal_hidden_exits():
+    dungeon, entrance, floors = build_world()
+    armoury = dungeon.get_room("Armoury of Ares")
+    assert armoury is not None
+    armoury.reveal_hidden_exits()
+    assert armoury.get_exit("north") is dungeon.get_room("Trophy Room of Zeus")
+
+def test_build_world_trophy_room_of_zeus_connects_back_to_armoury_via_south():
+    dungeon, entrance, floors = build_world()
+    trophy_room = dungeon.get_room("Trophy Room of Zeus")
+    assert trophy_room is not None
+    assert trophy_room.get_exit("south") is dungeon.get_room("Armoury of Ares")
+
+def test_build_world_includes_muddy_pigsty():
+    dungeon, entrance, floors = build_world()
+    assert dungeon.get_room("Muddy Pigsty") is not None
+
+def test_build_world_muddy_pigsty_is_part_of_floor_6():
+    dungeon, entrance, floors = build_world()
+    assert "Muddy Pigsty" in floors["floor_6"]
+
+def test_build_world_shadow_of_ithaca_connects_to_muddy_pigsty_via_east():
+    dungeon, entrance, floors = build_world()
+    shadow_of_ithaca = dungeon.get_room("Shadow of Ithaca")
+    assert shadow_of_ithaca is not None
+    assert shadow_of_ithaca.get_exit("east") is dungeon.get_room("Muddy Pigsty")
+
+def test_build_world_muddy_pigsty_connects_back_to_shadow_of_ithaca_via_west():
+    dungeon, entrance, floors = build_world()
+    muddy_pigsty = dungeon.get_room("Muddy Pigsty")
+    assert muddy_pigsty is not None
+    assert muddy_pigsty.get_exit("west") is dungeon.get_room("Shadow of Ithaca")
+
+def test_build_world_armoury_of_ares_has_examine_text():
+    dungeon, entrance, floors = build_world()
+    armoury = dungeon.get_room("Armoury of Ares")
+    assert armoury is not None
+    assert armoury.examine_text == "One section of the far wall looks less like stone, and more like it's been built to resemble stone."
+
+def test_build_world_armoury_of_ares_required_intellect_is_three():
+    dungeon, entrance, floors = build_world()
+    armoury = dungeon.get_room("Armoury of Ares")
+    assert armoury is not None
+    assert armoury.required_intellect == 3
 
 def test_build_world_styx_crossing_connects_to_library_of_athena_via_descend():
     dungeon, entrance, floors = build_world()
@@ -687,9 +862,9 @@ def test_build_floor_2_returns_library_of_athena_as_start_room():
     start, rooms = build_floor_2()
     assert start.name == "Library of Athena"
 
-def test_build_floor_2_returns_rooms_dict_with_four_rooms():
+def test_build_floor_2_returns_rooms_dict_with_five_rooms():
     start, rooms = build_floor_2()
-    assert len(rooms) == 4
+    assert len(rooms) == 5
 
 def test_build_floor_2_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_2()
@@ -723,4 +898,310 @@ def test_build_floor_2_forge_connects_back_to_hall_of_hermes_via_north():
     forge = rooms["Forge of Prometheus"]
     assert forge.get_exit("north") is rooms["Hall of Hermes"]
 
+def test_build_floor_3_returns_bony_crypt_as_start_room():
+    start, rooms = build_floor_3()
+    assert start.name == "Bony Crypt"
 
+def test_build_floor_3_returns_rooms_dict_with_five_rooms():
+    start, rooms = build_floor_3()
+    assert len(rooms) == 5
+
+def test_build_floor_3_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_3()
+    assert rooms["Bony Crypt"] is start
+
+def test_build_floor_3_bony_crypt_connects_to_cave_of_harpies_via_south():
+    start, rooms = build_floor_3()
+    assert rooms["Bony Crypt"].get_exit("south") is rooms["Cave of Harpies"]
+
+def test_build_floor_3_cave_of_harpies_connects_to_bony_crypt_via_north():
+    start, rooms = build_floor_3()
+    assert rooms["Cave of Harpies"].get_exit("north") is rooms["Bony Crypt"]
+
+def test_build_floor_3_cave_of_harpies_connects_to_prayer_room_via_east():
+    start, rooms = build_floor_3()
+    assert rooms["Cave of Harpies"].get_exit("east") is rooms["Prayer Room"]
+
+def test_build_floor_3_cave_of_harpies_connects_to_dim_corridor_via_south():
+    start, rooms = build_floor_3()
+    assert rooms["Cave of Harpies"].get_exit("south") is rooms["Dim Corridor"]
+
+def test_build_floor_3_prayer_room_connects_to_cave_of_harpies_via_west():
+    start, rooms = build_floor_3()
+    assert rooms["Prayer Room"].get_exit("west") is rooms["Cave of Harpies"]
+
+def test_build_floor_3_dim_corridor_connects_to_cave_of_harpies_via_north():
+    start, rooms = build_floor_3()
+    assert rooms["Dim Corridor"].get_exit("north") is rooms["Cave of Harpies"]
+
+def test_build_floor_3_dim_corridor_connects_to_overgrown_forest_via_south():
+    start, rooms = build_floor_3()
+    assert rooms["Dim Corridor"].get_exit("south") is rooms["Overgrown Forest"]
+
+def test_build_floor_3_overgrown_forest_connects_to_dim_corridor_via_north():
+    start, rooms = build_floor_3()
+    assert rooms["Overgrown Forest"].get_exit("north") is rooms["Dim Corridor"]
+
+def test_build_floor_4_returns_labyrinth_of_the_minotaur_as_start_room():
+    start, rooms = build_floor_4()
+    assert start.name == "Labyrinth of the Minotaur"
+
+def test_build_floor_4_returns_rooms_dict_with_eight_rooms():
+    start, rooms = build_floor_4()
+    assert len(rooms) == 8
+
+def test_build_floor_4_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_4()
+    assert rooms["Labyrinth of the Minotaur"] is start
+
+def test_build_floor_4_labyrinth_of_the_minotaur_connects_to_stony_lair_via_west():
+    start, rooms = build_floor_4()
+    assert rooms["Labyrinth of the Minotaur"].get_exit("west") is rooms["Stony Lair"]
+
+def test_build_floor_4_labyrinth_of_the_minotaur_connects_to_cavern_of_the_cyclops_via_east():
+    start, rooms = build_floor_4()
+    assert rooms["Labyrinth of the Minotaur"].get_exit("east") is rooms["Cavern of the Cyclops"]
+
+def test_build_floor_4_labyrinth_of_the_minotaur_connects_to_mossy_grove_via_south():
+    start, rooms = build_floor_4()
+    assert rooms["Labyrinth of the Minotaur"].get_exit("south") is rooms["Mossy Grove"]
+
+def test_build_floor_4_stony_lair_connects_to_labyrinth_of_the_minotaur_via_east():
+    start, rooms = build_floor_4()
+    assert rooms["Stony Lair"].get_exit("east") is rooms["Labyrinth of the Minotaur"]
+
+def test_build_floor_4_cavern_of_the_cyclops_connects_to_labyrinth_of_the_minotaur_via_west():
+    start, rooms = build_floor_4()
+    assert rooms["Cavern of the Cyclops"].get_exit("west") is rooms["Labyrinth of the Minotaur"]
+
+def test_build_floor_4_mossy_grove_connects_to_labyrinth_of_the_minotaur_via_north():
+    start, rooms = build_floor_4()
+    assert rooms["Mossy Grove"].get_exit("north") is rooms["Labyrinth of the Minotaur"]
+
+def test_build_floor_4_mossy_grove_connects_to_shadowy_corner_via_west():
+    start, rooms = build_floor_4()
+    assert rooms["Mossy Grove"].get_exit("west") is rooms["Shadowy Corner"]
+
+def test_build_floor_4_mossy_grove_connects_to_sandy_expanse_via_south():
+    start, rooms = build_floor_4()
+    assert rooms["Mossy Grove"].get_exit("south") is rooms["Sandy Expanse"]
+
+def test_build_floor_4_shadowy_corner_connects_to_mossy_grove_via_east():
+    start, rooms = build_floor_4()
+    assert rooms["Shadowy Corner"].get_exit("east") is rooms["Mossy Grove"]
+
+def test_build_floor_4_sandy_expanse_connects_to_mossy_grove_via_north():
+    start, rooms = build_floor_4()
+    assert rooms["Sandy Expanse"].get_exit("north") is rooms["Mossy Grove"]
+
+def test_build_floor_4_sandy_expanse_connects_to_maze_of_pillars_via_east():
+    start, rooms = build_floor_4()
+    assert rooms["Sandy Expanse"].get_exit("east") is rooms["Maze of Pillars"]
+
+def test_build_floor_4_maze_of_pillars_connects_to_sandy_expanse_via_west():
+    start, rooms = build_floor_4()
+    assert rooms["Maze of Pillars"].get_exit("west") is rooms["Sandy Expanse"]
+
+def test_build_floor_4_maze_of_pillars_connects_to_lair_of_medusa_via_south():
+    start, rooms = build_floor_4()
+    assert rooms["Maze of Pillars"].get_exit("south") is rooms["Lair of Medusa"]
+
+def test_build_floor_4_lair_of_medusa_connects_to_maze_of_pillars_via_north():
+    start, rooms = build_floor_4()
+    assert rooms["Lair of Medusa"].get_exit("north") is rooms["Maze of Pillars"]
+
+def test_build_floor_5_returns_shadow_of_army_camp_as_start_room():
+    start, rooms = build_floor_5()
+    assert start.name == "Shadow of Army Camp"
+
+def test_build_floor_5_returns_rooms_dict_with_six_rooms():
+    start, rooms = build_floor_5()
+    assert len(rooms) == 6
+
+def test_build_floor_5_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Army Camp"] is start
+
+def test_build_floor_5_shadow_of_army_camp_connects_to_shadow_of_troy_north_via_south():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Army Camp"].get_exit("south") is rooms["Shadow of Troy (North)"]
+
+def test_build_floor_5_shadow_of_troy_north_connects_to_shadow_of_army_camp_via_north():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (North)"].get_exit("north") is rooms["Shadow of Army Camp"]
+
+def test_build_floor_5_shadow_of_troy_north_connects_to_shadow_of_troy_central_via_south():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (North)"].get_exit("south") is rooms["Shadow of Troy (Central)"]
+
+def test_build_floor_5_shadow_of_troy_central_connects_to_shadow_of_troy_north_via_north():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (Central)"].get_exit("north") is rooms["Shadow of Troy (North)"]
+
+def test_build_floor_5_shadow_of_troy_central_connects_to_shadow_of_troy_alleyway_via_west():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (Central)"].get_exit("west") is rooms["Shadow of Troy (Alleyway)"]
+
+def test_build_floor_5_shadow_of_troy_alleyway_connects_to_shadow_of_troy_central_via_east():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (Alleyway)"].get_exit("east") is rooms["Shadow of Troy (Central)"]
+
+def test_build_floor_5_shadow_of_troy_alleyway_connects_to_shadow_of_troy_south_via_south():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (Alleyway)"].get_exit("south") is rooms["Shadow of Troy (South)"]
+
+def test_build_floor_5_shadow_of_troy_south_connects_to_shadow_of_troy_alleyway_via_north():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (South)"].get_exit("north") is rooms["Shadow of Troy (Alleyway)"]
+
+def test_build_floor_5_shadow_of_troy_south_connects_to_shadow_of_pylos_via_east():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (South)"].get_exit("east") is rooms["Shadow of Pylos"]
+
+def test_build_floor_5_shadow_of_pylos_connects_to_shadow_of_troy_south_via_west():
+    start, rooms = build_floor_5()
+    assert rooms["Shadow of Pylos"].get_exit("west") is rooms["Shadow of Troy (South)"]
+
+def test_build_floor_6_returns_bright_cave_as_start_room():
+    start, rooms = build_floor_6()
+    assert start.name == "Bright Cave"
+
+def test_build_floor_6_returns_rooms_dict_with_ten_rooms():
+    start, rooms = build_floor_6()
+    assert len(rooms) == 10
+
+def test_build_floor_6_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_6()
+    assert rooms["Bright Cave"] is start
+
+def test_build_floor_6_bright_cave_connects_to_calm_waters_via_south():
+    start, rooms = build_floor_6()
+    assert rooms["Bright Cave"].get_exit("south") is rooms["Calm Waters"]
+
+def test_build_floor_6_calm_waters_connects_to_bright_cave_via_north():
+    start, rooms = build_floor_6()
+    assert rooms["Calm Waters"].get_exit("north") is rooms["Bright Cave"]
+
+def test_build_floor_6_calm_waters_connects_to_cavern_of_polyphemus_via_east():
+    start, rooms = build_floor_6()
+    assert rooms["Calm Waters"].get_exit("east") is rooms["Cavern of Polyphemus"]
+
+def test_build_floor_6_calm_waters_connects_to_rocky_shore_via_west():
+    start, rooms = build_floor_6()
+    assert rooms["Calm Waters"].get_exit("west") is rooms["Rocky Shore"]
+
+def test_build_floor_6_cavern_of_polyphemus_connects_to_calm_waters_via_west():
+    start, rooms = build_floor_6()
+    assert rooms["Cavern of Polyphemus"].get_exit("west") is rooms["Calm Waters"]
+
+def test_build_floor_6_rocky_shore_connects_to_calm_waters_via_east():
+    start, rooms = build_floor_6()
+    assert rooms["Rocky Shore"].get_exit("east") is rooms["Calm Waters"]
+
+def test_build_floor_6_rocky_shore_connects_to_narrow_river_via_south():
+    start, rooms = build_floor_6()
+    assert rooms["Rocky Shore"].get_exit("south") is rooms["Narrow River"]
+
+def test_build_floor_6_narrow_river_connects_to_rocky_shore_via_north():
+    start, rooms = build_floor_6()
+    assert rooms["Narrow River"].get_exit("north") is rooms["Rocky Shore"]
+
+def test_build_floor_6_narrow_river_connects_to_poseidons_depths_via_south():
+    start, rooms = build_floor_6()
+    assert rooms["Narrow River"].get_exit("south") is rooms["Poseidon's Depths"]
+
+def test_build_floor_6_poseidons_depths_connects_to_narrow_river_via_north():
+    start, rooms = build_floor_6()
+    assert rooms["Poseidon's Depths"].get_exit("north") is rooms["Narrow River"]
+
+def test_build_floor_6_poseidons_depths_connects_to_shadow_of_ithaca_via_east():
+    start, rooms = build_floor_6()
+    assert rooms["Poseidon's Depths"].get_exit("east") is rooms["Shadow of Ithaca"]
+
+def test_build_floor_6_shadow_of_ithaca_connects_to_poseidons_depths_via_west():
+    start, rooms = build_floor_6()
+    assert rooms["Shadow of Ithaca"].get_exit("west") is rooms["Poseidon's Depths"]
+
+def test_build_floor_6_shadow_of_ithaca_connects_to_muddy_pigsty_via_east():
+    start, rooms = build_floor_6()
+    assert rooms["Shadow of Ithaca"].get_exit("east") is rooms["Muddy Pigsty"]
+
+def test_build_floor_6_shadow_of_ithaca_connects_to_throne_room_of_odysseus_via_south():
+    start, rooms = build_floor_6()
+    assert rooms["Shadow of Ithaca"].get_exit("south") is rooms["Throne Room of Odysseus"]
+
+def test_build_floor_6_muddy_pigsty_connects_to_shadow_of_ithaca_via_west():
+    start, rooms = build_floor_6()
+    assert rooms["Muddy Pigsty"].get_exit("west") is rooms["Shadow of Ithaca"]
+
+def test_build_floor_6_throne_room_of_odysseus_connects_to_shadow_of_ithaca_via_north():
+    start, rooms = build_floor_6()
+    assert rooms["Throne Room of Odysseus"].get_exit("north") is rooms["Shadow of Ithaca"]
+
+def test_build_floor_6_throne_room_of_odysseus_connects_to_bedchamber_of_odysseus_via_west():
+    start, rooms = build_floor_6()
+    assert rooms["Throne Room of Odysseus"].get_exit("west") is rooms["Bedchamber of Odysseus"]
+
+def test_build_floor_6_bedchamber_of_odysseus_connects_to_throne_room_of_odysseus_via_east():
+    start, rooms = build_floor_6()
+    assert rooms["Bedchamber of Odysseus"].get_exit("east") is rooms["Throne Room of Odysseus"]
+
+def test_build_floor_7_returns_chamber_of_the_oracle_as_start_room():
+    start, rooms = build_floor_7()
+    assert start.name == "Chamber of the Oracle"
+
+def test_build_floor_7_returns_rooms_dict_with_three_rooms():
+    start, rooms = build_floor_7()
+    assert len(rooms) == 3
+
+def test_build_floor_7_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_7()
+    assert rooms["Chamber of the Oracle"] is start
+
+def test_build_floor_7_chamber_of_the_oracle_connects_to_shadow_of_thebes_via_south():
+    start, rooms = build_floor_7()
+    assert rooms["Chamber of the Oracle"].get_exit("south") is rooms["Shadow of Thebes"]
+
+def test_build_floor_7_shadow_of_thebes_connects_to_chamber_of_the_oracle_via_north():
+    start, rooms = build_floor_7()
+    assert rooms["Shadow of Thebes"].get_exit("north") is rooms["Chamber of the Oracle"]
+
+def test_build_floor_7_shadow_of_thebes_connects_to_bedchamber_of_persephone_via_south():
+    start, rooms = build_floor_7()
+    assert rooms["Shadow of Thebes"].get_exit("south") is rooms["Bedchamber of Persephone"]
+
+def test_build_floor_7_bedchamber_of_persephone_connects_to_shadow_of_thebes_via_north():
+    start, rooms = build_floor_7()
+    assert rooms["Bedchamber of Persephone"].get_exit("north") is rooms["Shadow of Thebes"]
+
+def test_build_floor_8_returns_gate_of_cerberus_as_start_room():
+    start, rooms = build_floor_8()
+    assert start.name == "Gate of Cerberus"
+
+def test_build_floor_8_returns_rooms_dict_with_two_rooms():
+    start, rooms = build_floor_8()
+    assert len(rooms) == 2
+
+def test_build_floor_8_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_8()
+    assert rooms["Gate of Cerberus"] is start
+
+def test_build_floor_8_gate_of_cerberus_connects_to_hall_of_hades_via_south():
+    start, rooms = build_floor_8()
+    assert rooms["Gate of Cerberus"].get_exit("south") is rooms["Hall of Hades"]
+
+def test_build_floor_8_hall_of_hades_connects_to_gate_of_cerberus_via_north():
+    start, rooms = build_floor_8()
+    assert rooms["Hall of Hades"].get_exit("north") is rooms["Gate of Cerberus"]
+
+def test_build_floor_9_returns_tartarus_as_start_room():
+    start, rooms = build_floor_9()
+    assert start.name == "Tartarus"
+
+def test_build_floor_9_returns_rooms_dict_with_one_rooms():
+    start, rooms = build_floor_9()
+    assert len(rooms) == 1
+
+def test_build_floor_9_rooms_dict_keyed_by_room_name():
+    start, rooms = build_floor_9()
+    assert rooms["Tartarus"] is start

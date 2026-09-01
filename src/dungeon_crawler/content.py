@@ -379,22 +379,172 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     }
 
 def build_floor_2() -> tuple[Room, dict[str, Room]]:
-    """Build floor 2's rooms and connections. Content-free for now - no enemies, items, or allies are placed here yet (see the create_athena()/create_ares()/create_hermes()/create_prometheus() family, all built but not yet wired in). Returns (starting room, every room on this floor keyed by name)."""
+    """Domains of the Gods - Library of Athena, Armoury of Ares, Trophy Room of Zeus, Hall of Hermes, and Forge of Prometheus."""
     library_of_athena = Room(name="Library of Athena", description="Towering shelves of scrolls creak under their own weight; an owl watches from the rafters, unblinking.")
-    armoury_of_ares = Room(name="Armoury of Ares", description="Racks of corroded bronze weapons line the walls, still faintly warm to the touch.")
+    armoury_of_ares = Room(name="Armoury of Ares", description="Racks of corroded bronze weapons line the walls, still faintly warm to the touch.", examine_text="One section of the far wall looks less like stone, and more like it's been built to resemble stone.", required_intellect=3)
     hall_of_hermes = Room(name="Hall of Hermes", description="A cluttered waypoint stacked with parcels and letters never delivered, sandals of every size hung along one wall.")
     forge_of_prometheus = Room(name="Forge of Prometheus", description="The air shimmers with heat from a fire that never seems to go out, chained tools scattered across a worn anvil.")
+    trophy_room_of_zeus = Room(name="Trophy Room of Zeus", description="")
 
     library_of_athena.connect("west", armoury_of_ares)
     library_of_athena.connect("south", hall_of_hermes)
     armoury_of_ares.connect("east", library_of_athena)
+    armoury_of_ares.add_hidden_exit("north", trophy_room_of_zeus)
+    trophy_room_of_zeus.connect("south", armoury_of_ares)
     hall_of_hermes.connect("north", library_of_athena)
     hall_of_hermes.connect("south", forge_of_prometheus)
     forge_of_prometheus.connect("north", hall_of_hermes)
 
     return library_of_athena, {
-        room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus)
+        room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus, trophy_room_of_zeus)
     }
+
+def build_floor_3() -> tuple[Room, dict[str, Room]]:
+    """Low Dungeon - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, and Overgrown Forest."""
+    bony_crypt = Room(name="Bony Crypt", description="Skeletal remains are stacked floor to ceiling in neat, deliberate rows — someone, once, cared enough to arrange them.")
+    cave_of_harpies = Room(name="Cave of Harpies", description="Feathers and old bones litter a cave mouth that reeks of carrion; shrieks echo faintly from somewhere above.")
+    prayer_room = Room(name="Prayer Room", description="Faded murals of forgotten gods cover the walls, the air thick with old incense and older dread.")
+    dim_corridor = Room(name="Dim Corridor", description="A low, narrow passage where the torchlight barely reaches the far end.")
+    overgrown_forest = Room(name="Overgrown Forest", description="Twisted black trees crowd close overhead, roots breaking up through the stone floor as if the dungeon itself is being reclaimed.")
+
+    bony_crypt.connect("south", cave_of_harpies)
+    cave_of_harpies.connect("north", bony_crypt)
+    cave_of_harpies.connect("east", prayer_room)
+    cave_of_harpies.connect("south", dim_corridor)
+    prayer_room.connect("west", cave_of_harpies)
+    dim_corridor.connect("north", cave_of_harpies)
+    dim_corridor.connect("south", overgrown_forest)
+    overgrown_forest.connect("north", dim_corridor)
+
+    return bony_crypt, {
+        room.name: room for room in (bony_crypt, cave_of_harpies, prayer_room, dim_corridor, overgrown_forest)
+    }
+
+def build_floor_4() -> tuple[Room, dict[str, Room]]:
+    """Labyrinth & Greater Monsters - Labyrinth of the Minotaur, Cavern of the Cyclops, Stony Lair, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, and Lair of Medusa."""
+    labyrinth_of_the_minotaur = Room(name="Labyrinth of the Minotaur", description="Walls of rough-hewn stone stretch on in every direction, identical enough to make the way back uncertain.")
+    cavern_of_the_cyclops = Room(name="Cavern of the Cyclops", description="A vast, uneven cave with a single great boulder rolled aside from what was once its entrance.")
+    stony_lair = Room(name="Stony Lair", description="Statues in twisted, frozen poses fill every corner — a warning, if you look closely enough.")
+    mossy_grove = Room(name="Mossy Grove", description="Soft green moss carpets everything, and the air smells faintly of wine and something wilder underneath.")
+    shadowy_corner = Room(name="Shadowy Corner", description="A cramped, lightless space where the shadows seem to move independently of anything casting them.")
+    sandy_expanse = Room(name="Sandy Expanse", description="Dry, cracked earth stretches out under an oppressive heat that shouldn't exist this far underground.")
+    maze_of_pillars = Room(name="Maze of Pillars", description="Rows of bronze columns rise into darkness overhead, each one etched with faint, mechanical markings.")
+    lair_of_medusa = Room(name="Lair of Medusa", description="Stone figures, frozen mid-stride, litter the chamber — every one of them was once someone like you.")
+
+    labyrinth_of_the_minotaur.connect("west", stony_lair)
+    labyrinth_of_the_minotaur.connect("east", cavern_of_the_cyclops)
+    labyrinth_of_the_minotaur.connect("south", mossy_grove)
+    stony_lair.connect("east", labyrinth_of_the_minotaur)
+    cavern_of_the_cyclops.connect("west", labyrinth_of_the_minotaur)
+    mossy_grove.connect("north", labyrinth_of_the_minotaur)
+    mossy_grove.connect("west", shadowy_corner)
+    mossy_grove.connect("south", sandy_expanse)
+    shadowy_corner.connect("east", mossy_grove)
+    sandy_expanse.connect("north", mossy_grove)
+    sandy_expanse.connect("east", maze_of_pillars)
+    maze_of_pillars.connect("west", sandy_expanse)
+    maze_of_pillars.connect("south", lair_of_medusa)
+    lair_of_medusa.connect("north", maze_of_pillars)
+
+    return labyrinth_of_the_minotaur, {
+        room.name: room for room in (labyrinth_of_the_minotaur, stony_lair, cavern_of_the_cyclops, mossy_grove, shadowy_corner, sandy_expanse, maze_of_pillars, lair_of_medusa)
+    }
+
+def build_floor_5() -> tuple[Room, dict[str, Room]]:
+    """Shadow of Troy - Shadow of Army Camp, Shadow of Troy (North), Shadow of Troy (Central), Shadow of Troy (Alleyway), Shadow of Troy (South), and Shadow of Pylos."""
+    shadow_of_army_camp = Room(name="Shadow of Army Camp", description="Rows of ghostly tents flicker at the edge of sight, campfires burning cold and without heat.")
+    shadow_of_troy_north = Room(name="Shadow of Troy (North)", description="The pale outline of great walls rises overhead, breached and burning in an endless, silent loop.")
+    shadow_of_troy_central = Room(name="Shadow of Troy (Central)", description="Rubble and broken spears cover the ground, the echo of old battle-cries fading in and out like a tide.")
+    shadow_of_troy_alleyway = Room(name="Shadow of Troy (Alleyway)", description="A narrow gap between collapsed buildings, footsteps of the dead marching somewhere just out of view.")
+    shadow_of_troy_south = Room(name="Shadow of Troy (South)", description="The last defensible ground before the walls fully give way, arrows frozen mid-fall around its edges.")
+    shadow_of_pylos = Room(name="Shadow of Pylos", description="A calmer scene than the rest of Troy — a modest hall, a fire, a place that remembers counsel more than war.")
+
+    shadow_of_army_camp.connect("south", shadow_of_troy_north)
+    shadow_of_troy_north.connect("north", shadow_of_army_camp)
+    shadow_of_troy_north.connect("south", shadow_of_troy_central)
+    shadow_of_troy_central.connect("north", shadow_of_troy_north)
+    shadow_of_troy_central.connect("west", shadow_of_troy_alleyway)
+    shadow_of_troy_alleyway.connect("east", shadow_of_troy_central)
+    shadow_of_troy_alleyway.connect("south", shadow_of_troy_south)
+    shadow_of_troy_south.connect("north", shadow_of_troy_alleyway)
+    shadow_of_troy_south.connect("east", shadow_of_pylos)
+    shadow_of_pylos.connect("west", shadow_of_troy_south)
+
+    return shadow_of_army_camp, {
+        room.name: room for room in (shadow_of_army_camp, shadow_of_troy_north, shadow_of_troy_central, shadow_of_troy_alleyway, shadow_of_troy_south, shadow_of_pylos)
+    }
+
+def build_floor_6() -> tuple[Room, dict[str, Room]]:
+    """The Odyssey and the Open Sea - Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidons Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, and Bedchamber of Odysseus."""
+    bright_cave = Room(name="Bright Cave", description="Sunlight streams in from an opening far above, illuminating bones picked disturbingly clean.")
+    calm_waters = Room(name="Calm Waters", description="The sea here is unnervingly still, and faint singing drifts across it from somewhere you can't quite place.")
+    cavern_of_polyphemus = Room(name="Cavern of Polyphemus", description="A single vast eye socket, carved crudely into the far wall, watches the room, long since gone dark.")
+    rocky_shore = Room(name="Rocky Shore", description="Jagged black rocks jut from churning water, six shadows moving beneath the surface in perfect, unsettling unison.")
+    narrow_river = Room(name="Narrow River", description="The current here pulls hard toward a whirlpool that never quite stops turning.")
+    poseidons_depths = Room(name="Poseidon's Depths", description="The water opens into a vast underwater hall, pressure bearing down from every direction at once.")
+    shadow_of_ithaca = Room(name="Shadow of Ithaca", description="A modest, homely room, oddly warm compared to everywhere else on this floor.")
+    muddy_pigsty = Room(name="Muddy Pigsty", description="Thick mud and the smell of something herbal linger together in a low, cramped pen.")
+    throne_room_of_odysseus = Room(name="Throne Room of Odysseus", description="An once-grand hall, now crowded and disordered, the throne itself sitting conspicuously empty.")
+    bedchamber_of_odysseus = Room(name="Bedchamber of Odysseus", description="A quiet room untouched by the chaos elsewhere, a loom standing half-finished in the corner.")
+
+    bright_cave.connect("south", calm_waters)
+    calm_waters.connect("north", bright_cave)
+    calm_waters.connect("east", cavern_of_polyphemus)
+    calm_waters.connect("west", rocky_shore)
+    cavern_of_polyphemus.connect("west", calm_waters)
+    rocky_shore.connect("east", calm_waters)
+    rocky_shore.connect("south", narrow_river)
+    narrow_river.connect("north", rocky_shore)
+    narrow_river.connect("south", poseidons_depths)
+    poseidons_depths.connect("north", narrow_river)
+    poseidons_depths.connect("east", shadow_of_ithaca)
+    shadow_of_ithaca.connect("west", poseidons_depths)
+    shadow_of_ithaca.connect("east", muddy_pigsty)
+    shadow_of_ithaca.connect("south", throne_room_of_odysseus)
+    muddy_pigsty.connect("west", shadow_of_ithaca)
+    throne_room_of_odysseus.connect("north", shadow_of_ithaca)
+    throne_room_of_odysseus.connect("west", bedchamber_of_odysseus)
+    bedchamber_of_odysseus.connect("east", throne_room_of_odysseus)
+
+    return bright_cave, {
+        room.name: room for room in (bright_cave, calm_waters, cavern_of_polyphemus, rocky_shore, narrow_river, poseidons_depths, shadow_of_ithaca, muddy_pigsty, throne_room_of_odysseus, bedchamber_of_odysseus)
+    }
+
+def build_floor_7() -> tuple[Room, dict[str, Room]]:
+    """Prophecy & the Elder Dead - Chamber of the Oracle, Shadow of Thebes, and Bedchamber of Persephone."""
+    chamber_of_the_oracle = Room(name="Chamber of the Oracle", description="Smoke curls from a fissure in the floor, and the air itself seems to hum with something just out of hearing.")
+    shadow_of_thebes = Room(name="Shadow of Thebes", description="A still, dim chamber where even the shadows seem to be listening.")
+    bedchamber_of_persephone = Room(name="Bedchamber of Persephone", description="Half the room blooms with strange dark flowers; the other half lies frostbitten and bare.")
+
+    chamber_of_the_oracle.connect("south", shadow_of_thebes)
+    shadow_of_thebes.connect("north", chamber_of_the_oracle)
+    shadow_of_thebes.connect("south", bedchamber_of_persephone)
+    bedchamber_of_persephone.connect("north", shadow_of_thebes)
+
+    return chamber_of_the_oracle, {
+        room.name: room for room in (chamber_of_the_oracle, shadow_of_thebes, bedchamber_of_persephone)
+    }
+
+def build_floor_8() -> tuple[Room, dict[str, Room]]:
+    """Final Descent - Gate of Cerberus and Hall of Hades."""
+    gate_of_cerberus = Room(name="Gate of Cerberus", description="Enormous iron-bound doors loom ahead, three sets of eyes glowing faintly in the dark before them.")
+    hall_of_hades = Room(name="Hall of Hades", description="The chamber opens into a vast black hall lit by pale fire; a throne of bone waits at its centre.")
+
+    gate_of_cerberus.connect("south", hall_of_hades)
+    hall_of_hades.connect("north", gate_of_cerberus)
+
+    return gate_of_cerberus, {
+        room.name: room for room in (gate_of_cerberus, hall_of_hades)
+    }
+
+def build_floor_9() -> tuple[Room, dict[str, Room]]:
+    """Tartarus."""
+    tartarus = Room(name="Tartarus", description="The walls fall away entirely into an endless black chasm, heat and pressure pressing in from every direction at once.")
+
+    return tartarus, {
+        tartarus.name: tartarus
+    }
+
 
 def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     """Assemble every floor into one Map, wire the inter-floor descend/ascend exits between them, and add the dev-only test room. Returns (the full map, floor 0's starting room, every floor's rooms keyed by floor name then room name)."""
@@ -403,15 +553,43 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     floor_0_start, floor_0_rooms = build_floor_0()
     floor_1_start, floor_1_rooms = build_floor_1()
     floor_2_start, floor_2_rooms = build_floor_2()
+    floor_3_start, floor_3_rooms = build_floor_3()
+    floor_4_start, floor_4_rooms = build_floor_4()
+    floor_5_start, floor_5_rooms = build_floor_5()
+    floor_6_start, floor_6_rooms = build_floor_6()
+    floor_7_start, floor_7_rooms = build_floor_7()
+    floor_8_start, floor_8_rooms = build_floor_8()
+    floor_9_start, floor_9_rooms = build_floor_9()
 
     floor_0_rooms["Chamber of Chiron"].connect("descend", floor_1_rooms["Cave Entrance"])
     floor_1_rooms["Styx Crossing"].connect("descend", floor_2_rooms["Library of Athena"])
     floor_2_rooms["Library of Athena"].connect("ascend", floor_1_rooms["Styx Crossing"])
+    floor_2_rooms["Forge of Prometheus"].connect("descend", floor_3_rooms["Bony Crypt"])
+    floor_3_rooms["Bony Crypt"].connect("ascend", floor_2_rooms["Forge of Prometheus"])
+    floor_3_rooms["Overgrown Forest"].connect("descend", floor_4_rooms["Labyrinth of the Minotaur"])
+    floor_4_rooms["Labyrinth of the Minotaur"].connect("ascend", floor_3_rooms["Overgrown Forest"])
+    floor_4_rooms["Lair of Medusa"].connect("descend", floor_5_rooms["Shadow of Army Camp"])
+    floor_5_rooms["Shadow of Army Camp"].connect("ascend", floor_4_rooms["Lair of Medusa"])
+    floor_5_rooms["Shadow of Pylos"].connect("descend", floor_6_rooms["Bright Cave"])
+    floor_6_rooms["Bright Cave"].connect("ascend", floor_5_rooms["Shadow of Pylos"])
+    floor_6_rooms["Bedchamber of Odysseus"].connect("descend", floor_7_rooms["Chamber of the Oracle"])
+    floor_7_rooms["Chamber of the Oracle"].connect("ascend", floor_6_rooms["Bedchamber of Odysseus"])
+    floor_7_rooms["Bedchamber of Persephone"].connect("descend", floor_8_rooms["Gate of Cerberus"])
+    floor_8_rooms["Gate of Cerberus"].connect("ascend", floor_7_rooms["Bedchamber of Persephone"])
+    floor_8_rooms["Hall of Hades"].connect("descend", floor_9_rooms["Tartarus"])
+    floor_9_rooms["Tartarus"].connect("ascend", floor_8_rooms["Hall of Hades"])
 
     all_floors = {
         "floor_0": floor_0_rooms,
         "floor_1": floor_1_rooms,
         "floor_2": floor_2_rooms,
+        "floor_3": floor_3_rooms,
+        "floor_4": floor_4_rooms,
+        "floor_5": floor_5_rooms,
+        "floor_6": floor_6_rooms,
+        "floor_7": floor_7_rooms,
+        "floor_8": floor_8_rooms,
+        "floor_9": floor_9_rooms,
     }
 
     for floor_rooms in all_floors.values():
