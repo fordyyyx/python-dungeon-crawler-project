@@ -632,6 +632,29 @@ def test_player_initialises_with_skill_tree():
     player = Player(name="hero", hp=100)
     assert isinstance(player.skill_tree, SkillTree)
 
+
+def test_display_skills_shows_next_skill_for_each_path():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    result = player.get_skills_display()
+    assert "Attack: next unlock is Iron Grip - Steadier strikes." in result
+    assert "Defence: next unlock is Hardened Skin - Blows land softer." in result
+    assert "Abilities: next unlock is Twin Strike - A second blow follows the first, fast and true." in result
+
+def test_display_skills_shows_fully_unlocked_when_path_exhausted():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 3
+    player.skill_tree.invest("attack", player)
+    player.skill_tree.invest("attack", player)
+    player.skill_tree.invest("attack", player)
+    result = player.get_skills_display()
+    assert "Attack: fully unlocked" in result
+
+def test_display_skills_shows_available_skill_points():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 2
+    result = player.get_skills_display()
+    assert "Skill Points available: 2" in result
+
 def test_skill_apply_raises_not_implemented_error():
     skill = Skill(name="Mystery Skill", description="")
     character = Character(name="Hero", hp=100, attack_damage=10)

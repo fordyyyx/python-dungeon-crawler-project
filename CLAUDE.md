@@ -95,6 +95,17 @@ throughout") rather than leave everything until then.
 - Dev commands are checked **before** the `in_combat` branch in `main()`'s routing, not inside the exploration-only path — they must always work regardless of combat state. This was a real bug, now fixed; don't reintroduce it by nesting the `dev ` check inside another branch.
 - Maintenance: every new enemy/ally `create_*()` function needs a matching line in `ENEMY_REGISTRY`/`ALLY_REGISTRY` (mirroring `ITEM_REGISTRY`), so `dev spawn` can find it.
 
+## A known gap in /move-tests — check for this every time
+`/move-tests` fixes imports in the *new* file it creates, but does
+NOT clean up the *old* file's import line for names that just left.
+After every `/move-tests` run, manually check the source file's own
+top-level import statement (e.g. `test_engine.py`'s
+`from dungeon_crawler.engine import ...` line) and remove any names
+that no longer live there — otherwise the file fails to import at
+all with a confusing `ImportError`, even though the actual moved
+tests are fine. This will happen again on every subsequent
+`/move-tests` run during the engine.py reorganisation, not just once.
+
 ## Keeping documentation in sync with code
 - **`get_controls_text()` (engine.py) and the README's Controls section
   describe the same command list in two places.** There's no shared

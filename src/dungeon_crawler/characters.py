@@ -138,6 +138,18 @@ class Player(Character):
 
         return "\n".join(lines)
 
+    def get_skills_display(self) -> str:
+        """Format skill tree progress - next unlock per path, points available."""
+        lines = []
+        for path in self.skill_tree.paths.values():
+            next_skill = path.next_skill
+            if next_skill is not None:
+                lines.append(f"{path.name}: next unlock is {next_skill.name} - {next_skill.description}")
+            else:
+                lines.append(f"{path.name}: fully unlocked.")
+        lines.append(f"Skill Points available: {self.skill_tree.skill_points}")
+        return "\n".join(lines)
+
     def gain_experience(self, amount: int) -> str:
         """Add XP; automatically levels up if the threshold is reached. Returns a message describing what happened, doesn't print."""
         self.experience += amount

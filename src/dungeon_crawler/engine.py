@@ -1,234 +1,8 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
-from dungeon_crawler.items import Weapon, Item
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world, ANCESTRIES
-from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour
-from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades
-from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
-from collections.abc import Callable
-import random
-
-DEV_MODE = False
-
-ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
-    "wooden sword": create_wooden_sword,
-    "wooden shield": create_wooden_shield,
-    "dummy head": create_dummy_head,
-    "mentor's token": create_mentors_token,
-    "charon's coin": create_charons_coin,
-    "bronze xiphos": create_bronze_xiphos,
-    "shield of aegis (fragment)": create_aegis_fragment,
-    "vial of ambrosia": create_ambrosia,
-    "bronze breastplate": create_bronze_breastplate,
-    "small healing potion": create_small_healing_potion,
-    "cyclops eye": create_cyclops_eye,
-    "spear of ares": create_spear_of_ares,
-    "centaur's broken bow": create_centaurs_broken_bow,
-    "breastplate of athena": create_breastplate_of_athena,
-    "favour of hermes": create_hermes_favour,
-}
-
-ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
-    "training dummy": create_training_dummy,
-    "skeleton warrior": create_skeleton_warrior,
-    "minotaur": create_minotaur,
-    "hades": create_hades,
-}
-
-ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {
-    "chiron": create_chiron,
-    "mentor": create_mentor,
-    "wounded soldier": create_wounded_soldier,
-    "charon": create_charon,
-    "athena": create_athena,
-    "ares": create_ares,
-    "hermes": create_hermes,
-    "prometheus": create_prometheus,
-
-}
-
-STAT_ALIASES = {
-    "atk": "attack_damage",
-    "def": "armour",
-    "hp": "hp",
-    "maxhp": "max_hp",
-    "skillpoints": "skillpoints",
-}
-
-def handle_dev_set(stat_name: str, value_str: str, player: Player) -> str:
-    stat_name = stat_name.strip().lower()
-    try:
-        value = int(value_str.strip())
-    except ValueError:
-        return f"[DEV] Invalid value '{value_str.strip()}'."
-
-    if stat_name == "skillpoints":
-        player.skill_tree.skill_points = value
-        return f"[DEV] Skill points set to {value}."
-
-    attr_name = STAT_ALIASES.get(stat_name, stat_name)
-    if not hasattr(player, attr_name):
-        return f"[DEV] Unknown stat '{stat_name}'."
-
-    setattr(player, attr_name, value)
-
-    if attr_name == "hp" and value > player.max_hp:
-        player.max_hp = value
-    if attr_name == "max_hp" and player.hp > value:
-        player.hp = value
-
-    return f"[DEV] {stat_name} set to {value}."
- 
-def find_item_by_name(name: str) -> Item | None:
-    factory = ITEM_REGISTRY.get(name.lower())
-    return factory() if factory else None
-
-def find_enemy_by_name(name: str) -> Enemy | None:
-    factory = ENEMY_REGISTRY.get(name.lower())
-    return factory() if factory else None
-
-def find_ally_by_name(name: str) -> Ally | None:
-    factory = ALLY_REGISTRY.get(name.lower())
-    return factory() if factory else None
-
-def handle_dev_kill(player: Player, room: Room) -> str:
-    if player.current_target is not None and player.current_target in room.enemies:
-        enemy = player.current_target
-    elif room.enemies:
-        enemy = room.enemies[0]
-    else:
-        return "[DEV] No enemy here to kill."
-
-    enemy.hp = 0
-    handle_enemy_defeat(room, enemy, player)
-    player.in_combat = False
-    player.current_target = None
-
-    loot_text = f" Dropped: {', '.join(item.name for item in enemy.loot)}." if enemy.loot else ""
-    return f"[DEV] Killed {enemy.name}.{loot_text}"
-
-def find_room_by_name_ci(dungeon: Map, name: str) -> "Room | None":
-    target = name.lower()
-    for room_name, room_obj in dungeon.rooms.items():
-        if room_name.lower() == target:
-            return room_obj
-    return None
-
-def handle_dev_remove(character_name: str, room: Room) -> str:
-    character_name = character_name.strip().lower()
-    for enemy in room.enemies:
-        if enemy.name.lower() == character_name:
-            room.remove_enemy(enemy)
-            return f"[DEV] Removed {enemy.name}."
-    for ally in room.allies:
-        if ally.name.lower() == character_name:
-            room.remove_ally(ally)
-            return f"[DEV] Removed {ally.name}."
-    return f"[DEV] No character named '{character_name}' found here."
-
-def handle_dev_remove_all(character_name: str, room: Room) -> str:
-    character_name = character_name.strip().lower()
-    removed = 0
-    for enemy in list(room.enemies):
-        if enemy.name.lower() == character_name:
-            room.remove_enemy(enemy)
-            removed += 1
-    for ally in list(room.allies):
-        if ally.name.lower() == character_name:
-            room.remove_ally(ally)
-            removed += 1
-    if removed == 0:
-        return f"[DEV] No character named '{character_name}' found here."
-    return f"[DEV] Removed {removed} instance(s) of '{character_name}'."
-
-def handle_dev_clear_room(room: Room) -> str:
-    enemy_count = len(room.enemies)
-    ally_count = len(room.allies)
-    for enemy in list(room.enemies):
-        room.remove_enemy(enemy)
-    for ally in list(room.allies):
-        room.remove_ally(ally)
-    return f"[DEV] Cleared room: removed {enemy_count} enemies and {ally_count} allies."
-
-
-def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -> tuple[str, "Room | None"]:
-    if command.startswith("set "):
-        parts = command.removeprefix("set ").split(" ", 1)
-        if len(parts) != 2:
-            return "[DEV] Usage: dev set <stat> <value>", None
-        return handle_dev_set(parts[0], parts[1], player), None
-
-    if command.startswith("add "):
-        item_name = command.removeprefix("add ").strip()
-        item = find_item_by_name(item_name)
-        if item is None:
-            return f"[DEV] No known item named '{item_name}'.", None
-        player.inventory.add(item)
-        return f"[DEV] Added {item.name} to inventory.", None
-
-    if command.startswith("spawn "):
-        character_name = command.removeprefix("spawn ").strip()
-        enemy = find_enemy_by_name(character_name)
-        if enemy is not None:
-            room.add_enemy(enemy)
-            return f"[DEV] Spawned {enemy.name}.", None
-        ally = find_ally_by_name(character_name)
-        if ally is not None:
-            room.add_ally(ally)
-            return f"[DEV] Spawned {ally.name}.", None
-        return f"[DEV] No known character names {character_name}.", None
-
-    if command.startswith("remove all "):
-        return handle_dev_remove_all(command.removeprefix("remove all "), room), None
-
-    if command.startswith("remove "):
-        return handle_dev_remove(command.removeprefix("remove "), room), None
-
-    if command == "clear room":
-        return handle_dev_clear_room(room), None
-
-    if command == "kill":
-        return handle_dev_kill(player, room), None
-
-    if command.startswith("teleport "):
-        room_name = command.removeprefix("teleport ").strip()
-        target_room = find_room_by_name_ci(dungeon, room_name)
-        if target_room == None:
-            return f"[DEV] No room named '{room_name}'.", None
-        player.in_combat = False
-        player.current_target = None
-        return f"[DEV] Teleported to {target_room.name}.", target_room
-
-    if command.startswith("learn "):
-        path_name = command.removeprefix("learn ").strip()
-        player.skill_tree.skill_points += 1
-        try:
-            return "[DEV] " + player.skill_tree.invest(path_name, player), None
-        except ValueError as e:
-            player.skill_tree.skill_points -= 1
-            return f"[DEV] {e}", None
-
-    if command == "unlock all":
-        cleared = list(room.locked_exits.keys())
-        room.locked_exits.clear()
-        if not cleared:
-            return "[DEV] No locked exits in this room.", None
-        return f"[DEV] Unlocked: {', '.join(cleared)}.", None
-
-    if command.startswith("unlock "):
-        direction = command.removeprefix("unlock ").strip()
-        if direction in room.locked_exits:
-            del room.locked_exits[direction]
-            return f"[DEV] Unlocked exit: {direction}.", None
-        return f"[DEV] {direction} is not a locked exit here.", None
-
-    if command == "help":
-        return (
-            "[DEV] Commands: dev add <item>, dev set hp <n>, "
-            "dev unlock <direction>, dev unlock all, dev skillpoints"
-        ), None
-        
-    return f"[DEV] Unrecognised dev command: {command}. Try 'dev help'.", None
+from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat
+from dungeon_crawler import dev_tools
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     for item in room.items:
@@ -237,45 +11,6 @@ def pick_up(room: Room, item_name: str, player: Player) -> str:
             room.remove_item(item)
             return f"You take the {item.name}. {item.description}"
     return "That's not here."
-
-def resolve_combat_round(player: Player, enemy: Enemy):
-    messages = [player.attack(enemy)]
-
-    if not enemy.is_alive():
-        messages.append(f"{player.name}: {player.hp}/{player.max_hp} HP")
-        return "\n".join(messages)
-
-    messages.append(enemy.attack(player))
-    messages.append(format_hp_line(player, enemy))
-
-    return "\n".join(messages)
-
-def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
-    """Remove the defeated enemy, drop loot (or trigger a phase transition), and grant XP/gold. Assembles one combined message, does not print."""
-    if enemy.next_phase_factory is not None:
-        next_phase = enemy.next_phase_factory()
-        room.remove_enemy(enemy)
-        room.add_enemy(next_phase)
-        player.in_combat = True
-        player.current_target = next_phase
-        return f"{enemy.name} falls, but something rises to take its place - {next_phase.name}."
-
-    room.remove_enemy(enemy)
-    messages = [f"{enemy.name} has been defeated."]
-
-    if enemy.loot:
-        for item in enemy.loot:
-            room.add_item(item)
-        messages.append(f"It dropped: {', '.join(item.name for item in enemy.loot)}")
-
-    if enemy.gold_reward > 0:
-        player.gold += enemy.gold_reward
-        messages.append(f"{player.name} picked up {enemy.gold_reward} gold.")
-
-    if enemy.experience_reward > 0:
-        messages.append(player.gain_experience(enemy.experience_reward))
-
-    return "\n".join(messages)
 
 def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     if direction not in room.locked_exits:
@@ -400,85 +135,6 @@ def create_player(name: str, ancestry_key: str) -> Player:
         player.skill_tree.skill_points += 1
     return player
 
-def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room) -> str:
-    if command == "attack":
-        return resolve_attack_and_check_defeat(player, enemy, room)
-
-    if command == "flee":
-        result = flee_combat(player, enemy)
-        player.in_combat = False
-        player.current_target = None
-        return result
-
-    if command.startswith("use "):
-        item_name = command.removeprefix("use ").strip()
-        try:
-            result = player.inventory.use_item(item_name, player)
-        except ValueError as e:
-            return str(e)
-
-        if enemy.is_alive():
-            enemy_message = enemy.attack(player)
-            result += f"\n{enemy_message}"
-            result += "\n" + format_hp_line(player, enemy)
-            if not player.is_alive():
-                player.in_combat = False
-                player.current_target = None
-        return result
-
-    if command == "stats":
-        return player.get_stats()
-
-    if command == "skills":
-        return display_skills(player)
-
-    if command.startswith("learn "):
-        path_name = command.removeprefix("learn ").strip()
-        try:
-            return player.skill_tree.invest(path_name, player)
-        except ValueError as e:
-            return str(e)
-
-    if command == "inventory":
-        return player.get_inventory_display()
-
-    return "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'." 
-
-def flee_combat(player: Player, enemy: Enemy) -> str:
-    """Attempt to disengage from combat. Always succeeds, but a healthier enemy has a higher chance
-    of landing a free hit as the player disengages."""
-    chance_of_free_hit = enemy.hp / enemy.max_hp
-    enemy.has_been_fled_from = True
-    if random.random() < chance_of_free_hit:
-        damage_dealt, death_message = player.take_damage(enemy.attack_damage, attacker=enemy)
-        message = f"You disengage, but the {enemy.name} gets a hit in as you go - {damage_dealt} damage."
-        if death_message:
-            message += f"\n{death_message}"
-        return message
-    return f"You disengage cleanly, leaving the {enemy.name} behind."
-
-def format_hp_line(player: Player, enemy: Enemy) -> str:
-    return f"{player.name}: {player.hp}/{player.max_hp} HP  |  {enemy.name}: {enemy.hp}/{enemy.max_hp} HP"
-
-def display_skills(player: Player) -> str:
-    lines = []
-    for path_name, path in player.skill_tree.paths.items():
-        next_skill = path.next_skill
-        if next_skill is not None:
-            lines.append(f"{path.name}: next unlock is {next_skill.name} - {next_skill.description}")
-        else:
-            lines.append(f"{path.name}: fully unlocked")
-    lines.append(f"Skill Points available: {player.skill_tree.skill_points}")
-    return "\n".join(lines)
-
-def resolve_attack_and_check_defeat(player: Player, enemy: Enemy, room: Room) -> str:
-    result = resolve_combat_round(player, enemy)
-    if not enemy.is_alive():
-        player.in_combat = False
-        player.current_target = None
-        handle_enemy_defeat(room, enemy, player)
-    return result
-
 def get_controls_text() -> str:
     """Return the full player-facing command list, unchanged regardless of whether the player is currently
     locked in combat. Mirrors the README's Controls section - keep both in sync when commands change."""
@@ -531,7 +187,7 @@ def main() -> None:
 
     starting_floor_key = "floor_0"
     if name.lower() == "developer mode":
-        DEV_MODE = True
+        dev_tools.DEV_MODE = True
         print("[DEV] Developer mode activated.")
         name = "Dev"
 
@@ -540,7 +196,7 @@ def main() -> None:
 
     dungeon, current_room, all_floors = build_world()
 
-    if DEV_MODE:
+    if dev_tools.DEV_MODE:
         print("\n[DEV] Which floor should you start on?")
         for floor_key in all_floors:
             print(f"  {floor_key}")
@@ -569,10 +225,10 @@ def main() -> None:
             print(get_controls_text())
 
         elif command == "developer mode":
-            DEV_MODE = not DEV_MODE
+            dev_tools.DEV_MODE = not dev_tools.DEV_MODE
 
-        elif command.startswith("dev ") and DEV_MODE:
-            message, new_room = handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
+        elif command.startswith("dev ") and dev_tools.DEV_MODE:
+            message, new_room = dev_tools.handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
             print(message)
             if new_room is not None:
                 current_room = new_room
@@ -693,7 +349,7 @@ def main() -> None:
                 print("There is no one here to trade with.")
 
         elif command == "skills":
-            print(display_skills(player))
+            print(player.get_skills_display())
 
         elif command.startswith("learn "):
             path_name = command.removeprefix("learn ").strip()
