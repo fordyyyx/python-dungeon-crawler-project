@@ -20,6 +20,16 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
   - `engine.py` — now genuinely slim: `main()`'s loop and top-level command routing only, plus `print_room()` and `get_controls_text()` (both tightly coupled to the loop itself, not moved elsewhere)
   - **Still empty, reserved for upcoming roadmap items** (see roadmap.md for what goes where): `skills.py`, `status_effects.py`, `spells.py`, `save_system.py`, `achievements.py`, `shop.py`, `difficulty.py`. `content.py` is still a single file for now — the plan to split it into a `content/` package (one file per floor) happens as part of "Finish remaining floors," not this reorganisation.
 
+## Docstrings and comments — retrofit complete, now a maintained standard
+The full codebase now has docstrings on every function/class/method,
+confirmed via `pydocstyle --convention=pep257` (deliberately ignoring
+D205/D209/D400/D401 — those are formatting opinions stricter than this
+project's own convention, not gaps). This is no longer just a
+going-forward rule; it's the current, verified state of the code.
+Run `pydocstyle --convention=pep257 src/dungeon_crawler/
+--add-ignore=D203,D212,D213,D205,D209,D400,D401` any time to re-check —
+should stay clean as new code is added, per the rule below.
+
 ## Docstrings and comments — required on all new code going forward
 This is a standing convention starting now, specifically to shrink the
 eventual retrofit pass (roadmap item: "Add docstrings and comments
