@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Armour, Consumable, QuestItem, Weapon
-from dungeon_crawler.engine import pick_up, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, create_player, get_controls_text, handle_examine
+from dungeon_crawler.engine import pick_up, is_exit_locked, trade_with_ally, print_room, display_map, find_floor_for_room, display_local_exits, choose_ancestry, create_player, get_controls_text, handle_examine
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -419,6 +419,37 @@ def test_display_local_exits_does_not_recurse_into_connected_rooms():
     room_b.connect("east", room_c)
     player = Player(name="hero", hp=10)
     assert display_local_exits(room_a, player) == "north -> B"
+
+def test_choose_ancestry_returns_chosen_key_when_valid(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "basic")
+    assert choose_ancestry() == "basic"
+
+def test_choose_ancestry_is_case_insensitive(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "BASIC")
+    assert choose_ancestry() == "basic"
+
+def test_choose_ancestry_strips_whitespace_from_input(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "  basic  ")
+    assert choose_ancestry() == "basic"
+
+def test_choose_ancestry_reprompts_on_invalid_choice_before_accepting_valid_one(monkeypatch):
+    responses = iter(["nonsense", "basic"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    assert choose_ancestry() == "basic"
+
+def test_choose_ancestry_prints_error_message_for_invalid_choice(monkeypatch, capsys):
+    responses = iter(["nonsense", "basic"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    choose_ancestry()
+    captured = capsys.readouterr()
+    assert "That name means nothing to me. Choose from the list above." in captured.out
+
+def test_choose_ancestry_prints_each_ancestry_option(monkeypatch, capsys):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "basic")
+    choose_ancestry()
+    captured = capsys.readouterr()
+    assert "basic - No lineage (ATK 3 / DEF 1 / HP 20)" in captured.out
+    assert "odysseus - Descendant of Odysseus (ATK 3 / DEF 1 / HP 20)" in captured.out
 
 def test_create_player_sets_name():
     player = create_player("Hero", "basic")

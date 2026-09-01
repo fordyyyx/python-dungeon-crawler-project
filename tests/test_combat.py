@@ -277,6 +277,33 @@ def test_handle_enemy_defeat_with_next_phase_factory_does_not_grant_gold_or_expe
     assert player.gold == 0
     assert player.experience == 0
 
+def test_flee_lands_free_hit_when_random_forces_it(monkeypatch):
+    """Deterministic version of the free-hit chance - forces random.random() to return 0.0 (always below any nonzero chance)
+    so the hit branch is guaranteed to fire, rather than relying on running the test many times."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Test", hp=10, attack_damage=3)
+    enemy.hp = 5 # half health -> chance_of_free_hit = 0.5, genuinely above 0.1
+
+    result = flee_combat(player, enemy)
+
+    assert "gets a hit in"in result
+    assert enemy.has_been_fled_from is True
+
+def test_flee_escapes_cleanly_when_random_forces_it(monkeypatch):
+    """Forces random.random() to return 0.99 above the enemy's actual (non-maximal) flee-hit chance, so the clean-escape branch 
+    is guaranteed to fire."""
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    player = Player(name="Hero", hp=20)
+    starting_hp = player.hp
+    enemy = Enemy(name="Test", hp=10, attack_damage=3)
+    enemy.hp = 5
+
+    result = flee_combat(player, enemy)
+
+    assert "cleanly" in result
+    assert player.hp == starting_hp # confirms no damage was taken
+
 def test_flee_combat_clean_escape_when_enemy_at_zero_hp():
     player = Player(name="Hero", hp=50, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)

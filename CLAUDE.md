@@ -132,6 +132,23 @@ tests are fine. This will happen again on every subsequent
 - `engine.py`'s `choose_ancestry()` and `create_player()` handle selection and construction, called in `main()` before the world is built.
 - If adding a new ancestry: keep its total "power budget" roughly proportional to existing entries (no strict upgrades over `"basic"` in every stat at once) - see the existing table for the balance pattern (offence-leaning options sacrifice defence, defence-leaning options sacrifice offence, HP-heavy options sacrifice both).
 
+## monkeypatch — approved, but only for two specific purposes
+`pytest`'s built-in `monkeypatch` fixture is approved as an exception
+to the "no new test patterns without asking" rule, but **only** for:
+1. **Controlling randomness** — anything using `random` (currently
+   `flee_combat()`'s free-hit chance; will also apply to Dodge and
+   Heavy Attack's miss chance once built) should use
+   `monkeypatch.setattr("random.random", lambda: <fixed value>)` to
+   force a specific branch deterministically, rather than running
+   the test many times and hoping the probability shows up.
+2. **Mocking `input()` or file I/O** — for testing input-driven flows
+   (e.g. `choose_ancestry()`/`create_player()`'s prompts) or, once
+   built, the save/load system's file reads/writes, without touching
+   a real terminal or real disk.
+Do NOT reach for `monkeypatch` outside these two cases — it is not a
+general green light to mock things. If a new situation seems to call
+for it, ask first, the same as any other new pattern.
+
 ## When generating tests for existing files
 Match the existing test files' style exactly. Check what's already there first - never duplicate. Do not introduce `pytest.raises`, `unittest.mock`, fixtures beyond `capsys`, or any pattern not already in use, without asking first.
 
