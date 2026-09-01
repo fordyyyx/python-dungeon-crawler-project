@@ -1,3 +1,5 @@
+"""The game loop and top-level command routing."""
+
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
@@ -57,7 +59,9 @@ def get_controls_text() -> str:
 
 
 def main() -> None:
-    global DEV_MODE
+    """Run the game from name entry through to the player quitting or dying: developer-mode activation, ancestry
+    selection, world construction, then the read-command/dispatch loop. Top-level command routing only - each
+    branch calls straight into combat.py/exploration.py/dev_tools.py/characters.py for the actual behaviour."""
     print("What is your name, hero?")
     name = input("> ").strip() or "Hero"
 
@@ -103,6 +107,8 @@ def main() -> None:
         elif command == "developer mode":
             dev_tools.DEV_MODE = not dev_tools.DEV_MODE
 
+        # checked ahead of the in_combat branch below (not nested inside the exploration-only path) so dev commands
+        # always work regardless of combat state - this was a real bug once, see CLAUDE.md
         elif command.startswith("dev ") and dev_tools.DEV_MODE:
             message, new_room = dev_tools.handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
             print(message)
@@ -114,6 +120,8 @@ def main() -> None:
             if player.current_target is not None:
                 print(handle_combat_command(command, player, player.current_target, current_room))
             else:
+                # defensive fallback - in_combat and current_target should always be set/cleared together;
+                # this only fires if that invariant is ever broken elsewhere
                 player.in_combat = False
                 print("You are no longer in combat.")
 

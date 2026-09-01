@@ -15,6 +15,7 @@ def resolve_combat_round(player: Player, enemy: Enemy):
     messages = [player.attack(enemy)]
 
     if not enemy.is_alive():
+        # enemy is already defeated - show only the player's own HP, not the two-sided format_hp_line
         messages.append(f"{player.name}: {player.hp}/{player.max_hp} HP")
         return "\n".join(messages)
 
@@ -29,7 +30,9 @@ def resolve_attack_and_check_defeat(player: Player, enemy: Enemy, room: Room) ->
     if not enemy.is_alive():
         player.in_combat = False
         player.current_target = None
-        handle_enemy_defeat(room, enemy, player)
+        defeat_extras = handle_enemy_defeat(room, enemy, player)
+        if defeat_extras:
+            result += f"\n{defeat_extras}"
     return result
 
 def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
@@ -38,17 +41,19 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         next_phase = enemy.next_phase_factory()
         room.remove_enemy(enemy)
         room.add_enemy(next_phase)
+        # transition stays seamless (roadmap.md's boss-fights decision) - combat stays locked in,
+        # current_target just moves to the new phase, no need for the player to re-attack
         player.in_combat = True
         player.current_target = next_phase
         return f"{enemy.name} falls, but something rises to take its place - {next_phase.name}."
 
     room.remove_enemy(enemy)
-    messages = [f"{enemy.name} has been defeated."]
 
-    if enemy.loot:
-        for item in enemy.loot:
-            room.add_item(item)
-        messages.append(f"It dropped: {', '.join(item.name for item in enemy.loot)}")
+    messages = []
+
+    # move loot into the room only - Enemy.on_death() already reports what dropped
+    for item in enemy.loot:
+        room.add_item(item)
 
     if enemy.gold_reward > 0:
         player.gold += enemy.gold_reward
@@ -88,6 +93,8 @@ def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room
         try:
             result = player.inventory.use_item(item_name, player)
         except ValueError as e:
+            # return immediately on failure - a failed action must never cost the player's turn (see CLAUDE.md;
+            # this exact branch used to fall through into the enemy's attack unconditionally, a real bug)
             return str(e)
 
         if enemy.is_alive():

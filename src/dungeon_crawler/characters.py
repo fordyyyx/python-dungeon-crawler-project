@@ -1,8 +1,13 @@
+"""Character classes - Character, Player, Enemy, Ally - and the skill tree system (Skill, SkillPath, SkillTree) that lets a Player unlock permanent stat/ability upgrades."""
+
 from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem
 from textwrap import dedent
 
 class Character:
+    """Shared base for anything that can fight - HP, attack, armour, and the ability flags (Double Strike, Thorns, Last Stand) that Skills can turn on."""
+
     def __init__(self, name: str, hp: int, attack_damage: int, armour: int = 0):
+        """Set up base combat stats; ability flags default off until a Skill enables them."""
         self.name = name
         self.hp = hp
         self.attack_damage = attack_damage
@@ -17,6 +22,7 @@ class Character:
         self.current_target: "Enemy | None" = None
 
     def attack(self, target: "Character") -> str:
+        """Attack target once, then a second time at half damage if Double Strike is unlocked. Returns the combined message; does not print."""
         incoming = self.attack_damage
         damage_dealt, death_message = target.take_damage(incoming, attacker=self)
         deflected = incoming - damage_dealt
@@ -29,6 +35,7 @@ class Character:
             return message
 
         if getattr(self, "has_double_strike", False):
+            # second strike deals half damage - a guaranteed extra hit, not a full second attack
             second_damage, second_death = target.take_damage(self.attack_damage // 2, attacker=self)
             message += f"\n{self.name} strikes again for {second_damage} damage."
             if second_death:
@@ -38,10 +45,12 @@ class Character:
 
 
     def take_damage(self, amount: int, attacker: "Character | None" = None) -> tuple[int, str]:
+        """Apply armour-reduced damage, handling Last Stand and Thorns along the way. Returns (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report."""
         reduced = max(0, amount - self.armour)
         would_be_lethal = (self.hp - reduced) <= 0
 
         if would_be_lethal and getattr(self, "has_last_stand", False) and self.hp > 1:
+            # only saves from above 1 HP - already at 1 HP means Last Stand already spent, so this hit is allowed to finish the job
             self.hp = 1
             return reduced, f"{self.name} refuses to fall, clinging to life at 1 HP."
 
@@ -51,7 +60,7 @@ class Character:
 
         message = ""
         if self.has_thorns and attacker is not None and reduced > 0:
-            thorns_damage = max(1, reduced // 4)
+            thorns_damage = max(1, reduced // 4)  # guarantee at least 1 reflected even on small hits
             attacker.hp -= thorns_damage
             if attacker.hp < 0:
                 attacker.hp = 0
@@ -64,13 +73,18 @@ class Character:
 
 
     def is_alive(self) -> bool:
+        """Whether this character's HP is still above zero."""
         return self.hp > 0
 
     def on_death(self) -> str:
+        """Default defeat message; Player and Enemy override this with their own. Does not print - see CLAUDE.md."""
         return (f"{self.name} has died.")
 
 class Player(Character):
+    """The player-controlled character - adds levelling, gold, inventory, and the skill tree on top of the shared Character stats."""
+
     def __init__(self, name: str, hp: int, attack_damage: int = 5, armour: int = 0, ancestry_label: str = ""):
+        """Build a fresh level-1 player from the stats chosen at character creation."""
         super().__init__(name, hp, attack_damage, armour)
         self.level = 1
         self.experience = 0
@@ -86,9 +100,11 @@ class Player(Character):
         self.intellect = 0
 
     def on_death(self) -> str:
+        """Player-specific defeat message, shown when HP reaches zero."""
         return f"{self.name} has fallen. Game Over."
 
     def get_stats(self) -> str:
+        """Format the player's core stats and unlocked skills for display, e.g. via the 'stats' command."""
         heritage = f"{self.ancestry_label}" if self.ancestry_label else ""
         unlocked_lines = []
         for path in self.skill_tree.paths.values():
@@ -108,6 +124,7 @@ class Player(Character):
         return dedent(stat_string).strip()
 
     def get_inventory_display(self) -> str:
+        """Format inventory contents for display - regular items grouped with counts, quest items and gold listed separately."""
         if not self.inventory.items and self.gold == 0:
             return "Your inventory is empty."
 
@@ -169,6 +186,8 @@ class Player(Character):
 
 
 class Enemy(Character):
+    """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
+
     def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, experience_reward=0, gold_reward=0):
         """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py"""
         super().__init__(name, hp, attack_damage, armour)
@@ -182,6 +201,7 @@ class Enemy(Character):
         self.gold_reward = gold_reward
 
     def on_death(self) -> str:
+        """Enemy-specific defeat message, listing any dropped loot."""
         message = f"{self.name} has been defeated."
         if self.loot:
             item_names = ", ".join(item.name for item in self.loot)
@@ -189,11 +209,15 @@ class Enemy(Character):
         return message
 
     def choose_action(self, player):
+        """Placeholder hook for enemy AI - not yet called anywhere; see roadmap.md's team-vs-team combat item."""
         pass
 
 
 class Ally():
+    """A non-combat NPC that can be talked to and traded with, per its required_items/reward data - never branched on by name, see CLAUDE.md."""
+
     def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = ""):
+        """Set up an ally's dialogue and starting inventory."""
         self.name = name
         self.description = description
         self.hint = hint
@@ -209,6 +233,7 @@ class Ally():
 
 
     def talk(self, player) -> str:
+        """Return this ally's dialogue - the completed-trade line takes priority, then the completed-hint if the player already holds every required item, otherwise the regular hint."""
         if self.trade_completed:
             return self.hint_complete or self.hint
         if self.required_items:
@@ -218,6 +243,7 @@ class Ally():
         return self.hint if self.hint else f"{self.name} has nothing to say."
 
     def give_item(self, item_name : str, player) -> str:
+        """Move a named item from this ally's inventory to the player's, if the ally has it."""
         for item in self.inventory.items:
             if item_name.lower() == item.name.lower():
                 self.inventory.remove(item)
@@ -226,38 +252,54 @@ class Ally():
         return f"{self.name} does not have that item."
 
 class Skill:
+    """Base class for a single skill-tree unlock; subclasses implement apply() to grant its effect."""
+
     def __init__(self, name: str, description: str):
+        """Store this skill's display name and description."""
         self.name = name
         self.description = description
 
     def apply(self, character) -> str:
+        """Grant this skill's effect to character. Must be implemented by subclasses."""
         raise NotImplementedError
 
 class AttackBoostSkill(Skill):
+    """A skill that permanently raises attack_damage by a fixed bonus."""
+
     def __init__(self, name: str, description: str, bonus: int):
+        """Store the attack bonus this skill grants."""
         super().__init__(name, description)
         self.bonus = bonus
 
     def apply(self, character) -> str:
+        """Add this skill's bonus to character's attack_damage."""
         character.attack_damage += self.bonus
         return f"{character.name} gains +{self.bonus} attack from {self.name}."
 
 class DefenceBoostSkill(Skill):
+    """A skill that permanently raises armour by a fixed bonus."""
+
     def __init__(self, name: str, description: str, bonus: int):
+        """Store the armour bonus this skill grants."""
         super().__init__(name, description)
         self.bonus = bonus
 
     def apply(self, character):
+        """Add this skill's bonus to character's armour."""
         character.armour += self.bonus
         return f"{character.name} gains +{self.bonus} armour from {self.name}."
 
 class SkillPath:
+    """One branch of the skill tree (e.g. Attack, Defence, Abilities) - an ordered list of skills unlocked one at a time."""
+
     def __init__(self, name: str, skills: list[Skill]):
+        """Store this path's name and its skills in unlock order."""
         self.name = name
         self._skills = skills
         self.unlocked_count = 0
 
     def unlock_next(self, character) -> str:
+        """Apply and unlock this path's next skill in order. Raises ValueError if every skill in the path is already unlocked."""
         if self.unlocked_count >= len(self._skills):
             raise ValueError(f"{self.name} path is fully unlocked")
         skill = self._skills[self.unlocked_count]
@@ -266,16 +308,21 @@ class SkillPath:
 
     @property
     def next_skill(self) -> "Skill | None":
+        """The next skill this path would unlock, or None if the path is fully unlocked."""
         if self.unlocked_count >= len(self._skills):
             return None
         return self._skills[self.unlocked_count]
 
     @property
     def skills(self) -> list[Skill]:
+        """A copy of this path's skills, in unlock order."""
         return list(self._skills)
 
 class SkillTree:
+    """A player's full set of skill paths, plus the skill_points available to spend on them."""
+
     def __init__(self):
+        """Build the tree with its three fixed paths (Attack, Defence, Abilities) and their skills."""
         self.skill_points = 0
         self.paths: dict[str, SkillPath] = {
             "attack": SkillPath("Attack", [
@@ -296,6 +343,7 @@ class SkillTree:
         }
 
     def invest(self, path_name: str, character) -> str:
+        """Spend one skill point unlocking the next skill on path_name. Raises ValueError if no points are available or the path name doesn't exist."""
         if self.skill_points <= 0:
             raise ValueError("No skill points available")
         path = self.paths.get(path_name)
@@ -306,16 +354,25 @@ class SkillTree:
         return message
 
 class DoubleStrikeSkill(Skill):
+    """Unlocks Double Strike - see Character.attack() for the second-hit behaviour this flag enables."""
+
     def apply(self, character) -> str:
+        """Turn on character.has_double_strike."""
         character.has_double_strike = True
         return f"{character.name} learns to strike twice in quick succession."
 
 class LastStandSkill(Skill):
+    """Unlocks Last Stand - see Character.take_damage() for the survive-at-1-HP behaviour this flag enables."""
+
     def apply(self, character) -> str:
+        """Turn on character.has_last_stand."""
         character.has_last_stand = True
         return f"{character.name} will not fall easily - death itself will have to try twice."
 
 class ThornsSkill(Skill):
+    """Unlocks Thorns - see Character.take_damage() for the damage-reflection behaviour this flag enables."""
+
     def apply(self, character) -> str:
+        """Turn on character.has_thorns."""
         character.has_thorns = True
         return f"{character.name} learns to turn an enemy's own strength against them."

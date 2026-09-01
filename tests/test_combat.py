@@ -99,7 +99,9 @@ def test_handle_enemy_defeat_with_no_loot_adds_nothing_to_room():
 
     assert room.items == []
 
-def test_handle_enemy_defeat_returns_defeated_message():
+def test_handle_enemy_defeat_with_no_rewards_returns_empty_message():
+    """Enemy.on_death() (called earlier, via take_damage()) already reports the defeat itself -
+    handle_enemy_defeat() only reports what it alone grants: gold, experience, or a phase transition."""
     room = Room("Armoury")
     enemy = Enemy(name="Goblin", hp=0, attack_damage=5)
     room.add_enemy(enemy)
@@ -107,9 +109,11 @@ def test_handle_enemy_defeat_returns_defeated_message():
 
     message = handle_enemy_defeat(room, enemy, player)
 
-    assert message == "Goblin has been defeated."
+    assert message == ""
 
-def test_handle_enemy_defeat_message_includes_dropped_loot():
+def test_handle_enemy_defeat_with_only_loot_returns_empty_message():
+    """Loot is moved into the room, but not reported here - Enemy.on_death() already lists what dropped,
+    so handle_enemy_defeat() would otherwise duplicate that line."""
     room = Room("Armoury")
     sword = Weapon(name="Bronze Xiphos", description="", damage=3)
     enemy = Enemy(name="Goblin", hp=0, attack_damage=5, loot=[sword])
@@ -118,7 +122,7 @@ def test_handle_enemy_defeat_message_includes_dropped_loot():
 
     message = handle_enemy_defeat(room, enemy, player)
 
-    assert message == "Goblin has been defeated.\nIt dropped: Bronze Xiphos"
+    assert message == ""
 
 def test_handle_enemy_defeat_message_omits_drop_line_when_no_loot():
     room = Room("Armoury")
@@ -597,6 +601,65 @@ def test_resolve_attack_and_check_defeat_when_enemy_survives_does_not_clear_comb
 
     assert player.in_combat is True
     assert player.current_target is enemy
+
+def test_resolve_attack_and_check_defeat_with_no_rewards_does_not_append_trailing_line():
+    """handle_enemy_defeat() returns an empty string when there's nothing extra to report -
+    resolve_attack_and_check_defeat() must not append a blank line in that case."""
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    message = resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert message == "Hero attacks Goblin for 100 damage.\nGoblin has been defeated.\nHero: 50/50 HP"
+
+def test_resolve_attack_and_check_defeat_appends_gold_reward_message():
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5, gold_reward=10)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    message = resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert "Hero picked up 10 gold." in message
+    assert player.gold == 10
+
+def test_resolve_attack_and_check_defeat_appends_experience_reward_message():
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5, experience_reward=15)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    message = resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert "Hero gains 15 experience." in message
+    assert player.experience == 15
+
+def test_resolve_attack_and_check_defeat_with_next_phase_factory_appends_transition_message():
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=10, attack_damage=15, next_phase_factory=lambda: next_phase)
+    room = Room("Throne Room")
+    room.add_enemy(enemy)
+
+    message = resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert "Hades falls, but something rises to take its place - Hades (Enraged)." in message
+
+def test_resolve_attack_and_check_defeat_with_next_phase_factory_ends_with_player_still_in_combat():
+    """handle_enemy_defeat() runs after resolve_attack_and_check_defeat() clears combat state,
+    and re-enables it for the new phase - the net effect is combat stays locked in on the next phase."""
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    next_phase = Enemy(name="Hades (Enraged)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Hades", hp=10, attack_damage=15, next_phase_factory=lambda: next_phase)
+    room = Room("Throne Room")
+    room.add_enemy(enemy)
+
+    resolve_attack_and_check_defeat(player, enemy, room)
+
+    assert player.in_combat is True
+    assert player.current_target is next_phase
 
 def test_format_hp_line_returns_expected_format():
     player = Player(name="Hero", hp=95, attack_damage=10)

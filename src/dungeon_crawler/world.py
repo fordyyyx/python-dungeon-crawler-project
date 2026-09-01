@@ -1,5 +1,12 @@
+"""World classes - Room (a single location with exits, items, enemies, and allies) and Map (the collection of all rooms, keyed by name)."""
+
+
+
 class Room:
+    """A single location in the world - holds its own items/enemies/allies, and its exits (including locked and hidden ones) to other rooms."""
+
     def __init__(self, name: str, description: str = "", examine_text: str = "", required_intellect = 0):
+        """Build an empty room; items/enemies/allies/exits are all populated afterwards via add_*()/connect()/lock_exit() calls."""
         self.name = name
         self.description = description
         self.examine_text = examine_text
@@ -14,30 +21,39 @@ class Room:
         self._allies: list = []
 
     def connect(self, direction: str, other_room: "Room") -> None:
+        """Add a normal (unlocked, visible) exit from this room to other_room."""
         self.exits[direction] = other_room
 
     def get_exit(self, direction: str) -> "Room | None":
+        """The room in that direction, or None if there's no exit there."""
         return self.exits.get(direction)
 
     def lock_exit(self, direction: str, required_item_name: str) -> None:
+        """Require required_item_name to pass through this exit - see is_exit_locked() in exploration.py, which checks this."""
         self.locked_exits[direction] = required_item_name
 
     def add_item(self, item):
+        """Add item to this room."""
         self._items.append(item)
 
     def remove_item(self, item):
+        """Remove item from this room."""
         self._items.remove(item)
 
     def add_enemy(self, enemy):
+        """Add enemy to this room."""
         self._enemies.append(enemy)
 
     def remove_enemy(self, enemy):
+        """Remove enemy from this room."""
         self._enemies.remove(enemy)
 
     def add_ally(self, ally):
+        """Add ally to this room."""
         self._allies.append(ally)
 
     def remove_ally(self, ally):
+        """Remove ally from this room."""
         self._allies.remove(ally)
 
     def add_hidden_exit(self, direction: str, room: "Room") -> None:
@@ -55,28 +71,38 @@ class Room:
 
     @property
     def items(self) -> list:
+        """A copy of this room's items, safe to iterate without exposing the private list."""
         return list(self._items)
 
     @property
     def enemies(self) -> list:
+        """A copy of this room's enemies, safe to iterate without exposing the private list."""
         return list(self._enemies)
 
     @property
     def allies(self) -> list:
+        """A copy of this room's allies, safe to iterate without exposing the private list."""
         return list(self._allies)
 
     def __repr__(self) -> str:
+        """Debug representation showing the room's name."""
         return f"Room({self.name!r})"
 
 class Map:
+    """The full set of rooms in the world (or a floor), keyed by room name."""
+
     def __init__(self):
+        """Start with an empty room collection."""
         self.rooms: dict[str, Room] = {}
 
     def add_room(self, room: Room) -> None:
+        """Add room to the map, keyed by its name."""
         self.rooms[room.name] = room
 
     def get_room(self, name: str) -> "Room | None":
+        """The room with that name, or None if it isn't on the map."""
         return self.rooms.get(name)
 
     def __len__(self) -> int:
+        """Number of rooms currently on the map."""
         return len(self.rooms)

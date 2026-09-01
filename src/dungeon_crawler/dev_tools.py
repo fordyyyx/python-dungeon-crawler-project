@@ -12,6 +12,8 @@ from dungeon_crawler.combat import handle_enemy_defeat
 
 DEV_MODE = False
 
+# Every new create_*() item/enemy/ally function in content.py needs a matching line in the relevant
+# registry below (mirrored across all three) - otherwise dev add/spawn can't find it. See CLAUDE.md.
 ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "wooden sword": create_wooden_sword,
     "wooden shield": create_wooden_shield,
@@ -54,22 +56,25 @@ STAT_ALIASES = {
     "def": "armour",
     "hp": "hp",
     "maxhp": "max_hp",
-    "skillpoints": "skillpoints",
 }
 
 def find_item_by_name(name: str) -> Item | None:
+    """Look up name (case-insensitive) in ITEM_REGISTRY and build a fresh instance, or None if no match."""
     factory = ITEM_REGISTRY.get(name.lower())
     return factory() if factory else None
 
 def find_enemy_by_name(name: str) -> Enemy | None:
+    """Look up name (case-insensitive) in ENEMY_REGISTRY and build a fresh instance, or None if no match."""
     factory = ENEMY_REGISTRY.get(name.lower())
     return factory() if factory else None
 
 def find_ally_by_name(name: str) -> Ally | None:
+    """Look up name (case-insensitive) in ALLY_REGISTRY and build a fresh instance, or None if no match."""
     factory = ALLY_REGISTRY.get(name.lower())
     return factory() if factory else None
 
 def find_room_by_name_ci(dungeon: Map, name: str) -> "Room | None":
+    """Case-insensitive room lookup by name across the whole dungeon, or None if no match."""
     target = name.lower()
     for room_name, room_obj in dungeon.rooms.items():
         if room_name.lower() == target:
@@ -78,6 +83,10 @@ def find_room_by_name_ci(dungeon: Map, name: str) -> "Room | None":
 
 
 def handle_dev_set(stat_name: str, value_str: str, player: Player) -> str:
+    """Set any real Player attribute by name via setattr (STAT_ALIASES resolves shorthand like 'atk'/'def' first) - a single
+    generic command rather than one branch per stat, so a new stat works automatically the moment it exists on Player. Also
+    keeps hp/max_hp consistent with each other when one is set past the other. 'skillpoints' is special-cased since it lives
+    on player.skill_tree, not directly on player."""
     stat_name = stat_name.strip().lower()
     try:
         value = int(value_str.strip())
@@ -102,6 +111,8 @@ def handle_dev_set(stat_name: str, value_str: str, player: Player) -> str:
     return f"[DEV] {stat_name} set to {value}."
 
 def handle_dev_kill(player: Player, room: Room) -> str:
+    """Instantly defeat the player's current combat target if it's in this room, otherwise the room's first enemy. Reuses
+    handle_enemy_defeat() for the actual removal/loot/reward handling rather than reimplementing it."""
     if player.current_target is not None and player.current_target in room.enemies:
         enemy = player.current_target
     elif room.enemies:
@@ -118,6 +129,9 @@ def handle_dev_kill(player: Player, room: Room) -> str:
     return f"[DEV] Killed {enemy.name}.{loot_text}"
 
 def handle_dev_remove(character_name: str, room: Room) -> str:
+    """Remove a single matching enemy or ally from room by name (first match only). Does not call handle_enemy_defeat() -
+    no loot, XP, or gold; a dev removal is not a kill. See also handle_dev_remove_all() and handle_dev_clear_room()
+    for the other two removal scopes - each is a distinct, deliberate scope, not interchangeable."""
     character_name = character_name.strip().lower()
     for enemy in room.enemies:
         if enemy.name.lower() == character_name:
@@ -130,6 +144,8 @@ def handle_dev_remove(character_name: str, room: Room) -> str:
     return f"[DEV] No character named '{character_name}' found here."
 
 def handle_dev_remove_all(character_name: str, room: Room) -> str:
+    """Remove every enemy/ally in room matching character_name. Does not call handle_enemy_defeat() - no loot, XP, or gold;
+    a dev removal is not a kill. See also handle_dev_remove() (single instance) and handle_dev_clear_room() (everything)."""
     character_name = character_name.strip().lower()
     removed = 0
     for enemy in list(room.enemies):
@@ -145,6 +161,8 @@ def handle_dev_remove_all(character_name: str, room: Room) -> str:
     return f"[DEV] Removed {removed} instance(s) of '{character_name}'."
 
 def handle_dev_clear_room(room: Room) -> str:
+    """Remove every enemy and ally in room, regardless of name. Does not call handle_enemy_defeat() - no loot, XP, or gold;
+    a dev removal is not a kill. See also handle_dev_remove() (single instance) and handle_dev_remove_all() (all of one name)."""
     enemy_count = len(room.enemies)
     ally_count = len(room.allies)
     for enemy in list(room.enemies):
@@ -154,6 +172,11 @@ def handle_dev_clear_room(room: Room) -> str:
     return f"[DEV] Cleared room: removed {enemy_count} enemies and {ally_count} allies."
 
 def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -> tuple[str, "Room | None"]:
+    """Dispatch a 'dev ...' command (with the 'dev ' prefix already stripped) to the matching handle_dev_*() function.
+    Always returns (message, new_room) - new_room is only ever non-None for 'dev teleport', letting main() reassign
+    current_room; every other branch must still return None as the second element, not a bare string. This shape
+    matters because a bare string return here was a real bug once (see CLAUDE.md) - a stale call site hadn't been
+    updated after this function's return type changed, so main() printed the raw tuple instead of the message."""
     if command.startswith("set "):
         parts = command.removeprefix("set ").split(" ", 1)
         if len(parts) != 2:
@@ -203,6 +226,8 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
 
     if command.startswith("learn "):
         path_name = command.removeprefix("learn ").strip()
+        # grant a point up front so invest() only fails on a bad path name, not on missing points
+        # (dev learn should work regardless of the player's real point balance) - refunded below if it fails
         player.skill_tree.skill_points += 1
         try:
             return "[DEV] " + player.skill_tree.invest(path_name, player), None

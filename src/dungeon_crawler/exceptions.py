@@ -1,0 +1,1 @@
+"""Custom exceptions used across the game."""

@@ -1,7 +1,11 @@
+"""Game content - actual instances of enemies, items, and allies (the create_*() factories), plus the rooms and floors that make up the world (build_floor_0()/build_floor_1()/build_floor_2(), assembled by build_world()). Also holds ANCESTRIES, the ancestry-selection data used by character creation."""
+
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Item, Weapon, Armour, Consumable, QuestItem, SkillPointReward
 from dungeon_crawler.characters import Enemy, Player, Ally
 
+# Power budget kept roughly proportional across entries - offence-leaning ancestries sacrifice
+# armour, defence-leaning ones sacrifice attack, HP-heavy ones sacrifice both. See CLAUDE.md.
 ANCESTRIES: dict[str, dict] = {
     "basic":    {"label": "No lineage",                 "attack": 3, "armour": 1, "hp": 20, "intellect": 2, "bonus_skill_point": False},
     "ares":     {"label": "Descendant of Ares",         "attack": 5, "armour": 1, "hp": 19, "intellect": 1, "bonus_skill_point": False},
@@ -30,6 +34,7 @@ def create_skeleton_warrior() -> Enemy:
         )
 
 def create_minotaur() -> Enemy:
+    """Create the Minotaur enemy; not yet placed in any floor."""
     return Enemy(
         name="Minotaur",
         hp=25,
@@ -42,6 +47,7 @@ def create_minotaur() -> Enemy:
     )
 
 def create_hades() -> Enemy:
+    """Create the Hades enemy - the endgame boss (see roadmap.md's multi-stage boss fights item); not yet placed in any floor."""
     return Enemy(
         name="Hades",
         hp=60,
@@ -54,6 +60,7 @@ def create_hades() -> Enemy:
     )
 
 def create_bronze_xiphos() -> Weapon:
+    """Create the Bronze Xiphos weapon."""
     return Weapon(
         name="Bronze Xiphos",
         description="A short, leaf-bladed sword - favoured by soldiers who valued speed over reach.",
@@ -61,6 +68,7 @@ def create_bronze_xiphos() -> Weapon:
     )
 
 def create_spear_of_ares() -> Weapon:
+    """Create the Spear of Ares weapon."""
     return Weapon(
         name="Spear of Ares",
         damage=6,
@@ -68,6 +76,7 @@ def create_spear_of_ares() -> Weapon:
     )
 
 def create_aegis_fragment() -> Armour:
+    """Create the Shield of Aegis (fragment) armour."""
     return Armour(
         name="Shield of Aegis (fragment)",
         defence=2,
@@ -75,6 +84,7 @@ def create_aegis_fragment() -> Armour:
     )
 
 def create_ambrosia() -> Consumable:
+    """Create the Vial of Ambrosia consumable."""
     return Consumable(
         name="Vial of Ambrosia",
         heal_amount=20,
@@ -82,6 +92,7 @@ def create_ambrosia() -> Consumable:
     )
 
 def create_chiron() -> Ally:
+    """Create the Chiron ally - floor 0's trade gatekeeper for descending to floor 1."""
     return Ally(
         name="Chiron",
         description="Half man, half horse, entirely patient — he's trained more heroes than he can easily count, and it shows.",
@@ -103,6 +114,7 @@ def create_chiron() -> Ally:
     )
 
 def create_training_dummy() -> Enemy:
+    """Create the Training Dummy enemy - zero XP/gold reward deliberately, since it's training-only (see CLAUDE.md)."""
     return Enemy(
         name="Training Dummy",
         hp=5,
@@ -115,6 +127,7 @@ def create_training_dummy() -> Enemy:
     )
 
 def create_wooden_sword() -> Weapon:
+    """Create the Wooden Sword weapon."""
     return Weapon(
         name="Wooden Sword",
         description="Blunt, splintered, and entirely harmless to anyone but a straw dummy — exactly as intended.",
@@ -122,6 +135,7 @@ def create_wooden_sword() -> Weapon:
     )
 
 def create_wooden_shield() -> Armour:
+    """Create the Wooden Shield armour."""
     return Armour(
         name="Wooden Shield",
         description="Warped and dry-rotted at the edges, but it'll turn aside a training blow well enough.",
@@ -129,6 +143,7 @@ def create_wooden_shield() -> Armour:
     )
 
 def create_mentor() -> Ally:
+    """Create the Mentor ally, who hands over the Mentor's Token needed for Chiron's trade."""
     return Ally(
         name="Mentor",
         description="He nods once in greeting, the kind of nod that says he's seen a lot of hopefuls pass through here.",
@@ -145,24 +160,28 @@ def create_mentor() -> Ally:
     )
 
 def create_dummy_head() -> QuestItem:
+    """Create the Dummy Head quest item, one of Chiron's four required trade items."""
     return QuestItem(
         name="Dummy Head",
         description="A straw-stuffed head, still faintly dented from your practice blows — proof enough for Chiron that the lesson's been learned.",
     )
 
 def create_charons_coin() -> QuestItem:
+    """Create the Charon's Coin quest item - Chiron's trade reward, and the item required to unlock the descend exit to floor 1."""
     return QuestItem(
         name="Charon's Coin",
         description="Cold and unnaturally heavy for its size — the ferryman won't so much as glance at you without it."
     )
 
 def create_mentors_token() -> QuestItem:
+    """Create the Mentor's Token quest item, one of Chiron's four required trade items."""
     return QuestItem(
         name="Mentor's Token",
         description="A small carved token, worn smooth — Mentor's simple way of saying you've earned his approval."
     )
 
 def create_wounded_soldier() -> Ally:
+    """Create the Wounded Soldier ally, who gives away starting gear for floor 1 with no trade required."""
     return Ally(
         name="Wounded Soldier",
         description="Bandaged and pale, but still sharp-eyed — clearly more useful than his condition suggests.",
@@ -177,6 +196,7 @@ def create_wounded_soldier() -> Ally:
     )
 
 def create_charon() -> Ally:
+    """Create the Charon ally, who ferries the player across the Styx."""
     return Ally(
         name="Charon",
         description="He holds out one weathered hand, saying nothing, waiting for the coin he already knows you'll need.",
@@ -187,6 +207,7 @@ def create_charon() -> Ally:
     )
 
 def create_bronze_breastplate() -> Armour:
+    """Create the Bronze Breastplate armour."""
     return Armour(
         name="Bronze Breastplate",
         defence=2,
@@ -194,6 +215,7 @@ def create_bronze_breastplate() -> Armour:
     )
 
 def create_small_healing_potion() -> Consumable:
+    """Create the Small Healing Potion consumable."""
     return Consumable(
         name="Small Healing Potion",
         heal_amount=5,
@@ -201,6 +223,7 @@ def create_small_healing_potion() -> Consumable:
     )
 
 def create_athena() -> Ally:
+    """Create the Athena ally for floor 2; not yet placed in build_floor_2()."""
     return Ally(
         name="Athena",
         description="Calm, measured, and faintly amused — as if she already knows exactly how this ends.",
@@ -212,6 +235,7 @@ def create_athena() -> Ally:
     )
 
 def create_ares() -> Ally:
+    """Create the Ares ally for floor 2; not yet placed in build_floor_2()."""
     return Ally(
         name="Ares",
         description="He barely looks up from sharpening a blade, though he's clearly aware of every move you make.",
@@ -223,6 +247,7 @@ def create_ares() -> Ally:
     )
 
 def create_hermes() -> Ally:
+    """Create the Hermes ally for floor 2; not yet placed in build_floor_2()."""
     return Ally(
         name="Hermes",
         description="Never quite still, halfway through some errand even while talking to you.",
@@ -234,6 +259,7 @@ def create_hermes() -> Ally:
     )
 
 def create_prometheus() -> Ally:
+    """Create the Prometheus ally for floor 2; not yet placed in build_floor_2()."""
     return Ally(
         name="Prometheus",
         description="Chained but unbroken, watching you with the weary patience of someone who's paid dearly for helping before.",
@@ -244,12 +270,14 @@ def create_prometheus() -> Ally:
     )
 
 def create_cyclops_eye() -> QuestItem:
+    """Create the Cyclops' Eye quest item, the required trade item for Ares' reward; not yet placed in build_floor_2()."""
     return QuestItem(
         name="Cyclops' Eye",
         description="Still faintly warm and unsettlingly heavy for its size - Ares will know exactly what this cost you."
     )
 
 def create_breastplate_of_athena() -> Armour:
+    """Create the Breastplate of Athena armour - Athena's trade reward; not yet placed in build_floor_2()."""
     return Armour(
         name="Breastplate of Athena",
         description="Cool to the touch even in the deepest heat, etched with an owl that seems to watch whichever way danger comes from.",
@@ -257,12 +285,14 @@ def create_breastplate_of_athena() -> Armour:
     )
 
 def create_centaurs_broken_bow() -> QuestItem:
+    """Create the Centaur's Broken Bow quest item, the required trade item for Athena's reward; not yet placed in build_floor_2()."""
     return QuestItem(
         name="Centaur's Broken Bow",
         description="Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off."
     )
 
 def create_hermes_favour() -> SkillPointReward:
+    """Create the Favour of Hermes skill point reward - Hermes' trade reward; not yet placed in build_floor_2()."""
     return SkillPointReward(
         name="Favour of Hermes",
         description="Quick, light, and gone before you've noticed - much like the god who gave it.",
@@ -278,6 +308,7 @@ def build_blank_test_room() -> Room:
     )
 
 def build_floor_0() -> tuple[Room, dict[str, Room]]:
+    """Build the tutorial floor - a central chamber with four spoke rooms, each exit locked behind the item taught/found in the room before it. Returns (starting room, every room on this floor keyed by name)."""
     chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with "
         "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
         "waiting — say 'talk' if you want to know why you're here.")
@@ -319,6 +350,7 @@ def build_floor_0() -> tuple[Room, dict[str, Room]]:
     }
 
 def build_floor_1() -> tuple[Room, dict[str, Room]]:
+    """Build the Styx-crossing floor, including the Sunken Vault reached via a hidden exit off Styx Crossing. Returns (starting room, every room on this floor keyed by name)."""
     cave_entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
 
     styx_crossing = Room("Styx Crossing",
@@ -336,7 +368,6 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     fields_of_asphodel.connect("west", styx_crossing)
     sunken_vault.connect("up", styx_crossing)
     styx_crossing.add_hidden_exit("down", sunken_vault)
-    styx_crossing.examine_text
 
 
     cave_entrance.add_ally(create_wounded_soldier())
@@ -348,6 +379,7 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     }
 
 def build_floor_2() -> tuple[Room, dict[str, Room]]:
+    """Build floor 2's rooms and connections. Content-free for now - no enemies, items, or allies are placed here yet (see the create_athena()/create_ares()/create_hermes()/create_prometheus() family, all built but not yet wired in). Returns (starting room, every room on this floor keyed by name)."""
     library_of_athena = Room(name="Library of Athena", description="Towering shelves of scrolls creak under their own weight; an owl watches from the rafters, unblinking.")
     armoury_of_ares = Room(name="Armoury of Ares", description="Racks of corroded bronze weapons line the walls, still faintly warm to the touch.")
     hall_of_hermes = Room(name="Hall of Hermes", description="A cluttered waypoint stacked with parcels and letters never delivered, sandals of every size hung along one wall.")
@@ -365,6 +397,7 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     }
 
 def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
+    """Assemble every floor into one Map, wire the inter-floor descend/ascend exits between them, and add the dev-only test room. Returns (the full map, floor 0's starting room, every floor's rooms keyed by floor name then room name)."""
     dungeon = Map()
 
     floor_0_start, floor_0_rooms = build_floor_0()
