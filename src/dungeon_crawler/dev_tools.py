@@ -10,7 +10,7 @@ from dungeon_crawler.content import create_training_dummy, create_skeleton_warri
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
 from dungeon_crawler.combat import handle_enemy_defeat
 
-DEV_MODE = True
+DEV_MODE = False
 
 ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "wooden sword": create_wooden_sword,

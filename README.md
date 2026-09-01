@@ -82,7 +82,11 @@ pytest --cov=src/dungeon_crawler
 * `items.py` - `Item`, `Weapon`, `Armour`, `Consumable`, `QuestItem`, `Inventory`
 * `world.py` - `Room`, `Map`
 * `content.py` - the actual game content: specific rooms, enemies, allies, and items, organized by floor, plus the ancestry options for character creation
-* `engine.py` - the game loop and standalone command-handling functions
+* `combat.py` - combat resolution: attacking, defeat handling, and fleeing
+* `exploration.py` - everything outside combat: picking up items, trading, examining, and the map
+* `character_creation.py` - ancestry selection and building the player character
+* `dev_tools.py` - the developer command set (not part of the standard game)
+* `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
 The current release covers character creation, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), and the first main floor. Planned additions include further floors drawing on the Iliad and Odyssey, and additional bosses.

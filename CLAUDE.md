@@ -6,12 +6,19 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
 ## Code style
 - **British English spelling** in all identifiers, comments, and strings — `armour` not `armor`, `defence` not `defense`, `colour` not `color`, etc.
 - `src/` layout: source lives in `src/dungeon_crawler/`, tests in `tests/`
-- One responsibility per module:
+- One responsibility per module (current, post-reorganisation structure —
+  see the "Reorganise engine.py" item in roadmap.md's Completed section
+  for how this came about):
   - `characters.py` — `Character`, `Player`, `Enemy`, `Ally`, `Skill`, `SkillPath`, `SkillTree`
   - `items.py` — `Item`, `Weapon`, `Armour`, `Consumable`, `QuestItem`, `Inventory`
   - `world.py` — `Room`, `Map`
   - `content.py` — actual game content (instances, not class definitions), organized by floor via `build_floor_0()`, `build_floor_1()`, etc., assembled by `build_world()`. Also holds `ANCESTRIES`, the ancestry-selection data.
-  - `engine.py` — the game loop, standalone command-handling functions, and dev tooling (`ITEM_REGISTRY`, `handle_dev_command`)
+  - `combat.py` — combat resolution: `resolve_combat_round`, `resolve_attack_and_check_defeat`, `handle_enemy_defeat`, `format_hp_line`, `flee_combat`, `handle_combat_command`
+  - `exploration.py` — everything outside combat: `pick_up`, `trade_with_ally`, `is_exit_locked`, `display_local_exits`, `display_map`, `find_floor_for_room`, `handle_examine`
+  - `character_creation.py` — `choose_ancestry`, `create_player`
+  - `dev_tools.py` — the entire dev command set: `DEV_MODE`, every `handle_dev_*` function, `ITEM_REGISTRY`/`ENEMY_REGISTRY`/`ALLY_REGISTRY`, the `find_*_by_name` helpers
+  - `engine.py` — now genuinely slim: `main()`'s loop and top-level command routing only, plus `print_room()` and `get_controls_text()` (both tightly coupled to the loop itself, not moved elsewhere)
+  - **Still empty, reserved for upcoming roadmap items** (see roadmap.md for what goes where): `skills.py`, `status_effects.py`, `spells.py`, `save_system.py`, `achievements.py`, `shop.py`, `difficulty.py`. `content.py` is still a single file for now — the plan to split it into a `content/` package (one file per floor) happens as part of "Finish remaining floors," not this reorganisation.
 
 ## Docstrings and comments — required on all new code going forward
 This is a standing convention starting now, specifically to shrink the
@@ -111,20 +118,17 @@ tests are fine. This will happen again on every subsequent
   describe the same command list in two places.** There's no shared
   source for this — when a command changes, both must be updated
   by hand. Check both whenever a command is added, removed, or renamed.
-- **When `engine.py` is split into multiple files (roadmap item:
-  "Reorganise engine.py"), the following all need updating to match
-  the new structure, not just the code itself**: `CLAUDE.md`'s module
-  ownership list at the top of this file, the README's Project
-  Structure section, `roadmap.md`'s own references to `engine.py` by
-  name throughout its items, and the Claude Code slash commands in
-  `.claude/commands/` — particularly `/gen-tests`, which currently
-  assumes a simple one-file-to-one-test-file mapping
-  (`characters.py -> tests/test_characters.py`) that won't hold once
-  a single old file's logic is spread across `combat.py`,
-  `exploration.py`, `character_creation.py`, `dev_tools.py`, etc.,
-  each needing its own test file. Treat this documentation/tooling
-  update as part of the reorganisation item itself, not an
-  afterthought once the code split is done.
+- **The `engine.py` reorganisation is done** — `combat.py`,
+  `exploration.py`, `character_creation.py`, and `dev_tools.py` all
+  exist now; `engine.py` itself is down to `main()`, `print_room()`,
+  and `get_controls_text()`. `CLAUDE.md`'s module ownership list, the
+  README's Project Structure section, `roadmap.md`'s own references,
+  and the `.claude/commands/` slash commands (`gen-tests.md`,
+  `gen-tests-all.md`) were all updated to match as part of finishing
+  this item — this note stays here as a record of what that involved,
+  in case a similar future split (e.g. `content.py` becoming a
+  `content/` package, per "Finish remaining floors") needs the same
+  four-part checklist applied again.
 
 ## Ancestry / character creation system
 - `content.py` holds `ANCESTRIES: dict[str, dict]` - each entry has `label`, `attack`, `armour`, `hp`, `bonus_skill_point`.
