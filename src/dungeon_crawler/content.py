@@ -384,7 +384,7 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     armoury_of_ares = Room(name="Armoury of Ares", description="Racks of corroded bronze weapons line the walls, still faintly warm to the touch.", examine_text="One section of the far wall looks less like stone, and more like it's been built to resemble stone.", required_intellect=3)
     hall_of_hermes = Room(name="Hall of Hermes", description="A cluttered waypoint stacked with parcels and letters never delivered, sandals of every size hung along one wall.")
     forge_of_prometheus = Room(name="Forge of Prometheus", description="The air shimmers with heat from a fire that never seems to go out, chained tools scattered across a worn anvil.")
-    trophy_room_of_zeus = Room(name="Trophy Room of Zeus", description="")
+    trophy_room_of_zeus = Room(name="Trophy Room of Zeus", description="A narrow chamber lit by no visible flame, empty display alcoves lining every wall, patiently waiting to be filled.")
 
     library_of_athena.connect("west", armoury_of_ares)
     library_of_athena.connect("south", hall_of_hermes)
