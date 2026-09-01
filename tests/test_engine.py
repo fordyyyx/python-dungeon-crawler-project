@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon
-from dungeon_crawler.engine import print_room, choose_ancestry, create_player, get_controls_text, main
+from dungeon_crawler.engine import print_room, get_controls_text, main
 
 def test_print_room_prints_name_and_description(capsys):
     room = Room("Armoury", "A dusty room full of old weapons.")
@@ -124,63 +124,6 @@ def test_print_room_with_auto_talk_on_and_no_allies_does_not_call_talk(capsys):
 
     captured = capsys.readouterr()
     assert "is here" not in captured.out
-
-def test_choose_ancestry_returns_chosen_key_when_valid(monkeypatch):
-    monkeypatch.setattr("builtins.input", lambda prompt="": "basic")
-    assert choose_ancestry() == "basic"
-
-def test_choose_ancestry_is_case_insensitive(monkeypatch):
-    monkeypatch.setattr("builtins.input", lambda prompt="": "BASIC")
-    assert choose_ancestry() == "basic"
-
-def test_choose_ancestry_strips_whitespace_from_input(monkeypatch):
-    monkeypatch.setattr("builtins.input", lambda prompt="": "  basic  ")
-    assert choose_ancestry() == "basic"
-
-def test_choose_ancestry_reprompts_on_invalid_choice_before_accepting_valid_one(monkeypatch):
-    responses = iter(["nonsense", "basic"])
-    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
-    assert choose_ancestry() == "basic"
-
-def test_choose_ancestry_prints_error_message_for_invalid_choice(monkeypatch, capsys):
-    responses = iter(["nonsense", "basic"])
-    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
-    choose_ancestry()
-    captured = capsys.readouterr()
-    assert "That name means nothing to me. Choose from the list above." in captured.out
-
-def test_choose_ancestry_prints_each_ancestry_option(monkeypatch, capsys):
-    monkeypatch.setattr("builtins.input", lambda prompt="": "basic")
-    choose_ancestry()
-    captured = capsys.readouterr()
-    assert "basic - No lineage (ATK 3 / DEF 1 / HP 20)" in captured.out
-    assert "odysseus - Descendant of Odysseus (ATK 3 / DEF 1 / HP 20)" in captured.out
-
-def test_create_player_sets_name():
-    player = create_player("Hero", "basic")
-    assert player.name == "Hero"
-
-def test_create_player_sets_stats_from_ancestry():
-    player = create_player("Hero", "basic")
-    assert player.hp == 20
-    assert player.attack_damage == 3
-    assert player.armour == 1
-
-def test_create_player_sets_ancestry_label():
-    player = create_player("Hero", "basic")
-    assert player.ancestry_label == "No lineage"
-
-def test_create_player_with_bonus_skill_point_ancestry_grants_skill_point():
-    player = create_player("Hero", "odysseus")
-    assert player.skill_tree.skill_points == 1
-
-def test_create_player_without_bonus_skill_point_ancestry_grants_no_skill_point():
-    player = create_player("Hero", "basic")
-    assert player.skill_tree.skill_points == 0
-
-def test_create_player_sets_intellect_from_ancestry():
-    player = create_player("Hero", "athena")
-    assert player.intellect == 5
 
 def test_get_controls_text_lists_movement_and_combat_commands():
     text = get_controls_text()

@@ -1,9 +1,10 @@
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.content import build_world, ANCESTRIES
+from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine
+from dungeon_crawler.character_creation import choose_ancestry, create_player
 
 
 def print_room(room: Room, player: Player):
@@ -27,30 +28,6 @@ def print_room(room: Room, player: Player):
         if player.auto_talk:
             print("\n" + ally.talk(player))
 
-def choose_ancestry() -> str:
-    print("\nBefore your descent begins, tell me - whose blood runs in you?\n")
-    for key, data in ANCESTRIES.items():
-        print(f"    {key} - {data['label']} (ATK {data['attack']} / DEF {data['armour']} / HP {data['hp']})")
-
-    while True:
-        choice = input("\n> ").strip().lower()
-        if choice in ANCESTRIES:
-            return choice
-        print("That name means nothing to me. Choose from the list above.")
-
-def create_player(name: str, ancestry_key: str) -> Player:
-    data = ANCESTRIES[ancestry_key]
-    player = Player(
-        name=name,
-        hp=data['hp'],
-        attack_damage=data["attack"],
-        armour=data["armour"],
-        ancestry_label=data["label"]
-    )
-    player.intellect = data["intellect"]
-    if data["bonus_skill_point"]:
-        player.skill_tree.skill_points += 1
-    return player
 
 def get_controls_text() -> str:
     """Return the full player-facing command list, unchanged regardless of whether the player is currently
