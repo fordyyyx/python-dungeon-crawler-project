@@ -137,6 +137,51 @@ def test_take_damage_with_thorns_includes_counter_message_with_death_message():
     damage_dealt, message = target.take_damage(10, attacker=attacker)
     assert message == "Hero takes 2 damage from the counter-strike.\nGoblin has died."
 
+def test_take_damage_with_pending_damage_reduction_reduces_incoming_damage():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.pending_damage_reduction = 4
+    character.take_damage(10)
+    assert character.hp == 24 # 10 - 4 brace
+
+def test_take_damage_with_pending_damage_reduction_is_consumed_after_one_hit():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.pending_damage_reduction = 4
+    character.take_damage(10)
+    assert character.pending_damage_reduction == 0
+
+def test_take_damage_with_pending_damage_reduction_does_not_carry_over_to_next_hit():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.pending_damage_reduction = 4
+    character.take_damage(10) # consumes the brace: 30 - 6 = 24
+    character.take_damage(10) # full damage this time: 24 - 10 = 14
+    assert character.hp == 14
+
+def test_take_damage_with_pending_damage_reduction_exceeding_damage_deals_no_damage():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.pending_damage_reduction = 20
+    character.take_damage(10)
+    assert character.hp == 30
+
+def test_take_damage_with_pending_damage_reduction_is_still_consumed_when_it_fully_blocks_the_hit():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.pending_damage_reduction = 20
+    character.take_damage(10)
+    assert character.pending_damage_reduction == 0
+
+def test_take_damage_with_pending_damage_reduction_applies_before_armour():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=3)
+    character.pending_damage_reduction = 4
+    damage_dealt, message = character.take_damage(10)
+    assert damage_dealt == 3 # 10 - 4 brace = 6, then - 3 armour = 3
+
+def test_take_damage_with_pending_damage_reduction_fully_blocking_prevents_thorns():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.has_thorns = True
+    character.pending_damage_reduction = 20
+    attacker = Character(name="Goblin", hp=10, attack_damage=5)
+    character.take_damage(10, attacker=attacker)
+    assert attacker.hp == 10 # no damage got through, so no counter-strike
+
 def test_attack_reduces_target_hp():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
     target = Character(name="Goblin", hp=20, attack_damage=5)
@@ -557,6 +602,10 @@ def test_character_initialises_with_no_current_target():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.current_target is None
 
+def test_character_initialises_with_no_pending_damage_reduction():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.pending_damage_reduction == 0
+
 def test_get_inventory_display_returns_empty_message_when_no_items():
     player = Player(name="hero", hp=100)
     assert player.get_inventory_display() == "Your inventory is empty."
@@ -910,3 +959,19 @@ def test_enemy_initialises_with_custom_caution_weight():
 def test_enemy_initialises_with_custom_randomness_weight():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4, randomness_weight=0.6)
     assert enemy.randomness_weight == 0.6
+
+def test_enemy_initialises_with_no_brace_amount_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.brace_amount == 0
+
+def test_enemy_initialises_with_custom_brace_amount():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, brace_amount=3)
+    assert enemy.brace_amount == 3
+
+def test_enemy_initialises_with_no_heal_amount_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.heal_amount == 0
+
+def test_enemy_initialises_with_custom_heal_amount():
+    enemy = Enemy(name="Priest", hp=15, attack_damage=4, heal_amount=5)
+    assert enemy.heal_amount == 5

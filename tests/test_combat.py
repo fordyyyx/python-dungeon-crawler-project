@@ -11,17 +11,22 @@ def test_resolve_combat_round_reduces_enemy_hp():
 
     assert enemy.hp == 10
 
-def test_resolve_combat_round_reduces_player_hp_when_enemy_survives():
+def test_resolve_combat_round_reduces_player_hp_when_enemy_survives(monkeypatch):
+    """caution_weight=0 and neutral noise force the enemy to always choose 'attack' over 'defend' -
+    without this, a damaged enemy's utility-scored AI can rationally choose to Defend instead (see
+    choose_enemy_action() tests), which this test isn't about."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=10)
-    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
 
     resolve_combat_round(player, enemy, [player], [enemy])
 
     assert player.hp == 95
 
-def test_resolve_combat_round_returns_both_attack_messages_when_both_survive():
+def test_resolve_combat_round_returns_both_attack_messages_when_both_survive(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=10)
-    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
 
     result = resolve_combat_round(player, enemy, [player], [enemy])
 
@@ -52,9 +57,10 @@ def test_resolve_combat_round_returns_fallen_message_when_player_defeated():
 
     assert "Hero has fallen." in result
 
-def test_resolve_combat_round_returns_full_message_when_both_survive():
+def test_resolve_combat_round_returns_full_message_when_both_survive(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=10)
-    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
 
     result = resolve_combat_round(player, enemy, [player], [enemy])
 
@@ -68,12 +74,13 @@ def test_resolve_combat_round_returns_full_message_when_enemy_defeated():
 
     assert result == "Hero attacks Goblin for 20 damage.\nGoblin has been defeated.\nHero: 100/100 HP"
 
-def test_resolve_combat_round_every_living_enemy_in_team_attacks_player():
+def test_resolve_combat_round_every_living_enemy_in_team_attacks_player(monkeypatch):
     """New team-combat behavior - the player only attacks the chosen target, but every still-living
     member of enemy_team gets its own turn, not just the target."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=10)
-    target = Enemy(name="Goblin", hp=20, attack_damage=5)
-    teammate = Enemy(name="Imp", hp=20, attack_damage=3)
+    target = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
+    teammate = Enemy(name="Imp", hp=20, attack_damage=3, caution_weight=0)
 
     result = resolve_combat_round(player, target, [player], [target, teammate])
 
@@ -81,9 +88,10 @@ def test_resolve_combat_round_every_living_enemy_in_team_attacks_player():
     assert "Imp attacks Hero for 3 damage." in result
     assert player.hp == 92
 
-def test_resolve_combat_round_dead_teammate_in_enemy_team_does_not_attack():
+def test_resolve_combat_round_dead_teammate_in_enemy_team_does_not_attack(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=10)
-    target = Enemy(name="Goblin", hp=20, attack_damage=5)
+    target = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
     dead_teammate = Enemy(name="Imp", hp=20, attack_damage=3)
     dead_teammate.hp = 0
 
@@ -91,6 +99,48 @@ def test_resolve_combat_round_dead_teammate_in_enemy_team_does_not_attack():
 
     assert "Imp attacks" not in result
     assert player.hp == 95
+
+def test_resolve_combat_round_enemy_defend_sets_pending_damage_reduction_and_message(monkeypatch):
+    """A heavily-damaged, high-caution enemy facing a full-HP target with no real kill potential should
+    reliably choose Defend over Attack, even under neutral noise."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, caution_weight=5.0, brace_amount=3)
+    enemy.hp = 5
+
+    result = resolve_combat_round(player, enemy, [player], [enemy])
+
+    assert "Goblin braces for incoming damage." in result
+    assert enemy.pending_damage_reduction == 3
+
+def test_resolve_combat_round_enemy_heal_action_restores_hp_capped_at_max(monkeypatch):
+    """heal_amount (20) deliberately exceeds the enemy's actual missing HP (15) - healed must be capped
+    at what's actually missing, not the full heal_amount."""
+    enemy = Enemy(name="Priest", hp=20, attack_damage=0, aggression_weight=0.0, caution_weight=1.0, heal_amount=20)
+    enemy.hp = 5 # missing 15 HP; heal_value_ratio ties defend's base score, see _score_candidate_actions tests
+    player = Player(name="Hero", hp=100, attack_damage=0) # 0 damage so the player's own attack doesn't touch enemy.hp
+
+    values = iter([0.0, 0.0, 1.0]) # attack, defend roll low noise; heal rolls high noise, per dict insertion order
+    monkeypatch.setattr("random.random", lambda: next(values))
+
+    result = resolve_combat_round(player, enemy, [player], [enemy])
+
+    assert "Priest recovers 15 HP." in result
+    assert enemy.hp == 20
+
+def test_resolve_combat_round_stops_rolling_further_enemies_once_player_defeated(monkeypatch):
+    """Mirrors flee_combat()'s same rule - once a preceding enemy's turn kills the player, later
+    enemies in enemy_team must not get a turn of their own."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=1)
+    lethal_enemy = Enemy(name="Cyclops", hp=20, attack_damage=50, caution_weight=0)
+    second_enemy = Enemy(name="Harpy", hp=20, attack_damage=5, caution_weight=0)
+
+    result = resolve_combat_round(player, lethal_enemy, [player], [lethal_enemy, second_enemy])
+
+    assert "Cyclops attacks Hero" in result
+    assert "Harpy attacks" not in result # format_hp_line still lists it (still alive) - it just never got a turn
+    assert player.hp == 0
 
 def test_handle_enemy_defeat_removes_enemy_from_room():
     room = Room("Armoury")
@@ -519,11 +569,12 @@ def test_handle_combat_command_use_item_with_invalid_name_does_not_trigger_enemy
     assert message == "No item named 'nonexistent' in inventory."
     assert player.hp == 50
 
-def test_handle_combat_command_use_item_triggers_enemy_counterattack_when_enemy_alive():
+def test_handle_combat_command_use_item_triggers_enemy_counterattack_when_enemy_alive(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=50, attack_damage=10)
     potion = Consumable(name="Potion", heal_amount=5)
     player.inventory.add(potion)
-    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
     room = Room("Arena")
 
     message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
@@ -545,6 +596,22 @@ def test_handle_combat_command_use_item_only_living_enemies_in_team_counterattac
     message = handle_combat_command("use potion", player, alive_enemy, [player], [dead_enemy, alive_enemy], room)
 
     assert message == "Hero uses Potion, healing 10 HP.\nGoblin attacks Hero for 5 damage.\nHero: 35/50 HP   |   Goblin: 20/20 HP"
+
+def test_handle_combat_command_use_item_enemy_defend_action_sets_pending_damage_reduction(monkeypatch):
+    """The 'use' branch's enemy-turn loop duplicates resolve_combat_round()'s action handling - this
+    guards against the two implementations drifting apart."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    potion = Consumable(name="Potion", heal_amount=1)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, caution_weight=5.0, brace_amount=4)
+    enemy.hp = 5
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
+
+    assert "Goblin braces for incoming damage." in message
+    assert enemy.pending_damage_reduction == 4
 
 def test_handle_combat_command_use_item_enemy_counterattack_can_defeat_player_clears_combat_state():
     player = Player(name="Hero", hp=5, attack_damage=10)
@@ -745,13 +812,15 @@ def test_resolve_attack_and_check_defeat_keeps_combat_locked_when_enemy_team_has
     assert teammate in room.enemies
     assert player.in_combat is True
 
-def test_resolve_attack_and_check_defeat_removes_enemy_defeated_via_thorns_even_if_not_the_target():
+def test_resolve_attack_and_check_defeat_removes_enemy_defeated_via_thorns_even_if_not_the_target(monkeypatch):
     """Checks every member of enemy_team for defeat, not just the target - here Thorns reflects
-    damage back onto a teammate who counterattacks, killing it during its own turn."""
+    damage back onto a teammate who counterattacks, killing it during its own turn. caution_weight=0
+    and neutral noise force both enemies to choose 'attack' - Thorns only triggers on a real hit."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=1)
     player.has_thorns = True
-    target = Enemy(name="Goblin", hp=20, attack_damage=5)
-    teammate = Enemy(name="Imp", hp=1, attack_damage=3)
+    target = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
+    teammate = Enemy(name="Imp", hp=1, attack_damage=3, caution_weight=0)
     room = Room("Arena")
     room.add_enemy(target)
     room.add_enemy(teammate)
@@ -963,23 +1032,14 @@ def test_handle_target_command_number_targeting_a_defeated_enemy_returns_error()
     assert message == "The Harpy (2) has already been defeated."
     assert player.current_target is None
 
-def test_score_candidate_actions_returns_only_attack_for_now():
-    """Defend/Heal aren't wired up yet (see CLAUDE.md's "Enemy AI and team combat") - 'attack' is the only candidate."""
-    enemy = Enemy(name="Goblin", hp=10, attack_damage=5, aggression_weight=1.0)
-    player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
-
-    scores = _score_candidate_actions(enemy, [player])
-
-    assert list(scores.keys()) == ["attack"]
-
-def test_score_candidate_actions_scales_with_aggression_weight():
+def test_score_candidate_actions_attack_scales_with_aggression_weight():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=25, aggression_weight=2.0)
     player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
     player.hp = 50 # half health -> target_hp_ratio 0.5, kill_potential 25/50 = 0.5
 
     scores = _score_candidate_actions(enemy, [player])
 
-    assert scores == {"attack": 2.0} # 2.0 * (0.5 + (1 - 0.5))
+    assert scores["attack"] == 2.0 # 2.0 * (0.5 + (1 - 0.5))
 
 def test_score_candidate_actions_kill_potential_caps_at_one():
     """potential_damage can exceed target.hp (a one-shot kill) - kill_potential must clamp to 1.0, not go higher."""
@@ -988,7 +1048,7 @@ def test_score_candidate_actions_kill_potential_caps_at_one():
 
     scores = _score_candidate_actions(enemy, [player])
 
-    assert scores == {"attack": 1.0} # 1.0 * (1.0 + (1 - 1.0))
+    assert scores["attack"] == 1.0 # 1.0 * (1.0 + (1 - 1.0))
 
 def test_score_candidate_actions_armour_reduces_kill_potential():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=10, aggression_weight=1.0)
@@ -996,16 +1056,16 @@ def test_score_candidate_actions_armour_reduces_kill_potential():
 
     scores = _score_candidate_actions(enemy, [player])
 
-    assert scores == {"attack": 0.0}
+    assert scores["attack"] == 0.0
 
-def test_score_candidate_actions_low_target_hp_raises_score():
+def test_score_candidate_actions_low_target_hp_raises_attack_score():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=0, aggression_weight=1.0) # 0 damage isolates the hp_ratio term
     player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
     player.hp = 25 # target_hp_ratio 0.25
 
     scores = _score_candidate_actions(enemy, [player])
 
-    assert scores == {"attack": 0.75} # 1.0 * (0.0 + (1 - 0.25))
+    assert scores["attack"] == 0.75 # 1.0 * (0.0 + (1 - 0.25))
 
 def test_score_candidate_actions_only_considers_first_player_team_member():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=0, aggression_weight=1.0)
@@ -1015,22 +1075,119 @@ def test_score_candidate_actions_only_considers_first_player_team_member():
 
     scores = _score_candidate_actions(enemy, [full_hp_player, low_hp_companion])
 
-    assert scores == {"attack": 0.0}
+    assert scores["attack"] == 0.0
 
-def test_choose_enemy_action_returns_attack_when_it_is_the_only_candidate(monkeypatch):
-    monkeypatch.setattr("random.random", lambda: 0.0)
+def test_score_candidate_actions_always_includes_defend():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert "defend" in scores
+
+def test_score_candidate_actions_defend_is_zero_at_full_health():
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, caution_weight=2.0) # full HP, never damaged
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert scores["defend"] == 0.0
+
+def test_score_candidate_actions_defend_scales_with_caution_weight_and_missing_hp():
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, caution_weight=2.0)
+    enemy.hp = 5 # self_missing_hp_ratio 0.5
+
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert scores["defend"] == 1.0 # 2.0 * 0.5
+
+def test_score_candidate_actions_excludes_heal_when_heal_amount_is_zero():
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5) # heal_amount defaults to 0
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert "heal" not in scores
+
+def test_score_candidate_actions_includes_heal_when_heal_amount_positive():
+    enemy = Enemy(name="Priest", hp=10, attack_damage=5, heal_amount=5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert "heal" in scores
+
+def test_score_candidate_actions_heal_score_formula():
+    enemy = Enemy(name="Priest", hp=10, attack_damage=0, caution_weight=2.0, heal_amount=5)
+    enemy.hp = 5 # self_missing_hp_ratio 0.5
+
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    # heal_value_ratio = min(1.0, 5/10) = 0.5; heal = caution(2.0) * missing_hp_ratio(0.5) * heal_value_ratio(0.5)
+    assert scores["heal"] == 0.5
+
+def test_score_candidate_actions_heal_value_ratio_caps_at_one():
+    """heal_amount can exceed max_hp - heal_value_ratio must clamp to 1.0, tying (never exceeding) defend's
+    base score, since heal is structurally defend's score scaled down by how much of a top-up it represents."""
+    enemy = Enemy(name="Priest", hp=20, attack_damage=0, caution_weight=1.0, heal_amount=100)
+    enemy.hp = 10 # self_missing_hp_ratio 0.5
+
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert scores["heal"] == 0.5
+    assert scores["defend"] == 0.5
+
+def test_choose_enemy_action_picks_the_dominant_action(monkeypatch):
+    """Neutral noise (random.random() == 0.5 -> noise term is exactly 0) isolates the base-score comparison:
+    a full-HP enemy with strong kill potential should always attack over defending."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=100) # full HP -> defend scores 0; huge kill potential
     player = Player(name="Hero", hp=50)
+    player.hp = 25 # half health, raises attack's score further
 
     assert choose_enemy_action(enemy, [player]) == "attack"
 
-def test_choose_enemy_action_returns_attack_regardless_of_random_noise(monkeypatch):
-    """With only one candidate action, the noise term added to its score can never change which action wins."""
-    monkeypatch.setattr("random.random", lambda: 0.99)
-    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
-    player = Player(name="Hero", hp=50)
+def test_choose_enemy_action_picks_defend_when_it_dominates(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, aggression_weight=1.0, caution_weight=5.0)
+    enemy.hp = 1 # nearly dead -> self_missing_hp_ratio 0.9, defend score 4.5
+    player = Player(name="Hero", hp=100, attack_damage=1) # full HP and attack_damage 0 -> attack scores 0.0
 
+    assert choose_enemy_action(enemy, [player]) == "defend"
+
+def test_choose_enemy_action_random_noise_can_flip_a_tied_race(monkeypatch):
+    """With attack and defend scored exactly equal, the per-action noise term decides the tie - this is the
+    'lucky escape' mechanic CLAUDE.md describes: the AI won't always play optimally. random.random() is called
+    once per candidate action, in the order _score_candidate_actions() builds the dict (attack, then defend)."""
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, aggression_weight=1.0, caution_weight=1.0, randomness_weight=1.0)
+    enemy.hp = 5 # self_missing_hp_ratio 0.5 -> defend score 0.5
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.hp = 50 # target_hp_ratio 0.5 -> attack score 0.5, tied with defend
+
+    low_then_high = iter([0.0, 1.0]) # attack rolls low noise, defend rolls high noise
+    monkeypatch.setattr("random.random", lambda: next(low_then_high))
+    assert choose_enemy_action(enemy, [player]) == "defend"
+
+    high_then_low = iter([1.0, 0.0]) # reversed - attack now rolls high noise, defend rolls low noise
+    monkeypatch.setattr("random.random", lambda: next(high_then_low))
     assert choose_enemy_action(enemy, [player]) == "attack"
+
+def test_choose_enemy_action_can_choose_heal_when_it_ties_defend_and_noise_favours_it(monkeypatch):
+    """heal_amount == max_hp makes heal's base score exactly tie defend's (see the heal_value_ratio cap test) -
+    with aggression 0.0 keeping attack out of contention, noise alone decides between the two survivors."""
+    enemy = Enemy(name="Priest", hp=10, attack_damage=0, aggression_weight=0.0, caution_weight=1.0, heal_amount=10)
+    enemy.hp = 1 # self_missing_hp_ratio 0.9 -> defend and heal both score 0.9
+    player = Player(name="Hero", hp=100, attack_damage=1)
+
+    values = iter([0.0, 0.0, 1.0]) # attack, defend roll low noise; heal rolls high noise
+    monkeypatch.setattr("random.random", lambda: next(values))
+    assert choose_enemy_action(enemy, [player]) == "heal"
 
 def test_handle_combat_command_target_sets_current_target():
     player = Player(name="Hero", hp=50, attack_damage=10)

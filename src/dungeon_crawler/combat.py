@@ -31,18 +31,29 @@ def format_hp_line(player_team: list[Character], enemy_team: list[Enemy]) -> str
     return "   |   ".join(player_parts + enemy_parts)
 
 def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict[str, float]:
-    """Base (pre-randomness) utility score for every action enemy could currently take. 'attack' is always a candidate; Defend/Heal
-    join this dict once their mechanics exist (roadmap.md item #1's Defend/Brace and Heal step) - adding them here, plus a branch in
-    choose_enemy_action()'s caller, is the only change needed."""
-    target = player_team[0]
+    """Base (pre-randomness) utility score for every action enemy could currently take. 'attack' and 'defend' are always candidates;
+    'heal' only joins when enemy.heal_amount > 0 (a lore-appropriate heal exists) - it's excluded entirely rather than scored at zero,
+    per CLAUDE.md's "Enemy AI and team combat" section."""
+    target = player_team[0] # always the plyaer for now - real Companion-aware targeting isn't built yet
 
     target_hp_ratio = target.hp / target.max_hp
     potential_damage = max(0, enemy.attack_damage - target.armour)
     kill_potential = min(1.0, potential_damage / target.hp) if target.hp > 0 else 0.0
 
-    return {
+    self_missing_hp_ratio = 1 - (enemy.hp / enemy.max_hp)
+
+    scores = {
         "attack": enemy.aggression_weight * (kill_potential + (1 - target_hp_ratio)),
+        "defend": enemy.caution_weight * self_missing_hp_ratio,
     }
+
+    if enemy.heal_amount > 0:
+        # scaled by how much of a top-up the heal actually represents, so a large heal is more attractive to a caution-weighted
+        # enemy than a token one
+        heal_value_ratio = min(1.0, enemy.heal_amount / enemy.max_hp)
+        scores["heal"] = enemy.caution_weight * self_missing_hp_ratio * heal_value_ratio
+
+    return scores
 
 def choose_enemy_action(enemy: Enemy, player_team: list[Character]) -> str:
     """Decide what enemy does this turn via utility-based scoring: each candidate action from _score_candidate_actions() gets a random
@@ -60,8 +71,10 @@ def choose_enemy_action(enemy: Enemy, player_team: list[Character]) -> str:
 
 def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy]) -> str:
     """One full round: player attacks target, then every enemy in enemy_team still alive afterwards takes its own turn, decided by
-    choose_enemy_action()'s utility scoring. Only 'attack' has real game mechanics wired up so far (Defend/Heal join once built
-    - see CLAUDE.md's "Enemy AI and team combat" section); enemy targeting is still a placeholder (always the player) until Companions exist."""
+    choose_enemy_action()'s utility scoring. attack, defend (a flat damage reduction consumed by the enemy's next hit taken),
+    or heal (only ever chosen by enemies with heal_amount > 0). Enemy targeting is still a placeholder (always the player) until
+    Companions exist. Stops rolling further enemy turns once the player is dead - continuing would re-trigger take_damage()'s on_death()
+    message repeatedly for no reason."""
     messages = [player.attack(target)]
 
     for enemy in enemy_team:
@@ -69,6 +82,15 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
             action = choose_enemy_action(enemy, player_team)
             if action == "attack":
                 messages.append(enemy.attack(player))
+            elif action == "defend":
+                enemy.pending_damage_reduction = enemy.brace_amount
+                messages.append(f"{enemy.name} braces for incoming damage.")
+            elif action == "heal":
+                healed = min(enemy.heal_amount, enemy.max_hp - enemy.hp)
+                enemy.hp += healed
+                messages.append(f"{enemy.name} recovers {healed} HP.")
+            if not player.is_alive():
+                break
 
     messages.append(format_hp_line(player_team, enemy_team))
     return "\n".join(messages)
@@ -223,8 +245,15 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
                 action = choose_enemy_action(enemy, player_team)
                 if action == "attack":
                     result += f"\n{enemy.attack(player)}"
-                    if not player.is_alive():
-                        break
+                elif action == "defend":
+                    enemy.pending_damage_reduction = enemy.brace_amount
+                    result += f"\n{enemy.name} braces for incoming damage."
+                elif action == "heal":
+                    healed = min(enemy.heal_amount, enemy.max_hp - enemy.hp)
+                    enemy.hp += healed
+                    result += f"\n{enemy.name} recovers {healed} HP."
+                if not player.is_alive():
+                    break
 
         result += "\n" + format_hp_line(player_team, enemy_team)
 

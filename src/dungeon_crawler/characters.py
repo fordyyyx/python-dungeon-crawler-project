@@ -20,6 +20,10 @@ class Character:
         self.has_thorns = False
         self.in_combat = False
         self.current_target: "Enemy | None" = None
+        self.pending_damage_reduction = 0
+        """Flat damage reduction applied to (and consumed by) the next hit this character takes - set when an Enemy chooses the Defend/Brace
+        action (see combat.py's choose_enemy_action()/_score_candidate_actions()). Lives on Character, not Enemy, since take_damage() (the 
+        only thing that reads it) doesn't know which subclass self is."""
 
     def attack(self, target: "Character") -> str:
         """Attack target once, then a second time at half damage if Double Strike is unlocked. Returns the combined message; does not print."""
@@ -45,8 +49,12 @@ class Character:
 
 
     def take_damage(self, amount: int, attacker: "Character | None" = None) -> tuple[int, str]:
-        """Apply armour-reduced damage, handling Last Stand and Thorns along the way. Returns (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report."""
-        reduced = max(0, amount - self.armour)
+        """Apply any pending Defend/Brace reduction, then armour-reduced damage, handling Last Stand and Thorns along the way. Returns
+        (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report. pending_damage_reduction
+        is consumed (reset to 0) here regardless of whether it changed anything, since a brace only ever protects against the next hit taken."""
+        braced_amount = max(0, amount - self.pending_damage_reduction)
+        self.pending_damage_reduction = 0
+        reduced = max(0, braced_amount - self.armour)
         would_be_lethal = (self.hp - reduced) <= 0
 
         if would_be_lethal and getattr(self, "has_last_stand", False) and self.hp > 1:
@@ -188,10 +196,13 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0):
         """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py
         aggression_weight/caution_weight/randomness_weight feed choose_enemy_action()'s utility scoring (combat.py) - a balanced
-        default (1.0/1.0/0.3) suits most enemies; named/boss enemies should get bespoke values tied to their lore."""
+        default (1.0/1.0/0.3) suits most enemies; named/boss enemies should get bespoke values tied to their lore.
+        brace_amount is the flat damage reduction this enemy applies to itself when it chooses Defend; heal_amount is the flat HP
+        it restores when it chooses Heal - heal_amount = 0 excludes Heal from the candidate list entirely (see _score_candidate_actions()),
+        not scored at zero."""
         super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
         self.description = description
@@ -204,6 +215,8 @@ class Enemy(Character):
         self.aggression_weight = aggression_weight
         self.caution_weight = caution_weight
         self.randomness_weight = randomness_weight
+        self.brace_amount = brace_amount
+        self.heal_amount = heal_amount
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""
