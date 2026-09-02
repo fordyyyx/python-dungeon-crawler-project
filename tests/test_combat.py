@@ -7,7 +7,7 @@ def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    resolve_combat_round(player, enemy)
+    resolve_combat_round(player, enemy, [player], [enemy])
 
     assert enemy.hp == 10
 
@@ -15,7 +15,7 @@ def test_resolve_combat_round_reduces_player_hp_when_enemy_survives():
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    resolve_combat_round(player, enemy)
+    resolve_combat_round(player, enemy, [player], [enemy])
 
     assert player.hp == 95
 
@@ -23,7 +23,7 @@ def test_resolve_combat_round_returns_both_attack_messages_when_both_survive():
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    result = resolve_combat_round(player, enemy)
+    result = resolve_combat_round(player, enemy, [player], [enemy])
 
     assert "Hero attacks Goblin" in result
     assert "Goblin attacks Hero" in result
@@ -32,7 +32,7 @@ def test_resolve_combat_round_enemy_defeated_does_not_counter_attack():
     player = Player(name="Hero", hp=100, attack_damage=20)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
 
-    resolve_combat_round(player, enemy)
+    resolve_combat_round(player, enemy, [player], [enemy])
 
     assert player.hp == 100
 
@@ -40,7 +40,7 @@ def test_resolve_combat_round_returns_fallen_message_when_enemy_defeated():
     player = Player(name="Hero", hp=100, attack_damage=20)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
 
-    result = resolve_combat_round(player, enemy)
+    result = resolve_combat_round(player, enemy, [player], [enemy])
 
     assert "Goblin has been defeated." in result
 
@@ -48,7 +48,7 @@ def test_resolve_combat_round_returns_fallen_message_when_player_defeated():
     player = Player(name="Hero", hp=5, attack_damage=1)
     enemy = Enemy(name="Goblin", hp=100, attack_damage=20)
 
-    result = resolve_combat_round(player, enemy)
+    result = resolve_combat_round(player, enemy, [player], [enemy])
 
     assert "Hero has fallen." in result
 
@@ -56,17 +56,41 @@ def test_resolve_combat_round_returns_full_message_when_both_survive():
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    result = resolve_combat_round(player, enemy)
+    result = resolve_combat_round(player, enemy, [player], [enemy])
 
-    assert result == "Hero attacks Goblin for 10 damage.\nGoblin attacks Hero for 5 damage.\nHero: 95/100 HP  |  Goblin: 10/20 HP"
+    assert result == "Hero attacks Goblin for 10 damage.\nGoblin attacks Hero for 5 damage.\nHero: 95/100 HP   |   Goblin: 10/20 HP"
 
 def test_resolve_combat_round_returns_full_message_when_enemy_defeated():
     player = Player(name="Hero", hp=100, attack_damage=20)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
 
-    result = resolve_combat_round(player, enemy)
+    result = resolve_combat_round(player, enemy, [player], [enemy])
 
     assert result == "Hero attacks Goblin for 20 damage.\nGoblin has been defeated.\nHero: 100/100 HP"
+
+def test_resolve_combat_round_every_living_enemy_in_team_attacks_player():
+    """New team-combat behavior - the player only attacks the chosen target, but every still-living
+    member of enemy_team gets its own turn, not just the target."""
+    player = Player(name="Hero", hp=100, attack_damage=10)
+    target = Enemy(name="Goblin", hp=20, attack_damage=5)
+    teammate = Enemy(name="Imp", hp=20, attack_damage=3)
+
+    result = resolve_combat_round(player, target, [player], [target, teammate])
+
+    assert "Goblin attacks Hero for 5 damage." in result
+    assert "Imp attacks Hero for 3 damage." in result
+    assert player.hp == 92
+
+def test_resolve_combat_round_dead_teammate_in_enemy_team_does_not_attack():
+    player = Player(name="Hero", hp=100, attack_damage=10)
+    target = Enemy(name="Goblin", hp=20, attack_damage=5)
+    dead_teammate = Enemy(name="Imp", hp=20, attack_damage=3)
+    dead_teammate.hp = 0
+
+    result = resolve_combat_round(player, target, [player], [target, dead_teammate])
+
+    assert "Imp attacks" not in result
+    assert player.hp == 95
 
 def test_handle_enemy_defeat_removes_enemy_from_room():
     room = Room("Armoury")
@@ -289,13 +313,13 @@ def test_flee_lands_free_hit_when_random_forces_it(monkeypatch):
     enemy = Enemy(name="Test", hp=10, attack_damage=3)
     enemy.hp = 5 # half health -> chance_of_free_hit = 0.5, genuinely above 0.1
 
-    result = flee_combat(player, enemy)
+    result = flee_combat(player, [enemy])
 
-    assert "gets a hit in"in result
+    assert "gets a hit in" in result
     assert enemy.has_been_fled_from is True
 
 def test_flee_escapes_cleanly_when_random_forces_it(monkeypatch):
-    """Forces random.random() to return 0.99 above the enemy's actual (non-maximal) flee-hit chance, so the clean-escape branch 
+    """Forces random.random() to return 0.99 above the enemy's actual (non-maximal) flee-hit chance, so the clean-escape branch
     is guaranteed to fire."""
     monkeypatch.setattr("random.random", lambda: 0.99)
     player = Player(name="Hero", hp=20)
@@ -303,7 +327,7 @@ def test_flee_escapes_cleanly_when_random_forces_it(monkeypatch):
     enemy = Enemy(name="Test", hp=10, attack_damage=3)
     enemy.hp = 5
 
-    result = flee_combat(player, enemy)
+    result = flee_combat(player, [enemy])
 
     assert "cleanly" in result
     assert player.hp == starting_hp # confirms no damage was taken
@@ -313,43 +337,72 @@ def test_flee_combat_clean_escape_when_enemy_at_zero_hp():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     enemy.hp = 0
 
-    message = flee_combat(player, enemy)
+    message = flee_combat(player, [enemy])
 
-    assert message == "You disengage cleanly, leaving the Goblin behind."
+    assert message == "You disengage cleanly, leaving your enemies behind."
 
 def test_flee_combat_clean_escape_does_not_damage_player():
     player = Player(name="Hero", hp=50, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     enemy.hp = 0
 
-    flee_combat(player, enemy)
+    flee_combat(player, [enemy])
 
     assert player.hp == 50
 
 def test_flee_combat_gets_hit_when_enemy_at_full_hp():
+    """No monkeypatch needed - a full-HP enemy has a 100% free-hit chance, and random.random() is always < 1.0,
+    so the hit branch fires deterministically."""
     player = Player(name="Hero", hp=50, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    message = flee_combat(player, enemy)
+    message = flee_combat(player, [enemy])
 
-    assert message == "You disengage, but the Goblin gets a hit in as you go - 5 damage."
+    assert message == "You disengage but not without cost.\nThe Goblin gets a hit in as you go - 5 damage."
     assert player.hp == 45
 
 def test_flee_combat_hit_can_defeat_player():
     player = Player(name="Hero", hp=5, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=20)
 
-    message = flee_combat(player, enemy)
+    message = flee_combat(player, [enemy])
 
-    assert message == "You disengage, but the Goblin gets a hit in as you go - 20 damage.\nHero has fallen. Game Over."
+    assert message == "You disengage but not without cost.\nThe Goblin gets a hit in as you go - 20 damage.\nHero has fallen. Game Over."
     assert player.hp == 0
+
+def test_flee_combat_stops_rolling_further_enemies_once_player_defeated():
+    """Both enemies are at full HP, so both have a deterministic 100% free-hit chance - but the first enemy's
+    hit kills the player, and the loop must stop rather than rolling the second enemy too."""
+    player = Player(name="Hero", hp=1)
+    lethal_enemy = Enemy(name="Cyclops", hp=20, attack_damage=10)
+    second_enemy = Enemy(name="Harpy", hp=20, attack_damage=5)
+
+    message = flee_combat(player, [lethal_enemy, second_enemy])
+
+    assert "Cyclops gets a hit in" in message
+    assert "Harpy gets a hit in" not in message
+    assert lethal_enemy.has_been_fled_from is True
+    assert second_enemy.has_been_fled_from is False
+
+def test_flee_combat_sets_has_been_fled_from_only_on_living_enemies(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    player = Player(name="Hero", hp=50)
+    dead_enemy = Enemy(name="Fallen Imp", hp=10, attack_damage=3)
+    dead_enemy.hp = 0
+    alive_enemy = Enemy(name="Goblin", hp=100, attack_damage=1)
+    alive_enemy.hp = 1 # low chance of a free hit, but still alive
+
+    flee_combat(player, [dead_enemy, alive_enemy])
+
+    assert dead_enemy.has_been_fled_from is False
+    assert alive_enemy.has_been_fled_from is True
 
 def test_handle_combat_command_attack_reduces_enemy_hp():
     player = Player(name="Hero", hp=50, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    handle_combat_command("attack", player, enemy, room)
+    handle_combat_command("attack", player, enemy, [player], [enemy], room)
 
     assert enemy.hp == 10
 
@@ -358,7 +411,7 @@ def test_handle_combat_command_attack_returns_combat_round_result():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("attack", player, enemy, room)
+    message = handle_combat_command("attack", player, enemy, [player], [enemy], room)
 
     assert "Hero attacks Goblin for 10 damage." in message
 
@@ -370,7 +423,7 @@ def test_handle_combat_command_attack_when_enemy_defeated_clears_combat_state():
     room = Room("Arena")
     room.add_enemy(enemy)
 
-    handle_combat_command("attack", player, enemy, room)
+    handle_combat_command("attack", player, enemy, [player], room.enemies, room)
 
     assert player.in_combat is False
     assert player.current_target is None
@@ -381,7 +434,7 @@ def test_handle_combat_command_attack_when_enemy_defeated_removes_enemy_from_roo
     room = Room("Arena")
     room.add_enemy(enemy)
 
-    handle_combat_command("attack", player, enemy, room)
+    handle_combat_command("attack", player, enemy, [player], room.enemies, room)
 
     assert enemy not in room.enemies
 
@@ -392,7 +445,7 @@ def test_handle_combat_command_attack_when_enemy_survives_does_not_clear_combat_
     player.current_target = enemy
     room = Room("Arena")
 
-    handle_combat_command("attack", player, enemy, room)
+    handle_combat_command("attack", player, enemy, [player], [enemy], room)
 
     assert player.in_combat is True
     assert player.current_target is enemy
@@ -405,7 +458,7 @@ def test_handle_combat_command_flee_clears_combat_state():
     player.current_target = enemy
     room = Room("Arena")
 
-    handle_combat_command("flee", player, enemy, room)
+    handle_combat_command("flee", player, enemy, [player], [enemy], room)
 
     assert player.in_combat is False
     assert player.current_target is None
@@ -416,9 +469,9 @@ def test_handle_combat_command_flee_returns_flee_result():
     enemy.hp = 0
     room = Room("Arena")
 
-    message = handle_combat_command("flee", player, enemy, room)
+    message = handle_combat_command("flee", player, enemy, [player], [enemy], room)
 
-    assert message == "You disengage cleanly, leaving the Goblin behind."
+    assert message == "You disengage cleanly, leaving your enemies behind."
 
 def test_handle_combat_command_use_item_heals_player():
     player = Player(name="Hero", hp=50, attack_damage=10)
@@ -429,7 +482,7 @@ def test_handle_combat_command_use_item_heals_player():
     enemy.hp = 0
     room = Room("Arena")
 
-    handle_combat_command("use potion", player, enemy, room)
+    handle_combat_command("use potion", player, enemy, [player], [enemy], room)
 
     assert player.hp == 40
 
@@ -442,9 +495,9 @@ def test_handle_combat_command_use_item_returns_use_message_when_enemy_not_alive
     enemy.hp = 0
     room = Room("Arena")
 
-    message = handle_combat_command("use potion", player, enemy, room)
+    message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
 
-    assert message == "Hero uses Potion, healing 10 HP."
+    assert message == "Hero uses Potion, healing 10 HP.\nHero: 40/50 HP"
 
 def test_handle_combat_command_use_item_with_invalid_name_returns_error_message():
     player = Player(name="Hero", hp=50, attack_damage=10)
@@ -452,7 +505,7 @@ def test_handle_combat_command_use_item_with_invalid_name_returns_error_message(
     enemy.hp = 0
     room = Room("Arena")
 
-    message = handle_combat_command("use nonexistent", player, enemy, room)
+    message = handle_combat_command("use nonexistent", player, enemy, [player], [enemy], room)
 
     assert message == "No item named 'nonexistent' in inventory."
 
@@ -461,7 +514,7 @@ def test_handle_combat_command_use_item_with_invalid_name_does_not_trigger_enemy
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("use nonexistent", player, enemy, room)
+    message = handle_combat_command("use nonexistent", player, enemy, [player], [enemy], room)
 
     assert message == "No item named 'nonexistent' in inventory."
     assert player.hp == 50
@@ -473,10 +526,25 @@ def test_handle_combat_command_use_item_triggers_enemy_counterattack_when_enemy_
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("use potion", player, enemy, room)
+    message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
 
-    assert message == "Hero uses Potion, healing 5 HP.\nGoblin attacks Hero for 5 damage.\nHero: 45/50 HP  |  Goblin: 20/20 HP"
+    assert message == "Hero uses Potion, healing 5 HP.\nGoblin attacks Hero for 5 damage.\nHero: 45/50 HP   |   Goblin: 20/20 HP"
     assert player.hp == 45
+
+def test_handle_combat_command_use_item_only_living_enemies_in_team_counterattack():
+    """A dead teammate in enemy_team must neither attack nor appear in the trailing HP line."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.hp = 30
+    potion = Consumable(name="Potion", heal_amount=10)
+    player.inventory.add(potion)
+    dead_enemy = Enemy(name="Fallen Imp", hp=10, attack_damage=3)
+    dead_enemy.hp = 0
+    alive_enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, alive_enemy, [player], [dead_enemy, alive_enemy], room)
+
+    assert message == "Hero uses Potion, healing 10 HP.\nGoblin attacks Hero for 5 damage.\nHero: 35/50 HP   |   Goblin: 20/20 HP"
 
 def test_handle_combat_command_use_item_enemy_counterattack_can_defeat_player_clears_combat_state():
     player = Player(name="Hero", hp=5, attack_damage=10)
@@ -487,7 +555,7 @@ def test_handle_combat_command_use_item_enemy_counterattack_can_defeat_player_cl
     player.current_target = enemy
     room = Room("Arena")
 
-    handle_combat_command("use potion", player, enemy, room)
+    handle_combat_command("use potion", player, enemy, [player], [enemy], room)
 
     assert player.in_combat is False
     assert player.current_target is None
@@ -498,7 +566,7 @@ def test_handle_combat_command_stats_returns_player_stats():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("stats", player, enemy, room)
+    message = handle_combat_command("stats", player, enemy, [player], [enemy], room)
 
     assert message.startswith("Hero ():")
 
@@ -507,7 +575,7 @@ def test_handle_combat_command_skills_returns_skills_display():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("skills", player, enemy, room)
+    message = handle_combat_command("skills", player, enemy, [player], [enemy], room)
 
     assert "Skill Points available: 0" in message
 
@@ -517,7 +585,7 @@ def test_handle_combat_command_learn_invests_skill():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("learn defence", player, enemy, room)
+    message = handle_combat_command("learn defence", player, enemy, [player], [enemy], room)
 
     assert player.armour == 2
     assert message == "Hero gains +2 armour from Hardened Skin."
@@ -527,7 +595,7 @@ def test_handle_combat_command_learn_with_no_skill_points_returns_error_message(
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("learn defence", player, enemy, room)
+    message = handle_combat_command("learn defence", player, enemy, [player], [enemy], room)
 
     assert message == "No skill points available"
 
@@ -536,7 +604,7 @@ def test_handle_combat_command_inventory_returns_inventory_display():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("inventory", player, enemy, room)
+    message = handle_combat_command("inventory", player, enemy, [player], [enemy], room)
 
     assert message == "Your inventory is empty."
 
@@ -545,7 +613,7 @@ def test_handle_combat_command_unrecognised_command_returns_error_message():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = handle_combat_command("dance", player, enemy, room)
+    message = handle_combat_command("dance", player, enemy, [player], [enemy], room)
 
     assert message == "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'."
 
@@ -554,7 +622,7 @@ def test_resolve_attack_and_check_defeat_reduces_enemy_hp():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    resolve_attack_and_check_defeat(player, enemy, room)
+    resolve_attack_and_check_defeat(player, enemy, [player], [enemy], room)
 
     assert enemy.hp == 10
 
@@ -563,7 +631,7 @@ def test_resolve_attack_and_check_defeat_returns_combat_round_result():
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     room = Room("Arena")
 
-    message = resolve_attack_and_check_defeat(player, enemy, room)
+    message = resolve_attack_and_check_defeat(player, enemy, [player], [enemy], room)
 
     assert "Hero attacks Goblin for 10 damage." in message
 
@@ -575,7 +643,7 @@ def test_resolve_attack_and_check_defeat_when_enemy_defeated_clears_combat_state
     room = Room("Arena")
     room.add_enemy(enemy)
 
-    resolve_attack_and_check_defeat(player, enemy, room)
+    resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
 
     assert player.in_combat is False
     assert player.current_target is None
@@ -586,7 +654,7 @@ def test_resolve_attack_and_check_defeat_when_enemy_defeated_removes_enemy_from_
     room = Room("Arena")
     room.add_enemy(enemy)
 
-    resolve_attack_and_check_defeat(player, enemy, room)
+    resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
 
     assert enemy not in room.enemies
 
@@ -597,7 +665,7 @@ def test_resolve_attack_and_check_defeat_when_enemy_survives_does_not_clear_comb
     player.current_target = enemy
     room = Room("Arena")
 
-    resolve_attack_and_check_defeat(player, enemy, room)
+    resolve_attack_and_check_defeat(player, enemy, [player], [enemy], room)
 
     assert player.in_combat is True
     assert player.current_target is enemy
@@ -610,7 +678,7 @@ def test_resolve_attack_and_check_defeat_with_no_rewards_does_not_append_trailin
     room = Room("Arena")
     room.add_enemy(enemy)
 
-    message = resolve_attack_and_check_defeat(player, enemy, room)
+    message = resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
 
     assert message == "Hero attacks Goblin for 100 damage.\nGoblin has been defeated.\nHero: 50/50 HP"
 
@@ -620,7 +688,7 @@ def test_resolve_attack_and_check_defeat_appends_gold_reward_message():
     room = Room("Arena")
     room.add_enemy(enemy)
 
-    message = resolve_attack_and_check_defeat(player, enemy, room)
+    message = resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
 
     assert "Hero picked up 10 gold." in message
     assert player.gold == 10
@@ -631,7 +699,7 @@ def test_resolve_attack_and_check_defeat_appends_experience_reward_message():
     room = Room("Arena")
     room.add_enemy(enemy)
 
-    message = resolve_attack_and_check_defeat(player, enemy, room)
+    message = resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
 
     assert "Hero gains 15 experience." in message
     assert player.experience == 15
@@ -643,7 +711,7 @@ def test_resolve_attack_and_check_defeat_with_next_phase_factory_appends_transit
     room = Room("Throne Room")
     room.add_enemy(enemy)
 
-    message = resolve_attack_and_check_defeat(player, enemy, room)
+    message = resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
 
     assert "Hades falls, but something rises to take its place - Hades (Enraged)." in message
 
@@ -656,10 +724,42 @@ def test_resolve_attack_and_check_defeat_with_next_phase_factory_ends_with_playe
     room = Room("Throne Room")
     room.add_enemy(enemy)
 
-    resolve_attack_and_check_defeat(player, enemy, room)
+    resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
 
     assert player.in_combat is True
     assert player.current_target is next_phase
+
+def test_resolve_attack_and_check_defeat_keeps_combat_locked_when_enemy_team_has_survivors():
+    """A defeated target ends its own combat state by default, but the trailing check re-enables in_combat
+    when the room still has other living enemies - a full team fight isn't over just because one member fell."""
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    target = Enemy(name="Goblin", hp=10, attack_damage=5)
+    teammate = Enemy(name="Imp", hp=20, attack_damage=1)
+    room = Room("Arena")
+    room.add_enemy(target)
+    room.add_enemy(teammate)
+
+    resolve_attack_and_check_defeat(player, target, [player], room.enemies, room)
+
+    assert target not in room.enemies
+    assert teammate in room.enemies
+    assert player.in_combat is True
+
+def test_resolve_attack_and_check_defeat_removes_enemy_defeated_via_thorns_even_if_not_the_target():
+    """Checks every member of enemy_team for defeat, not just the target - here Thorns reflects
+    damage back onto a teammate who counterattacks, killing it during its own turn."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.has_thorns = True
+    target = Enemy(name="Goblin", hp=20, attack_damage=5)
+    teammate = Enemy(name="Imp", hp=1, attack_damage=3)
+    room = Room("Arena")
+    room.add_enemy(target)
+    room.add_enemy(teammate)
+
+    resolve_attack_and_check_defeat(player, target, [player], room.enemies, room)
+
+    assert teammate not in room.enemies
+    assert target in room.enemies
 
 def test_format_hp_line_returns_expected_format():
     player = Player(name="Hero", hp=95, attack_damage=10)
@@ -667,6 +767,35 @@ def test_format_hp_line_returns_expected_format():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
     enemy.max_hp = 20
 
-    line = format_hp_line(player, enemy)
+    line = format_hp_line([player], [enemy])
 
-    assert line == "Hero: 95/100 HP  |  Goblin: 10/20 HP"
+    assert line == "Hero: 95/100 HP   |   Goblin: 10/20 HP"
+
+def test_format_hp_line_omits_defeated_player_team_members():
+    player = Player(name="Hero", hp=0)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.hp = 10
+
+    line = format_hp_line([player], [enemy])
+
+    assert line == "Goblin: 10/20 HP"
+
+def test_format_hp_line_omits_defeated_enemy_team_members():
+    player = Player(name="Hero", hp=100, attack_damage=10)
+    player.hp = 95
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    enemy.hp = 0
+
+    line = format_hp_line([player], [enemy])
+
+    assert line == "Hero: 95/100 HP"
+
+def test_format_hp_line_supports_multiple_living_combatants_on_each_side():
+    player = Player(name="Hero", hp=100, attack_damage=10)
+    companion = Player(name="Ally", hp=80, attack_damage=5)
+    goblin = Enemy(name="Goblin", hp=20, attack_damage=5)
+    harpy = Enemy(name="Harpy", hp=15, attack_damage=4)
+
+    line = format_hp_line([player, companion], [goblin, harpy])
+
+    assert line == "Hero: 100/100 HP   |   Ally: 80/80 HP   |   Goblin: 20/20 HP   |   Harpy: 15/15 HP"

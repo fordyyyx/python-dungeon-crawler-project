@@ -208,10 +208,6 @@ class Enemy(Character):
             message += f"\nIt dropped: {item_names}"
         return message
 
-    def choose_action(self, player):
-        """Placeholder hook for enemy AI - not yet called anywhere; see roadmap.md's team-vs-team combat item."""
-        pass
-
 
 class Ally():
     """A non-combat NPC that can be talked to and traded with, per its required_items/reward data - never branched on by name, see CLAUDE.md."""

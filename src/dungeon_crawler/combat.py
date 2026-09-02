@@ -1,38 +1,60 @@
-"""Combat resolution - turn-by-turn attacks, defeat handling, and fleeing. The one place that resolves what happens when the player
-and an enemy trade blows, and the aftermath (loot, XP, gold, or a boss phase transition) when an enemy is defeated."""
+"""Combat resolution - turn-by-turn attacks, defeat handling, and fleeing. The one place that resolves what happens when the player's team
+and an enemy team trade blows, and the aftermath (loot, XP, gold, or a boss phase transition) when an enemy is defeated.
+
+Team representation: no dedicated Team class (see CLAUDE.md's "No Team class" rule) - player_team and enemy_team are both
+plain lists (list[Character] / list[Enemy]). player_team is currently always [player] until Companions exist."""
 
 import random
 
-from dungeon_crawler.characters import Player, Enemy
+from dungeon_crawler.characters import Character, Player, Enemy
 from dungeon_crawler.world import Room
 
-def format_hp_line(player: Player, enemy: Enemy) -> str:
-    """See HP status line - never rebuild this string elsewhere. See CLAUDE.md fro why this exists as its own function."""
-    return f"{player.name}: {player.hp}/{player.max_hp} HP  |  {enemy.name}: {enemy.hp}/{enemy.max_hp} HP"
+def format_hp_line(player_team: list[Character], enemy_team: list[Enemy]) -> str:
+    """HP status line for every currently living combatant on both sides - never rebuild this string elsewhere, see CLAUDE.md
+    for why this exists as its own function. Defeated combatants are omitted; their defeat is already reported separately by 
+    handle_enemy_defeat()/on_death()."""
+    living_player_team = [character for character in player_team if character.is_alive()]
+    living_enemy_team = [character for character in enemy_team if character.is_alive()]
+    parts = [f"{character.name}: {character.hp}/{character.max_hp} HP" for character in living_player_team + living_enemy_team]
+    return "   |   ".join(parts)
 
-def resolve_combat_round(player: Player, enemy: Enemy):
-    """One full exchange: player attacks, enemy counter-attacks if it survived."""
-    messages = [player.attack(enemy)]
+def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy]) -> str:
+    """One full round: player attacks target, then every enemy in enemy_team still alive afterwards takes its own turn.
+    Enemy actions/targeting are still a placeholder (always a plain attack on the player) until choose_enemy_action() and
+    real Companion-aware targeting are built - see CLAUDE.md's "Enemy AI and team combat" section for the full decided design."""
+    messages = [player.attack(target)]
 
-    if not enemy.is_alive():
-        # enemy is already defeated - show only the player's own HP, not the two-sided format_hp_line
-        messages.append(f"{player.name}: {player.hp}/{player.max_hp} HP")
-        return "\n".join(messages)
+    for enemy in enemy_team:
+        if enemy.is_alive():
+            messages.append(enemy.attack(player))
 
-    messages.append(enemy.attack(player))
-    messages.append(format_hp_line(player, enemy))
-
+    messages.append(format_hp_line(player_team, enemy_team))
     return "\n".join(messages)
 
-def resolve_attack_and_check_defeat(player: Player, enemy: Enemy, room: Room) -> str:
-    """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly."""
-    result = resolve_combat_round(player, enemy)
-    if not enemy.is_alive():
+def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room) -> str:
+    """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly.
+    Checks every member of enemy_team for defeat afterwards, not just target, since a full team round can defeat more than one
+    enemy at once (e.g. a Thorns reflection killing an enemy during its own attack)."""
+    enemies_before = [enemy for enemy in enemy_team if enemy.is_alive()]
+
+    result = resolve_combat_round(player, target, player_team, enemy_team)
+
+    newly_defeated = [enemy for enemy in enemies_before if not enemy.is_alive()]
+    for enemy in newly_defeated:
+        # default to ending combat - handle_enemy_defeat() overrides this back to True (with a new
+        # current_target) if the enemy has a next_phase_factory, i.e. a boss phase transition
         player.in_combat = False
         player.current_target = None
         defeat_extras = handle_enemy_defeat(room, enemy, player)
         if defeat_extras:
             result += f"\n{defeat_extras}"
+
+    if newly_defeated and any(enemy.is_alive() for enemy in room.enemies):
+        # something died this round, but the room still has living enemies (either teammates who survived, or a fresh boss
+        # phase handle_enemy_defeat() just added) - combat isn't over, even though the loop above just cleared in_combat
+        # for the specific enemy that died 
+        player.in_combat = True
+
     return result
 
 def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
@@ -64,26 +86,40 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
 
     return "\n".join(messages)
 
-def flee_combat(player: Player, enemy: Enemy) -> str:
-    """Attempt to disengage from combat. Always succeeds, but a healthier enemy has a higher chance
-    of landing a free hit as the player disengages."""
-    chance_of_free_hit = enemy.hp / enemy.max_hp
-    enemy.has_been_fled_from = True
-    if random.random() < chance_of_free_hit:
-        damage_dealt, death_message = player.take_damage(enemy.attack_damage, attacker=enemy)
-        message = f"You disengage, but the {enemy.name} gets a hit in as you go - {damage_dealt} damage."
-        if death_message:
-            message += f"\n{death_message}"
-        return message
-    return f"You disengage cleanly, leaving the {enemy.name} behind."
+def flee_combat(player: Player, enemy_team: list[Enemy]) -> str:
+    """Attempt to disengage from combat. Always succeeds, but every still=living enemy in enemy_team independently rolls its own
+    chance of landing a free hit as the player disengages, scaled by that enemy's own HP%."""
+    messages = []
+    hit_landed = False
 
-def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room) -> str:
-    """Dispatcher for everything calid while player.in_combat is True."""
+    for enemy in enemy_team:
+        if not enemy.is_alive():
+            continue
+
+        chance_of_free_hit = enemy.hp / enemy.max_hp
+        enemy.has_been_fled_from = True
+
+        if random.random() < chance_of_free_hit:
+            hit_landed = True
+            damage_dealt, death_message = player.take_damage(enemy.attack_damage, attacker=enemy)
+            messages.append(f"The {enemy.name} gets a hit in as you go - {damage_dealt} damage.")
+            if death_message:
+                messages.append(death_message)
+            if not player.is_alive():
+                # a parting hit finished the player off - stop rolling further enemies
+                break
+
+    if hit_landed:
+        return "You disengage but not without cost.\n" + "\n".join(messages)
+    return "You disengage cleanly, leaving your enemies behind."
+
+def handle_combat_command(command: str, player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room) -> str:
+    """Dispatcher for everything valid while player.in_combat is True."""
     if command == "attack":
-        return resolve_attack_and_check_defeat(player, enemy, room)
+        return resolve_attack_and_check_defeat(player, target, player_team, enemy_team, room)
 
     if command == "flee":
-        result = flee_combat(player, enemy)
+        result = flee_combat(player, enemy_team)
         player.in_combat = False
         player.current_target = None
         return result
@@ -97,13 +133,17 @@ def handle_combat_command(command: str, player: Player, enemy: Enemy, room: Room
             # this exact branch used to fall through into the enemy's attack unconditionally, a real bug)
             return str(e)
 
-        if enemy.is_alive():
-            enemy_message = enemy.attack(player)
-            result += f"\n{enemy_message}"
-            result += "\n" + format_hp_line(player, enemy)
-            if not player.is_alive():
-                player.in_combat = False
-                player.current_target = None
+        for enemy in enemy_team:
+            if enemy.is_alive():
+                result += f"\n{enemy.attack(player)}"
+                if not player.is_alive():
+                    break
+
+        result += "\n" + format_hp_line(player_team, enemy_team)
+
+        if not player.is_alive():
+            player.in_combat = False
+            player.current_target = None
         return result
 
     if command == "stats":

@@ -118,7 +118,7 @@ def main() -> None:
 
         elif player.in_combat:
             if player.current_target is not None:
-                print(handle_combat_command(command, player, player.current_target, current_room))
+                print(handle_combat_command(command, player, player.current_target, [player], current_room.enemies, current_room))
             else:
                 # defensive fallback - in_combat and current_target should always be set/cleared together;
                 # this only fires if that invariant is ever broken elsewhere
@@ -173,7 +173,7 @@ def main() -> None:
                 enemy = current_room.enemies[0]
                 player.in_combat = True
                 player.current_target = enemy
-                print(resolve_attack_and_check_defeat(player, enemy, current_room))
+                print(resolve_attack_and_check_defeat(player, enemy, [player], current_room.enemies, current_room))
             else:
                 print("There's nothing here to attack.")
 
