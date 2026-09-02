@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, Consumable
-from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line
+from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -799,3 +799,176 @@ def test_format_hp_line_supports_multiple_living_combatants_on_each_side():
     line = format_hp_line([player, companion], [goblin, harpy])
 
     assert line == "Hero: 100/100 HP   |   Ally: 80/80 HP   |   Goblin: 20/20 HP   |   Harpy: 15/15 HP"
+
+def test_format_hp_line_shows_disambiguation_index_for_duplicate_enemy_names():
+    player = Player(name="Hero", hp=50)
+    harpy1 = Enemy(name="Harpy", hp=10)
+    harpy2 = Enemy(name="Harpy", hp=8)
+
+    line = format_hp_line([player], [harpy1, harpy2])
+
+    assert line == "Hero: 50/50 HP   |   Harpy (1): 10/10 HP   |   Harpy (2): 8/8 HP"
+
+def test_format_hp_line_keeps_stable_index_when_a_same_named_teammate_is_dead():
+    """get_enemy_display_name() numbers by position in the full enemy_team, including the dead - a
+    survivor's number must not shift just because an earlier same-named teammate fell."""
+    player = Player(name="Hero", hp=50)
+    dead_harpy = Enemy(name="Harpy", hp=10)
+    dead_harpy.hp = 0
+    living_harpy = Enemy(name="Harpy", hp=8)
+
+    line = format_hp_line([player], [dead_harpy, living_harpy])
+
+    assert line == "Hero: 50/50 HP   |   Harpy (2): 8/8 HP"
+
+def test_get_enemy_display_name_returns_plain_name_when_unique_in_team():
+    enemy = Enemy(name="Goblin", hp=10)
+
+    assert get_enemy_display_name(enemy, [enemy]) == "Goblin"
+
+def test_get_enemy_display_name_returns_plain_name_when_no_other_enemy_shares_its_name():
+    goblin = Enemy(name="Goblin", hp=10)
+    harpy = Enemy(name="Harpy", hp=10)
+
+    assert get_enemy_display_name(goblin, [goblin, harpy]) == "Goblin"
+
+def test_get_enemy_display_name_appends_index_when_names_shared():
+    harpy1 = Enemy(name="Harpy", hp=10)
+    harpy2 = Enemy(name="Harpy", hp=10)
+
+    assert get_enemy_display_name(harpy1, [harpy1, harpy2]) == "Harpy (1)"
+    assert get_enemy_display_name(harpy2, [harpy1, harpy2]) == "Harpy (2)"
+
+def test_get_enemy_display_name_index_counts_defeated_teammates():
+    dead_harpy = Enemy(name="Harpy", hp=10)
+    dead_harpy.hp = 0
+    living_harpy = Enemy(name="Harpy", hp=10)
+
+    assert get_enemy_display_name(living_harpy, [dead_harpy, living_harpy]) == "Harpy (2)"
+
+def test_handle_target_command_with_no_argument_returns_target_who():
+    player = Player(name="Hero", hp=50)
+
+    message = handle_target_command("target ", [], player)
+
+    assert message == "Target who?"
+
+def test_handle_target_command_single_match_sets_current_target():
+    player = Player(name="Hero", hp=50)
+    enemy = Enemy(name="Harpy", hp=10)
+
+    handle_target_command("target harpy", [enemy], player)
+
+    assert player.current_target is enemy
+
+def test_handle_target_command_single_match_returns_focus_message():
+    player = Player(name="Hero", hp=50)
+    enemy = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target harpy", [enemy], player)
+
+    assert message == "You focus on the Harpy."
+
+def test_handle_target_command_matching_is_case_insensitive():
+    player = Player(name="Hero", hp=50)
+    enemy = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target HaRpY", [enemy], player)
+
+    assert player.current_target is enemy
+    assert message == "You focus on the Harpy."
+
+def test_handle_target_command_no_match_returns_error_message():
+    player = Player(name="Hero", hp=50)
+    enemy = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target goblin", [enemy], player)
+
+    assert message == "There's no 'goblin' here to target."
+    assert player.current_target is None
+
+def test_handle_target_command_dead_enemy_is_not_matched():
+    player = Player(name="Hero", hp=50)
+    enemy = Enemy(name="Harpy", hp=10)
+    enemy.hp = 0
+
+    message = handle_target_command("target harpy", [enemy], player)
+
+    assert message == "There's no 'harpy' here to target."
+
+def test_handle_target_command_multiple_matches_without_number_lists_display_names():
+    player = Player(name="Hero", hp=50)
+    harpy1 = Enemy(name="Harpy", hp=10)
+    harpy2 = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target harpy", [harpy1, harpy2], player)
+
+    assert message == "There's more than one harpy here - which one? Try: Harpy (1), Harpy (2)"
+    assert player.current_target is None
+
+def test_handle_target_command_multiple_matches_with_valid_number_sets_target():
+    player = Player(name="Hero", hp=50)
+    harpy1 = Enemy(name="Harpy", hp=10)
+    harpy2 = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target harpy 2", [harpy1, harpy2], player)
+
+    assert player.current_target is harpy2
+    assert message == "You focus on the Harpy (2)."
+
+def test_handle_target_command_multiple_matches_with_invalid_number_returns_error():
+    player = Player(name="Hero", hp=50)
+    harpy1 = Enemy(name="Harpy", hp=10)
+    harpy2 = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target harpy 5", [harpy1, harpy2], player)
+
+    assert message == "There's no harpy number 5 here."
+    assert player.current_target is None
+
+def test_handle_target_command_number_with_no_matching_name_at_all_returns_error():
+    """same_named is empty here, not just filtered down to nothing - a distinct path from the
+    'name exists but that number is out of range' case above."""
+    player = Player(name="Hero", hp=50)
+    harpy = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target goblin 2", [harpy], player)
+
+    assert message == "There's no goblin number 2 here."
+    assert player.current_target is None
+
+def test_handle_target_command_number_selects_correct_survivor_despite_a_dead_teammate_between():
+    """Regression test for the fix: the number now indexes into the full enemy_team (dead included),
+    matching get_enemy_display_name()'s numbering - so 'target harpy 3' correctly reaches the third
+    Harpy even though the second one (which used to shift the numbering) has died."""
+    player = Player(name="Hero", hp=50)
+    harpy1 = Enemy(name="Harpy", hp=10)
+    dead_harpy2 = Enemy(name="Harpy", hp=10)
+    dead_harpy2.hp = 0
+    harpy3 = Enemy(name="Harpy", hp=10)
+
+    message = handle_target_command("target harpy 3", [harpy1, dead_harpy2, harpy3], player)
+
+    assert player.current_target is harpy3
+    assert message == "You focus on the Harpy (3)."
+
+def test_handle_target_command_number_targeting_a_defeated_enemy_returns_error():
+    player = Player(name="Hero", hp=50)
+    harpy1 = Enemy(name="Harpy", hp=10)
+    dead_harpy2 = Enemy(name="Harpy", hp=10)
+    dead_harpy2.hp = 0
+
+    message = handle_target_command("target harpy 2", [harpy1, dead_harpy2], player)
+
+    assert message == "The Harpy (2) has already been defeated."
+    assert player.current_target is None
+
+def test_handle_combat_command_target_sets_current_target():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("target goblin", player, enemy, [player], [enemy], room)
+
+    assert player.current_target is enemy
+    assert message == "You focus on the Goblin."

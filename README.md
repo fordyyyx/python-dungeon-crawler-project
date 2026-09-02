@@ -63,6 +63,7 @@ pytest --cov=src/dungeon_crawler
 * `talk` - talk to an ally in the room
 * `toggle auto talk` - allies speak automatically on room entry, without needing `talk` each time
 * `attack` - attack an enemy in the room; this locks you into combat until the enemy is defeated or you flee
+* `target <name> - set your attack target, persisting across rounds; if two or more enemies share a name, add a number (e.g. `target harpies 2`)
 * `flee` - disengage from combat (mid-combat only)
 * `take <item>` - pick up an item from the room
 * `use <item>` - use or equip an item from your inventory (mid-combat, this uses your turn, and the enemy still acts)

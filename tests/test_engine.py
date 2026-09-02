@@ -144,6 +144,11 @@ def test_get_controls_text_lists_quit_command():
 
     assert "quit / exit - quit the game" in text
 
+def test_get_controls_text_lists_target_command():
+    text = get_controls_text()
+
+    assert "target <name> - set your attack target; add a number if enemies share a name (e.g. target harpies 2)" in text
+
 def test_main_happy_path_smoke_test(monkeypatch, capsys):
     """Scripted playthrough of the full routing chain: name/ancestry prompts, movement, take, use, and quit."""
     monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
@@ -206,6 +211,33 @@ def test_main_combat_routing_smoke_test(monkeypatch, capsys):
     assert "[DEV] Spawned Training Dummy." in captured.out
     assert "Training Dummy has been defeated." in captured.out
     assert "It dropped: Dummy Head" in captured.out
+
+def test_main_target_command_redirects_pre_combat_attack_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough covering the 'target <name>' command: with two different enemies in the room,
+    targeting the second by name before the first 'attack' must redirect that first attack to it, rather
+    than defaulting to whichever enemy is first in the room."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "developer mode",
+        "basic",
+        "floor_0",
+        "dev spawn training dummy",
+        "dev spawn skeleton warrior",
+        "target skeleton warrior",
+        "attack",
+        "attack",
+        "attack",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You focus on the Skeleton Warrior." in captured.out
+    assert "Skeleton Warrior has been defeated." in captured.out
+    assert "It dropped: Small Healing Potion" in captured.out
+    assert "Training Dummy has been defeated." not in captured.out
 
 def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys):
     """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,

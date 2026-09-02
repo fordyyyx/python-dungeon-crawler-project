@@ -3,7 +3,7 @@
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
-from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat
+from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine
 from dungeon_crawler.character_creation import choose_ancestry, create_player
@@ -42,6 +42,7 @@ def get_controls_text() -> str:
         "talk - talk to an ally in the room\n"
         "toggle auto talk - allies speak automatically on room entry\n"
         "attack - attack an enemy in the room (locks you into combat)\n"
+        "target <name> - set your attack target; add a number if enemies share a name (e.g. target harpies 2)\n"
         "flee - disengages from combat (mid-combat only)\n"
         "take <item> - pick up an item from the room\n"
         "use <item> - use or equip an item from your inventory\n"
@@ -116,6 +117,9 @@ def main() -> None:
                 current_room = new_room
                 print_room(current_room, player)
 
+        elif command.startswith("target "):
+            print(handle_target_command(command, current_room.enemies, player))
+
         elif player.in_combat:
             if player.current_target is not None:
                 print(handle_combat_command(command, player, player.current_target, [player], current_room.enemies, current_room))
@@ -137,7 +141,6 @@ def main() -> None:
                 print(f"{item.name}: {item.description}")
             else:
                 print("You don't see that here.")
-
 
         elif command == "toggle auto talk":
             player.auto_talk = not player.auto_talk
@@ -170,7 +173,10 @@ def main() -> None:
 
         elif command == "attack":
             if current_room.enemies:
-                enemy = current_room.enemies[0]
+                if player.current_target is not None:
+                    enemy = player.current_target
+                else:
+                    enemy = current_room.enemies[0]
                 player.in_combat = True
                 player.current_target = enemy
                 print(resolve_attack_and_check_defeat(player, enemy, [player], current_room.enemies, current_room))

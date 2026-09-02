@@ -9,14 +9,26 @@ import random
 from dungeon_crawler.characters import Character, Player, Enemy
 from dungeon_crawler.world import Room
 
+def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
+    """The name to show for enemy in displays - appends a stable (n) index only when enemy_team has more than one enemy sharing this name, so
+    uniquely-named enemies display exactly as before. The index is based on the enemy's position among the same-named enemies within 
+    enemy_team (including defeated ones, so a survivor's number never shifts when a teammate dies) - callers should always pass the full
+    team, not a filtered list."""
+    same_named = [e for e in enemy_team if e.name == enemy.name]
+    if len(same_named) <= 1:
+        return enemy.name
+    index = same_named.index(enemy) + 1
+    return f"{enemy.name} ({index})"
+
 def format_hp_line(player_team: list[Character], enemy_team: list[Enemy]) -> str:
     """HP status line for every currently living combatant on both sides - never rebuild this string elsewhere, see CLAUDE.md
     for why this exists as its own function. Defeated combatants are omitted; their defeat is already reported separately by 
     handle_enemy_defeat()/on_death()."""
     living_player_team = [character for character in player_team if character.is_alive()]
     living_enemy_team = [character for character in enemy_team if character.is_alive()]
-    parts = [f"{character.name}: {character.hp}/{character.max_hp} HP" for character in living_player_team + living_enemy_team]
-    return "   |   ".join(parts)
+    player_parts = [f"{character.name}: {character.hp}/{character.max_hp} HP" for character in living_player_team]
+    enemy_parts = [f"{get_enemy_display_name(enemy, enemy_team)}: {enemy.hp}/{enemy.max_hp} HP" for enemy in living_enemy_team]
+    return "   |   ".join(player_parts + enemy_parts)
 
 def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy]) -> str:
     """One full round: player attacks target, then every enemy in enemy_team still alive afterwards takes its own turn.
@@ -113,8 +125,54 @@ def flee_combat(player: Player, enemy_team: list[Enemy]) -> str:
         return "You disengage but not without cost.\n" + "\n".join(messages)
     return "You disengage cleanly, leaving your enemies behind."
 
+def handle_target_command(command: str, enemy_team: list[Enemy], player: Player) -> str:
+    """Handle 'target <name>' or 'target <name> <number>' - sets player.current_target to a matching, still-living, enemy in enemy_team.
+    The trailing number disambiguates when two or more living enemies share a name; see get_enemy_display_name() for the matching
+    numbering shown in combat displays."""
+    argument = command.removeprefix("target ").strip()
+    if not argument:
+        return "Target who?"
+
+    parts = argument.split()
+    requested_number = None
+    if len(parts) > 1 and parts[-1].isdigit():
+        requested_number = int(parts[-1])
+        name = " ".join(parts[:-1])
+    else:
+        name = argument
+
+    same_named = [enemy for enemy in enemy_team if enemy.name.lower() == name.lower()]
+
+    if requested_number is not None:
+        if not (1 <= requested_number <= len(same_named)):
+            return f"There's no {name} number {requested_number} here."
+        candidate = same_named[requested_number - 1]
+        if not candidate.is_alive():
+            return f"The {get_enemy_display_name(candidate, enemy_team)} has already been defeated."
+        player.current_target = candidate
+        return f"You focus on the {get_enemy_display_name(candidate, enemy_team)}."
+
+
+    living_matches = [enemy for enemy in same_named if enemy.is_alive()]
+
+    if not living_matches:
+        return f"There's no '{name}' here to target."
+
+    if len(living_matches) == 1:
+        player.current_target = living_matches[0]
+        return f"You focus on the {get_enemy_display_name(living_matches[0], enemy_team)}."
+
+    options = ", ".join(get_enemy_display_name(enemy, enemy_team) for enemy in living_matches)
+    return f"There's more than one {name} here - which one? Try: {options}"
+        
+    player.current_target = target
+    return f"You focus on the {get_enemy_display_name(target, enemy_team)}."
+
 def handle_combat_command(command: str, player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room) -> str:
     """Dispatcher for everything valid while player.in_combat is True."""
+    if command.startswith("target "):
+        return handle_target_command(command, enemy_team, player)
+
     if command == "attack":
         return resolve_attack_and_check_defeat(player, target, player_team, enemy_team, room)
 
