@@ -18,7 +18,7 @@ A text-based dungeon crawler RPG in pure Python, Greek mythology themed, built a
   - `character_creation.py` — `choose_ancestry`, `create_player`
   - `dev_tools.py` — the entire dev command set: `DEV_MODE`, every `handle_dev_*` function, `ITEM_REGISTRY`/`ENEMY_REGISTRY`/`ALLY_REGISTRY`, the `find_*_by_name` helpers
   - `engine.py` — now genuinely slim: `main()`'s loop and top-level command routing only, plus `print_room()` and `get_controls_text()` (both tightly coupled to the loop itself, not moved elsewhere)
-  - **Still empty, reserved for upcoming roadmap items** (see roadmap.md for what goes where): `skills.py`, `status_effects.py`, `spells.py`, `save_system.py`, `achievements.py`, `shop.py`, `difficulty.py`. `content.py` is still a single file for now — the plan to split it into a `content/` package (one file per floor) happens as part of "Finish remaining floors," not this reorganisation.
+  - **Still empty, reserved for upcoming roadmap items** (see roadmap.md for what goes where): `skills.py`, `status_effects.py`, `spells.py`, `save_system.py`, `achievements.py`, `shop.py`, `difficulty.py`. `content.py` is still a single file for now — the plan to split it into a `content/` package (one file per floor) happens as part of "Populate all floors," not this reorganisation.
 
 ## Docstrings and comments — retrofit complete, now a maintained standard
 The full codebase now has docstrings on every function/class/method,
@@ -60,9 +60,10 @@ throughout") rather than leave everything until then.
 - `Character.attack_damage` — **not** `attack_power`. This project has used `attack_power` inconsistently in earlier design discussion; `attack_damage` is the real, current name. Always check the actual file before assuming.
 - `Character.armour`, `Character.hp`, `Character.max_hp` — as expected.
 - `Character.has_double_strike`, `Character.has_thorns`, `Character.has_last_stand` — ability flags, live on `Character` (not `Player`), since `Enemy` could plausibly use them too.
+- `Character.pending_damage_reduction` — **built.** Generic flat damage-reduction value, consumed (and reset to `0`) the next time `take_damage()` runs on this character. Lives on `Character`, not `Enemy`, since `take_damage()` doesn't know which subclass `self` is; `Enemy.brace_amount` is just the fixed value that populates it when Defend is chosen.
 - `Player.ancestry_label` — set at character creation, displayed in `get_stats()`.
 - `Player.intellect` — **Player-only**, not on `Character`. Matches `experience`/`gold`'s precedent, not the ability flags' — nothing currently reads an enemy's or ally's intellect, so it doesn't belong on the shared base class. Set by ancestry (`ANCESTRIES["intellect"]`), grows by 1 on every `level_up()`.
-- **Enemy AI fields**: `Enemy.aggression_weight`, `Enemy.caution_weight`, `Enemy.randomness_weight` — utility-scoring weights, **built**, defaulting to `1.0`/`1.0`/`0.3` in `Enemy.__init__` so every existing `create_*()` call works unchanged. `Enemy.brace_amount` (flat damage reduction from Defend) and `Enemy.heal_amount` (flat HP restored by Heal, `0` for enemies with no lore-appropriate heal) are decided names, **still pending implementation** — see "Enemy AI and team combat" below. All of these are plain data, same precedent as `experience_reward`/`gold_reward`; tune specific enemies' values as part of "Populate all floors" (#13), not before.
+- **Enemy AI fields — all built**: `Enemy.aggression_weight`, `Enemy.caution_weight`, `Enemy.randomness_weight` (utility-scoring weights, defaulting to `1.0`/`1.0`/`0.3`), `Enemy.brace_amount` (flat damage reduction from Defend, default `0`), `Enemy.heal_amount` (flat HP restored by Heal, default `0` — `0` excludes Heal from the candidate list entirely, see "Enemy AI and team combat" below). All plain data, same precedent as `experience_reward`/`gold_reward`, set per `create_*()` call; every existing call works unchanged thanks to the defaults. Tune specific enemies' actual values as part of "Populate all floors" (#12), not before.
 
 ## Testing conventions — follow these exactly, don't introduce new patterns
 - **Plain `assert` statements only** — do NOT use `pytest.raises`. For testing that an exception is raised, use the manual pattern:
@@ -89,8 +90,8 @@ throughout") rather than leave everything until then.
 - **Per-ally behaviour is data, not branching.** Trade requirements (`Ally.required_items`), rewards (`Ally.reward`), and conditional dialogue (`Ally.hint_complete`) live as attributes on the `Ally` object. Never write `if ally.name == "X"` in `engine.py` - if new per-ally behaviour is needed, add a new attribute to `Ally` instead. The same principle now extends to enemies' combat AI — see "Enemy AI and team combat" below.
 - **No `Team` class for combat sides.** Per the "don't add classes for flexibility" rule below, the player's side and the enemies' side are both plain `list[Character]`/`list[Enemy]` (player side is `[player]` until Companions exist) — not a new abstraction. See "Enemy AI and team combat" for the full reasoning.
 - **Leading-underscore functions are module-internal helpers.** A function prefixed with `_` (e.g. `combat.py`'s `_score_candidate_actions()`) is not meant to be called from outside its own module — same spirit as `Room`'s `_items`/`_enemies`/`_allies` private lists, just applied to functions instead of attributes. Only introduce this when a helper is genuinely internal-only; most functions in this codebase are called across modules and should stay unprefixed.
-- **`take_damage()` returns `tuple[int, str]`**: the actual damage dealt (after armour reduction) and a message (empty string if the target survived). It takes an optional `attacker: Character | None = None` parameter, used only for the Thorns ability to reflect damage back. (Will also gain a check against a transient "defending" flag once Enemy Defend/Brace is built — see "Enemy AI and team combat" below.)
-- **HP status lines use the shared `format_hp_line(player_team, enemy_team)` helper — never rebuild the HP-line string inline in more than one place.** This was independently duplicated once (in `resolve_combat_round()` and separately in `handle_combat_command()`'s `use` branch), and only one copy got updated when the HP-display feature was added, causing a real bug. Any new combat-message code that needs to show HP should call this helper, not reformat it again. **Now generalized to a full N-combatant display** (team combat is built — see "Enemy AI and team combat" below); the enemy side uses `get_enemy_display_name()` for its labels, so a duplicate-named enemy shows its disambiguation number here too.
+- **`take_damage()` returns `tuple[int, str]`**: the actual damage dealt (after armour reduction) and a message (empty string if the target survived). It takes an optional `attacker: Character | None = None` parameter, used only for the Thorns ability to reflect damage back. **Also consumes `Character.pending_damage_reduction`** (built — see "Canonical attribute names" above) before applying armour, resetting it to `0` regardless of whether it changed anything, since a brace only ever protects against the next hit taken.
+- **HP status lines use the shared `format_hp_line(player_team, enemy_team)` helper — never rebuild the HP-line string inline in more than one place.** This was independently duplicated once (in `resolve_combat_round()` and separately in `handle_combat_command()`'s `use` branch), and only one copy got updated when the HP-display feature was added, causing a real bug. Any new combat-message code that needs to show HP should call this helper, not reformat it again. **Fully generalized to an N-combatant display** (team combat is built — see "Enemy AI and team combat" below); the enemy side uses `get_enemy_display_name()` for its labels, so a duplicate-named enemy shows its disambiguation number here too.
 - **A failed action never consumes the player's turn in combat.** If `use <item>` fails (item not found, per `Inventory.use_item()`'s `ValueError`), `handle_combat_command()` must `return` immediately with the error message, before the enemy gets a turn — never fall through into the enemy's attack. This was a real bug once (the `use` branch caught the exception but still ran the enemy's attack unconditionally afterward). The same rule will apply to Spells (see `roadmap.md`) once they exist — a failed cast (no mana, on cooldown) should not cost a turn either.
 - **`handle_enemy_defeat(room, enemy, player)`** — takes `player` now, not just `room`/`enemy`, so it can grant `experience_reward`/`gold_reward` as part of the assembled defeat message. Every call site must pass `player` — this changed once already (added for XP/gold) and is exactly the kind of signature change worth double-checking every call site for, same as `take_damage()`'s history.
 - **`Enemy.experience_reward`/`gold_reward`** — plain data, set directly in every `create_*()` function (per the `CLAUDE.md` constructor-vs-follow-up-call rule). Training-only enemies (the Training Dummy) are `0`/`0` deliberately — not worth farming.
@@ -108,12 +109,11 @@ throughout") rather than leave everything until then.
 - Don't add `__eq__`, extra attributes, or extra methods "for flexibility" unless something in the actual design already needs them.
 
 ## Enemy AI and team combat
-The design for roadmap item #1 ("Enemy `choose_action()` + multiple
-enemies per room"). Team representation, round structure, target
-selection, `format_hp_line`'s generalization, and the core utility-scoring
-engine are all **built**. Defend/Brace and Heal (the second and third
-candidate actions) are the one piece still pending — see the end of this
-section for what's left.
+The full system is **built**: team representation, round structure,
+target selection, `format_hp_line`'s generalization, the utility-scoring
+engine, and all three actions (Attack, Defend/Brace, Heal). One scoring
+flaw was found in playtesting and the fix is decided but not yet
+implemented — see the end of this section.
 
 - **Team representation**: no `Team` class (see "No `Team` class" above)
   — `player_team: list[Character]` (currently `[player]`) and `enemy_team`
@@ -122,35 +122,49 @@ section for what's left.
 - **Round order**: the player acts first (attack/item/etc.), then every
   still-living member of `enemy_team` takes a turn via
   `choose_enemy_action()`, in list order. Combat stays locked until the
-  whole `enemy_team` is defeated or the player flees.
+  whole `enemy_team` is defeated or the player flees. Both loops that run
+  enemy turns (`resolve_combat_round()`, and the `use ` branch of
+  `handle_combat_command()`) stop rolling further enemy actions once the
+  player is dead — this was a real bug once (only the `use` branch had
+  the check; `resolve_combat_round()` didn't, so a team kill could
+  re-trigger `take_damage()`'s `on_death()` message repeatedly for every
+  enemy after the one that landed the killing blow).
 - **`choose_enemy_action(enemy, player_team) -> str`** is a standalone
   function in `combat.py`, not an `Enemy` method — per the existing rule
   that functions coordinating two independent classes' state live
-  standalone (same precedent as `trade_with_ally()`). It returns the name
-  of the chosen action (currently always `"attack"`, the only real
-  candidate so far); callers (`resolve_combat_round()`, the `use ` branch
-  of `handle_combat_command()`) branch on that string. `Enemy`'s old
-  `choose_action()` placeholder method has been removed entirely — this
-  standalone function replaced it.
+  standalone (same precedent as `trade_with_ally()`). Returns the name of
+  the chosen action (`"attack"`, `"defend"`, or `"heal"`); callers branch
+  on that string. `Enemy`'s old `choose_action()` placeholder method has
+  been removed entirely — this standalone function replaced it.
 - **AI model: utility-based scoring**, via `_score_candidate_actions()`
   (module-internal — see the leading-underscore convention above) and
   `choose_enemy_action()`. `_score_candidate_actions(enemy, player_team)`
-  returns a `dict[str, float]` of every candidate action's base score
-  (currently just `"attack"`, weighted by `aggression_weight` against
-  kill-potential and target HP%). `choose_enemy_action()` adds an
-  independent random noise term to every score (from `random.random()`,
-  scaled by `randomness_weight` — not `random.uniform()`, to stay
-  consistent with the monkeypatch-testable convention below), then
-  returns the highest-scoring action. This is the "lucky escape"
-  mechanic — not yet observable in play, since `"attack"` has nothing to
-  lose out to until Defend/Heal exist, but the scoring machinery itself
-  is fully built and ready for more entries.
+  returns a `dict[str, float]` of every candidate action's base score:
+  `"attack"` (weighted by `aggression_weight` against kill-potential and
+  target HP%), `"defend"` (always a candidate, weighted by
+  `caution_weight`), and `"heal"` (only included when
+  `enemy.heal_amount > 0` — excluded entirely otherwise, not scored at
+  zero). `choose_enemy_action()` adds an independent random noise term to
+  every score (from `random.random()`, scaled by `randomness_weight` —
+  not `random.uniform()`, to stay consistent with the monkeypatch-testable
+  convention below), then returns the highest-scoring action. This is the
+  "lucky escape" mechanic.
+- **Defend/Brace**: chosen action sets `enemy.pending_damage_reduction =
+  enemy.brace_amount`, consumed by `take_damage()` on the next hit this
+  enemy takes (see "Canonical attribute names" and the `take_damage()`
+  entry above). `brace_amount` has no zero-exclusion rule (unlike Heal) —
+  every enemy always has Defend as a live candidate, even at
+  `brace_amount = 0` (mechanically a no-op brace). Worth reconsidering if
+  this ever proves as awkward in practice as the scoring flaw below.
+- **Heal**: restores `min(enemy.heal_amount, enemy.max_hp - enemy.hp)` HP
+  (capped at `max_hp`, no overheal). `heal_amount = 0` excludes Heal from
+  the candidate list entirely, per the decided design.
 - **Personality is per-enemy data, not branching** — `Enemy.aggression_weight`/
-  `caution_weight`/`randomness_weight` (see "Canonical attribute names"
-  above), defaulting to a balanced `1.0`/`1.0`/`0.3` so every existing
-  `create_*()` call works unchanged; tune specific enemies' weights (and
-  eventually `brace_amount`/`heal_amount`) as part of "Populate all
-  floors" (#13), not before.
+  `caution_weight`/`randomness_weight`/`brace_amount`/`heal_amount` (see
+  "Canonical attribute names" above), defaulting to a balanced,
+  Defend/Heal-inert preset (`1.0`/`1.0`/`0.3`/`0`/`0`) so every existing
+  `create_*()` call works unchanged. Tune specific enemies' actual values
+  as part of "Populate all floors" (#12), not before.
 - **`format_hp_line`** is fully generalized to an N-combatant display,
   using `get_enemy_display_name()` for the enemy side of the line.
 - **`get_enemy_display_name(enemy, enemy_team) -> str`** appends a stable
@@ -179,25 +193,27 @@ section for what's left.
   `flee_combat(player, enemy_team)`.
 - **Retreat/flee is explicitly player-only** — enemies never get it, full
   stop; not a candidate action, not planned as one.
-
-**Still pending — Defend/Brace and Heal:**
-- **Initial action set, once complete: Attack, Defend/Brace, Heal.**
-  Defend/Brace is a flat, per-enemy damage reduction (`brace_amount`,
-  lore-tied — a bracing Cyclops deflects more than a bracing Harpy),
-  implemented as a transient "defending" flag consumed by `take_damage()`
-  on the next hit — this touches a signature with a documented bug
-  history (see above); double-check every call site. Heal is a flat HP
-  value per enemy (`heal_amount`, matching the `experience_reward`
-  precedent), lore-tied, with `heal_amount = 0` enemies excluding Heal
-  from their candidate action list entirely (not scored at zero —
-  excluded). Both simply become new entries in
-  `_score_candidate_actions()`'s returned dict, plus a new branch
-  wherever `choose_enemy_action()`'s result is currently checked for
-  `"attack"` — no redesign of the scoring engine itself.
 - **Deliberately extensible, not extended yet**: Light/Heavy/Ranged/Spell
-  attack variety (roadmap #8) and mana-based Spell-healing (roadmap #7)
+  attack variety (roadmap #7) and mana-based Spell-healing (roadmap #6)
   become additional candidate actions in this same scoring function once
   those items are built.
+
+**Known issue, fix decided but not yet built — Defend can permanently
+dominate a losing enemy's choices.** Found in playtesting: once an
+enemy's HP drops and the player is still healthy, `"defend"`'s score
+(`caution_weight * self_missing_hp_ratio`) climbs toward `caution_weight`
+while `"attack"`'s score collapses toward `0` (both its terms —
+kill-potential and `1 - target_hp_ratio` — are naturally small against a
+healthy target). Once Defend wins, nothing in the model ever pulls Attack
+back ahead, since Defend doesn't reduce the enemy's own missing-HP% (only
+Heal does that) — the enemy turtles for the rest of the fight instead of
+attacking at all. **Decided fix**: redefine Defend's score around genuine
+incoming danger, not accumulated damage — `self_kill_potential = min(1.0,
+max(0, target.attack_damage - enemy.armour) / enemy.hp)`, then
+`defend_score = caution_weight * self_kill_potential`. This only spikes
+when the player could realistically finish the enemy off soon, so a weak
+player can never make a low-HP enemy panic-turtle. Apply this the next
+time `_score_candidate_actions()` is touched.
 
 ## Dev tooling (engine.py, gated by DEV_MODE / "developer mode")
 - `dev set <stat> <value>` is a **single generic command**, not one branch per stat — it reads/writes any real `Player` attribute name (via a small `STAT_ALIASES` dict for shorthand like `atk`/`def`, then `setattr`). New stats (e.g. Intellect) work automatically the moment the attribute exists on `Player` — never add a new hardcoded `dev set` branch for a new stat.
@@ -234,8 +250,14 @@ tests are fine. This will happen again on every subsequent
   `gen-tests-all.md`) were all updated to match as part of finishing
   this item — this note stays here as a record of what that involved,
   in case a similar future split (e.g. `content.py` becoming a
-  `content/` package, per "Finish remaining floors") needs the same
+  `content/` package, per "Populate all floors") needs the same
   four-part checklist applied again.
+- **Roadmap numbers renumber whenever an item completes or moves.**
+  Item #1 ("Enemy `choose_action()` + multiple enemies per room") moved
+  to Completed, shifting every subsequent item down by one — any `#N`
+  reference anywhere (this file included) needs re-checking against
+  `roadmap.md`'s current numbering before trusting it, per `roadmap.md`'s
+  own cross-reference rule.
 
 ## Ancestry / character creation system
 - `content.py` holds `ANCESTRIES: dict[str, dict]` - each entry has `label`, `attack`, `armour`, `hp`, `bonus_skill_point`.

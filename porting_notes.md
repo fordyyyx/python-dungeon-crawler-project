@@ -1,9 +1,11 @@
 # Porting Notes — Ideas for a Future Visual Port
 
 A running scratchpad for anything worth remembering when this eventually becomes
-a graphical game (Godot, most likely — see the design conversation this came
-from). Nothing here should influence the Python build itself; this is purely
-for later. Add to it whenever something occurs to you mid-build.
+a graphical game (Unreal Engine, using C++ — see the design conversation this
+came from; originally planned as a Godot/GDScript port, changed once C++ itself
+became the actual goal rather than just the destination). Nothing here should
+influence the Python build itself; this is purely for later. Add to it whenever
+something occurs to you mid-build.
 
 ---
 
@@ -20,7 +22,9 @@ for later. Add to it whenever something occurs to you mid-build.
 ## Combat
 - Both combatants' HP should be visible **simultaneously** as health bars,
   rather than the sequential "you take damage, then see the result" text
-  flow — a visual version can show both changing in real time.
+  flow — a visual version can show both changing in real time. With full
+  team combat now built, this means a health bar per living combatant on
+  both sides at once, not just a 1v1 pair.
 - The combat lock (in_combat / current_target) maps naturally onto a
   dedicated combat screen or UI mode — action buttons (Attack / Flee /
   Use Item) replacing the typed command list.
@@ -36,6 +40,25 @@ for later. Add to it whenever something occurs to you mid-build.
 - The flee mechanic's HP-scaled chance of a free hit could be shown as a
   visible risk meter before the player commits to fleeing, rather than a
   hidden roll — more readable in a graphical UI than it needs to be in text.
+- **Team combat and target selection are now built (`player_team`/
+  `enemy_team`, `target <name> <number>`).** A visual version replaces
+  typed disambiguation entirely — clicking directly on an enemy's sprite
+  or portrait *is* the target selection, so `get_enemy_display_name()`'s
+  stable `(n)` numbering (needed purely because text has no equivalent of
+  "point at the one you mean") becomes unnecessary. Duplicate-named
+  enemies just need visually distinguishable positions/portraits instead.
+- **Defend/Brace and Heal (the enemy AI's non-attack actions) each want
+  their own visual tell too**, same reasoning as Double Strike/Thorns/Last
+  Stand above — a bracing stance or shield-up animation, and a heal glow
+  or HP-tick-up effect, so the player registers *which* action an enemy
+  took without reading text.
+- **The enemy AI's utility-based action choice (Attack/Defend/Heal) is a
+  natural fit for a telegraphed "intent" icon** above the enemy a beat
+  before it resolves — a common roguelike/tactics convention that doesn't
+  exist in the turn-locked text version (the player only learns what an
+  enemy did after it's already happened). Worth considering deliberately
+  for the port, since it changes the combat's information/tension balance
+  rather than just its presentation.
 
 ## World / Map
 - The room network (Room.exits as a dict) maps naturally onto a node-based
@@ -87,10 +110,11 @@ for later. Add to it whenever something occurs to you mid-build.
 
 ## Input
 - Controller support (stick for movement, buttons for actions) should be
-  built Godot-native, not retrofitted into the Python version — Godot's
-  Input system already unifies keyboard/controller/stick under one action
-  map, whereas Python's `input()`-based text loop would need an awkward
-  parallel translation layer bolted on for comparatively little payoff.
+  built Unreal-native, not retrofitted into the Python version — Unreal's
+  Enhanced Input system already unifies keyboard/controller/stick under one
+  input mapping context, whereas Python's `input()`-based text loop would
+  need an awkward parallel translation layer bolted on for comparatively
+  little payoff.
 
 ## Open questions to resolve when the port actually starts
 - Turn-based text combat maps easily onto a turn-based visual battle screen
