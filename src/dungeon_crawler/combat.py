@@ -31,9 +31,10 @@ def format_hp_line(player_team: list[Character], enemy_team: list[Enemy]) -> str
     return "   |   ".join(player_parts + enemy_parts)
 
 def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict[str, float]:
-    """Base (pre-randomness) utility score for every action enemy could currently take. 'attack' and 'defend' are always candidates;
-    'heal' only joins when enemy.heal_amount > 0 (a lore-appropriate heal exists) - it's excluded entirely rather than scored at zero,
-    per CLAUDE.md's "Enemy AI and team combat" section."""
+    """Base (pre-randomness) utility score for every action enemy could currently take. 'attack' is always a candidate; 'defend' is
+    excluded when brace_amount == 0 (a no-op brace, mirrors heal's exclusion pattern below); 'heal' only joins when enemy.heal_amount > 0
+    (a lore-appropriate heal exists) - both are excluded entirely rather than scored at zero, per CLAUDE.md's "Enemy AI and team
+    combat" section."""
     target = player_team[0] # always the plyaer for now - real Companion-aware targeting isn't built yet
 
     target_hp_ratio = target.hp / target.max_hp
@@ -44,8 +45,16 @@ def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict
 
     scores = {
         "attack": enemy.aggression_weight * (kill_potential + (1 - target_hp_ratio)),
-        "defend": enemy.caution_weight * self_missing_hp_ratio,
     }
+
+    if enemy.brace_amount > 0:
+        # scored on genuine incoming danger, not accumulated damage - a losing enemy with little to fear from the player's own attack
+        # shouldn't turtle just because it's already hurt. This was previously caution_weight * self_missing_hp_ratio, which had no
+        # ceiling pulling it back down once an enemy got hurt, so it could permanently dominate attack - see CLAUDE.md's "Known
+        # issue, fix decided" note.
+        potential_damage_to_self = max(0, target.attack_damage - enemy.armour)
+        self_kill_potential = min(1.0, potential_damage_to_self / enemy.hp) if enemy.hp > 0 else 0.0
+        scores["defend"] = enemy.caution_weight * self_kill_potential
 
     if enemy.heal_amount > 0:
         # scaled by how much of a top-up the heal actually represents, so a large heal is more attractive to a caution-weighted
