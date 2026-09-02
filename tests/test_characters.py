@@ -886,3 +886,27 @@ def test_enemy_initialises_with_experience_reward():
 def test_enemy_initialises_with_gold_reward():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4, gold_reward=5)
     assert enemy.gold_reward == 5
+
+def test_enemy_initialises_with_default_aggression_weight():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.aggression_weight == 1.0
+
+def test_enemy_initialises_with_default_caution_weight():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.caution_weight == 1.0
+
+def test_enemy_initialises_with_default_randomness_weight():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.randomness_weight == 0.3
+
+def test_enemy_initialises_with_custom_aggression_weight():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, aggression_weight=2.5)
+    assert enemy.aggression_weight == 2.5
+
+def test_enemy_initialises_with_custom_caution_weight():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, caution_weight=1.8)
+    assert enemy.caution_weight == 1.8
+
+def test_enemy_initialises_with_custom_randomness_weight():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4, randomness_weight=0.6)
+    assert enemy.randomness_weight == 0.6

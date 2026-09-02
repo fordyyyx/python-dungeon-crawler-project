@@ -30,15 +30,45 @@ def format_hp_line(player_team: list[Character], enemy_team: list[Enemy]) -> str
     enemy_parts = [f"{get_enemy_display_name(enemy, enemy_team)}: {enemy.hp}/{enemy.max_hp} HP" for enemy in living_enemy_team]
     return "   |   ".join(player_parts + enemy_parts)
 
+def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict[str, float]:
+    """Base (pre-randomness) utility score for every action enemy could currently take. 'attack' is always a candidate; Defend/Heal
+    join this dict once their mechanics exist (roadmap.md item #1's Defend/Brace and Heal step) - adding them here, plus a branch in
+    choose_enemy_action()'s caller, is the only change needed."""
+    target = player_team[0]
+
+    target_hp_ratio = target.hp / target.max_hp
+    potential_damage = max(0, enemy.attack_damage - target.armour)
+    kill_potential = min(1.0, potential_damage / target.hp) if target.hp > 0 else 0.0
+
+    return {
+        "attack": enemy.aggression_weight * (kill_potential + (1 - target_hp_ratio)),
+    }
+
+def choose_enemy_action(enemy: Enemy, player_team: list[Character]) -> str:
+    """Decide what enemy does this turn via utility-based scoring: each candidate action from _score_candidate_actions() gets a random
+    noise term added (from random.random(), keeping this testable via the existing monkeypatch convention - not a random.uniform()),
+    then the highest-scoring action wins. This means the AI won't always play optimally, giving the player occasional lucky escapes.
+    See CLAUDE.md's "Enemy AI and team combat" section for the full decided design."""
+    scores = _score_candidate_actions(enemy, player_team)
+
+    noisy_scores = {
+        action: score + (random.random() - 0.5) * enemy.randomness_weight
+        for action, score in scores.items()
+    }
+
+    return max(noisy_scores, key=lambda action: noisy_scores[action])
+
 def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy]) -> str:
-    """One full round: player attacks target, then every enemy in enemy_team still alive afterwards takes its own turn.
-    Enemy actions/targeting are still a placeholder (always a plain attack on the player) until choose_enemy_action() and
-    real Companion-aware targeting are built - see CLAUDE.md's "Enemy AI and team combat" section for the full decided design."""
+    """One full round: player attacks target, then every enemy in enemy_team still alive afterwards takes its own turn, decided by
+    choose_enemy_action()'s utility scoring. Only 'attack' has real game mechanics wired up so far (Defend/Heal join once built
+    - see CLAUDE.md's "Enemy AI and team combat" section); enemy targeting is still a placeholder (always the player) until Companions exist."""
     messages = [player.attack(target)]
 
     for enemy in enemy_team:
         if enemy.is_alive():
-            messages.append(enemy.attack(player))
+            action = choose_enemy_action(enemy, player_team)
+            if action == "attack":
+                messages.append(enemy.attack(player))
 
     messages.append(format_hp_line(player_team, enemy_team))
     return "\n".join(messages)
@@ -164,9 +194,6 @@ def handle_target_command(command: str, enemy_team: list[Enemy], player: Player)
 
     options = ", ".join(get_enemy_display_name(enemy, enemy_team) for enemy in living_matches)
     return f"There's more than one {name} here - which one? Try: {options}"
-        
-    player.current_target = target
-    return f"You focus on the {get_enemy_display_name(target, enemy_team)}."
 
 def handle_combat_command(command: str, player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room) -> str:
     """Dispatcher for everything valid while player.in_combat is True."""
@@ -193,9 +220,11 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
 
         for enemy in enemy_team:
             if enemy.is_alive():
-                result += f"\n{enemy.attack(player)}"
-                if not player.is_alive():
-                    break
+                action = choose_enemy_action(enemy, player_team)
+                if action == "attack":
+                    result += f"\n{enemy.attack(player)}"
+                    if not player.is_alive():
+                        break
 
         result += "\n" + format_hp_line(player_team, enemy_team)
 

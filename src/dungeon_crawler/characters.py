@@ -188,8 +188,10 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, experience_reward=0, gold_reward=0):
-        """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py"""
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3):
+        """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py
+        aggression_weight/caution_weight/randomness_weight feed choose_enemy_action()'s utility scoring (combat.py) - a balanced
+        default (1.0/1.0/0.3) suits most enemies; named/boss enemies should get bespoke values tied to their lore."""
         super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
         self.description = description
@@ -199,6 +201,9 @@ class Enemy(Character):
             used to vary the room-entry message on a second encounter."""
         self.experience_reward = experience_reward
         self.gold_reward = gold_reward
+        self.aggression_weight = aggression_weight
+        self.caution_weight = caution_weight
+        self.randomness_weight = randomness_weight
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""

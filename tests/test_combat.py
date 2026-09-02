@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, Consumable
-from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command
+from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, _score_candidate_actions
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -962,6 +962,75 @@ def test_handle_target_command_number_targeting_a_defeated_enemy_returns_error()
 
     assert message == "The Harpy (2) has already been defeated."
     assert player.current_target is None
+
+def test_score_candidate_actions_returns_only_attack_for_now():
+    """Defend/Heal aren't wired up yet (see CLAUDE.md's "Enemy AI and team combat") - 'attack' is the only candidate."""
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5, aggression_weight=1.0)
+    player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert list(scores.keys()) == ["attack"]
+
+def test_score_candidate_actions_scales_with_aggression_weight():
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=25, aggression_weight=2.0)
+    player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
+    player.hp = 50 # half health -> target_hp_ratio 0.5, kill_potential 25/50 = 0.5
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert scores == {"attack": 2.0} # 2.0 * (0.5 + (1 - 0.5))
+
+def test_score_candidate_actions_kill_potential_caps_at_one():
+    """potential_damage can exceed target.hp (a one-shot kill) - kill_potential must clamp to 1.0, not go higher."""
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=1000, aggression_weight=1.0)
+    player = Player(name="Hero", hp=100, attack_damage=1, armour=0) # full HP, target_hp_ratio 1.0
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert scores == {"attack": 1.0} # 1.0 * (1.0 + (1 - 1.0))
+
+def test_score_candidate_actions_armour_reduces_kill_potential():
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=10, aggression_weight=1.0)
+    player = Player(name="Hero", hp=100, attack_damage=1, armour=10) # armour fully blocks the hit, full HP
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert scores == {"attack": 0.0}
+
+def test_score_candidate_actions_low_target_hp_raises_score():
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, aggression_weight=1.0) # 0 damage isolates the hp_ratio term
+    player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
+    player.hp = 25 # target_hp_ratio 0.25
+
+    scores = _score_candidate_actions(enemy, [player])
+
+    assert scores == {"attack": 0.75} # 1.0 * (0.0 + (1 - 0.25))
+
+def test_score_candidate_actions_only_considers_first_player_team_member():
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, aggression_weight=1.0)
+    full_hp_player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
+    low_hp_companion = Player(name="Ally", hp=100, attack_damage=1, armour=0)
+    low_hp_companion.hp = 1 # would score much higher if this one were used instead
+
+    scores = _score_candidate_actions(enemy, [full_hp_player, low_hp_companion])
+
+    assert scores == {"attack": 0.0}
+
+def test_choose_enemy_action_returns_attack_when_it_is_the_only_candidate(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player = Player(name="Hero", hp=50)
+
+    assert choose_enemy_action(enemy, [player]) == "attack"
+
+def test_choose_enemy_action_returns_attack_regardless_of_random_noise(monkeypatch):
+    """With only one candidate action, the noise term added to its score can never change which action wins."""
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player = Player(name="Hero", hp=50)
+
+    assert choose_enemy_action(enemy, [player]) == "attack"
 
 def test_handle_combat_command_target_sets_current_target():
     player = Player(name="Hero", hp=50, attack_damage=10)
