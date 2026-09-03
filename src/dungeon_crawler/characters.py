@@ -1,6 +1,7 @@
 """Character classes - Character, Player, Enemy, Ally - and the skill tree system (Skill, SkillPath, SkillTree) that lets a Player unlock permanent stat/ability upgrades."""
 
 from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem
+from dungeon_crawler.world import Room
 from textwrap import dedent
 
 class Character:
@@ -106,6 +107,7 @@ class Player(Character):
         self.ancestry_label = ancestry_label
         self.auto_talk = False
         self.intellect = 0
+        self.companion: "Companion | None" = None
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -192,6 +194,15 @@ class Player(Character):
         self.intellect += 1
         return f"{self.name} reaches level {self.level}! A skill point is available."
 
+    @property
+    def team(self) -> list[Character]:
+        """The player's active combat team - Player.self, plus Player.companion if one exists and is currently alive. A downed
+        companion (hp == 0) is excluded automatically until revived - see Reviver."""
+        team: list["Character"] = [self]
+        if self.companion is not None and self.companion.is_alive():
+            team.append(self.companion)
+        return team
+
 
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
@@ -264,6 +275,30 @@ class Ally():
                 player.inventory.add(item)
                 return f"{self.name} gives you the {item.name}."
         return f"{self.name} does not have that item."
+
+class Companion(Character):
+    """A recruitable ally who fights alongside the player, once recruited via recruit_companion() (see exploration.py). Unlike Ally,
+    Companion IS a Character - it needs real combat stats to sit in Player.team and act via choose_companion_action() (combat.py),
+    home_room is where a dismissed Companion reappears - see dismiss_companion()."""
+
+    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0):
+        """required_items are what the player must hold to recruit this companion (see recruit_companion()) - mirrors Ally.required_items.
+        aggression_weight/caution_weight/randomness_weight/brace_amount/heal_amount feed choose_companion_action()'s utility scoring (combat.py)
+        - same shape and same defaults as Enemy's equivalent fields."""
+        super().__init__(name, hp, attack_damage, armour)
+        self.description = description
+        self.home_room = home_room
+        self.required_items = required_items or []
+        self.aggression_weight = aggression_weight
+        self.caution_weight = caution_weight
+        self.randomness_weight = randomness_weight
+        self.brace_amount = brace_amount
+        self.heal_amount = heal_amount
+
+    def on_death(self) -> str:
+        """Companion-specific 'downed' message - distinct from a permanent death. Fires via the same take_damage()/on_death() mechanism
+        as Player/Enemy, but a Companion reaching 0 HP means downed-and-recoverable, not game-ending or gone for good."""
+        return f"{self.name} is downed and can no longer fight - a Reviver can bring them back."
 
 class Skill:
     """Base class for a single skill-tree unlock; subclasses implement apply() to grant its effect."""

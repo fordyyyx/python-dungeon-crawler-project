@@ -1,5 +1,5 @@
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, QuestItem, Inventory, SkillPointReward
-from dungeon_crawler.characters import Character, Player
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, QuestItem, Inventory, SkillPointReward
+from dungeon_crawler.characters import Character, Player, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.engine import pick_up
 
@@ -235,6 +235,86 @@ def test_consumable_use_returns_heal_message():
     hero.take_damage(10)
     message = potion.use(hero)
     assert message == "hero uses potion, healing 3 HP."
+
+def test_reviver_use_with_no_companion_attribute_returns_message():
+    """getattr(character, "companion", None) - a plain Character has no .companion attribute at all,
+    distinct from a Player whose companion is explicitly None."""
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    reviver = Reviver(name="Ambrosia", heal_amount=10)
+    message = reviver.use(hero)
+    assert message == "Ambrosia has nothing to revive."
+
+def test_reviver_use_with_player_and_no_companion_returns_message():
+    hero = Player(name="hero", hp=100)
+    reviver = Reviver(name="Ambrosia", heal_amount=10)
+    message = reviver.use(hero)
+    assert message == "Ambrosia has nothing to revive."
+
+def test_reviver_use_with_living_companion_returns_message_without_reviving():
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    hero.companion = Companion(name="Imp", hp=10, home_room=home)
+    reviver = Reviver(name="Ambrosia", heal_amount=10)
+    message = reviver.use(hero)
+    assert message == "Imp doesn't need reviving."
+
+def test_reviver_use_with_living_companion_does_not_change_hp():
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    hero.companion = companion
+    reviver = Reviver(name="Ambrosia", heal_amount=10)
+    reviver.use(hero)
+    assert companion.hp == 10
+
+def test_reviver_use_with_downed_companion_revives_with_heal_amount():
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 0
+    hero.companion = companion
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    reviver.use(hero)
+    assert companion.hp == 6
+
+def test_reviver_use_with_downed_companion_caps_revive_at_max_hp():
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 0
+    hero.companion = companion
+    reviver = Reviver(name="Ambrosia", heal_amount=100) # far exceeds the companion's max_hp
+    reviver.use(hero)
+    assert companion.hp == 10
+
+def test_reviver_use_with_downed_companion_returns_revive_message():
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 0
+    hero.companion = companion
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    message = reviver.use(hero)
+    assert message == "Imp is revived with 6 HP, thanks to Ambrosia."
+
+def test_reviver_is_a_consumable():
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    assert isinstance(reviver, Consumable)
+
+def test_reviver_used_via_inventory_is_removed_after_use():
+    """Reviver inherits Consumable's auto-remove-after-use behaviour in Inventory.use_item() - confirms
+    the integration actually holds, not just the isinstance relationship."""
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 0
+    hero.companion = companion
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    hero.inventory.add(reviver)
+
+    hero.inventory.use_item("Ambrosia", hero)
+
+    assert reviver not in hero.inventory.items
 
 def test_quest_item_use_returns_message():
     key = QuestItem(name="Bronze Key", description="")

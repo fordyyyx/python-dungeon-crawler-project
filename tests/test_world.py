@@ -1,5 +1,5 @@
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.characters import Enemy, Ally
+from dungeon_crawler.characters import Enemy, Ally, Companion
 from dungeon_crawler.content import create_hades, create_minotaur, create_chiron
 from dungeon_crawler.items import Weapon
 
@@ -82,6 +82,41 @@ def test_room_allies_property_returns_copy():
     room.add_ally(chiron)
     room.allies.append(other_ally)
     assert room.allies == [chiron]
+
+def test_room_initialises_with_empty_companions():
+    room = Room("Camp")
+    assert room.companions == []
+
+def test_room_add_companion_adds_to_room():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room)
+    room.add_companion(companion)
+    assert companion in room.companions
+
+def test_room_remove_companion_removes_from_room():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room)
+    room.add_companion(companion)
+    room.remove_companion(companion)
+    assert room.companions == []
+
+def test_room_companions_property_returns_copy():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room)
+    other_companion = Companion(name="Harpy", hp=10, home_room=room)
+    room.add_companion(companion)
+    room.companions.append(other_companion)
+    assert room.companions == [companion]
+
+def test_room_remove_companion_raises_error_when_companion_not_in_room():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room)
+
+    try:
+        room.remove_companion(companion)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
 
 def test_map_stores_and_retrieves_rooms():
     dungeon = Map()

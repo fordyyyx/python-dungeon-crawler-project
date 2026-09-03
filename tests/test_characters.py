@@ -1,5 +1,6 @@
-from dungeon_crawler.characters import Character, Player, Enemy, Ally, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Inventory, QuestItem
+from dungeon_crawler.world import Room
 
 def test_character_initialises_with_correct_stats():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -354,6 +355,40 @@ def test_player_on_death_returns_game_over_message():
     message = player.on_death()
     assert message == "Hero has fallen. Game Over."
 
+def test_player_initialises_with_no_companion_by_default():
+    player = Player(name="Hero", hp=10)
+    assert player.companion is None
+
+def test_player_team_returns_just_self_when_no_companion():
+    player = Player(name="Hero", hp=10)
+    assert len(player.team) == 1
+    assert player.team[0] is player
+
+def test_player_team_includes_companion_when_alive():
+    player = Player(name="Hero", hp=10)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    player.companion = companion
+    assert companion in player.team
+    assert len(player.team) == 2
+
+def test_player_team_lists_self_before_companion():
+    player = Player(name="Hero", hp=10)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    player.companion = companion
+    assert player.team[0] is player
+    assert player.team[1] is companion
+
+def test_player_team_excludes_downed_companion():
+    player = Player(name="Hero", hp=10)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 0
+    player.companion = companion
+    assert companion not in player.team
+    assert len(player.team) == 1
+
 def test_enemy_initialises_with_correct_stats():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4, armour=1)
     assert enemy.name == "Goblin"
@@ -558,6 +593,98 @@ def test_ally_give_item_matches_item_name_case_insensitively():
     ally.inventory.add(sword)
     ally.give_item("bronze xiphos", player)
     assert sword in player.inventory.items
+
+def test_companion_initialises_with_correct_stats():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, attack_damage=4)
+    assert companion.hp == 15
+    assert companion.attack_damage == 4
+
+def test_companion_initialises_with_home_room():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.home_room is home
+
+def test_companion_initialises_with_default_armour_zero():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.armour == 0
+
+def test_companion_initialises_with_default_description_empty():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.description == ""
+
+def test_companion_initialises_with_description():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, description="A loyal imp.")
+    assert companion.description == "A loyal imp."
+
+def test_companion_initialises_with_empty_required_items_by_default():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.required_items == []
+
+def test_companion_initialises_with_required_items():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, required_items=["Bronze Xiphos"])
+    assert companion.required_items == ["Bronze Xiphos"]
+
+def test_companion_initialises_with_default_aggression_weight():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.aggression_weight == 1.0
+
+def test_companion_initialises_with_default_caution_weight():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.caution_weight == 1.0
+
+def test_companion_initialises_with_default_randomness_weight():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.randomness_weight == 0.3
+
+def test_companion_initialises_with_custom_aggression_weight():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, aggression_weight=2.5)
+    assert companion.aggression_weight == 2.5
+
+def test_companion_initialises_with_custom_caution_weight():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, caution_weight=1.8)
+    assert companion.caution_weight == 1.8
+
+def test_companion_initialises_with_custom_randomness_weight():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, randomness_weight=0.6)
+    assert companion.randomness_weight == 0.6
+
+def test_companion_initialises_with_no_brace_amount_by_default():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.brace_amount == 0
+
+def test_companion_initialises_with_custom_brace_amount():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, brace_amount=3)
+    assert companion.brace_amount == 3
+
+def test_companion_initialises_with_no_heal_amount_by_default():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    assert companion.heal_amount == 0
+
+def test_companion_initialises_with_custom_heal_amount():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home, heal_amount=5)
+    assert companion.heal_amount == 5
+
+def test_companion_on_death_returns_downed_message():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=15, home_room=home)
+    message = companion.on_death()
+    assert message == "Imp is downed and can no longer fight - a Reviver can bring them back."
 
 def test_character_initialises_with_max_hp_equal_to_hp():
     character = Character(name="Hero", hp=30, attack_damage=5)

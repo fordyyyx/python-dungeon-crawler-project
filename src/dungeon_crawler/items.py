@@ -101,6 +101,22 @@ class Consumable(Item):
         character.hp = min(character.hp + self.heal_amount, character.max_hp)
         return f"{character.name} uses {self.name}, healing {self.heal_amount} HP."
 
+class Reviver(Consumable):
+    """A single-use item that revives character.companion (a downed Companion, hp == 0), restoring heal_amount HP capped at the companion's
+    max_hp - unlike a normal Consumable, this targets the companion, not character itself. Inherits Consumable's auto-remove-after-use
+    behaviour in Inventory.use_item() for free."""
+
+    def use(self, character) -> str:
+        """Revive character.companion if one exists and is downed; otherwise explain why nothing happened, since 'no companion to revive' 
+        isn't a lookup failure the way a missing item name is."""
+        companion = getattr(character, "companion", None)
+        if companion is None:
+            return f"{self.name} has nothing to revive."
+        if companion.is_alive():
+            return f"{companion.name} doesn't need reviving."
+        companion.hp = min(self.heal_amount, companion.max_hp)
+        return f"{companion.name} is revived with {companion.hp} HP, thanks to {self.name}."
+
 class QuestItem(Item):
     """A story item that can't be dropped (see Inventory.drop_item()) and does nothing when used - it exists to be given or traded, not consumed."""
 

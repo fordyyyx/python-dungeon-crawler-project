@@ -17,6 +17,7 @@ class Room:
         self._items: list = []
         self._enemies: list = []
         self._allies: list = []
+        self._companions: list = []
 
     def connect(self, direction: str, other_room: "Room") -> None:
         """Add a normal (unlocked, visible) exit from this room to other_room."""
@@ -54,6 +55,14 @@ class Room:
         """Remove ally from this room."""
         self._allies.remove(ally)
 
+    def add_companion(self, companion):
+        """Add companion to this room - where a dismissed Companion reappears, see dismiss_companion() in exploration.py."""
+        self._companions.append(companion)
+
+    def remove_companion(self, companion):
+        """Remove companion from this room."""
+        self._companions.remove(companion)
+
     def add_hidden_exit(self, direction: str, room: "Room") -> None:
         """Add an exit that remains invisible until reveal_hidden_exits() is called."""
         self.hidden_exits[direction] = room
@@ -81,6 +90,11 @@ class Room:
     def allies(self) -> list:
         """A copy of this room's allies, safe to iterate without exposing the private list."""
         return list(self._allies)
+
+    @property
+    def companions(self) -> list:
+        """A copy of this room's recruitable companions, safe to iterate without exposing the private list."""
+        return list(self._companions)
 
     def __repr__(self) -> str:
         """Debug representation showing the room's name."""
