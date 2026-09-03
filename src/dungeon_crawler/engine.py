@@ -5,7 +5,7 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
-from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine
+from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion
 from dungeon_crawler.character_creation import choose_ancestry, create_player
 
 
@@ -30,6 +30,10 @@ def print_room(room: Room, player: Player):
         if player.auto_talk:
             print("\n" + ally.talk(player))
 
+    if room.companions:
+        companion = room.companions[0]
+        print(f"{companion.name} could be recruited here. {companion.description}")
+
 
 def get_controls_text() -> str:
     """Return the full player-facing command list, unchanged regardless of whether the player is currently
@@ -50,6 +54,8 @@ def get_controls_text() -> str:
         "drop <item> - drop an item into the room (quest items can't be dropped)\n"
         "take <item> from <ally> - take an item from an ally's inventory\n"
         "trade - trade required items with an ally for their reward\n"
+        "recruit <name> - recruit a companion who joins your team in combat (requires specific items)\n"
+        "dismiss - release your current companion, who returns home\n"
         "skills - view your skill tree progress and available points\n"
         "learn <path> - spend a skill point (attack, defence, or abilities)\n"
         "inventory - display carried items\n"
@@ -122,7 +128,7 @@ def main() -> None:
 
         elif player.in_combat:
             if player.current_target is not None:
-                print(handle_combat_command(command, player, player.current_target, [player], current_room.enemies, current_room))
+                print(handle_combat_command(command, player, player.current_target, player.team, current_room.enemies, current_room))
             else:
                 # defensive fallback - in_combat and current_target should always be set/cleared together;
                 # this only fires if that invariant is ever broken elsewhere
@@ -179,7 +185,7 @@ def main() -> None:
                     enemy = current_room.enemies[0]
                 player.in_combat = True
                 player.current_target = enemy
-                print(resolve_attack_and_check_defeat(player, enemy, [player], current_room.enemies, current_room))
+                print(resolve_attack_and_check_defeat(player, enemy, player.team, current_room.enemies, current_room))
             else:
                 print("There's nothing here to attack.")
 
@@ -237,6 +243,13 @@ def main() -> None:
                 print(trade_with_ally(ally, player))
             else:
                 print("There is no one here to trade with.")
+
+        elif command.startswith("recruit "):
+            name = command.removeprefix("recruit ").strip()
+            print(recruit_companion(name, current_room, player))
+
+        elif command == "dismiss":
+            print(dismiss_companion(player))
 
         elif command == "skills":
             print(player.get_skills_display())

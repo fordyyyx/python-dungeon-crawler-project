@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import Player, Enemy, Ally
+from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon
 from dungeon_crawler.engine import print_room, get_controls_text, main
@@ -125,6 +125,25 @@ def test_print_room_with_auto_talk_on_and_no_allies_does_not_call_talk(capsys):
     captured = capsys.readouterr()
     assert "is here" not in captured.out
 
+def test_print_room_with_companion_prints_recruit_message(capsys):
+    room = Room("Camp")
+    room.add_companion(Companion(name="Imp", hp=10, home_room=room, description="A loyal imp."))
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "Imp could be recruited here. A loyal imp." in captured.out
+
+def test_print_room_with_no_companions_does_not_print_recruit_message(capsys):
+    room = Room("Camp")
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "could be recruited" not in captured.out
+
 def test_get_controls_text_lists_movement_and_combat_commands():
     text = get_controls_text()
 
@@ -148,6 +167,12 @@ def test_get_controls_text_lists_target_command():
     text = get_controls_text()
 
     assert "target <name> - set your attack target; add a number if enemies share a name (e.g. target harpies 2)" in text
+
+def test_get_controls_text_lists_recruit_and_dismiss_commands():
+    text = get_controls_text()
+
+    assert "recruit <name> - recruit a companion who joins your team in combat (requires specific items)" in text
+    assert "dismiss - release your current companion, who returns home" in text
 
 def test_main_happy_path_smoke_test(monkeypatch, capsys):
     """Scripted playthrough of the full routing chain: name/ancestry prompts, movement, take, use, and quit."""
@@ -238,6 +263,27 @@ def test_main_target_command_redirects_pre_combat_attack_smoke_test(monkeypatch,
     assert "Skeleton Warrior has been defeated." in captured.out
     assert "It dropped: Small Healing Potion" in captured.out
     assert "Training Dummy has been defeated." not in captured.out
+
+def test_main_recruit_and_dismiss_routing_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough confirming 'recruit <name>' and 'dismiss' route to their handlers, via the
+    no-companion-present/no-companion-to-dismiss error paths - no room in the built world has a recruitable
+    Companion yet, and there's no dev-spawn support for them either, so a successful recruit isn't
+    reachable through main() at all right now."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "Hero",
+        "basic",
+        "recruit nobody",
+        "dismiss",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "There's no one named 'nobody' here to recruit." in captured.out
+    assert "You don't have a companion to dismiss." in captured.out
 
 def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys):
     """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,

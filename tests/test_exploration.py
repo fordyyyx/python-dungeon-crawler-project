@@ -1,7 +1,7 @@
-from dungeon_crawler.characters import Player, Ally
+from dungeon_crawler.characters import Player, Ally, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, display_map, find_floor_for_room, display_local_exits, handle_examine
+from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, display_map, find_floor_for_room, display_local_exits, handle_examine
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -207,6 +207,215 @@ def test_trade_with_ally_appends_post_trade_message_when_set():
     message = trade_with_ally(ally, player)
 
     assert message == "Chiron nods, accepting each item in turn. \"You've done well.\" They hand you the Charon's Coin.\n\nSafe travels, hero."
+
+def test_recruit_companion_returns_error_when_player_already_has_companion():
+    room = Room("Camp")
+    home = Room("Camp")
+    existing = Companion(name="Imp", hp=10, home_room=home)
+    harpy = Companion(name="Harpy", hp=10, home_room=room)
+    room.add_companion(harpy)
+    player = Player(name="hero", hp=100)
+    player.companion = existing
+
+    message = recruit_companion("harpy", room, player)
+
+    assert message == "You already have a companion, Imp. Dismiss them first."
+
+def test_recruit_companion_does_not_replace_existing_companion():
+    room = Room("Camp")
+    home = Room("Camp")
+    existing = Companion(name="Imp", hp=10, home_room=home)
+    harpy = Companion(name="Harpy", hp=10, home_room=room)
+    room.add_companion(harpy)
+    player = Player(name="hero", hp=100)
+    player.companion = existing
+
+    recruit_companion("harpy", room, player)
+
+    assert player.companion is existing
+
+def test_recruit_companion_returns_not_here_message_when_no_matching_companion():
+    room = Room("Camp")
+    player = Player(name="hero", hp=100)
+
+    message = recruit_companion("harpy", room, player)
+
+    assert message == "There's no one named 'harpy' here to recruit."
+
+def test_recruit_companion_matches_name_case_insensitively():
+    room = Room("Camp")
+    companion = Companion(name="Harpy", hp=10, home_room=room)
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+
+    recruit_companion("HARPY", room, player)
+
+    assert player.companion is companion
+
+def test_recruit_companion_returns_missing_items_message_when_player_lacks_required_items():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Bronze Xiphos", "Wooden Shield"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+
+    message = recruit_companion("imp", room, player)
+
+    assert message == "Imp shakes their head. \"You're still missing: Bronze Xiphos, Wooden Shield.\""
+
+def test_recruit_companion_does_not_set_player_companion_when_items_missing():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Bronze Xiphos"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+
+    recruit_companion("imp", room, player)
+
+    assert player.companion is None
+
+def test_recruit_companion_returns_unequip_message_when_required_item_is_equipped():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Wooden Sword"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    player.inventory.use_item("Wooden Sword", player)
+
+    message = recruit_companion("imp", room, player)
+
+    assert message == "Imp shakes their head. \"You'll need to unequip: Wooden Sword.\""
+
+def test_recruit_companion_does_not_remove_equipped_item_when_blocked():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Wooden Sword"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+    player.inventory.use_item("Wooden Sword", player)
+
+    recruit_companion("imp", room, player)
+
+    assert sword in player.inventory.items
+
+def test_recruit_companion_removes_required_items_from_inventory_on_success():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Wooden Sword"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    recruit_companion("imp", room, player)
+
+    assert sword not in player.inventory.items
+
+def test_recruit_companion_sets_player_companion_on_success():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Wooden Sword"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    recruit_companion("imp", room, player)
+
+    assert player.companion is companion
+
+def test_recruit_companion_removes_companion_from_room_on_success():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Wooden Sword"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    recruit_companion("imp", room, player)
+
+    assert companion not in room.companions
+
+def test_recruit_companion_returns_confirmation_message_on_success():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, required_items=["Wooden Sword"])
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    message = recruit_companion("imp", room, player)
+
+    assert message == "Imp joins you."
+
+def test_recruit_companion_with_no_required_items_succeeds_without_any_items():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room) # required_items defaults to []
+    room.add_companion(companion)
+    player = Player(name="hero", hp=100)
+
+    message = recruit_companion("imp", room, player)
+
+    assert player.companion is companion
+    assert message == "Imp joins you."
+
+def test_dismiss_companion_returns_message_when_player_has_no_companion():
+    player = Player(name="hero", hp=100)
+
+    message = dismiss_companion(player)
+
+    assert message == "You don't have a companion to dismiss."
+
+def test_dismiss_companion_restores_full_hp():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 3
+    player = Player(name="hero", hp=100)
+    player.companion = companion
+
+    dismiss_companion(player)
+
+    assert companion.hp == 10
+
+def test_dismiss_companion_restores_full_hp_when_downed():
+    """Dismissing a downed companion is itself a way to recover them, distinct from using a Reviver."""
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 0
+    player = Player(name="hero", hp=100)
+    player.companion = companion
+
+    dismiss_companion(player)
+
+    assert companion.hp == 10
+
+def test_dismiss_companion_adds_companion_back_to_home_room():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    player = Player(name="hero", hp=100)
+    player.companion = companion
+
+    dismiss_companion(player)
+
+    assert companion in home.companions
+
+def test_dismiss_companion_clears_player_companion():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    player = Player(name="hero", hp=100)
+    player.companion = companion
+
+    dismiss_companion(player)
+
+    assert player.companion is None
+
+def test_dismiss_companion_returns_confirmation_message():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    player = Player(name="hero", hp=100)
+    player.companion = companion
+
+    message = dismiss_companion(player)
+
+    assert message == "Imp returns to Camp."
 
 def test_find_floor_for_room_returns_floor_name_when_room_present():
     room_a = Room("A")

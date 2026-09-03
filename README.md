@@ -71,6 +71,8 @@ pytest --cov=src/dungeon_crawler
 * `drop <item>` - drop an item into the room (quest items can't be dropped)
 * `take <item> from <ally>` - take an item from an ally's inventory
 * `trade` - trade required items with an ally for their reward
+* `recruit <name>` - recruit a companion who joins your team in combat (requires specific items)
+* `dismiss` - release your current companion, who returns home
 * `skills` - view your skill tree progress and available points (also available mid-combat)
 * `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`) (also available mid-combat)
 * `inventory` - display carried items, with equipped gear, quest items, and gold marked separately (also available mid-combat)

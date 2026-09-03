@@ -1,7 +1,7 @@
 """Room and item interactions - everything outside of combat: picking up and dropping items, trading with allies,
 examining surroundings, and map/movement helpers."""
 
-from dungeon_crawler.characters import Player, Ally
+from dungeon_crawler.characters import Player, Ally, Companion
 from dungeon_crawler.world import Room
 
 
@@ -47,6 +47,52 @@ def trade_with_ally(ally: Ally, player: Player):
     if ally.post_trade_message:
         result += f"\n\n{ally.post_trade_message}"
     return result
+
+def recruit_companion(name: str, room: Room, player: Player) -> str:
+    """Recruit the named companion from room onto player's team, if player already holds every item in the companion's required_items
+    (and none are currently equipped) - consumes those items on success, mirroring trade_with_ally()'s exact mechanics. Blocks with
+    an error is player already has a companion (dismiss_companion() first) or if no matching companion is present."""
+    if player.companion is not None:
+        return f"You already have a companion, {player.companion.name}. Dismiss them first."
+
+    companion: Companion | None = next((c for c in room.companions if c.name.lower() == name.lower()), None)
+    if companion is None:
+        return f"There's no one named '{name}' here to recruit."
+
+    player_item_names = [item.name for item in player.inventory.items]
+    missing = [item_name for item_name in companion.required_items if item_name not in player_item_names]
+
+    if missing:
+        return f"{companion.name} shakes their head. \"You're still missing: {', '.join(missing)}.\""
+
+    equipped_items = [
+        item for item in player.inventory.items
+        if item.name in companion.required_items and item.equipped
+    ]
+
+    if equipped_items:
+        equipped_names = ', '.join(item.name for item in equipped_items)
+        return f"{companion.name} shakes their head. \"You'll need to unequip: {equipped_names}.\""
+
+    for item_name in companion.required_items:
+        item = next(item for item in player.inventory.items if item.name == item_name)
+        player.inventory.remove(item)
+
+    room.remove_companion(companion)
+    player.companion = companion
+    return f"{companion.name} joins you."
+
+def dismiss_companion(player: Player):
+    """Release player's current companion, restoring them to full HP and returning them to their home_room, Returns a message explaining
+    nothing happened if player has no companion to dismiss."""
+    companion = player.companion
+    if companion is None:
+        return "You don't have a companion to dismiss."
+
+    companion.hp = companion.max_hp
+    companion.home_room.add_companion(companion)
+    player.companion = None
+    return f"{companion.name} returns to {companion.home_room.name}."
 
 def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     """Whether direction requires an item player doesn't currently hold. An exit not in locked_exits is never locked."""
