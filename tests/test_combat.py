@@ -1,7 +1,7 @@
-from dungeon_crawler.characters import Player, Enemy
+from dungeon_crawler.characters import Player, Enemy, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, Consumable
-from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, _score_candidate_actions
+from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -141,6 +141,43 @@ def test_resolve_combat_round_stops_rolling_further_enemies_once_player_defeated
     assert "Cyclops attacks Hero" in result
     assert "Harpy attacks" not in result # format_hp_line still lists it (still alive) - it just never got a turn
     assert player.hp == 0
+
+def test_resolve_combat_round_enemy_attacks_most_attractive_team_target(monkeypatch):
+    """With a Companion in play, the enemy's attack target isn't hardcoded to the player any more -
+    choose_enemy_target() picks whichever living team member scores highest, here the badly-wounded
+    companion over the full-HP player."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 1
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=3)
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert "Goblin attacks Imp for 3 damage." in result
+    assert player.hp == 100
+    assert companion.hp == 0
+
+def test_resolve_combat_round_target_selection_excludes_a_companion_downed_earlier_in_the_round(monkeypatch):
+    """player_team can go stale mid-round if an earlier enemy's turn downs the companion - target selection
+    for every subsequent enemy's turn must exclude it, per _best_attack_score()'s/choose_enemy_target()'s
+    own living-only filtering."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=0)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 1 # far more attractive than the full-HP player to both enemies
+    first_enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    second_enemy = Enemy(name="Harpy", hp=10, attack_damage=5)
+
+    result = resolve_combat_round(player, first_enemy, [player, companion], [first_enemy, second_enemy])
+
+    assert "Goblin attacks Imp for 5 damage." in result
+    assert "Harpy attacks Hero for 5 damage." in result
+    assert "Harpy attacks Imp" not in result
+    assert companion.hp == 0
+    assert player.hp == 95
 
 def test_handle_enemy_defeat_removes_enemy_from_room():
     room = Room("Armoury")
@@ -613,6 +650,23 @@ def test_handle_combat_command_use_item_enemy_defend_action_sets_pending_damage_
     assert "Goblin braces for incoming damage." in message
     assert enemy.pending_damage_reduction == 4
 
+def test_handle_combat_command_use_item_enemy_attacks_most_attractive_team_target(monkeypatch):
+    """Guards against the 'use' branch's target selection drifting from resolve_combat_round()'s."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    potion = Consumable(name="Potion", heal_amount=1)
+    player.inventory.add(potion)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 1
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=3)
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, [player, companion], [enemy], room)
+
+    assert "Goblin attacks Imp for 3 damage." in message
+    assert companion.hp == 0
+
 def test_handle_combat_command_use_item_enemy_counterattack_can_defeat_player_clears_combat_state():
     player = Player(name="Hero", hp=5, attack_damage=10)
     potion = Consumable(name="Potion", heal_amount=1)
@@ -1067,15 +1121,155 @@ def test_score_candidate_actions_low_target_hp_raises_attack_score():
 
     assert scores["attack"] == 0.75 # 1.0 * (0.0 + (1 - 0.25))
 
-def test_score_candidate_actions_only_considers_first_player_team_member():
+def test_score_candidate_actions_attack_reflects_best_available_team_target():
+    """attack is scored against the single most attractive target in player_team (see _best_attack_score()),
+    not just player_team[0] - now that Companions exist, the player is no longer the only possible target."""
     enemy = Enemy(name="Goblin", hp=10, attack_damage=0, aggression_weight=1.0)
     full_hp_player = Player(name="Hero", hp=100, attack_damage=1, armour=0)
     low_hp_companion = Player(name="Ally", hp=100, attack_damage=1, armour=0)
-    low_hp_companion.hp = 1 # would score much higher if this one were used instead
+    low_hp_companion.hp = 1 # far more attractive target than the full-hp player
 
     scores = _score_candidate_actions(enemy, [full_hp_player, low_hp_companion])
 
-    assert scores["attack"] == 0.0
+    assert scores["attack"] == 0.99 # 1.0 * (0 + (1 - 1/100))
+
+def test_candidate_attack_score_formula():
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=5)
+    candidate = Player(name="Hero", hp=100, attack_damage=1, armour=0)
+    candidate.hp = 50 # target_hp_ratio 0.5
+
+    score = _candidate_attack_score(attacker, candidate)
+
+    assert score == 0.6 # kill_potential(5/50=0.1) + (1 - 0.5)
+
+def test_candidate_attack_score_kill_potential_caps_at_one():
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=1000)
+    candidate = Player(name="Hero", hp=100, attack_damage=1, armour=0) # full HP
+
+    score = _candidate_attack_score(attacker, candidate)
+
+    assert score == 1.0 # 1.0 + (1 - 1.0)
+
+def test_candidate_attack_score_armour_reduces_potential_damage():
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=10)
+    candidate = Player(name="Hero", hp=100, attack_damage=1, armour=10) # armour fully blocks
+
+    score = _candidate_attack_score(attacker, candidate)
+
+    assert score == 0.0
+
+def test_candidate_attack_score_low_candidate_hp_raises_score():
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=0) # isolates the hp_ratio term
+    candidate = Player(name="Hero", hp=100, attack_damage=1, armour=0)
+    candidate.hp = 25 # target_hp_ratio 0.25
+
+    score = _candidate_attack_score(attacker, candidate)
+
+    assert score == 0.75 # 0 + (1 - 0.25)
+
+def test_best_attack_score_returns_zero_when_player_team_is_empty():
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=5)
+
+    assert _best_attack_score(attacker, []) == 0.0
+
+def test_best_attack_score_returns_zero_when_every_team_member_is_dead():
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=5)
+    dead_player = Player(name="Hero", hp=10)
+    dead_player.hp = 0
+
+    assert _best_attack_score(attacker, [dead_player]) == 0.0
+
+def test_best_attack_score_ignores_dead_team_members():
+    """A dead candidate's hp_ratio is 0, which would score highest of all if not excluded - proves the
+    living-only filter is actually applied, not just a theoretical guard."""
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=0)
+    alive = Player(name="Ally", hp=100)
+    alive.hp = 25
+    dead = Player(name="Hero", hp=100)
+    dead.hp = 0
+
+    assert _best_attack_score(attacker, [dead, alive]) == 0.75
+
+def test_best_attack_score_picks_the_max_across_the_team():
+    attacker = Enemy(name="Goblin", hp=10, attack_damage=0)
+    tougher = Player(name="Hero", hp=100)
+    tougher.hp = 80 # score 0.2
+    weaker = Player(name="Ally", hp=100)
+    weaker.hp = 10 # score 0.9
+
+    assert _best_attack_score(attacker, [tougher, weaker]) == 0.9
+
+def test_greatest_threat_to_self_returns_zero_when_player_team_is_empty():
+    enemy = Enemy(name="Goblin", hp=10)
+
+    assert _greatest_threat_to_self(enemy, []) == 0.0
+
+def test_greatest_threat_to_self_returns_zero_when_enemy_already_defeated():
+    enemy = Enemy(name="Goblin", hp=10)
+    enemy.hp = 0
+    player = Player(name="Hero", hp=100, attack_damage=5)
+
+    assert _greatest_threat_to_self(enemy, [player]) == 0.0
+
+def test_greatest_threat_to_self_picks_the_most_dangerous_team_member():
+    enemy = Enemy(name="Goblin", hp=10, armour=0)
+    weak = Player(name="Hero", hp=100, attack_damage=2)
+    strong = Player(name="Ally", hp=100, attack_damage=8)
+
+    assert _greatest_threat_to_self(enemy, [weak, strong]) == 0.8
+
+def test_greatest_threat_to_self_caps_at_one():
+    enemy = Enemy(name="Goblin", hp=5, armour=0)
+    overwhelming = Player(name="Hero", hp=100, attack_damage=1000)
+
+    assert _greatest_threat_to_self(enemy, [overwhelming]) == 1.0
+
+def test_choose_enemy_target_returns_the_only_living_member_without_using_randomness(monkeypatch):
+    """Preserves random.random() call counts exactly for every enemy fought without a Companion present -
+    a single living candidate is returned directly, no scoring/noise involved."""
+    def fail_if_called():
+        raise AssertionError("random.random() should not be called with only one living team member")
+    monkeypatch.setattr("random.random", fail_if_called)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player = Player(name="Hero", hp=50)
+
+    assert choose_enemy_target(enemy, [player]) is player
+
+def test_choose_enemy_target_dead_teammate_still_reduces_to_the_single_survivor_shortcut(monkeypatch):
+    def fail_if_called():
+        raise AssertionError("random.random() should not be called with only one living team member")
+    monkeypatch.setattr("random.random", fail_if_called)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player = Player(name="Hero", hp=50)
+    dead_companion = Player(name="Ally", hp=10)
+    dead_companion.hp = 0
+
+    assert choose_enemy_target(enemy, [player, dead_companion]) is player
+
+def test_choose_enemy_target_picks_the_dominant_candidate(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5) # neutral noise
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0)
+    full_hp_target = Player(name="Hero", hp=100)
+    low_hp_target = Player(name="Ally", hp=100)
+    low_hp_target.hp = 10
+
+    assert choose_enemy_target(enemy, [full_hp_target, low_hp_target]) is low_hp_target
+
+def test_choose_enemy_target_random_noise_can_flip_a_tied_race(monkeypatch):
+    """random.random() is called once per living candidate, in player_team order."""
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=0, randomness_weight=1.0)
+    first = Player(name="Hero", hp=100)
+    first.hp = 50 # score 0.5
+    second = Player(name="Ally", hp=100)
+    second.hp = 50 # score 0.5, tied with first
+
+    low_then_high = iter([0.0, 1.0]) # first rolls low noise, second rolls high noise
+    monkeypatch.setattr("random.random", lambda: next(low_then_high))
+    assert choose_enemy_target(enemy, [first, second]) is second
+
+    high_then_low = iter([1.0, 0.0]) # reversed
+    monkeypatch.setattr("random.random", lambda: next(high_then_low))
+    assert choose_enemy_target(enemy, [first, second]) is first
 
 def test_score_candidate_actions_excludes_defend_when_brace_amount_is_zero():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5) # brace_amount defaults to 0
@@ -1228,6 +1422,174 @@ def test_choose_enemy_action_random_noise_can_flip_a_tied_race_between_defend_an
     heal_wins = iter([0.0, 0.0, 1.0]) # attack low, defend low, heal high
     monkeypatch.setattr("random.random", lambda: next(heal_wins))
     assert choose_enemy_action(enemy, [player]) == "heal"
+
+def test_score_companion_candidate_actions_attack_uses_best_available_enemy_target():
+    """Mirrors _score_candidate_actions() but scored against enemy_team instead of player_team - same
+    underlying _best_attack_score() formula, so the same numbers apply."""
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0, aggression_weight=1.0)
+    full_hp_enemy = Enemy(name="Goblin", hp=100)
+    low_hp_enemy = Enemy(name="Harpy", hp=100)
+    low_hp_enemy.hp = 1 # far more attractive target than the full-hp Goblin
+
+    scores = _score_companion_candidate_actions(companion, [full_hp_enemy, low_hp_enemy])
+
+    assert scores["attack"] == 0.99 # 1.0 * (0 + (1 - 1/100))
+
+def test_score_companion_candidate_actions_excludes_defend_when_brace_amount_is_zero():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home) # brace_amount defaults to 0
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+
+    scores = _score_companion_candidate_actions(companion, [enemy])
+
+    assert "defend" not in scores
+
+def test_score_companion_candidate_actions_defend_score_formula():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, brace_amount=2, caution_weight=1.0)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+
+    scores = _score_companion_candidate_actions(companion, [enemy])
+
+    assert scores["defend"] == 0.5 # 1.0 * min(1.0, 5 / 10)
+
+def test_score_companion_candidate_actions_excludes_heal_when_heal_amount_is_zero():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home) # heal_amount defaults to 0
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+
+    scores = _score_companion_candidate_actions(companion, [enemy])
+
+    assert "heal" not in scores
+
+def test_score_companion_candidate_actions_heal_score_formula():
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, caution_weight=2.0, heal_amount=5)
+    companion.hp = 5 # missing_hp_ratio 0.5
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+
+    scores = _score_companion_candidate_actions(companion, [enemy])
+
+    # heal_value_ratio = min(1.0, 5 / 10) = 0.5; heal = caution(2.0) * missing_hp_ratio(0.5) * heal_value_ratio(0.5)
+    assert scores["heal"] == 0.5
+
+def test_choose_companion_action_picks_the_dominant_action(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=100)
+    enemy = Enemy(name="Goblin", hp=50)
+    enemy.hp = 25 # half health, raises attack's score further
+
+    assert choose_companion_action(companion, [enemy]) == "attack"
+
+def test_choose_companion_action_picks_defend_when_it_dominates(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0, aggression_weight=1.0, caution_weight=5.0, brace_amount=2)
+    companion.hp = 5 # self_kill_potential = min(1.0, 5 / 5) = 1.0 -> defend score 5.0
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5) # full HP -> attack's (1 - target_hp_ratio) term is 0
+
+    assert choose_companion_action(companion, [enemy]) == "defend"
+
+def test_choose_companion_target_returns_the_only_living_member_without_using_randomness(monkeypatch):
+    def fail_if_called():
+        raise AssertionError("random.random() should not be called with only one living enemy")
+    monkeypatch.setattr("random.random", fail_if_called)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
+    enemy = Enemy(name="Goblin", hp=50)
+
+    assert choose_companion_target(companion, [enemy]) is enemy
+
+def test_choose_companion_target_picks_the_dominant_candidate(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5) # neutral noise
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0)
+    full_hp_enemy = Enemy(name="Goblin", hp=100)
+    low_hp_enemy = Enemy(name="Harpy", hp=100)
+    low_hp_enemy.hp = 10
+
+    assert choose_companion_target(companion, [full_hp_enemy, low_hp_enemy]) is low_hp_enemy
+
+def test_resolve_combat_round_companion_attacks_when_present(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
+    player.companion = companion
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert "Imp attacks Goblin for 5 damage." in result
+
+def test_resolve_combat_round_companion_acts_before_enemies(monkeypatch):
+    """Round order: player, then companion (if present and alive), then each enemy in enemy_team."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
+    player.companion = companion
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert result.index("Imp attacks") < result.index("Goblin attacks")
+
+def test_resolve_combat_round_downed_companion_does_not_act(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
+    companion.hp = 0
+    player.companion = companion
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert "Imp attacks" not in result
+    assert "Imp braces" not in result
+    assert "Imp recovers" not in result
+
+def test_resolve_combat_round_thorns_killing_player_during_their_own_attack_skips_every_remaining_turn(monkeypatch):
+    """A Thorns reflection during the player's own attack can kill them before any companion or enemy ever
+    acts - resolve_combat_round() must guard the very first turn after the player's attack, not just
+    subsequent ones (see its own docstring's note on this)."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=1, attack_damage=100)
+    target_enemy = Enemy(name="Goblin", hp=200, attack_damage=5)
+    target_enemy.has_thorns = True
+    second_enemy = Enemy(name="Harpy", hp=10, attack_damage=5)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
+    player.companion = companion
+
+    result = resolve_combat_round(player, target_enemy, [player, companion], [target_enemy, second_enemy])
+
+    assert "Hero takes 25 damage from the counter-strike." in result
+    assert player.hp == 0
+    assert "Imp attacks" not in result
+    assert "Imp braces" not in result
+    assert "Imp recovers" not in result
+    assert "Goblin attacks" not in result
+    assert "Harpy attacks" not in result
+
+def test_handle_combat_command_use_item_companion_attacks_when_present(monkeypatch):
+    """Guards against the 'use' branch's companion-turn handling drifting from resolve_combat_round()'s."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    potion = Consumable(name="Potion", heal_amount=1)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
+    player.companion = companion
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, [player, companion], [enemy], room)
+
+    assert "Imp attacks Goblin for 5 damage." in message
 
 def test_handle_combat_command_target_sets_current_target():
     player = Player(name="Hero", hp=50, attack_damage=10)

@@ -6,8 +6,9 @@ plain lists (list[Character] / list[Enemy]). player_team is currently always [pl
 
 import random
 
-from dungeon_crawler.characters import Character, Player, Enemy
+from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
+from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
     """The name to show for enemy in displays - appends a stable (n) index only when enemy_team has more than one enemy sharing this name, so
@@ -30,39 +31,115 @@ def format_hp_line(player_team: list[Character], enemy_team: list[Enemy]) -> str
     enemy_parts = [f"{get_enemy_display_name(enemy, enemy_team)}: {enemy.hp}/{enemy.max_hp} HP" for enemy in living_enemy_team]
     return "   |   ".join(player_parts + enemy_parts)
 
+def _candidate_attack_score(attacker: Character, candidate: Character) -> float:
+    """Base (pre-randomness) attractiveness of attacker attacking candidate specifically - kill_potential + (1 - candidate's own hp_ratio).
+    Shared by _best_attack_score() (a deterministic max, judging whether attacking is worthwhile at all) and choose_enemy_target()
+    (the same formula per candidate, with independent noise added, used to actually pick who gets hit). attacker is typed generically
+    (not Enemy) since Companion's own AI will reuse this exact formula once built."""
+    target_hp_ratio = candidate.hp / candidate.max_hp
+    potential_damage = max(0, attacker.attack_damage - candidate.armour)
+    kill_potential = min(1.0, potential_damage / candidate.hp) if candidate.hp > 0 else 0.0
+    return kill_potential + (1 - target_hp_ratio)
+
+def _best_attack_score(attacker: Character, player_team: Sequence[Character]) -> float:
+    """The best-case attack score available against any living member of player_team (deterministic, no randomness) - used only to
+    judge whether attacking is worthwhile at all; see choose_enemy_target() for the separate, independently-noisy choice of who
+    specifically gets hit. Filters to is_alive() first - player_team can go stale mid round if a companion is downed ny an earlier
+    enemy's turn, and a dead candidate must never be scored as attack worthy."""
+    living_team = [c for c in player_team if c.is_alive()]
+    if not living_team:
+        return 0.0
+    return max(_candidate_attack_score(attacker, candidate) for candidate in living_team)
+
+def _greatest_threat_to_self(self_character: Character, opposing_team: Sequence[Character]) -> float:
+    """The highest self_kill_potential posed by any living member of opposing_team against self_character - used to judge how urgently 'defend' is needed.
+    min(1.0, max(0, threat.attack_damage - enemy_armour) / enemy.hp) per candidate, maximised across the team (deterministic - defend
+    reacts to the worst-case threat, not a specific target, since defending doesn't target back). Shared by both Enemy's and Companion's scoring -
+    genuinely symmetric, unlike the action-choosing functions themselves, which stay separate per CLAUDE.md's decision."""
+    living_team = [c for c in opposing_team if c.is_alive()]
+    if not living_team or self_character.hp == 0:
+        return 0.0
+    return max(min(1.0, max(0, threat.attack_damage - self_character.armour) / self_character.hp) for threat in living_team)
+
+def choose_enemy_target(enemy: Enemy, player_team: list[Character]) -> Character:
+    """Pick which member of player_team enemy should attack. With only one living candidate, returns it directly with no scoring/randomness
+    involved - preserves single-target behaviour and random.random() call counts exactly for every enemy fought without a companion present. 
+    With two or more, scores each using _candidate_attack_score() plus the same random noise treatment as action selection, so targeting
+    isn't always optimal either."""
+    living_team = [c for c in player_team if c.is_alive()]
+    if len(living_team) == 1:
+        return living_team[0]
+
+    noisy_scores = {
+        candidate: _candidate_attack_score(enemy, candidate) + (random.random() - 0.5) * enemy.randomness_weight
+        for candidate in living_team
+    }
+    return max(noisy_scores, key=lambda candidate: noisy_scores[candidate])
+
 def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict[str, float]:
-    """Base (pre-randomness) utility score for every action enemy could currently take. 'attack' is always a candidate; 'defend' is
-    excluded when brace_amount == 0 (a no-op brace, mirrors heal's exclusion pattern below); 'heal' only joins when enemy.heal_amount > 0
-    (a lore-appropriate heal exists) - both are excluded entirely rather than scored at zero, per CLAUDE.md's "Enemy AI and team
-    combat" section."""
-    target = player_team[0] # always the plyaer for now - real Companion-aware targeting isn't built yet
-
-    target_hp_ratio = target.hp / target.max_hp
-    potential_damage = max(0, enemy.attack_damage - target.armour)
-    kill_potential = min(1.0, potential_damage / target.hp) if target.hp > 0 else 0.0
-
+    """Base (pre-randomness) utility score for every action enemy could currently take. 'attack' is scored against the single best
+    available target in player_team (see _best_attack_score()) - not necessarily who ends up actually attacked, since choose_enemy_target()
+    makes that choice independently once 'attack' has already won. 'defend' reacts to the greatest threat posed by any member of player_team
+    (see _greatest_threat_to_self()), and is excluded when brace_amount == 0 (a no-op brace, mirrors heal's exclusion pattern below).
+    'heal' only joins when eenmy.heal_amount > 0 - both are excluded entirely rather than scored at zero, per CLAUDE.md's "Enemy AI
+    and team combat" section."""
     self_missing_hp_ratio = 1 - (enemy.hp / enemy.max_hp)
 
     scores = {
-        "attack": enemy.aggression_weight * (kill_potential + (1 - target_hp_ratio)),
+        "attack": enemy.aggression_weight * _best_attack_score(enemy, player_team),
     }
 
     if enemy.brace_amount > 0:
-        # scored on genuine incoming danger, not accumulated damage - a losing enemy with little to fear from the player's own attack
-        # shouldn't turtle just because it's already hurt. This was previously caution_weight * self_missing_hp_ratio, which had no
-        # ceiling pulling it back down once an enemy got hurt, so it could permanently dominate attack - see CLAUDE.md's "Known
-        # issue, fix decided" note.
-        potential_damage_to_self = max(0, target.attack_damage - enemy.armour)
-        self_kill_potential = min(1.0, potential_damage_to_self / enemy.hp) if enemy.hp > 0 else 0.0
-        scores["defend"] = enemy.caution_weight * self_kill_potential
+        scores["defend"] = enemy.caution_weight * _greatest_threat_to_self(enemy, player_team)
 
     if enemy.heal_amount > 0:
-        # scaled by how much of a top-up the heal actually represents, so a large heal is more attractive to a caution-weighted
-        # enemy than a token one
         heal_value_ratio = min(1.0, enemy.heal_amount / enemy.max_hp)
         scores["heal"] = enemy.caution_weight * self_missing_hp_ratio * heal_value_ratio
 
     return scores
+
+def _score_companion_candidate_actions(companion: Companion, enemy_team: list[Enemy]) -> dict[str, float]:
+    """Companion's mirror of _score_candidate_actions() - same shape and formulas (see CLAUDE.md's "Enemy AI and team combat"), 
+    scored against enemy_team instead of player_team. Kept as a separate, mirrored function rather than a shared one (per that
+    same decision) even though the underlying per-candidate math (_best_attack_score(), _greatest_threat_to_self()) is fully reused."""
+    self_missing_hp_ratio = 1 - (companion.hp / companion.max_hp)
+
+    scores = {
+        "attack": companion.aggression_weight * _best_attack_score(companion, enemy_team),
+    }
+
+    if companion.brace_amount > 0:
+        scores["defend"] = companion.caution_weight * _greatest_threat_to_self(companion, enemy_team)
+
+    if companion.heal_amount > 0:
+        heal_value_ratio = min(1.0, companion.heal_amount / companion.max_hp)
+        scores['heal'] = companion.caution_weight * self_missing_hp_ratio * heal_value_ratio
+
+    return scores
+
+def choose_companion_action(companion: Companion, enemy_team: list[Enemy]) -> str:
+    """Companion's mirror of choose_enemy_action() - identical scoring/noise treatment, via _score_companion_candidate_actions()."""
+    scores = _score_companion_candidate_actions(companion, enemy_team)
+
+    noisy_scores = {
+        action: score + (random.random() - 0.5) * companion.randomness_weight
+        for action, score in scores.items()
+    }
+
+    return max(noisy_scores, key=lambda action: noisy_scores[action])
+
+def choose_companion_target(companion: Companion, enemy_team: list[Enemy]) -> Enemy:
+    """Companion's mirror of choose_enemy_target() - identical single-candidate short-circuit and noisy-scoring logic, picking which member
+    of enemy_team to attack."""
+    living_team = [e for e in enemy_team if e.is_alive()]
+    if len(living_team) == 1:
+        return living_team[0]
+
+    noisy_scores = {
+        candidate: _candidate_attack_score(companion, candidate) + (random.random() - 0.5) * companion.randomness_weight
+        for candidate in living_team
+    }
+    return max(noisy_scores, key=lambda candidate: noisy_scores[candidate])
 
 def choose_enemy_action(enemy: Enemy, player_team: list[Character]) -> str:
     """Decide what enemy does this turn via utility-based scoring: each candidate action from _score_candidate_actions() gets a random
@@ -79,25 +156,42 @@ def choose_enemy_action(enemy: Enemy, player_team: list[Character]) -> str:
     return max(noisy_scores, key=lambda action: noisy_scores[action])
 
 def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy]) -> str:
-    """One full round: player attacks target, then every enemy in enemy_team still alive afterwards takes its own turn, decided by
-    choose_enemy_action()'s utility scoring. attack, defend (a flat damage reduction consumed by the enemy's next hit taken),
-    or heal (only ever chosen by enemies with heal_amount > 0). Enemy targeting is still a placeholder (always the player) until
-    Companions exist. Stops rolling further enemy turns once the player is dead - continuing would re-trigger take_damage()'s on_death()
-    message repeatedly for no reason."""
+    """One full round: player attacks target, then their companion (if any, and still alive) takes its own turn via
+    choose_companion_action(), then every enemy in enemy_team still alive takes its own turn via choose_enemy_action() -
+    attack (with real target selection once either side has more than one living member), defend, or heal throughout.
+    Stops rolling further turns the moment the player is dead - continuing would re-trigger take_damage()'s on_death()
+    message repeatedly for no reason (a real bug once, see CLAUDE.md). This also now guards the very first enemy action,
+    not just subsequent ones - a Thorns reflection during the player's own attack could theoretically kill them before
+    any enemy ever acted."""
     messages = [player.attack(target)]
 
-    for enemy in enemy_team:
-        if enemy.is_alive():
-            action = choose_enemy_action(enemy, player_team)
-            if action == "attack":
-                messages.append(enemy.attack(player))
-            elif action == "defend":
-                enemy.pending_damage_reduction = enemy.brace_amount
-                messages.append(f"{enemy.name} braces for incoming damage.")
-            elif action == "heal":
-                healed = min(enemy.heal_amount, enemy.max_hp - enemy.hp)
-                enemy.hp += healed
-                messages.append(f"{enemy.name} recovers {healed} HP.")
+    if player.is_alive() and player.companion is not None and player.companion.is_alive():
+        companion_action = choose_companion_action(player.companion, enemy_team)
+        if companion_action == "attack":
+            companion_target = choose_companion_target(player.companion, enemy_team)
+            messages.append(player.companion.attack(companion_target))
+        elif companion_action == "defend":
+            player.companion.pending_damage_reduction = player.companion.brace_amount
+            messages.append(f"{player.companion.name} braces for incoming damage.")
+        elif companion_action == "heal":
+            healed = min(player.companion.heal_amount, player.companion.max_hp - player.companion.hp)
+            player.companion.hp += healed
+            messages.append(f"{player.companion.name} recovers {healed} HP.")
+
+    if player.is_alive():
+        for enemy in enemy_team:
+            if enemy.is_alive():
+                action = choose_enemy_action(enemy, player_team)
+                if action == "attack":
+                    enemy_target = choose_enemy_target(enemy, player_team)
+                    messages.append(enemy.attack(enemy_target))
+                elif action == "defend":
+                    enemy.pending_damage_reduction = enemy.brace_amount
+                    messages.append(f"{enemy.name} braces for incoming damage.")
+                elif action == "heal":
+                    healed = min(enemy.heal_amount, enemy.max_hp - enemy.hp)
+                    enemy.hp += healed
+                    messages.append(f"{enemy.name} recovers {healed} HP.")
             if not player.is_alive():
                 break
 
@@ -249,11 +343,25 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
             # this exact branch used to fall through into the enemy's attack unconditionally, a real bug)
             return str(e)
 
+        if player.companion is not None and player.companion.is_alive():
+            companion_action = choose_companion_action(player.companion, enemy_team)
+            if companion_action == "attack":
+                companion_target = choose_companion_target(player.companion, enemy_team)
+                result += f"\n{player.companion.attack(companion_target)}"
+            elif companion_action == "defend":
+                player.companion.pending_damage_reduction = player.companion.brace_amount
+                result += f"\n{player.companion.name} braces for incoming damage."
+            elif companion_action == "heal":
+                healed = min(player.companion.heal_amount, player.companion.max_hp - player.companion.hp)
+                player.companion.hp += healed
+                result += f"\n{player.companion.name} recovers {healed} HP."
+
         for enemy in enemy_team:
             if enemy.is_alive():
                 action = choose_enemy_action(enemy, player_team)
                 if action == "attack":
-                    result += f"\n{enemy.attack(player)}"
+                    enemy_target = choose_enemy_target(enemy, player_team)
+                    result += f"\n{enemy.attack(enemy_target)}"
                 elif action == "defend":
                     enemy.pending_damage_reduction = enemy.brace_amount
                     result += f"\n{enemy.name} braces for incoming damage."
@@ -261,8 +369,8 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
                     healed = min(enemy.heal_amount, enemy.max_hp - enemy.hp)
                     enemy.hp += healed
                     result += f"\n{enemy.name} recovers {healed} HP."
-                if not player.is_alive():
-                    break
+            if not player.is_alive():
+                break
 
         result += "\n" + format_hp_line(player_team, enemy_team)
 
