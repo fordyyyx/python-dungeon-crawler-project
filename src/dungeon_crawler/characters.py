@@ -3,6 +3,7 @@
 from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem
 from dungeon_crawler.world import Room
 from textwrap import dedent
+import random
 
 class Character:
     """Shared base for anything that can fight - HP, attack, armour, and the ability flags (Double Strike, Thorns, Last Stand) that Skills can turn on."""
@@ -25,6 +26,9 @@ class Character:
         """Flat damage reduction applied to (and consumed by) the next hit this character takes - set when an Enemy chooses the Defend/Brace
         action (see combat.py's choose_enemy_action()/_score_candidate_actions()). Lives on Character, not Enemy, since take_damage() (the 
         only thing that reads it) doesn't know which subclass self is."""
+        self.dodge_chance = 0.0
+        """Chance (0.0-1.0) to avoid an incoming attack entirely. set by DodgeSkill. Lives on Character, not Player, same precedent
+        as has_thorns/brace_amount - Enemy/Companion could plausibly use it too later."""
 
     def attack(self, target: "Character") -> str:
         """Attack target once, then a second time at half damage if Double Strike is unlocked. Returns the combined message; does not print."""
@@ -53,6 +57,9 @@ class Character:
         """Apply any pending Defend/Brace reduction, then armour-reduced damage, handling Last Stand and Thorns along the way. Returns
         (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report. pending_damage_reduction
         is consumed (reset to 0) here regardless of whether it changed anything, since a brace only ever protects against the next hit taken."""
+        if random.random() < self.dodge_chance:
+            return 0, f"{self.name} dodges the attack!"
+
         braced_amount = max(0, amount - self.pending_damage_reduction)
         self.pending_damage_reduction = 0
         reduced = max(0, braced_amount - self.armour)
@@ -387,7 +394,8 @@ class SkillTree:
             "abilities": SkillPath("Abilities", [
                 DoubleStrikeSkill("Twin Strike", "A second blow follows the first, fast and true."),
                 ThornsSkill("Retribution", "Every blow against you leaves a mark of its own."),
-                LastStandSkill("Last Stand", "Even death hesitates before one so stubborn"),
+                LastStandSkill("Last Stand", "Even death hesitates before one so stubborn."),
+                DodgeSkill("Nimble Grace", "A hero's step, quick enough to slip past death's reach.", chance=0.35)
             ])
         }
 
@@ -425,3 +433,16 @@ class ThornsSkill(Skill):
         """Turn on character.has_thorns."""
         character.has_thorns = True
         return f"{character.name} learns to turn an enemy's own strength against them."
+
+class DodgeSkill(Skill):
+    """Unlocks a permanent chance to dodge - see Character.take_damage() for the avoid-the-hit-entirely behaviour this grants."""
+
+    def __init__(self, name: str, description: str, chance: float):
+        """Store the dodge chance this skill grants."""
+        super().__init__(name, description)
+        self.chance = chance
+
+    def apply(self, character) -> str:
+        """Add this skill's chance to character's dodge_chance."""
+        character.dodge_chance += self.chance
+        return f"{character.name} learns to slip aside from incoming blows."

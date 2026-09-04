@@ -2,7 +2,8 @@
 and an enemy team trade blows, and the aftermath (loot, XP, gold, or a boss phase transition) when an enemy is defeated.
 
 Team representation: no dedicated Team class (see CLAUDE.md's "No Team class" rule) - player_team and enemy_team are both
-plain lists (list[Character] / list[Enemy]). player_team is currently always [player] until Companions exist."""
+plain lists (list[Character] / list[Enemy]). player_team comes from Player.team - [player], or [player, companion] once a Companion
+is recruited and alive."""
 
 import random
 
