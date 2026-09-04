@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Ally, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, display_map, find_floor_for_room, display_local_exits, handle_examine
+from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -416,6 +416,155 @@ def test_dismiss_companion_returns_confirmation_message():
     message = dismiss_companion(player)
 
     assert message == "Imp returns to Camp."
+
+def test_repair_item_outside_forge_returns_message():
+    room = Room("Armoury")
+    player = Player(name="hero", hp=100)
+
+    message = repair_item("shield", player, room)
+
+    assert message == "There's nowhere to repair armour here."
+
+def test_repair_item_with_no_matching_item_returns_message():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+
+    message = repair_item("shield", player, room)
+
+    assert message == "You don't have any armour named 'shield'."
+
+def test_repair_item_with_non_armour_item_returns_message():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    sword = Weapon(name="Sword", description="", damage=3)
+    player.inventory.add(sword)
+
+    message = repair_item("sword", player, room)
+
+    assert message == "You don't have any armour named 'sword'."
+
+def test_repair_item_with_full_durability_returns_no_repair_needed_message():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    player.inventory.add(armour)
+
+    message = repair_item("shield", player, room)
+
+    assert message == "Shield doesn't need repairing."
+
+def test_repair_item_with_insufficient_gold_returns_message():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 5
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 2 # missing 3, costs 6 at REPAIR_COST_PER_POINT=2
+    player.inventory.add(armour)
+
+    message = repair_item("shield", player, room)
+
+    assert message == "Repairing Shield costs 6 gold - you only have 5."
+
+def test_repair_item_with_insufficient_gold_does_not_change_durability():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 5
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 2
+    player.inventory.add(armour)
+
+    repair_item("shield", player, room)
+
+    assert armour.durability == 2
+
+def test_repair_item_with_insufficient_gold_does_not_change_gold():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 5
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 2
+    player.inventory.add(armour)
+
+    repair_item("shield", player, room)
+
+    assert player.gold == 5
+
+def test_repair_item_deducts_cost_scaled_by_missing_durability():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 100
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 2 # missing 3, costs 6
+    player.inventory.add(armour)
+
+    repair_item("shield", player, room)
+
+    assert player.gold == 94
+
+def test_repair_item_restores_full_durability():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 100
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 2
+    player.inventory.add(armour)
+
+    repair_item("shield", player, room)
+
+    assert armour.durability == 5
+
+def test_repair_item_returns_confirmation_message():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 100
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 2
+    player.inventory.add(armour)
+
+    message = repair_item("shield", player, room)
+
+    assert message == "Shield is fully repaired for 6 gold."
+
+def test_repair_item_matches_name_case_insensitively():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 100
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 2
+    player.inventory.add(armour)
+
+    message = repair_item("SHIELD", player, room)
+
+    assert message == "Shield is fully repaired for 6 gold."
+
+def test_repair_item_when_broken_restores_defence_to_player_armour():
+    """was_broken (durability == 0) re-adds the item's defence bonus, mirroring the amount take_damage()
+    would already have backed out of player.armour when the piece originally broke."""
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 100
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    player.inventory.add(armour)
+    armour.use(player) # player.armour = 3
+    armour.durability = 0
+    player.armour = 0 # simulate the backed-out state take_damage() would have left
+
+    repair_item("shield", player, room)
+
+    assert player.armour == 3
+
+def test_repair_item_when_not_broken_does_not_add_defence_a_second_time():
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100)
+    player.gold = 100
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    player.inventory.add(armour)
+    armour.use(player) # player.armour = 3
+    armour.durability = 3 # merely worn, never dropped to 0
+
+    repair_item("shield", player, room)
+
+    assert player.armour == 3
 
 def test_find_floor_for_room_returns_floor_name_when_room_present():
     room_a = Room("A")

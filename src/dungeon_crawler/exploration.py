@@ -2,8 +2,10 @@
 examining surroundings, and map/movement helpers."""
 
 from dungeon_crawler.characters import Player, Ally, Companion
+from dungeon_crawler.items import Armour
 from dungeon_crawler.world import Room
 
+REPAIR_COST_PER_POINT = 2
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     """Move the named item from room into player's inventory. Returns an error message if no matching item is present."""
@@ -167,3 +169,29 @@ def handle_examine(room: Room, player: Player) -> str:
         messages.append(f"Your search reveals a hidden passage: {', '.join(revealed)}.")
 
     return "\n".join(messages)
+
+def repair_item(item_name: str, player: Player, room: Room) -> str:
+    """Restore a named Armour item to full durability, if room is the Forge and player can afford it. Cost scaled with how much
+    durability is missing (REPAIR_COST_PER_POINT gold per point) - a lightly-worn piece costs less to fix than a fully broken one.
+    Re-adds the item's defence bonus to player.armour if it had dropped to 0 (broken)."""
+    if not room.is_forge:
+        return "There's nowhere to repair armour here."
+
+    item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
+    if item is None or not isinstance(item, Armour):
+        return f"You don't have any armour named '{item_name}'."
+
+    missing = item.max_durability - item.durability
+    if missing == 0:
+        return f"{item.name} doesn't need repairing."
+
+    cost = missing * REPAIR_COST_PER_POINT
+    if player.gold < cost:
+        return f"Repairing {item.name} costs {cost} gold - you only have {player.gold}."
+
+    player.gold -= cost
+    was_broken = item.durability == 0
+    item.durability = item.max_durability
+    if was_broken:
+        player.armour += item.defence
+    return f"{item.name} is fully repaired for {cost} gold."

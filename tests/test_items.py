@@ -174,6 +174,18 @@ def test_armour_use_defaults_to_body_slot():
     armour = Armour(name="helmet", description="", defence=3)
     assert armour.slot == "body"
 
+def test_armour_initialises_with_default_max_durability():
+    armour = Armour(name="helmet", description="", defence=3)
+    assert armour.max_durability == 10
+
+def test_armour_initialises_with_custom_max_durability():
+    armour = Armour(name="helmet", description="", defence=3, max_durability=5)
+    assert armour.max_durability == 5
+
+def test_armour_initialises_with_durability_starting_at_max():
+    armour = Armour(name="helmet", description="", defence=3, max_durability=5)
+    assert armour.durability == 5
+
 def test_armour_use_sets_character_equipped_body_by_default():
     hero = Character(name="hero", hp=100, attack_damage=10)
     armour = Armour(name="helmet", description="", defence=3)

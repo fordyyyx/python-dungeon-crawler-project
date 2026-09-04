@@ -1,5 +1,5 @@
 from dungeon_crawler.characters import Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
-from dungeon_crawler.items import Weapon, Inventory, QuestItem
+from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem
 from dungeon_crawler.world import Room
 
 def test_character_initialises_with_correct_stats():
@@ -187,6 +187,69 @@ def test_take_damage_with_dodge_prevents_thorns_counter_attack(monkeypatch):
     attacker = Character(name="Goblin", hp=10, attack_damage=5)
     character.take_damage(10, attacker=attacker)
     assert attacker.hp == 10
+
+def test_take_damage_reduces_equipped_body_armour_durability_by_one():
+    character = Character(name="Hero", hp=100, attack_damage=5)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=5)
+    armour.use(character)
+    character.take_damage(10)
+    assert armour.durability == 4
+
+def test_take_damage_reduces_helmet_and_body_durability_independently():
+    character = Character(name="Hero", hp=100, attack_damage=5)
+    helmet = Armour(name="Helm", description="", defence=2, slot="helmet", max_durability=3)
+    body = Armour(name="Plate", description="", defence=4, slot="body", max_durability=3)
+    helmet.use(character)
+    body.use(character)
+    character.take_damage(5)
+    assert helmet.durability == 2
+    assert body.durability == 2
+
+def test_take_damage_degrades_durability_even_when_damage_is_fully_blocked():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=0)
+    armour = Armour(name="Shield", description="", defence=100, slot="body", max_durability=5)
+    armour.use(character) # blocks any realistic hit entirely
+    character.take_damage(5)
+    assert armour.durability == 4
+
+def test_take_damage_backs_out_defence_when_armour_breaks():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=0)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=1)
+    armour.use(character) # character.armour == 3
+    character.take_damage(1)
+    assert armour.durability == 0
+    assert character.armour == 0
+
+def test_take_damage_already_broken_armour_does_not_reduce_defence_again():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=0)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=1)
+    armour.use(character)
+    character.take_damage(1) # breaks it, armour drops from 3 to 0
+    character.take_damage(1) # already broken - nothing left to back out
+    assert armour.durability == 0
+    assert character.armour == 0
+
+def test_take_damage_armour_still_reduces_damage_on_the_hit_that_breaks_it():
+    """Durability degrades after reduced (this hit's damage) is already calculated - the piece's defence
+    still protects the hit that breaks it, only future hits lose the benefit."""
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=0)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=1)
+    armour.use(character)
+
+    damage_dealt_first, _ = character.take_damage(10) # still protected by the armour that breaks this hit
+    damage_dealt_second, _ = character.take_damage(10) # armour's defence is gone now
+
+    assert damage_dealt_first == 7
+    assert damage_dealt_second == 10
+
+def test_take_damage_with_dodge_does_not_degrade_armour_durability(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    character = Character(name="Hero", hp=100, attack_damage=5)
+    character.dodge_chance = 0.5
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=5)
+    armour.use(character)
+    character.take_damage(10)
+    assert armour.durability == 5
 
 def test_take_damage_with_pending_damage_reduction_reduces_incoming_damage():
     character = Character(name="Hero", hp=30, attack_damage=5)

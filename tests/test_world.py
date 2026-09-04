@@ -223,6 +223,14 @@ def test_room_initialises_with_zero_required_intellect_by_default():
     room = Room("A")
     assert room.required_intellect == 0
 
+def test_room_initialises_with_is_forge_false_by_default():
+    room = Room("A")
+    assert room.is_forge is False
+
+def test_room_initialises_with_is_forge_true():
+    room = Room("A", is_forge=True)
+    assert room.is_forge is True
+
 def test_room_initialises_with_no_hidden_exits():
     room = Room("A")
     assert room.hidden_exits == {}

@@ -898,6 +898,18 @@ def test_build_floor_2_forge_connects_back_to_hall_of_hermes_via_north():
     forge = rooms["Forge of Prometheus"]
     assert forge.get_exit("north") is rooms["Hall of Hermes"]
 
+def test_build_floor_2_forge_of_prometheus_is_a_forge():
+    start, rooms = build_floor_2()
+    forge = rooms["Forge of Prometheus"]
+    assert forge.is_forge is True
+
+def test_build_floor_2_other_rooms_are_not_forges():
+    start, rooms = build_floor_2()
+    assert rooms["Library of Athena"].is_forge is False
+    assert rooms["Armoury of Ares"].is_forge is False
+    assert rooms["Hall of Hermes"].is_forge is False
+    assert rooms["Trophy Room of Zeus"].is_forge is False
+
 def test_build_floor_3_returns_bony_crypt_as_start_room():
     start, rooms = build_floor_3()
     assert start.name == "Bony Crypt"

@@ -61,11 +61,15 @@ class Armour(Item):
     Weapon's single slot. armour itself stays a plain accumulator on Character (see DefenceBoostSkill) - each slot just adds/subtracts
     its own defence into that same number, same pattern Weapon already uses for attack_damage."""
 
-    def __init__(self, name: str, description: str, defence: int, slot: str = "body"):
+    def __init__(self, name: str, description: str, defence: int, slot: str = "body", max_durability: int = 10):
         """Store the armour bonus this item grants when equipped, and which slot it occupies."""
         super().__init__(name, description)
         self.defence = defence
         self.slot = slot
+        self.max_durability = max_durability
+        self.durability = max_durability
+        """Starts full. Reaches 0 via Character.take_damage() (see there) - the item stays equipped but its defence bonus is backed out 
+        of Character.armour until repaired at the Forge (see repair_item(), exploration.py)."""
 
     def use(self, character) -> str:
         """Equip this armour into its slot, unequipping whatever currently occupies that same slot first - per slot, not global,

@@ -64,6 +64,13 @@ class Character:
         braced_amount = max(0, amount - self.pending_damage_reduction)
         self.pending_damage_reduction = 0
         reduced = max(0, braced_amount - self.armour)
+
+        for piece in (self.equipped_helmet, self.equipped_body):
+            if piece is not None and piece.durability > 0:
+                piece.durability -= 1
+                if piece.durability == 0:
+                    self.armour -= piece.defence
+
         would_be_lethal = (self.hp - reduced) <= 0
 
         if would_be_lethal and getattr(self, "has_last_stand", False) and self.hp > 1:

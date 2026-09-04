@@ -285,6 +285,31 @@ def test_main_recruit_and_dismiss_routing_smoke_test(monkeypatch, capsys):
     assert "There's no one named 'nobody' here to recruit." in captured.out
     assert "You don't have a companion to dismiss." in captured.out
 
+def test_main_repair_command_routing_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough confirming 'repair <item>' routes to repair_item() - both away from the Forge
+    (blocked) and at the Forge with an already-full-durability item (no repair needed). Wearing an item
+    down below full durability requires real combat exchanges, better left to manual playtesting than
+    scripted here."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "developer mode",
+        "basic",
+        "floor_0",
+        "repair bronze breastplate",
+        "dev teleport forge of prometheus",
+        "dev add bronze breastplate",
+        "use bronze breastplate",
+        "repair bronze breastplate",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "There's nowhere to repair armour here." in captured.out
+    assert "Bronze Breastplate doesn't need repairing." in captured.out
+
 def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys):
     """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,
     and the game-over message prints afterwards."""
