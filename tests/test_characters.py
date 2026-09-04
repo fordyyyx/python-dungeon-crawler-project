@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Inventory, QuestItem
 from dungeon_crawler.world import Room
 
@@ -137,6 +137,56 @@ def test_take_damage_with_thorns_includes_counter_message_with_death_message():
     attacker = Character(name="Hero", hp=50, attack_damage=10)
     damage_dealt, message = target.take_damage(10, attacker=attacker)
     assert message == "Hero takes 2 damage from the counter-strike.\nGoblin has died."
+
+def test_take_damage_with_zero_dodge_chance_never_dodges():
+    """random.random() always returns a value in [0.0, 1.0), so 'random.random() < 0.0' is deterministically
+    false - no monkeypatch needed to prove the default (dodge_chance=0.0) never dodges."""
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    damage_dealt, message = character.take_damage(10)
+    assert damage_dealt == 10
+    assert "dodges" not in message
+
+def test_take_damage_with_dodge_forced_to_succeed_deals_no_damage(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.dodge_chance = 0.5
+    damage_dealt, message = character.take_damage(50)
+    assert damage_dealt == 0
+    assert character.hp == 30
+
+def test_take_damage_with_dodge_forced_to_succeed_returns_dodge_message(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.dodge_chance = 0.5
+    damage_dealt, message = character.take_damage(50)
+    assert message == "Hero dodges the attack!"
+
+def test_take_damage_with_dodge_forced_to_fail_deals_normal_damage(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.dodge_chance = 0.5
+    damage_dealt, message = character.take_damage(10)
+    assert damage_dealt == 10
+    assert character.hp == 20
+
+def test_take_damage_with_dodge_does_not_consume_pending_damage_reduction(monkeypatch):
+    """Dodge returns before the brace-consumption line runs - a successful dodge leaves an unused brace
+    intact for the next hit, rather than wasting it on a hit that never landed."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.dodge_chance = 0.5
+    character.pending_damage_reduction = 4
+    character.take_damage(10)
+    assert character.pending_damage_reduction == 4
+
+def test_take_damage_with_dodge_prevents_thorns_counter_attack(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.dodge_chance = 0.5
+    character.has_thorns = True
+    attacker = Character(name="Goblin", hp=10, attack_damage=5)
+    character.take_damage(10, attacker=attacker)
+    assert attacker.hp == 10
 
 def test_take_damage_with_pending_damage_reduction_reduces_incoming_damage():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -733,6 +783,10 @@ def test_character_initialises_with_no_pending_damage_reduction():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.pending_damage_reduction == 0
 
+def test_character_initialises_with_zero_dodge_chance():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.dodge_chance == 0.0
+
 def test_get_inventory_display_returns_empty_message_when_no_items():
     player = Player(name="hero", hp=100)
     assert player.get_inventory_display() == "Your inventory is empty."
@@ -1023,9 +1077,9 @@ def test_thorns_skill_apply_sets_has_thorns_flag():
     skill.apply(character)
     assert character.has_thorns is True
 
-def test_skill_tree_has_abilities_path_with_three_skills():
+def test_skill_tree_has_abilities_path_with_four_skills():
     skill_tree = SkillTree()
-    assert len(skill_tree.paths["abilities"].skills) == 3
+    assert len(skill_tree.paths["abilities"].skills) == 4
 
 def test_skill_tree_invest_abilities_path_applies_double_strike_skill_first():
     skill_tree = SkillTree()
@@ -1033,6 +1087,37 @@ def test_skill_tree_invest_abilities_path_applies_double_strike_skill_first():
     character = Character(name="Hero", hp=100, attack_damage=10)
     skill_tree.invest("abilities", character)
     assert character.has_double_strike is True
+
+def test_skill_tree_invest_abilities_path_applies_dodge_skill_fourth():
+    skill_tree = SkillTree()
+    skill_tree.skill_points = 4
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    for _ in range(4):
+        skill_tree.invest("abilities", character)
+    assert character.dodge_chance == 0.35
+
+def test_dodge_skill_initialises_with_chance():
+    skill = DodgeSkill(name="Nimble Grace", description="A hero's step.", chance=0.35)
+    assert skill.chance == 0.35
+
+def test_dodge_skill_apply_increases_dodge_chance():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DodgeSkill(name="Nimble Grace", description="", chance=0.35)
+    skill.apply(character)
+    assert character.dodge_chance == 0.35
+
+def test_dodge_skill_apply_stacks_with_existing_dodge_chance():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    character.dodge_chance = 0.25
+    skill = DodgeSkill(name="Nimble Grace", description="", chance=0.25)
+    skill.apply(character)
+    assert character.dodge_chance == 0.5
+
+def test_dodge_skill_apply_returns_message():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DodgeSkill(name="Nimble Grace", description="", chance=0.35)
+    message = skill.apply(character)
+    assert message == "Hero learns to slip aside from incoming blows."
 
 def test_enemy_initialises_with_no_next_phase_factory_by_default():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
