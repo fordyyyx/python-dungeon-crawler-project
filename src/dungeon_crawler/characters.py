@@ -16,7 +16,8 @@ class Character:
         self.armour = armour
         self.max_hp = hp
         self.equipped_weapon: "Weapon | None" = None
-        self.equipped_armour: "Armour | None" = None
+        self.equipped_helmet: "Armour | None" = None
+        self.equipped_body: "Armour | None" = None
         self.has_double_strike = False
         self.has_last_stand = False
         self.has_thorns = False
@@ -109,8 +110,6 @@ class Player(Character):
         """currency earned from defeating enemies. Displayed in the inventory listing, not stats - it isn't a character stat, it's a resource"""
         self.inventory = Inventory()
         self.skill_tree = SkillTree()
-        self.equipped_weapon = None
-        self.equipped_armour = None
         self.ancestry_label = ancestry_label
         self.auto_talk = False
         self.intellect = 0

@@ -57,35 +57,43 @@ class Weapon(Item):
         return f"{character.name} unequips {self.name} (-{self.damage} ATK)"
 
 class Armour(Item):
-    """An equippable item that raises armour while equipped."""
+    """An equippable item that raises armour while equipped, in one of two slots ('helmet' or 'body') - both can be equipped at once, unlike
+    Weapon's single slot. armour itself stays a plain accumulator on Character (see DefenceBoostSkill) - each slot just adds/subtracts
+    its own defence into that same number, same pattern Weapon already uses for attack_damage."""
 
-    def __init__(self, name: str, description: str, defence: int):
-        """Store the armour bonus this item grants when equipped."""
+    def __init__(self, name: str, description: str, defence: int, slot: str = "body"):
+        """Store the armour bonus this item grants when equipped, and which slot it occupies."""
         super().__init__(name, description)
         self.defence = defence
+        self.slot = slot
 
     def use(self, character) -> str:
-        """Equip this armour, unequipping character's current armour first if any is equipped (single-slot per CLAUDE.md - equipping never stacks)."""
+        """Equip this armour into its slot, unequipping whatever currently occupies that same slot first - per slot, not global,
+        so a helmet and a body piece can be equipped simultaneously; only same-slot items are ever swapped."""
         if self.equipped:
             return f"{self.name} already equipped"
 
+        slot_attr = f"equipped_{self.slot}"
         messages = []
-        if character.equipped_armour is not None:
-            messages.append(character.equipped_armour.unequip(character))
+        current = getattr(character, slot_attr)
+        if current is not None:
+            messages.append(current.unequip(character))
+
         character.armour += self.defence
         self.equipped = True
-        character.equipped_armour = self
-        messages.append(f"{character.name} equips {self.name}, (+{self.defence} DEF).")
+        setattr(character, slot_attr, self)
+        messages.append(f"{character.name} equips {self.name} ({self.slot}, +{self.defence} DEF).")
         return "\n".join(messages)
 
     def unequip(self, character) -> str:
-        """Remove this armour's defence bonus and clear it from character.equipped_armour."""
+        """Remove this armour's defence bonus and clear it from its slot."""
         if not self.equipped:
             return f"{self.name} is not equipped."
         character.armour -= self.defence
         self.equipped = False
-        if character.equipped_armour is self:
-            character.equipped_armour = None
+        slot_attr = f"equipped_{self.slot}"
+        if getattr(character, slot_attr) is self:
+            setattr(character, slot_attr, None)
         return f"{character.name} unequips {self.name} (-{self.defence} DEF)"
 
 class Consumable(Item):

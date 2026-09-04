@@ -755,9 +755,13 @@ def test_character_initialises_with_no_equipped_weapon():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.equipped_weapon is None
 
-def test_character_initialises_with_no_equipped_armour():
+def test_character_initialises_with_no_equipped_helmet():
     character = Character(name="Hero", hp=30, attack_damage=5)
-    assert character.equipped_armour is None
+    assert character.equipped_helmet is None
+
+def test_character_initialises_with_no_equipped_body_armour():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.equipped_body is None
 
 def test_character_initialises_with_has_double_strike_false():
     character = Character(name="Hero", hp=30, attack_damage=5)

@@ -121,7 +121,7 @@ def test_armour_use_returns_equip_message():
     hero = Character(name="hero", hp=100, attack_damage=10)
     armour = Armour(name="helmet", description="", defence=3)
     message = armour.use(hero)
-    assert message == "hero equips helmet, (+3 DEF)."
+    assert message == "hero equips helmet (body, +3 DEF)."
 
 def test_armour_use_sets_equipped_flag():
     hero = Character(name="hero", hp=100, attack_damage=10)
@@ -170,20 +170,30 @@ def test_armour_unequip_when_equipped_returns_unequip_message():
     message = armour.unequip(hero)
     assert message == "hero unequips helmet (-3 DEF)"
 
-def test_armour_use_sets_character_equipped_armour():
+def test_armour_use_defaults_to_body_slot():
+    armour = Armour(name="helmet", description="", defence=3)
+    assert armour.slot == "body"
+
+def test_armour_use_sets_character_equipped_body_by_default():
     hero = Character(name="hero", hp=100, attack_damage=10)
     armour = Armour(name="helmet", description="", defence=3)
     armour.use(hero)
-    assert hero.equipped_armour is armour
+    assert hero.equipped_body is armour
 
-def test_armour_unequip_clears_character_equipped_armour():
+def test_armour_use_with_helmet_slot_sets_character_equipped_helmet():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    armour = Armour(name="Bronze Helm", description="", defence=2, slot="helmet")
+    armour.use(hero)
+    assert hero.equipped_helmet is armour
+
+def test_armour_unequip_clears_character_equipped_body():
     hero = Character(name="hero", hp=100, attack_damage=10)
     armour = Armour(name="helmet", description="", defence=3)
     armour.use(hero)
     armour.unequip(hero)
-    assert hero.equipped_armour is None
+    assert hero.equipped_body is None
 
-def test_armour_use_replacing_equipped_armour_unequips_old_armour():
+def test_armour_use_replacing_same_slot_unequips_old_armour():
     hero = Character(name="hero", hp=100, attack_damage=10)
     old_armour = Armour(name="helmet", description="", defence=3)
     new_armour = Armour(name="Iron Helm", description="", defence=5)
@@ -191,15 +201,15 @@ def test_armour_use_replacing_equipped_armour_unequips_old_armour():
     new_armour.use(hero)
     assert old_armour.equipped is False
 
-def test_armour_use_replacing_equipped_armour_updates_character_equipped_armour():
+def test_armour_use_replacing_same_slot_updates_character_equipped_body():
     hero = Character(name="hero", hp=100, attack_damage=10)
     old_armour = Armour(name="helmet", description="", defence=3)
     new_armour = Armour(name="Iron Helm", description="", defence=5)
     old_armour.use(hero)
     new_armour.use(hero)
-    assert hero.equipped_armour is new_armour
+    assert hero.equipped_body is new_armour
 
-def test_armour_use_replacing_equipped_armour_updates_defence():
+def test_armour_use_replacing_same_slot_updates_defence():
     hero = Character(name="hero", hp=100, attack_damage=10)
     old_armour = Armour(name="helmet", description="", defence=3)
     new_armour = Armour(name="Iron Helm", description="", defence=5)
@@ -207,13 +217,47 @@ def test_armour_use_replacing_equipped_armour_updates_defence():
     new_armour.use(hero)
     assert hero.armour == 5
 
-def test_armour_use_replacing_equipped_armour_returns_combined_message():
+def test_armour_use_replacing_same_slot_returns_combined_message():
     hero = Character(name="hero", hp=100, attack_damage=10)
     old_armour = Armour(name="helmet", description="", defence=3)
     new_armour = Armour(name="Iron Helm", description="", defence=5)
     old_armour.use(hero)
     message = new_armour.use(hero)
-    assert message == "hero unequips helmet (-3 DEF)\nhero equips Iron Helm, (+5 DEF)."
+    assert message == "hero unequips helmet (-3 DEF)\nhero equips Iron Helm (body, +5 DEF)."
+
+def test_armour_use_helmet_and_body_can_be_equipped_simultaneously():
+    """The whole point of the slot rework - a helmet and a body piece occupy different slots, so equipping
+    one must not unequip the other, unlike Weapon's single slot."""
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    helmet = Armour(name="Bronze Helm", description="", defence=2, slot="helmet")
+    body = Armour(name="Breastplate", description="", defence=3, slot="body")
+    helmet.use(hero)
+    body.use(hero)
+    assert helmet.equipped is True
+    assert body.equipped is True
+    assert hero.armour == 5
+
+def test_armour_use_different_slots_do_not_unequip_each_other():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    helmet = Armour(name="Bronze Helm", description="", defence=2, slot="helmet")
+    body = Armour(name="Breastplate", description="", defence=3, slot="body")
+    helmet.use(hero)
+    body.use(hero)
+    assert hero.equipped_helmet is helmet
+    assert hero.equipped_body is body
+
+def test_armour_use_same_slot_swap_does_not_affect_a_different_slot():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    old_helmet = Armour(name="Bronze Helm", description="", defence=2, slot="helmet")
+    new_helmet = Armour(name="Iron Helm", description="", defence=4, slot="helmet")
+    body = Armour(name="Breastplate", description="", defence=3, slot="body")
+    old_helmet.use(hero)
+    body.use(hero)
+    new_helmet.use(hero)
+    assert old_helmet.equipped is False
+    assert hero.equipped_helmet is new_helmet
+    assert body.equipped is True
+    assert hero.equipped_body is body
 
 def test_consumable_use_heals_character():
     hero = Character(name="hero", hp=100, attack_damage=10)
