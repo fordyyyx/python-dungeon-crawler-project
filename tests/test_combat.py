@@ -1,8 +1,9 @@
 from dungeon_crawler.characters import Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, Consumable
+from dungeon_crawler.items import Weapon, Consumable, StatusEffectItem
 from dungeon_crawler.status_effects import StatusEffect
-from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
+from dungeon_crawler.spells import Spell
+from dungeon_crawler.combat import resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -618,6 +619,220 @@ def test_handle_combat_command_attack_when_enemy_survives_does_not_clear_combat_
     assert player.in_combat is True
     assert player.current_target is enemy
 
+def test_handle_combat_command_cast_with_unknown_spell_returns_message():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert message == "You don't know a spell called 'firebolt'."
+
+def test_handle_combat_command_cast_with_spell_on_cooldown_returns_message():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    player.spell_cooldowns["Firebolt"] = 2
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert message == "Firebolt is still on cooldown."
+
+def test_handle_combat_command_cast_with_insufficient_mana_returns_message():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 3
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert message == "Not enough mana for Firebolt (5 needed, 3 available)."
+
+def test_handle_combat_command_cast_deducts_mana_on_success():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert player.mana == 15
+
+def test_handle_combat_command_cast_returns_spell_message():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert "Hero casts Firebolt at Goblin for 10 damage." in message
+
+def test_handle_combat_command_cast_reduces_target_hp():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 10
+
+def test_handle_combat_command_cast_matches_spell_name_case_insensitively():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast FIREBOLT", player, enemy, [player], [enemy], room)
+
+    assert "Hero casts Firebolt at Goblin for 10 damage." in message
+
+def test_handle_combat_command_cast_success_cooldown_persists_after_the_same_turns_tick():
+    """Regression test for the fix: tick_spell_cooldowns() now runs BEFORE the new cooldown is set (mirroring
+    would_fail()'s pre-flight-then-tick-then-commit ordering), so a freshly-cast spell's cooldown survives
+    its own casting turn and correctly blocks an immediate second cast."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert player.spell_cooldowns == {"Firebolt": 1}
+
+def test_handle_combat_command_cast_cooldown_blocks_an_immediate_second_cast():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert message == "Firebolt is still on cooldown."
+
+def test_handle_combat_command_cast_self_applied_effect_is_not_ticked_same_turn():
+    """Regression test for the fix: player.tick_status_effects() now runs BEFORE spell.cast(), so a spell's
+    own freshly-applied self-effect isn't immediately consumed by that same tick."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.hp = 50
+    player.mana = 20
+    spell = Spell(name="Regenerate", description="", mana_cost=5, effect_name="Regen", effect_amount=4, effect_duration=3)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=0)
+    room = Room("Arena")
+
+    handle_combat_command("cast regenerate", player, enemy, [player], [enemy], room)
+
+    assert player.hp == 50 # not yet healed - the effect is afflicted, not ticked, this turn
+    assert player.active_effects[0].duration == 3
+
+def test_handle_combat_command_cast_with_no_target_does_not_tick_existing_state():
+    """would_fail() now guards the tick, not just mana/cooldown-setting - a failed cast must leave the
+    player's pre-existing effects and cooldowns completely untouched, not just its own mana/cooldown."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    player.apply_status_effect(StatusEffect("Regen", 2, 5))
+    player.spell_cooldowns["Mend"] = 3
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, None, [player], [], room)
+
+    assert message == "You need a target for Firebolt - try 'target <enemy>' first."
+    assert player.mana == 20
+    assert player.active_effects[0].duration == 5
+    assert player.spell_cooldowns["Mend"] == 3
+
+def test_handle_combat_command_cast_propagates_value_error_as_message():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, None, [player], [enemy], room)
+
+    assert message == "You need a target for Firebolt - try 'target <enemy>' first."
+
+def test_handle_combat_command_cast_failed_cast_does_not_deduct_mana():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, None, [player], [enemy], room)
+
+    assert player.mana == 20
+
+def test_handle_combat_command_cast_failed_cast_does_not_set_cooldown():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, None, [player], [enemy], room)
+
+    assert "Firebolt" not in player.spell_cooldowns
+
+def test_handle_combat_command_cast_pure_heal_does_not_require_a_target():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.hp = 50
+    player.mana = 20
+    spell = Spell(name="Mend", description="", mana_cost=5, heal_amount=8)
+    player.known_spells.append(spell)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast mend", player, None, [player], [], room)
+
+    assert player.hp == 58
+    assert "Hero recovers 8 HP." in message
+
+def test_handle_combat_command_cast_triggers_enemy_counterattack(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=5)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert "Goblin attacks Hero for 5 damage." in message
+    assert player.hp == 95
+
+def test_resolve_companion_and_enemy_turns_returns_empty_string_when_player_dead():
+    player = Player(name="Hero", hp=0, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+
+    result = resolve_companion_and_enemy_turns(player, [player], [enemy])
+
+    assert result == ""
+
 def test_handle_combat_command_flee_clears_combat_state():
     player = Player(name="Hero", hp=50, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
@@ -747,6 +962,35 @@ def test_handle_combat_command_use_item_enemy_attacks_most_attractive_team_targe
 
     assert "Goblin attacks Imp for 3 damage." in message
     assert companion.hp == 0
+
+def test_handle_combat_command_use_item_self_applied_effect_is_not_ticked_same_turn():
+    """Regression test for the fix: player.tick_status_effects() now runs BEFORE the item's own use(), so a
+    freshly-applied self-effect (a heal-over-time StatusEffectItem here) isn't consumed by that same tick."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.hp = 50
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=4, duration=3)
+    player.inventory.add(item)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=0)
+    room = Room("Arena")
+
+    handle_combat_command("use tonic of regeneration", player, enemy, [player], [enemy], room)
+
+    assert player.hp == 50 # not yet healed - the effect is afflicted, not ticked, this turn
+    assert player.active_effects[0].duration == 3
+
+def test_handle_combat_command_use_item_would_fail_blocks_before_any_tick():
+    """would_fail() now guards the tick for 'use' too - an item that would raise (here, an offensive
+    StatusEffectItem with no target set) must leave the player's pre-existing effects/cooldowns untouched."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.apply_status_effect(StatusEffect("Regen", 2, 5))
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+    player.inventory.add(item)
+    room = Room("Arena")
+
+    message = handle_combat_command("use vial of poison", player, None, [player], [], room)
+
+    assert message == "You need a target for Vial of Poison - try 'target <enemy>' first."
+    assert player.active_effects[0].duration == 5
 
 def test_handle_combat_command_use_item_ticks_enemy_status_effects_before_its_turn(monkeypatch):
     """Guards against the 'use' branch's status-effect handling drifting from resolve_combat_round()'s."""

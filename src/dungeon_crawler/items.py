@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dungeon_crawler.status_effects import StatusEffect
+from dungeon_crawler.spells import Spell
 
 class Item(ABC):
     """Base class for anything that can sit in an Inventory; subclasses implement use() for what actually happens when it's used."""
@@ -24,6 +25,10 @@ class Item(ABC):
     def unequip(self, character) -> str:
         """Default no-op for items that can't be equipped; Weapon and Armour override this."""
         return f"{self.name} cannot be unequipped."
+
+    def would_fail(self, character) -> str | None:
+        """Default: never fails."""
+        return None
 class Weapon(Item):
     """An equippable item that raises attack_damage while equipped."""
 
@@ -171,6 +176,30 @@ class StatusEffectItem(Consumable):
         if character.current_target is None or not character.current_target.is_alive():
             raise ValueError(f"You need a target for {self.name} - try 'target <enemy>' first.")
         return character.current_target.apply_status_effect(effect)
+
+    def would_fail(self, character) -> str | None:
+        if self.amount < 0 and (character.current_target is None or not character.current_target.is_alive()):
+            return f"You need a target for {self.name} - try 'target <enemy>' first."
+        return None
+
+class SpellBook(Consumable):
+    """A single-use item that permanently teaches its spell. Already known - use() returns without consuming."""
+    def __init__(self, name: str, description: str, spell: Spell):
+        """Store the spell this book teaches."""
+        super().__init__(name, description)
+        self.spell = spell
+
+    def use(self, character) -> str:
+        """Add self.spell to character.known_spells, unless already known."""
+        if any(known.name == self.spell.name for known in character.known_spells):
+            raise ValueError(f"{character.name} already knows {self.spell.name}.")
+        character.known_spells.append(self.spell)
+        return f"{character.name} learns {self.spell.name}!" 
+
+    def would_fail(self, character) -> str | None:
+        if any(known.name == self.spell.name for known in character.known_spells):
+            return f"{character.name} already knows {self.spell.name}."
+        return None
 
 class Inventory:
     """Holds a character's items - used by both Player and Ally - with add/remove/use/drop/unequip operations and a read-only items property over the private list (see CLAUDE.md)."""

@@ -8,6 +8,8 @@ from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item
 from dungeon_crawler.character_creation import choose_ancestry, create_player
 
+REST_MANA_AMOUNT = 10
+
 
 def print_room(room: Room, player: Player):
     """Display a room's name, description, contents, and occupants on entry.
@@ -138,6 +140,11 @@ def main() -> None:
 
         elif command == "examine":
             print(handle_examine(current_room, player))
+
+        elif command in ("rest", "wait"):
+            restored = min(REST_MANA_AMOUNT, player.max_mana - player.mana)
+            player.mana += restored
+            print(f"{player.name} rests and recovers {restored} mana.")
 
         elif command.startswith("repair "):
             item_name = command.removeprefix("repair ").strip()

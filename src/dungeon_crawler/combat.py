@@ -166,10 +166,53 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
     any enemy ever acted."""
     messages = []
     messages.extend(player.tick_status_effects())
+    player.tick_spell_cooldowns()
+
     if player.is_alive():
         messages.append(player.attack(target))
 
-    if player.is_alive() and player.companion is not None and player.companion.is_alive():
+    tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
+    if tail:
+        messages.append(tail)
+    messages.append(format_hp_line(player_team, enemy_team))
+    return "\n".join(messages)
+
+def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room) -> str:
+    """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly.
+    Checks every member of enemy_team for defeat afterwards, not just target, since a full team round can defeat more than one
+    enemy at once (e.g. a Thorns reflection killing an enemy during its own attack)."""
+    enemies_before = [enemy for enemy in enemy_team if enemy.is_alive()]
+
+    result = resolve_combat_round(player, target, player_team, enemy_team)
+
+    newly_defeated = [enemy for enemy in enemies_before if not enemy.is_alive()]
+    for enemy in newly_defeated:
+        # default to ending combat - handle_enemy_defeat() overrides this back to True (with a new
+        # current_target) if the enemy has a next_phase_factory, i.e. a boss phase transition
+        player.in_combat = False
+        player.current_target = None
+        defeat_extras = handle_enemy_defeat(room, enemy, player)
+        if defeat_extras:
+            result += f"\n{defeat_extras}"
+
+    if newly_defeated and any(enemy.is_alive() for enemy in room.enemies):
+        # something died this round, but the room still has living enemies (either teammates who survived, or a fresh boss
+        # phase handle_enemy_defeat() just added) - combat isn't over, even though the loop above just cleared in_combat
+        # for the specific enemy that died 
+        player.in_combat = True
+
+    return result
+
+def resolve_companion_and_enemy_turns(player: Player, player_team: list[Character], enemy_team: list[Enemy]) -> str:
+    """Companion's turn (if present and alive), then every living enemy's turn, in enemy_team order - the shared tail common
+    to attack/use/cast, always called after the player's own action and tick have already happened. Returns a message, does not print.
+    Safe to call even if the player is already dead (returns "" immediately) - though the real guard for that should already exist
+    at the call site before this is reached."""
+    if not player.is_alive():
+        return ""
+
+    messages = []
+    if player.companion is not None and player.companion.is_alive():
         messages.extend(player.companion.tick_status_effects())
     if player.is_alive() and player.companion is not None and player.companion.is_alive():
         companion_action = choose_companion_action(player.companion, enemy_team)
@@ -203,34 +246,7 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
             if not player.is_alive():
                 break
 
-    messages.append(format_hp_line(player_team, enemy_team))
     return "\n".join(messages)
-
-def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room) -> str:
-    """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly.
-    Checks every member of enemy_team for defeat afterwards, not just target, since a full team round can defeat more than one
-    enemy at once (e.g. a Thorns reflection killing an enemy during its own attack)."""
-    enemies_before = [enemy for enemy in enemy_team if enemy.is_alive()]
-
-    result = resolve_combat_round(player, target, player_team, enemy_team)
-
-    newly_defeated = [enemy for enemy in enemies_before if not enemy.is_alive()]
-    for enemy in newly_defeated:
-        # default to ending combat - handle_enemy_defeat() overrides this back to True (with a new
-        # current_target) if the enemy has a next_phase_factory, i.e. a boss phase transition
-        player.in_combat = False
-        player.current_target = None
-        defeat_extras = handle_enemy_defeat(room, enemy, player)
-        if defeat_extras:
-            result += f"\n{defeat_extras}"
-
-    if newly_defeated and any(enemy.is_alive() for enemy in room.enemies):
-        # something died this round, but the room still has living enemies (either teammates who survived, or a fresh boss
-        # phase handle_enemy_defeat() just added) - combat isn't over, even though the loop above just cleared in_combat
-        # for the specific enemy that died 
-        player.in_combat = True
-
-    return result
 
 def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
     """Remove the defeated enemy, drop loot (or trigger a phase transition), and grant XP/gold. Assembles one combined message, does not print."""
@@ -336,6 +352,38 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
     if command == "attack":
         return resolve_attack_and_check_defeat(player, target, player_team, enemy_team, room)
 
+    if command.startswith("cast "):
+        spell_name = command.removeprefix("cast ").strip()
+        spell = next((s for s in player.known_spells if s.name.lower() == spell_name.lower()), None)
+        if spell is None:
+            return f"You don't know a spell called '{spell_name}'."
+        if spell.name in player.spell_cooldowns:
+            return f"{spell.name} is still on cooldown."
+        if player.mana < spell.mana_cost:
+            return f"Not enough mana for {spell.name} ({spell.mana_cost} needed, {player.mana} available)."
+
+        failure = spell.would_fail(player, target)
+        if failure is not None:
+            return failure
+        
+        tick_messages = []
+        if player.is_alive():
+            tick_messages.extend(player.tick_status_effects())
+            player.tick_spell_cooldowns()
+
+        result = spell.cast(player, target)
+        player.mana -= spell.mana_cost
+        player.spell_cooldowns[spell.name] = 1
+
+        result = "\n".join(tick_messages + [result]) if tick_messages else result
+
+        tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
+        if tail:
+            result += f"\n{tail}"
+
+        result += f"\n{format_hp_line(player_team, enemy_team)}"
+        return result
+
     if command == "flee":
         result = flee_combat(player, enemy_team)
         player.in_combat = False
@@ -344,57 +392,32 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
 
     if command.startswith("use "):
         item_name = command.removeprefix("use ").strip()
-        try:
-            result = player.inventory.use_item(item_name, player)
-        except ValueError as e:
-            # return immediately on failure - a failed action must never cost the player's turn (see CLAUDE.md;
-            # this exact branch used to fall through into the enemy's attack unconditionally, a real bug)
-            return str(e)
+        item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
+        if item is None:
+            return f"No item named '{item_name}' in inventory."
+
+        failure = item.would_fail(player)
+        if failure is not None:
+            return failure
+
+        tick_messages = []
 
         if player.is_alive():
-            for tick_message in player.tick_status_effects():
-                result += f"\n{tick_message}"
+            tick_messages.extend(player.tick_status_effects())
+            player.tick_spell_cooldowns()
 
-        if player.companion is not None and player.companion.is_alive():
-            for tick_message in player.companion.tick_status_effects():
-                result += f"\n{tick_message}"
-        if player.companion is not None and player.companion.is_alive():
-            companion_action = choose_companion_action(player.companion, enemy_team)
-            if companion_action == "attack":
-                companion_target = choose_companion_target(player.companion, enemy_team)
-                result += f"\n{player.companion.attack(companion_target)}"
-            elif companion_action == "defend":
-                player.companion.pending_damage_reduction = player.companion.brace_amount
-                result += f"\n{player.companion.name} braces for incoming damage."
-            elif companion_action == "heal":
-                healed = min(player.companion.heal_amount, player.companion.max_hp - player.companion.hp)
-                player.companion.hp += healed
-                result += f"\n{player.companion.name} recovers {healed} HP."
+        result = player.inventory.use_item(item_name, player)
 
-        for enemy in enemy_team:
-            if enemy.is_alive():
-                for tick_message in enemy.tick_status_effects():
-                    result += f"\n{tick_message}"
-            if enemy.is_alive():
-                action = choose_enemy_action(enemy, player_team)
-                if action == "attack":
-                    enemy_target = choose_enemy_target(enemy, player_team)
-                    result += f"\n{enemy.attack(enemy_target)}"
-                elif action == "defend":
-                    enemy.pending_damage_reduction = enemy.brace_amount
-                    result += f"\n{enemy.name} braces for incoming damage."
-                elif action == "heal":
-                    healed = min(enemy.heal_amount, enemy.max_hp - enemy.hp)
-                    enemy.hp += healed
-                    result += f"\n{enemy.name} recovers {healed} HP."
-            if not player.is_alive():
-                break
-
-        result += "\n" + format_hp_line(player_team, enemy_team)
+        result = "\n".join(tick_messages + [result]) if tick_messages else result
+        tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
+        if tail:
+            result += f"\n{tail}"
 
         if not player.is_alive():
             player.in_combat = False
             player.current_target = None
+
+        result += f"\n{format_hp_line(player_team, enemy_team)}"
         return result
 
     if command == "stats":

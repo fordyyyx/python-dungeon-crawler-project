@@ -1,5 +1,6 @@
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, QuestItem, Inventory, SkillPointReward
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
+from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
 from dungeon_crawler.engine import pick_up
 
@@ -443,6 +444,36 @@ def test_status_effect_item_use_with_negative_amount_and_dead_target_raises_erro
     except ValueError:
         pass
 
+def test_item_would_fail_defaults_to_none():
+    weapon = Weapon(name="Iron Sword", description="", damage=5)
+    player = Player(name="Hero", hp=20)
+    assert weapon.would_fail(player) is None
+
+def test_status_effect_item_would_fail_returns_none_with_positive_amount_regardless_of_target():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    assert item.would_fail(player) is None
+
+def test_status_effect_item_would_fail_returns_none_when_negative_amount_has_a_living_target():
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player.current_target = enemy
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+    assert item.would_fail(player) is None
+
+def test_status_effect_item_would_fail_returns_message_when_negative_amount_has_no_target():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+    assert item.would_fail(player) == "You need a target for Vial of Poison - try 'target <enemy>' first."
+
+def test_status_effect_item_would_fail_returns_message_when_negative_amount_target_is_dead():
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    enemy.hp = 0
+    player.current_target = enemy
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+    assert item.would_fail(player) == "You need a target for Vial of Poison - try 'target <enemy>' first."
+
 def test_status_effect_item_use_with_no_target_error_message():
     player = Player(name="Hero", hp=20)
     item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
@@ -461,6 +492,106 @@ def test_status_effect_item_used_via_inventory_is_removed_after_use():
     player.inventory.use_item("Tonic of Regeneration", player)
 
     assert item not in player.inventory.items
+
+def test_spell_book_initialises_with_spell():
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    assert book.spell is spell
+
+def test_spell_book_is_a_consumable():
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    assert isinstance(book, Consumable)
+
+def test_spell_book_use_adds_spell_to_known_spells():
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    book.use(player)
+    assert spell in player.known_spells
+
+def test_spell_book_use_returns_confirmation_message():
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    message = book.use(player)
+    assert message == "Hero learns Firebolt!"
+
+def test_spell_book_use_when_already_known_raises_error():
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+
+    try:
+        book.use(player)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError as e:
+        assert str(e) == "Hero already knows Firebolt."
+
+def test_spell_book_use_when_already_known_does_not_add_duplicate():
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+
+    try:
+        book.use(player)
+    except ValueError:
+        pass
+
+    assert len(player.known_spells) == 1
+
+def test_spell_book_use_matches_already_known_by_name_not_object_identity():
+    player = Player(name="Hero", hp=20)
+    player.known_spells.append(Spell(name="Firebolt", description="a different copy", mana_cost=99))
+    new_spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    book = SpellBook(name="Tome of Fire", description="", spell=new_spell)
+
+    try:
+        book.use(player)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_spell_book_would_fail_returns_none_when_not_known():
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    assert book.would_fail(player) is None
+
+def test_spell_book_would_fail_returns_message_when_already_known():
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    assert book.would_fail(player) == "Hero already knows Firebolt."
+
+def test_spell_book_used_via_inventory_is_removed_after_use():
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    player.inventory.add(book)
+
+    player.inventory.use_item("Tome of Fire", player)
+
+    assert book not in player.inventory.items
+
+def test_spell_book_used_via_inventory_when_already_known_is_not_removed():
+    """use() raises rather than returning when already known, so Inventory.use_item()'s removal line is
+    never reached - the book stays in inventory instead of being wasted."""
+    player = Player(name="Hero", hp=20)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    player.inventory.add(book)
+
+    try:
+        player.inventory.use_item("Tome of Fire", player)
+    except ValueError:
+        pass
+
+    assert book in player.inventory.items
 
 def test_quest_item_use_returns_message():
     key = QuestItem(name="Bronze Key", description="")

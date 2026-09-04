@@ -591,6 +591,47 @@ def test_player_team_excludes_downed_companion():
     assert companion not in player.team
     assert len(player.team) == 1
 
+def test_player_initialises_with_no_known_spells():
+    player = Player(name="Hero", hp=10)
+    assert player.known_spells == []
+
+def test_player_initialises_with_mana():
+    player = Player(name="Hero", hp=10)
+    assert player.mana == 20
+
+def test_player_initialises_with_max_mana():
+    player = Player(name="Hero", hp=10)
+    assert player.max_mana == 20
+
+def test_player_initialises_with_no_spell_cooldowns():
+    player = Player(name="Hero", hp=10)
+    assert player.spell_cooldowns == {}
+
+def test_tick_spell_cooldowns_with_no_cooldowns_does_nothing():
+    player = Player(name="Hero", hp=10)
+    player.tick_spell_cooldowns()
+    assert player.spell_cooldowns == {}
+
+def test_tick_spell_cooldowns_removes_cooldown_that_reaches_zero():
+    player = Player(name="Hero", hp=10)
+    player.spell_cooldowns["Firebolt"] = 1
+    player.tick_spell_cooldowns()
+    assert "Firebolt" not in player.spell_cooldowns
+
+def test_tick_spell_cooldowns_decrements_cooldown_above_one():
+    player = Player(name="Hero", hp=10)
+    player.spell_cooldowns["Firebolt"] = 3
+    player.tick_spell_cooldowns()
+    assert player.spell_cooldowns["Firebolt"] == 2
+
+def test_tick_spell_cooldowns_handles_each_spell_independently():
+    player = Player(name="Hero", hp=10)
+    player.spell_cooldowns["Firebolt"] = 1
+    player.spell_cooldowns["Mend"] = 3
+    player.tick_spell_cooldowns()
+    assert "Firebolt" not in player.spell_cooldowns
+    assert player.spell_cooldowns["Mend"] == 2
+
 def test_enemy_initialises_with_correct_stats():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4, armour=1)
     assert enemy.name == "Goblin"

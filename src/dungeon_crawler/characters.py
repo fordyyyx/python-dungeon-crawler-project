@@ -2,6 +2,7 @@
 
 from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem
 from dungeon_crawler.status_effects import StatusEffect
+from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
 from textwrap import dedent
 import random
@@ -146,6 +147,10 @@ class Player(Character):
         self.auto_talk = False
         self.intellect = 0
         self.companion: "Companion | None" = None
+        self.known_spells: list[Spell] = []
+        self.mana = 20
+        self.max_mana = 20
+        self.spell_cooldowns: dict[str, int] = {}
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -231,6 +236,15 @@ class Player(Character):
         self.experience_to_next_level = int(self.experience_to_next_level * 1.5)
         self.intellect += 1
         return f"{self.name} reaches level {self.level}! A skill point is available."
+
+    def tick_spell_cooldowns(self) -> None:
+        """Decrement every active spell cooldown by one turn, dropping any that reach 0. Call once per player turn, same insertion
+        point as tick_status_effects()."""
+        expired = [name for name, remaining in self.spell_cooldowns.items() if remaining <= 1]
+        for name in expired:
+            del self.spell_cooldowns[name]
+        for name in self.spell_cooldowns:
+            self.spell_cooldowns[name] -= 1
 
     @property
     def team(self) -> list[Character]:

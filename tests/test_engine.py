@@ -310,6 +310,30 @@ def test_main_repair_command_routing_smoke_test(monkeypatch, capsys):
     assert "There's nowhere to repair armour here." in captured.out
     assert "Bronze Breastplate doesn't need repairing." in captured.out
 
+def test_main_rest_and_wait_restore_mana_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough confirming both 'rest' and 'wait' route to the same mana-recovery branch, and
+    that recovery caps at max_mana rather than overfilling."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "developer mode",
+        "basic",
+        "floor_0",
+        "dev set mana 5",
+        "rest",
+        "wait",
+        "dev set mana 18",
+        "rest",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Dev rests and recovers 10 mana." in captured.out # 5 -> 15
+    assert "Dev rests and recovers 5 mana." in captured.out # 15 -> 20 (wait, same branch)
+    assert "Dev rests and recovers 2 mana." in captured.out # 18 -> 20, capped rather than overfilling
+
 def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys):
     """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,
     and the game-over message prints afterwards."""
