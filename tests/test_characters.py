@@ -1,6 +1,7 @@
 from dungeon_crawler.characters import Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem
 from dungeon_crawler.world import Room
+from dungeon_crawler.status_effects import StatusEffect
 
 def test_character_initialises_with_correct_stats():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -295,6 +296,94 @@ def test_take_damage_with_pending_damage_reduction_fully_blocking_prevents_thorn
     attacker = Character(name="Goblin", hp=10, attack_damage=5)
     character.take_damage(10, attacker=attacker)
     assert attacker.hp == 10 # no damage got through, so no counter-strike
+
+def test_character_initialises_with_no_active_effects():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.active_effects == []
+
+def test_apply_status_effect_adds_new_effect():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    effect = StatusEffect("Poison", -3, 4)
+    character.apply_status_effect(effect)
+    assert effect in character.active_effects
+
+def test_apply_status_effect_returns_afflicted_message():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    effect = StatusEffect("Poison", -3, 4)
+    message = character.apply_status_effect(effect)
+    assert message == "Hero is afflicted with Poison."
+
+def test_apply_status_effect_with_existing_same_name_prolongs_duration():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 4))
+    character.apply_status_effect(StatusEffect("Poison", -3, 2))
+    assert len(character.active_effects) == 1
+    assert character.active_effects[0].duration == 6
+
+def test_apply_status_effect_with_existing_same_name_returns_prolonged_message():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 4))
+    message = character.apply_status_effect(StatusEffect("Poison", -3, 2))
+    assert message == "Hero's Poison is prolonged."
+
+def test_apply_status_effect_reapplication_does_not_change_amount():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 4))
+    character.apply_status_effect(StatusEffect("Poison", -5, 2))
+    assert character.active_effects[0].amount == -3
+
+def test_apply_status_effect_different_names_both_stay_active():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 4))
+    character.apply_status_effect(StatusEffect("Regen", 2, 3))
+    assert len(character.active_effects) == 2
+
+def test_tick_status_effects_returns_empty_list_when_no_active_effects():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.tick_status_effects() == []
+
+def test_tick_status_effects_applies_each_active_effect():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 4))
+    character.tick_status_effects()
+    assert character.hp == 17
+
+def test_tick_status_effects_removes_effect_when_duration_expires():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 1))
+    character.tick_status_effects()
+    assert character.active_effects == []
+
+def test_tick_status_effects_keeps_effect_when_duration_remains():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 2))
+    character.tick_status_effects()
+    assert len(character.active_effects) == 1
+    assert character.active_effects[0].duration == 1
+
+def test_tick_status_effects_stops_ticking_further_effects_once_character_dies():
+    """Same 'stop once dead' precedent as resolve_combat_round() - a tick that kills the character must
+    not let a later effect in the list also tick this round."""
+    character = Character(name="Hero", hp=5, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -10, 3))
+    character.apply_status_effect(StatusEffect("Fire", -3, 3))
+
+    messages = character.tick_status_effects()
+
+    assert character.hp == 0
+    assert not any("Fire" in message for message in messages)
+
+def test_tick_status_effects_appends_death_message_when_a_tick_kills_the_character():
+    character = Character(name="Hero", hp=5, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -10, 3))
+    messages = character.tick_status_effects()
+    assert messages[-1] == "Hero has died."
+
+def test_tick_status_effects_does_not_append_death_message_when_character_survives():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -3, 2))
+    messages = character.tick_status_effects()
+    assert len(messages) == 1
 
 def test_attack_reduces_target_hp():
     attacker = Character(name="Hero", hp=30, attack_damage=10)

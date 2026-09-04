@@ -1,6 +1,7 @@
 """Character classes - Character, Player, Enemy, Ally - and the skill tree system (Skill, SkillPath, SkillTree) that lets a Player unlock permanent stat/ability upgrades."""
 
 from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem
+from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.world import Room
 from textwrap import dedent
 import random
@@ -30,6 +31,7 @@ class Character:
         self.dodge_chance = 0.0
         """Chance (0.0-1.0) to avoid an incoming attack entirely. set by DodgeSkill. Lives on Character, not Player, same precedent
         as has_thorns/brace_amount - Enemy/Companion could plausibly use it too later."""
+        self.active_effects: list[StatusEffect] = []
 
     def attack(self, target: "Character") -> str:
         """Attack target once, then a second time at half damage if Double Strike is unlocked. Returns the combined message; does not print."""
@@ -95,6 +97,29 @@ class Character:
             return reduced, (message + f"\n{death_message}").strip()
         return reduced, message.strip()
 
+    def apply_status_effect(self, effect: StatusEffect) -> str:
+        """Apply a new status effect, or - if one with the same name is already active - prolong its duration by adding the new duration
+        on top (decided stacking rule, shared with Spells - see roadmap.md). Reapplication never changes amount, only duration."""
+        existing = next((e for e in self.active_effects if e.name == effect.name), None)
+        if existing is not None:
+            existing.duration += effect.duration
+            return f"{self.name}'s {effect.name} is prolonged."
+        self.active_effects.append(effect)
+        return f"{self.name} is afflicted with {effect.name}."
+
+    def tick_status_effects(self) -> list[str]:
+        """Apply one tick of every active effect, removing any that expire after this tick. Stops the moment a tick kills this character
+        - sam 'stop once dead' precendent as resolve_combat_round() - appending on_death()'s message when that happens."""
+        messages = []
+        for effect in list(self.active_effects):
+            if not self.is_alive():
+                break
+            messages.append(effect.tick(self))
+            if effect.duration <= 0:
+                self.active_effects.remove(effect)
+        if not self.is_alive():
+            messages.append(self.on_death())
+        return messages
 
     def is_alive(self) -> bool:
         """Whether this character's HP is still above zero."""

@@ -1,6 +1,7 @@
 """Item classes - Item and its subclasses (Weapon, Armour, Consumable, QuestItem, SkillPointReward) - plus Inventory, which holds and manages a character's items."""
 
 from abc import ABC, abstractmethod
+from dungeon_crawler.status_effects import StatusEffect
 
 class Item(ABC):
     """Base class for anything that can sit in an Inventory; subclasses implement use() for what actually happens when it's used."""
@@ -103,7 +104,7 @@ class Armour(Item):
 class Consumable(Item):
     """A single-use item that heals HP on use; Inventory.use_item() removes it from the inventory afterwards."""
 
-    def __init__(self, name: str, heal_amount: int, description: str = ""):
+    def __init__(self, name: str, description: str = "", heal_amount: int = 0):
         """Store how much HP this consumable heals."""
         super().__init__(name, description)
         self.heal_amount = heal_amount
@@ -148,6 +149,28 @@ class SkillPointReward(Item):
         """Grant character's skill tree points skill points."""
         character.skill_tree.skill_points += self.points
         return f"{character.name} gains {self.points} skill point(s) from {self.name}."
+
+class StatusEffectItem(Consumable):
+    """Applies a StatudEffect to the player (if amount is positive, a heal-over-time tonic) or to player.current_target (if negative,
+    poison/flame) - reuses the existing target command as the way to aim an offensive one, per roadmap.md's decision, rather than a new
+    'use <item> on <target> syntax."""
+    def __init__(self, name: str, description: str, effect_name: str, amount: int, duration: int):
+        """Store what effect this item applies, and how strong/long it lasts."""
+        super().__init__(name, description)
+        self.effect_name = effect_name
+        self.amount = amount
+        self.duration = duration
+
+    def use(self, character) -> str:
+        """Build a fresh StatusEffect on each use (so two uses aren't secretly sharing one mutable object) and apply it to self (healing)
+        or current_target (offensive - raises ValueError with no target set or a dead one, caught by handle_combat_command()'s existing
+        except ValueError, same as every other failed-action case)."""
+        effect = StatusEffect(self.effect_name, self.amount, self.duration)
+        if self.amount >= 0:
+            return character.apply_status_effect(effect)
+        if character.current_target is None or not character.current_target.is_alive():
+            raise ValueError(f"You need a target for {self.name} - try 'target <enemy>' first.")
+        return character.current_target.apply_status_effect(effect)
 
 class Inventory:
     """Holds a character's items - used by both Player and Ally - with add/remove/use/drop/unequip operations and a read-only items property over the private list (see CLAUDE.md)."""

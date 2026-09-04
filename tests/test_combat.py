@@ -1,6 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, Consumable
+from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.combat import resolve_combat_round, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
@@ -178,6 +179,86 @@ def test_resolve_combat_round_target_selection_excludes_a_companion_downed_earli
     assert "Harpy attacks Imp" not in result
     assert companion.hp == 0
     assert player.hp == 95
+
+def test_resolve_combat_round_ticks_player_status_effects_before_attack():
+    player = Player(name="Hero", hp=20, attack_damage=10)
+    player.apply_status_effect(StatusEffect("Poison", -3, 4))
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=0)
+
+    result = resolve_combat_round(player, enemy, [player], [enemy])
+
+    assert "Hero takes 3 damage from Poison." in result
+    assert player.hp == 17
+    assert result.index("Hero takes 3 damage from Poison.") < result.index("Hero attacks Goblin")
+
+def test_resolve_combat_round_lethal_player_status_effect_tick_prevents_player_attack():
+    player = Player(name="Hero", hp=3, attack_damage=10)
+    player.apply_status_effect(StatusEffect("Poison", -10, 4))
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=0)
+
+    result = resolve_combat_round(player, enemy, [player], [enemy])
+
+    assert player.hp == 0
+    assert "Hero attacks Goblin" not in result
+    assert enemy.hp == 20
+
+def test_resolve_combat_round_ticks_companion_status_effects_before_its_turn(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=0)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=20, home_room=home, attack_damage=5)
+    companion.apply_status_effect(StatusEffect("Poison", -3, 4))
+    player.companion = companion
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert "Imp takes 3 damage from Poison." in result
+    assert companion.hp == 17
+    assert "Imp attacks Goblin" in result
+
+def test_resolve_combat_round_lethal_companion_status_effect_tick_prevents_its_turn(monkeypatch):
+    """Regression test for the fix: a companion killed by its own status-effect tick must not still take
+    a turn afterwards - previously only a Thorns-during-attack death was guarded, not a self-inflicted one."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=0)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=5, home_room=home, attack_damage=5)
+    companion.apply_status_effect(StatusEffect("Poison", -10, 4))
+    player.companion = companion
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert companion.hp == 0
+    assert "Imp attacks" not in result
+    assert "Imp braces" not in result
+    assert "Imp recovers" not in result
+
+def test_resolve_combat_round_ticks_enemy_status_effects_before_its_turn(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=0)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.apply_status_effect(StatusEffect("Poison", -3, 4))
+
+    result = resolve_combat_round(player, enemy, [player], [enemy])
+
+    assert "Goblin takes 3 damage from Poison." in result
+    assert enemy.hp == 17
+    assert "Goblin attacks Hero" in result
+
+def test_resolve_combat_round_lethal_enemy_status_effect_tick_prevents_its_turn(monkeypatch):
+    """Regression test for the fix: an enemy killed by its own status-effect tick must not still take a
+    turn afterwards."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=0)
+    enemy = Enemy(name="Goblin", hp=5, attack_damage=5)
+    enemy.apply_status_effect(StatusEffect("Poison", -10, 4))
+
+    result = resolve_combat_round(player, enemy, [player], [enemy])
+
+    assert enemy.hp == 0
+    assert "Goblin attacks" not in result
 
 def test_handle_enemy_defeat_removes_enemy_from_room():
     room = Room("Armoury")
@@ -666,6 +747,36 @@ def test_handle_combat_command_use_item_enemy_attacks_most_attractive_team_targe
 
     assert "Goblin attacks Imp for 3 damage." in message
     assert companion.hp == 0
+
+def test_handle_combat_command_use_item_ticks_enemy_status_effects_before_its_turn(monkeypatch):
+    """Guards against the 'use' branch's status-effect handling drifting from resolve_combat_round()'s."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    potion = Consumable(name="Potion", heal_amount=1)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    enemy.apply_status_effect(StatusEffect("Poison", -3, 4))
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
+
+    assert "Goblin takes 3 damage from Poison." in message
+    assert enemy.hp == 17 # the 'use' branch doesn't attack - only the poison tick and the enemy's own turn touch its hp
+    assert "Goblin attacks Hero" in message
+
+def test_handle_combat_command_use_item_lethal_enemy_status_effect_tick_prevents_its_turn(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    potion = Consumable(name="Potion", heal_amount=1)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=3, attack_damage=5)
+    enemy.apply_status_effect(StatusEffect("Poison", -10, 4))
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 0
+    assert "Goblin attacks" not in message
 
 def test_handle_combat_command_use_item_enemy_counterattack_can_defeat_player_clears_combat_state():
     player = Player(name="Hero", hp=5, attack_damage=10)

@@ -1,5 +1,5 @@
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, QuestItem, Inventory, SkillPointReward
-from dungeon_crawler.characters import Character, Player, Companion
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, QuestItem, Inventory, SkillPointReward
+from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.engine import pick_up
 
@@ -292,6 +292,10 @@ def test_consumable_use_returns_heal_message():
     message = potion.use(hero)
     assert message == "hero uses potion, healing 3 HP."
 
+def test_consumable_defaults_to_zero_heal_amount():
+    consumable = Consumable(name="Empty Vial", description="")
+    assert consumable.heal_amount == 0
+
 def test_reviver_use_with_no_companion_attribute_returns_message():
     """getattr(character, "companion", None) - a plain Character has no .companion attribute at all,
     distinct from a Player whose companion is explicitly None."""
@@ -371,6 +375,92 @@ def test_reviver_used_via_inventory_is_removed_after_use():
     hero.inventory.use_item("Ambrosia", hero)
 
     assert reviver not in hero.inventory.items
+
+def test_status_effect_item_initialises_with_effect_attributes():
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    assert item.effect_name == "Regen"
+    assert item.amount == 3
+    assert item.duration == 4
+
+def test_status_effect_item_is_a_consumable():
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    assert isinstance(item, Consumable)
+
+def test_status_effect_item_use_with_positive_amount_applies_effect_to_self():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    item.use(player)
+    assert len(player.active_effects) == 1
+    assert player.active_effects[0].name == "Regen"
+
+def test_status_effect_item_use_with_positive_amount_returns_confirmation_message():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    message = item.use(player)
+    assert message == "Hero is afflicted with Regen."
+
+def test_status_effect_item_use_builds_a_fresh_effect_object_each_time():
+    """Each use() must build its own StatusEffect - two characters affected by the same item must not
+    secretly share one mutable effect object."""
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    hero = Player(name="Hero", hp=20)
+    ally = Player(name="Ally", hp=20)
+    item.use(hero)
+    item.use(ally)
+    assert hero.active_effects[0] is not ally.active_effects[0]
+
+def test_status_effect_item_use_with_negative_amount_applies_to_current_target():
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    player.current_target = enemy
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+
+    item.use(player)
+
+    assert len(enemy.active_effects) == 1
+    assert player.active_effects == []
+
+def test_status_effect_item_use_with_negative_amount_and_no_target_raises_error():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+
+    try:
+        item.use(player)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_status_effect_item_use_with_negative_amount_and_dead_target_raises_error():
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    enemy.hp = 0
+    player.current_target = enemy
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+
+    try:
+        item.use(player)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_status_effect_item_use_with_no_target_error_message():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+
+    try:
+        item.use(player)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError as e:
+        assert str(e) == "You need a target for Vial of Poison - try 'target <enemy>' first."
+
+def test_status_effect_item_used_via_inventory_is_removed_after_use():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    player.inventory.add(item)
+
+    player.inventory.use_item("Tonic of Regeneration", player)
+
+    assert item not in player.inventory.items
 
 def test_quest_item_use_returns_message():
     key = QuestItem(name="Bronze Key", description="")

@@ -164,8 +164,13 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
     message repeatedly for no reason (a real bug once, see CLAUDE.md). This also now guards the very first enemy action,
     not just subsequent ones - a Thorns reflection during the player's own attack could theoretically kill them before
     any enemy ever acted."""
-    messages = [player.attack(target)]
+    messages = []
+    messages.extend(player.tick_status_effects())
+    if player.is_alive():
+        messages.append(player.attack(target))
 
+    if player.is_alive() and player.companion is not None and player.companion.is_alive():
+        messages.extend(player.companion.tick_status_effects())
     if player.is_alive() and player.companion is not None and player.companion.is_alive():
         companion_action = choose_companion_action(player.companion, enemy_team)
         if companion_action == "attack":
@@ -181,6 +186,8 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
 
     if player.is_alive():
         for enemy in enemy_team:
+            if enemy.is_alive():
+                messages.extend(enemy.tick_status_effects())
             if enemy.is_alive():
                 action = choose_enemy_action(enemy, player_team)
                 if action == "attack":
@@ -344,6 +351,13 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
             # this exact branch used to fall through into the enemy's attack unconditionally, a real bug)
             return str(e)
 
+        if player.is_alive():
+            for tick_message in player.tick_status_effects():
+                result += f"\n{tick_message}"
+
+        if player.companion is not None and player.companion.is_alive():
+            for tick_message in player.companion.tick_status_effects():
+                result += f"\n{tick_message}"
         if player.companion is not None and player.companion.is_alive():
             companion_action = choose_companion_action(player.companion, enemy_team)
             if companion_action == "attack":
@@ -358,6 +372,9 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
                 result += f"\n{player.companion.name} recovers {healed} HP."
 
         for enemy in enemy_team:
+            if enemy.is_alive():
+                for tick_message in enemy.tick_status_effects():
+                    result += f"\n{tick_message}"
             if enemy.is_alive():
                 action = choose_enemy_action(enemy, player_team)
                 if action == "attack":
