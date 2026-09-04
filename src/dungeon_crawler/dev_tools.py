@@ -2,9 +2,11 @@
 the 'developer mode' command in main()."""
 
 from typing import Callable
-from dungeon_crawler.characters import Player, Enemy, Ally
+from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.items import Item
 from dungeon_crawler.world import Room, Map
+from dungeon_crawler.status_effects import StatusEffect
+from dungeon_crawler.spells import Spell
 from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour
 from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
@@ -48,8 +50,11 @@ ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {
     "ares": create_ares,
     "hermes": create_hermes,
     "prometheus": create_prometheus,
-
 }
+
+COMPANION_REGISTRY: dict[str, Callable[[], Companion]] = {}
+
+SPELL_REGISTRY: dict[str, Callable[[], Spell]] = {}
 
 STAT_ALIASES = {
     "atk": "attack_damage",
@@ -71,6 +76,16 @@ def find_enemy_by_name(name: str) -> Enemy | None:
 def find_ally_by_name(name: str) -> Ally | None:
     """Look up name (case-insensitive) in ALLY_REGISTRY and build a fresh instance, or None if no match."""
     factory = ALLY_REGISTRY.get(name.lower())
+    return factory() if factory else None
+
+def find_companion_by_name(name: str) -> Companion | None:
+    """Look up name (case-insensitive) in COMPANION_REGISTRY and build a fresh instance, or None if no match."""
+    factory = COMPANION_REGISTRY.get(name.lower())
+    return factory() if factory else None
+
+def find_spell_by_name(name: str) -> Spell | None:
+    """Look up name (case-insensitive) in SPELL_REGISTRY and build a fresh instance, or None if no match."""
+    factory = SPELL_REGISTRY.get(name.lower())
     return factory() if factory else None
 
 def find_room_by_name_ci(dungeon: Map, name: str) -> "Room | None":
@@ -171,12 +186,74 @@ def handle_dev_clear_room(room: Room) -> str:
         room.remove_ally(ally)
     return f"[DEV] Cleared room: removed {enemy_count} enemies and {ally_count} allies."
 
+def handle_dev_afflict(target_name: str, effect_name: str, amount_str: str, duration_str: str, player: Player, room: Room) -> str:
+    """Apply a StatusEffect directly to 'player', 'companion', or a named enemy in room - for testing DOT/HOT ticking without needing
+    a real StatusEffectItem or Spell. Reuses Character.apply_status_effect() so the decided stacking rule (reapplication prolongs
+    duration, doesn't stack separately) applies exactly as it would in real play."""
+    try:
+        amount = int(amount_str.strip())
+        duration = int(duration_str.strip())
+    except ValueError:
+        return "[DEV] amount and duration must be whole numbers."
+
+    target_name = target_name.strip().lower()
+    if target_name == "player":
+        target = player
+    elif target_name == "companion":
+        if player.companion is None:
+            return "[DEV] No companion to afflict."
+        target = player.companion
+    else:
+        target = next((e for e in room.enemies if e.name.lower() == target_name), None)
+        if target is None:
+            return f"[DEV] No character named '{target_name}' found here."
+
+    effect = StatusEffect(effect_name, amount, duration)
+    return "[DEV] " + target.apply_status_effect(effect)
+
+def handle_dev_set_durability(slot: str, value_str: str, player: Player) -> str:
+    """Directly set an equipped Armour piece's durability, adjusting player.armour if this crosses the broken/fixed threshold - mirrors
+    take_damage()'s and repair_item()'s own bookkeeping exactly, so a dev-set durability behaves identically to durability lost or
+    restored through normal play."""
+    slot = slot.strip().lower()
+    if slot not in ("helmet", "body"):
+        return f"[DEV] Unknown slot '{slot}' - use 'helmet' or 'body'."
+
+    item = getattr(player, f"equipped_{slot}")
+    if item is None:
+        return f"[DEV] No armour equipped in the {slot} slot."
+
+    try:
+        value = int(value_str.strip())
+    except ValueError:
+        return f"[DEV] Invalid value '{value_str.strip()}'."
+
+    value = max(0, min(value, item.max_durability))
+    was_broken = item.durability == 0
+    item.durability = value
+    now_broken = item.durability == 0
+
+    if was_broken and not now_broken:
+        player.armour += item.defence
+    elif now_broken and not was_broken:
+        player.armour -= item.defence
+
+    return f"[DEV] {item.name} durability set to {item.durability}/{item.max_durability}."
+
+    
+
 def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -> tuple[str, "Room | None"]:
     """Dispatch a 'dev ...' command (with the 'dev ' prefix already stripped) to the matching handle_dev_*() function.
     Always returns (message, new_room) - new_room is only ever non-None for 'dev teleport', letting main() reassign
     current_room; every other branch must still return None as the second element, not a bare string. This shape
     matters because a bare string return here was a real bug once (see CLAUDE.md) - a stale call site hadn't been
     updated after this function's return type changed, so main() printed the raw tuple instead of the message."""
+    if command.startswith("set durability "):
+        parts = command.removeprefix("set durability ").split(" ", 1)
+        if len(parts) != 2:
+            return "[DEV] Usage: dev set durability <helmet|body> <value>", None
+        return handle_dev_set_durability(parts[0], parts[1], player), None
+
     if command.startswith("set "):
         parts = command.removeprefix("set ").split(" ", 1)
         if len(parts) != 2:
@@ -201,6 +278,10 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
         if ally is not None:
             room.add_ally(ally)
             return f"[DEV] Spawned {ally.name}.", None
+        companion = find_companion_by_name(character_name)
+        if companion is not None:
+            room.add_companion(companion)
+            return f"[DEV] Spawned {companion.name}. Use 'recruit {companion.name}' to add them to your team.", None
         return f"[DEV] No known character names {character_name}.", None
 
     if command.startswith("remove all "):
@@ -211,6 +292,13 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
 
     if command == "clear room":
         return handle_dev_clear_room(room), None
+
+    if command.startswith("afflict "):
+        parts = command.removeprefix("afflict ").split()
+        if len(parts) != 4:
+            return "[DEV] Usage: dev afflict <target> <effect> <amount> <duration> - effect name must be a single word.", None
+        target_name, effect_name, amount_str, duration_str = parts
+        return handle_dev_afflict(target_name, effect_name, amount_str, duration_str, player, room), None
 
     if command == "kill":
         return handle_dev_kill(player, room), None
@@ -234,6 +322,16 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
         except ValueError as e:
             player.skill_tree.skill_points -= 1
             return f"[DEV] {e}", None
+
+    if command.startswith("grant spell "):
+        spell_name = command.removeprefix("grant spell ").strip()
+        spell = find_spell_by_name(spell_name)
+        if spell is None:
+            return f"[DEV] No known spell named '{spell_name}'.", None
+        if any(known.name == spell.name for known in player.known_spells):
+            return f"[DEV] {spell.name} is already known.", None
+        player.known_spells.append(spell)
+        return f"[DEV] Granted spell: {spell.name}.", None
 
     if command == "unlock all":
         cleared = list(room.locked_exits.keys())

@@ -1,7 +1,7 @@
-from dungeon_crawler.characters import Player, Enemy, Ally
+from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.items import Weapon
-from dungeon_crawler.dev_tools import find_item_by_name, handle_dev_command, handle_dev_set, find_enemy_by_name, find_ally_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room
+from dungeon_crawler.items import Weapon, Armour
+from dungeon_crawler.dev_tools import find_item_by_name, handle_dev_command, handle_dev_set, find_enemy_by_name, find_ally_by_name, find_companion_by_name, find_spell_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, handle_dev_afflict, handle_dev_set_durability
 
 def test_find_item_by_name_returns_item_for_known_name():
     item = find_item_by_name("wooden sword")
@@ -530,3 +530,257 @@ def test_handle_dev_clear_room_with_empty_room_returns_zero_counts():
     message = handle_dev_clear_room(room)
 
     assert message == "[DEV] Cleared room: removed 0 enemies and 0 allies."
+
+def test_find_companion_by_name_returns_none_since_registry_is_currently_empty():
+    """COMPANION_REGISTRY has no entries yet - no Companion exists as real game content. This test documents
+    the current, honest state and will need a real entry once one does."""
+    companion = find_companion_by_name("anything")
+    assert companion is None
+
+def test_find_spell_by_name_returns_none_since_registry_is_currently_empty():
+    """SPELL_REGISTRY has no entries yet - no Spell exists as real game content. This test documents the
+    current, honest state and will need a real entry once one does."""
+    spell = find_spell_by_name("anything")
+    assert spell is None
+
+def test_handle_dev_afflict_applies_effect_to_player():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    handle_dev_afflict("player", "Poison", "-3", "4", player, room)
+
+    assert len(player.active_effects) == 1
+    assert player.active_effects[0].name == "Poison"
+    assert player.active_effects[0].amount == -3
+    assert player.active_effects[0].duration == 4
+
+def test_handle_dev_afflict_returns_confirmation_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    message = handle_dev_afflict("player", "Poison", "-3", "4", player, room)
+
+    assert message == "[DEV] hero is afflicted with Poison."
+
+def test_handle_dev_afflict_applies_effect_to_companion():
+    player = Player(name="hero", hp=100)
+    home = Room("Camp")
+    player.companion = Companion(name="Imp", hp=10, home_room=home)
+    room = Room("Arena")
+
+    handle_dev_afflict("companion", "Regen", "3", "5", player, room)
+
+    assert len(player.companion.active_effects) == 1
+    assert player.companion.active_effects[0].name == "Regen"
+
+def test_handle_dev_afflict_with_no_companion_returns_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    message = handle_dev_afflict("companion", "Regen", "3", "5", player, room)
+
+    assert message == "[DEV] No companion to afflict."
+
+def test_handle_dev_afflict_applies_effect_to_named_enemy_in_room():
+    player = Player(name="hero", hp=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    handle_dev_afflict("goblin", "Poison", "-3", "4", player, room)
+
+    assert len(enemy.active_effects) == 1
+
+def test_handle_dev_afflict_enemy_name_matching_is_case_insensitive():
+    player = Player(name="hero", hp=100)
+    enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+
+    handle_dev_afflict("GOBLIN", "Poison", "-3", "4", player, room)
+
+    assert len(enemy.active_effects) == 1
+
+def test_handle_dev_afflict_with_unknown_target_returns_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    message = handle_dev_afflict("nonexistent", "Poison", "-3", "4", player, room)
+
+    assert message == "[DEV] No character named 'nonexistent' found here."
+
+def test_handle_dev_afflict_with_invalid_amount_returns_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    message = handle_dev_afflict("player", "Poison", "abc", "4", player, room)
+
+    assert message == "[DEV] amount and duration must be whole numbers."
+
+def test_handle_dev_afflict_with_invalid_duration_returns_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    message = handle_dev_afflict("player", "Poison", "-3", "xyz", player, room)
+
+    assert message == "[DEV] amount and duration must be whole numbers."
+
+def test_handle_dev_afflict_reapplication_prolongs_duration():
+    """Reuses Character.apply_status_effect() directly, so the decided stacking rule (reapplication prolongs
+    duration, doesn't stack a separate instance) applies exactly as it would in real play."""
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    handle_dev_afflict("player", "Poison", "-3", "4", player, room)
+    handle_dev_afflict("player", "Poison", "-3", "2", player, room)
+
+    assert len(player.active_effects) == 1
+    assert player.active_effects[0].duration == 6
+
+def test_handle_dev_set_durability_with_invalid_slot_returns_message():
+    player = Player(name="hero", hp=100)
+
+    message = handle_dev_set_durability("shield", "5", player)
+
+    assert message == "[DEV] Unknown slot 'shield' - use 'helmet' or 'body'."
+
+def test_handle_dev_set_durability_with_no_armour_equipped_returns_message():
+    player = Player(name="hero", hp=100)
+
+    message = handle_dev_set_durability("body", "5", player)
+
+    assert message == "[DEV] No armour equipped in the body slot."
+
+def test_handle_dev_set_durability_with_invalid_value_returns_message():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+
+    message = handle_dev_set_durability("body", "abc", player)
+
+    assert message == "[DEV] Invalid value 'abc'."
+
+def test_handle_dev_set_durability_sets_durability():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+
+    handle_dev_set_durability("body", "4", player)
+
+    assert armour.durability == 4
+
+def test_handle_dev_set_durability_returns_confirmation_message():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+
+    message = handle_dev_set_durability("body", "4", player)
+
+    assert message == "[DEV] Shield durability set to 4/10."
+
+def test_handle_dev_set_durability_clamps_value_above_max_durability():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+
+    handle_dev_set_durability("body", "999", player)
+
+    assert armour.durability == 10
+
+def test_handle_dev_set_durability_clamps_negative_value_to_zero():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+
+    handle_dev_set_durability("body", "-5", player)
+
+    assert armour.durability == 0
+
+def test_handle_dev_set_durability_breaking_backs_out_defence():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+
+    handle_dev_set_durability("body", "0", player)
+
+    assert player.armour == 0
+
+def test_handle_dev_set_durability_restoring_from_broken_adds_back_defence():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+    handle_dev_set_durability("body", "0", player)
+
+    handle_dev_set_durability("body", "5", player)
+
+    assert player.armour == 3
+
+def test_handle_dev_set_durability_staying_nonzero_does_not_change_defence():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+
+    handle_dev_set_durability("body", "5", player)
+
+    assert player.armour == 3
+
+def test_handle_dev_set_durability_works_on_helmet_slot():
+    player = Player(name="hero", hp=100)
+    helmet = Armour(name="Helm", description="", defence=2, slot="helmet", max_durability=8)
+    helmet.use(player)
+
+    handle_dev_set_durability("helmet", "3", player)
+
+    assert helmet.durability == 3
+
+def test_handle_dev_command_set_durability_dispatches_correctly():
+    player = Player(name="hero", hp=100)
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=10)
+    armour.use(player)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("set durability body 4", player, room, dungeon)
+
+    assert armour.durability == 4
+    assert message == "[DEV] Shield durability set to 4/10."
+    assert new_room is None
+
+def test_handle_dev_command_set_durability_with_missing_value_returns_usage_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("set durability body", player, room, dungeon)
+
+    assert message == "[DEV] Usage: dev set durability <helmet|body> <value>"
+
+def test_handle_dev_command_afflict_dispatches_correctly():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("afflict player poison -3 4", player, room, dungeon)
+
+    assert len(player.active_effects) == 1
+    assert new_room is None
+
+def test_handle_dev_command_afflict_with_wrong_number_of_arguments_returns_usage_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("afflict player poison -3", player, room, dungeon)
+
+    assert message == "[DEV] Usage: dev afflict <target> <effect> <amount> <duration> - effect name must be a single word."
+
+def test_handle_dev_command_grant_spell_with_unknown_spell_returns_message():
+    """SPELL_REGISTRY is currently empty, so this is the only reachable branch of 'grant spell' through
+    handle_dev_command() right now - see find_spell_by_name()'s own tests for why."""
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("grant spell firebolt", player, room, dungeon)
+
+    assert message == "[DEV] No known spell named 'firebolt'."
