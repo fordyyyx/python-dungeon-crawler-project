@@ -295,9 +295,12 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
 
     if command.startswith("afflict "):
         parts = command.removeprefix("afflict ").split()
-        if len(parts) != 4:
+        if len(parts) < 4:
             return "[DEV] Usage: dev afflict <target> <effect> <amount> <duration> - effect name must be a single word.", None
-        target_name, effect_name, amount_str, duration_str = parts
+        duration_str = parts[-1]
+        amount_str = parts[-2]
+        effect_name = parts[-3]
+        target_name = " ".join(parts[:-3])
         return handle_dev_afflict(target_name, effect_name, amount_str, duration_str, player, room), None
 
     if command == "kill":
@@ -349,8 +352,13 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
 
     if command == "help":
         return (
-            "[DEV] Commands: dev add <item>, dev set hp <n>, "
-            "dev unlock <direction>, dev unlock all, dev skillpoints"
+            "[DEV] Commands: dev add <item>, dev set <stat> <n>\n"
+            "dev unlock <direction>, dev unlock all\n"
+            "dev set durability <slot> <value>, dev spawn <character>\n"
+            "dev remove <character/all>, dev clear room\n"
+            "dev afflict <target> <effect> <amount> <duration>\n"
+            "dev kill <enemy>, dev teleport <room>, dev learn <skill>\n"
+            "dev grant spell <name>"
         ), None
         
     return f"[DEV] Unrecognised dev command: {command}. Try 'dev help'.", None

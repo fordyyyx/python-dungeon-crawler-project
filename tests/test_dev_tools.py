@@ -121,8 +121,13 @@ def test_handle_dev_command_help_returns_help_text():
     dungeon = Map()
     message, new_room = handle_dev_command("help", player, room, dungeon)
     assert message == (
-        "[DEV] Commands: dev add <item>, dev set hp <n>, "
-        "dev unlock <direction>, dev unlock all, dev skillpoints"
+        "[DEV] Commands: dev add <item>, dev set <stat> <n>\n"
+        "dev unlock <direction>, dev unlock all\n"
+        "dev set durability <slot> <value>, dev spawn <character>\n"
+        "dev remove <character/all>, dev clear room\n"
+        "dev afflict <target> <effect> <amount> <duration>\n"
+        "dev kill <enemy>, dev teleport <room>, dev learn <skill>\n"
+        "dev grant spell <name>"
     )
 
 def test_handle_dev_command_unrecognised_command_returns_error_message():
@@ -773,6 +778,32 @@ def test_handle_dev_command_afflict_with_wrong_number_of_arguments_returns_usage
     message, new_room = handle_dev_command("afflict player poison -3", player, room, dungeon)
 
     assert message == "[DEV] Usage: dev afflict <target> <effect> <amount> <duration> - effect name must be a single word."
+
+def test_handle_dev_command_afflict_supports_multi_word_target_name():
+    """Regression test for the fix: the last three tokens are always effect/amount/duration - everything
+    before them, however many words, is the target name. 'Skeleton Warrior' previously split into two
+    tokens and broke the old exact-count check."""
+    player = Player(name="hero", hp=100)
+    enemy = Enemy(name="Skeleton Warrior", hp=8, attack_damage=3)
+    room = Room("Arena")
+    room.add_enemy(enemy)
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("afflict skeleton warrior poison -2 3", player, room, dungeon)
+
+    assert message == "[DEV] Skeleton Warrior is afflicted with poison."
+    assert len(enemy.active_effects) == 1
+    assert enemy.active_effects[0].amount == -2
+    assert enemy.active_effects[0].duration == 3
+
+def test_handle_dev_command_afflict_unknown_multi_word_target_returns_full_name_in_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("afflict some unknown thing poison -3 4", player, room, dungeon)
+
+    assert message == "[DEV] No character named 'some unknown thing' found here."
 
 def test_handle_dev_command_grant_spell_with_unknown_spell_returns_message():
     """SPELL_REGISTRY is currently empty, so this is the only reachable branch of 'grant spell' through
