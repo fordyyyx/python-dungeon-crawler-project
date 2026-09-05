@@ -710,6 +710,34 @@ def test_get_stats_includes_unlocked_skills_section_when_skill_unlocked():
     assert "Unlocked Skills:" in stats
     assert "  - Hardened Skin" in stats
 
+def test_get_stats_has_no_weapon_summary_when_nothing_equipped():
+    player = Player(name="hero", hp=100, attack_damage=10)
+    stats = player.get_stats()
+    assert "10 ATK\n" in stats
+
+def test_get_stats_includes_melee_weapon_bonus_in_atk_line():
+    player = Player(name="hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Sword", description="", damage=5)
+    sword.use(player)
+    stats = player.get_stats()
+    assert "10 ATK (+5 melee)" in stats
+
+def test_get_stats_includes_ranged_weapon_bonus_in_atk_line():
+    player = Player(name="hero", hp=100, attack_damage=10)
+    bow = Weapon(name="Bow", description="", damage=4, slot="ranged")
+    bow.use(player)
+    stats = player.get_stats()
+    assert "10 ATK (+4 ranged)" in stats
+
+def test_get_stats_includes_both_weapon_bonuses_when_both_equipped():
+    player = Player(name="hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Sword", description="", damage=5)
+    bow = Weapon(name="Bow", description="", damage=4, slot="ranged")
+    sword.use(player)
+    bow.use(player)
+    stats = player.get_stats()
+    assert "10 ATK (+5 melee, +4 ranged)" in stats
+
 def test_get_stats_unlocked_skills_section_lists_skills_from_multiple_paths():
     player = Player(name="hero", hp=100)
     player.skill_tree.skill_points = 2
@@ -944,9 +972,13 @@ def test_ally_initialises_with_empty_description_by_default():
     ally = Ally(name="Chiron")
     assert ally.description == ""
 
-def test_character_initialises_with_no_equipped_weapon():
+def test_character_initialises_with_no_equipped_melee_weapon():
     character = Character(name="Hero", hp=30, attack_damage=5)
-    assert character.equipped_weapon is None
+    assert character.equipped_melee_weapon is None
+
+def test_character_initialises_with_no_equipped_ranged_weapon():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.equipped_ranged_weapon is None
 
 def test_character_initialises_with_no_equipped_helmet():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -983,6 +1015,96 @@ def test_character_initialises_with_no_pending_damage_reduction():
 def test_character_initialises_with_zero_dodge_chance():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.dodge_chance == 0.0
+
+def test_character_initialises_with_turn_started_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.turn_started is False
+
+def test_attack_light_includes_equipped_melee_weapon_damage():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    sword = Weapon(name="Sword", description="", damage=5)
+    sword.use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="light")
+    assert target.hp == 85
+
+def test_attack_light_ignores_equipped_ranged_weapon():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    bow = Weapon(name="Bow", description="", damage=4, slot="ranged")
+    bow.use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="light")
+    assert target.hp == 90
+
+def test_attack_ranged_includes_equipped_ranged_weapon_damage():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    bow = Weapon(name="Bow", description="", damage=4, slot="ranged")
+    bow.use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="ranged")
+    assert target.hp == 86
+
+def test_attack_ranged_ignores_equipped_melee_weapon():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    sword = Weapon(name="Sword", description="", damage=5)
+    sword.use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="ranged")
+    assert target.hp == 90
+
+def test_attack_ranged_with_no_ranged_weapon_deals_base_damage_only():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="ranged")
+    assert target.hp == 90
+
+def test_attack_heavy_forced_hit_multiplies_damage(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy")
+    assert target.hp == 82  # 100 - round(10 * 1.75) = 100 - 18
+
+def test_attack_heavy_forced_hit_includes_equipped_melee_weapon_damage(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    sword = Weapon(name="Sword", description="", damage=6)
+    sword.use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy")
+    assert target.hp == 72  # 100 - round(16 * 1.75) = 100 - 28
+
+def test_attack_heavy_forced_miss_deals_no_damage(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy")
+    assert target.hp == 100
+
+def test_attack_heavy_forced_miss_returns_miss_message(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert message == "Hero swings a heavy blow at Goblin - but misses!"
+
+def test_attack_heavy_forced_hit_returns_message_naming_attacker_and_target(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert message == "Hero attacks Goblin for 18 damage."
+
+def test_attack_heavy_with_double_strike_second_hit_uses_unmultiplied_base_damage(monkeypatch):
+    """The second Double Strike hit always uses base_damage // 2 (attack_damage + weapon bonus),
+    computed before the heavy multiplier is applied to the first hit - only the first hit is boosted."""
+    monkeypatch.setattr("random.random", lambda: 0.9)  # avoids the heavy miss roll
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_double_strike = True
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert target.hp == 77  # 100 - round(10 * 1.75) - (10 // 2) = 100 - 18 - 5
+    assert "Hero strikes again for 5 damage." in message
 
 def test_get_inventory_display_returns_empty_message_when_no_items():
     player = Player(name="hero", hp=100)

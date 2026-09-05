@@ -13,6 +13,25 @@ def test_resolve_combat_round_reduces_enemy_hp():
 
     assert enemy.hp == 10
 
+def test_resolve_combat_round_with_heavy_attack_type_passes_through_to_player_attack(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)  # avoids the heavy miss roll
+    player = Player(name="Hero", hp=100, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+
+    resolve_combat_round(player, enemy, [player], [enemy], attack_type="heavy")
+
+    assert enemy.hp == 82  # 100 - round(10 * 1.75)
+
+def test_resolve_combat_round_with_ranged_attack_type_passes_through_to_player_attack():
+    player = Player(name="Hero", hp=100, attack_damage=10)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    bow.use(player)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+
+    resolve_combat_round(player, enemy, [player], [enemy], attack_type="ranged")
+
+    assert enemy.hp == 6  # 20 - (10 attack_damage + 4 bow)
+
 def test_resolve_combat_round_reduces_player_hp_when_enemy_survives(monkeypatch):
     """caution_weight=0 and neutral noise force the enemy to always choose 'attack' over 'defend' -
     without this, a damaged enemy's utility-scored AI can rationally choose to Defend instead (see
@@ -619,6 +638,72 @@ def test_handle_combat_command_attack_when_enemy_survives_does_not_clear_combat_
     assert player.in_combat is True
     assert player.current_target is enemy
 
+def test_handle_combat_command_attack_light_reduces_enemy_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("attack light", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 10
+
+def test_handle_combat_command_attack_heavy_forced_hit_reduces_enemy_hp(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)  # avoids the heavy miss roll
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("attack heavy", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 82  # 100 - round(10 * 1.75)
+
+def test_handle_combat_command_attack_ranged_with_equipped_ranged_weapon_reduces_enemy_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    bow.use(player)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("attack ranged", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 6  # 20 - (10 attack_damage + 4 bow)
+
+def test_handle_combat_command_attack_ranged_without_ranged_weapon_returns_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("attack ranged", player, enemy, [player], [enemy], room)
+
+    assert message == "You have nothing to shoot with - equip a ranged weapon first."
+
+def test_handle_combat_command_attack_ranged_without_ranged_weapon_does_not_change_enemy_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("attack ranged", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 20
+
+def test_handle_combat_command_attack_with_unknown_type_returns_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("attack fireball", player, enemy, [player], [enemy], room)
+
+    assert message == "Unknown attack type 'fireball'. Try 'attack light', 'attack heavy', or 'attack ranged'."
+
+def test_handle_combat_command_attack_with_unknown_type_does_not_change_enemy_hp():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("attack fireball", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 20
+
 def test_handle_combat_command_cast_with_unknown_spell_returns_message():
     player = Player(name="Hero", hp=100, attack_damage=1)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
@@ -903,23 +988,26 @@ def test_handle_combat_command_use_item_with_invalid_name_does_not_trigger_enemy
     assert player.hp == 50
 
 def test_handle_combat_command_use_item_triggers_enemy_counterattack_when_enemy_alive(monkeypatch):
+    """heal_amount=0 keeps this a turn-ending use (see Consumable.ends_turn()) - a genuine heal (heal_amount > 0)
+    is a free action and would never reach the enemy's turn at all."""
     monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=50, attack_damage=10)
-    potion = Consumable(name="Potion", heal_amount=5)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
     room = Room("Arena")
 
     message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
 
-    assert message == "Hero uses Potion, healing 5 HP.\nGoblin attacks Hero for 5 damage.\nHero: 45/50 HP   |   Goblin: 20/20 HP"
+    assert message == "Hero uses Potion, healing 0 HP.\nGoblin attacks Hero for 5 damage.\nHero: 45/50 HP   |   Goblin: 20/20 HP"
     assert player.hp == 45
 
 def test_handle_combat_command_use_item_only_living_enemies_in_team_counterattack():
-    """A dead teammate in enemy_team must neither attack nor appear in the trailing HP line."""
+    """A dead teammate in enemy_team must neither attack nor appear in the trailing HP line. heal_amount=0
+    keeps this a turn-ending use - see Consumable.ends_turn()."""
     player = Player(name="Hero", hp=50, attack_damage=10)
     player.hp = 30
-    potion = Consumable(name="Potion", heal_amount=10)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     dead_enemy = Enemy(name="Fallen Imp", hp=10, attack_damage=3)
     dead_enemy.hp = 0
@@ -928,14 +1016,15 @@ def test_handle_combat_command_use_item_only_living_enemies_in_team_counterattac
 
     message = handle_combat_command("use potion", player, alive_enemy, [player], [dead_enemy, alive_enemy], room)
 
-    assert message == "Hero uses Potion, healing 10 HP.\nGoblin attacks Hero for 5 damage.\nHero: 35/50 HP   |   Goblin: 20/20 HP"
+    assert message == "Hero uses Potion, healing 0 HP.\nGoblin attacks Hero for 5 damage.\nHero: 25/50 HP   |   Goblin: 20/20 HP"
 
 def test_handle_combat_command_use_item_enemy_defend_action_sets_pending_damage_reduction(monkeypatch):
     """The 'use' branch's enemy-turn loop duplicates resolve_combat_round()'s action handling - this
-    guards against the two implementations drifting apart."""
+    guards against the two implementations drifting apart. heal_amount=0 keeps this a turn-ending use -
+    see Consumable.ends_turn()."""
     monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=1)
-    potion = Consumable(name="Potion", heal_amount=1)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=0, caution_weight=5.0, brace_amount=4)
     enemy.hp = 5
@@ -947,10 +1036,11 @@ def test_handle_combat_command_use_item_enemy_defend_action_sets_pending_damage_
     assert enemy.pending_damage_reduction == 4
 
 def test_handle_combat_command_use_item_enemy_attacks_most_attractive_team_target(monkeypatch):
-    """Guards against the 'use' branch's target selection drifting from resolve_combat_round()'s."""
+    """Guards against the 'use' branch's target selection drifting from resolve_combat_round()'s.
+    heal_amount=0 keeps this a turn-ending use - see Consumable.ends_turn()."""
     monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=1)
-    potion = Consumable(name="Potion", heal_amount=1)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     home = Room("Camp")
     companion = Companion(name="Imp", hp=10, home_room=home)
@@ -978,6 +1068,50 @@ def test_handle_combat_command_use_item_self_applied_effect_is_not_ticked_same_t
     assert player.hp == 50 # not yet healed - the effect is afflicted, not ticked, this turn
     assert player.active_effects[0].duration == 3
 
+def test_handle_combat_command_free_action_followed_by_attack_ticks_status_effects_only_once():
+    """Regression test for a bug found while adding this coverage: player.turn_started was never being
+    set to True anywhere, so tick_start_of_turn_if_needed()'s double-tick guard was a no-op - a free
+    action (a genuine heal, ends_turn() == False) followed by a turn-ending 'attack' in the same round
+    would tick Poison twice for a single real turn. Now fixed (turn_started is set inside
+    tick_start_of_turn_if_needed() itself); this must stay a single tick per round."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.apply_status_effect(StatusEffect("Poison", -3, 4))
+    potion = Consumable(name="Potion", heal_amount=5)  # a genuine heal is a free action - see Consumable.ends_turn()
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+    room = Room("Arena")
+
+    handle_combat_command("use potion", player, enemy, [player], [enemy], room)
+    handle_combat_command("attack", player, enemy, [player], [enemy], room)
+
+    assert player.active_effects[0].duration == 3
+
+def test_handle_combat_command_free_action_followed_by_attack_ticks_spell_cooldowns_only_once():
+    """Same regression as the status-effect case above, for spell cooldowns."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.spell_cooldowns["Firebolt"] = 2
+    potion = Consumable(name="Potion", heal_amount=5)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+    room = Room("Arena")
+
+    handle_combat_command("use potion", player, enemy, [player], [enemy], room)
+    handle_combat_command("attack", player, enemy, [player], [enemy], room)
+
+    assert player.spell_cooldowns["Firebolt"] == 1
+
+def test_handle_combat_command_attack_resets_turn_started_for_the_next_round():
+    """resolve_companion_and_enemy_turns() (called at the end of a turn-ending action) must reset
+    turn_started back to False - otherwise every round after the first would silently stop ticking
+    status effects/cooldowns at all."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
+    room = Room("Arena")
+
+    handle_combat_command("attack", player, enemy, [player], [enemy], room)
+
+    assert player.turn_started is False
+
 def test_handle_combat_command_use_item_would_fail_blocks_before_any_tick():
     """would_fail() now guards the tick for 'use' too - an item that would raise (here, an offensive
     StatusEffectItem with no target set) must leave the player's pre-existing effects/cooldowns untouched."""
@@ -993,10 +1127,11 @@ def test_handle_combat_command_use_item_would_fail_blocks_before_any_tick():
     assert player.active_effects[0].duration == 5
 
 def test_handle_combat_command_use_item_ticks_enemy_status_effects_before_its_turn(monkeypatch):
-    """Guards against the 'use' branch's status-effect handling drifting from resolve_combat_round()'s."""
+    """Guards against the 'use' branch's status-effect handling drifting from resolve_combat_round()'s.
+    heal_amount=0 keeps this a turn-ending use - see Consumable.ends_turn()."""
     monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=1)
-    potion = Consumable(name="Potion", heal_amount=1)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     enemy.apply_status_effect(StatusEffect("Poison", -3, 4))
@@ -1009,9 +1144,10 @@ def test_handle_combat_command_use_item_ticks_enemy_status_effects_before_its_tu
     assert "Goblin attacks Hero" in message
 
 def test_handle_combat_command_use_item_lethal_enemy_status_effect_tick_prevents_its_turn(monkeypatch):
+    """heal_amount=0 keeps this a turn-ending use - see Consumable.ends_turn()."""
     monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=1)
-    potion = Consumable(name="Potion", heal_amount=1)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     enemy = Enemy(name="Goblin", hp=3, attack_damage=5)
     enemy.apply_status_effect(StatusEffect("Poison", -10, 4))
@@ -1023,8 +1159,9 @@ def test_handle_combat_command_use_item_lethal_enemy_status_effect_tick_prevents
     assert "Goblin attacks" not in message
 
 def test_handle_combat_command_use_item_enemy_counterattack_can_defeat_player_clears_combat_state():
+    """heal_amount=0 keeps this a turn-ending use - see Consumable.ends_turn()."""
     player = Player(name="Hero", hp=5, attack_damage=10)
-    potion = Consumable(name="Potion", heal_amount=1)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=20)
     player.in_combat = True
@@ -1931,10 +2068,11 @@ def test_resolve_combat_round_thorns_killing_player_during_their_own_attack_skip
     assert "Harpy attacks" not in result
 
 def test_handle_combat_command_use_item_companion_attacks_when_present(monkeypatch):
-    """Guards against the 'use' branch's companion-turn handling drifting from resolve_combat_round()'s."""
+    """Guards against the 'use' branch's companion-turn handling drifting from resolve_combat_round()'s.
+    heal_amount=0 keeps this a turn-ending use - see Consumable.ends_turn()."""
     monkeypatch.setattr("random.random", lambda: 0.5)
     player = Player(name="Hero", hp=100, attack_damage=1)
-    potion = Consumable(name="Potion", heal_amount=1)
+    potion = Consumable(name="Potion", heal_amount=0)
     player.inventory.add(potion)
     enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
     home = Room("Camp")

@@ -59,6 +59,17 @@ something occurs to you mid-build.
   enemy did after it's already happened). Worth considering deliberately
   for the port, since it changes the combat's information/tension balance
   rather than just its presentation.
+- **Attack variety (light/heavy/ranged) is a natural fit for a stance or
+  attack-type selector** (radial menu, face buttons, or a weapon-switch
+  prompt) rather than typed `attack heavy`/`attack ranged`. The heavy
+  attack's miss chance is a good windup/telegraph animation moment - a
+  visible wind-up that can whiff, rather than a hidden dice roll the player
+  only sees the result of.
+- **A free action (a genuine heal) not ending the turn deserves its own
+  clear visual "still your turn" feedback** - text can just print the
+  enemy's turn or not, but a UI needs something explicit (no turn-transition
+  animation, a distinct "free action" flash, etc.) so the player isn't left
+  wondering whether their action actually went through.
 
 ## World / Map
 - The room network (Room.exits as a dict) maps naturally onto a node-based
@@ -74,9 +85,12 @@ something occurs to you mid-build.
   progression map as an option, rather than only room-by-room navigation.
 
 ## Items / Inventory
-- Equip slots (weapon/armour) are a natural fit for a paper-doll style UI —
-  the "equipping replaces, doesn't stack" rule already matches how visual
-  equip slots typically work, so no logic change needed, just a UI showing it.
+- Equip slots are a natural fit for a paper-doll style UI — both weapons
+  (melee/ranged) and armour (helmet/body) now occupy two independent slots
+  each, so a paper doll would show four simultaneous equip points rather
+  than two; within each slot, "equipping replaces, doesn't stack" already
+  matches how visual equip slots typically work, so no logic change needed,
+  just a UI showing it.
 - Quest items being visually separated (already true in the text inventory)
   suggests a distinct visual "key items" pouch/tab in a graphical inventory
   screen.

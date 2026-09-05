@@ -29,38 +29,50 @@ class Item(ABC):
     def would_fail(self, character) -> str | None:
         """Default: never fails."""
         return None
-class Weapon(Item):
-    """An equippable item that raises attack_damage while equipped."""
 
-    def __init__(self, name: str, description: str, damage: int):
-        """Store the attack bonus this weapon grants when equipped."""
+    def ends_turn(self, character) -> bool:
+        """Whether using this item consumes the player's turn (triggering the enemy's turn) or is a free action. Default True;
+        Consumable and StatusEffectItem override this for genuinely healing effects."""
+        return True
+    
+class Weapon(Item):
+    """An equippable item that deals extra damage while equipped, in one of two slots ('melee' or 'ranged') - both can be equipped at once,
+    mirroring Armour's helmet/body split. A weapon's damage is NOT added into Character.attack_damage - it's read directly off whichever
+    slot matches the attack type chosen in combat (see Character.attack()), so a melee and a ranged weapon worn together never stack
+    their damage on the same hit."""
+
+    def __init__(self, name: str, description: str, damage: int, slot: str = "melee"):
+        """Store the damage bonus this weapon grants when equipped, and which slot it occupies."""
         super().__init__(name, description)
         self.damage = damage
+        self.slot = slot
 
     def use(self, character) -> str:
-        """Equip this weapon, unequipping character's current weapon first if one is equipped (single-slot per CLAUDE.md - equipping never stacks)."""
+        """Equip this weapon into its slot, unequipping whatever currently occupies that same slot first - per slot, not global, so a melee
+        and a ranged weapon can be equipped simultaneously; only same-slot items are ever swapped."""
         if self.equipped:
             return f"{self.name} already equipped."
 
+        slot_attr = f"equipped_{self.slot}_weapon"
         messages = []
-        if character.equipped_weapon is not None:
-            messages.append(character.equipped_weapon.unequip(character))
+        current = getattr(character, slot_attr)
+        if current is not None:
+            messages.append(current.unequip(character))
 
-        character.attack_damage += self.damage
         self.equipped = True
-        character.equipped_weapon = self
-        messages.append(f"{character.name} equips {self.name} (+{self.damage} ATK).")
+        setattr(character, slot_attr, self)
+        messages.append(f"{character.name} equips {self.name} ({self.slot}, +{self.damage} DMG).")
         return "\n".join(messages)
 
     def unequip(self, character) -> str:
-        """Remove this weapon's attack bonus and clear it from character.equipped_weapon."""
+        """Clear this weapon from its slot. No longer touches attack_damage - see class docstring."""
         if not self.equipped:
             return f"{self.name} is not equipped."
-        character.attack_damage -= self.damage
         self.equipped = False
-        if character.equipped_weapon is self:
-            character.equipped_weapon = None
-        return f"{character.name} unequips {self.name} (-{self.damage} ATK)"
+        slot_attr = f"equipped_{self.slot}_weapon"
+        if getattr(character, slot_attr) is self:
+            setattr(character, slot_attr, None)
+        return f"{character.name} unequips {self.name} (-{self.damage} DMG)"
 
 class Armour(Item):
     """An equippable item that raises armour while equipped, in one of two slots ('helmet' or 'body') - both can be equipped at once, unlike
@@ -118,6 +130,10 @@ class Consumable(Item):
         """Heal character by heal_amount, capped at max_hp."""
         character.hp = min(character.hp + self.heal_amount, character.max_hp)
         return f"{character.name} uses {self.name}, healing {self.heal_amount} HP."
+
+    def ends_turn(self, character) -> bool:
+        """A genuine heal (heal_amount > 0) is a free action; anything else (including in the base Consumable's default 0) still ends the turn."""
+        return self.heal_amount <= 0
 
 class Reviver(Consumable):
     """A single-use item that revives character.companion (a downed Companion, hp == 0), restoring heal_amount HP capped at the companion's
@@ -181,6 +197,10 @@ class StatusEffectItem(Consumable):
         if self.amount < 0 and (character.current_target is None or not character.current_target.is_alive()):
             return f"You need a target for {self.name} - try 'target <enemy>' first."
         return None
+
+    def ends_turn(self, character) -> bool:
+        """Heal-over-time (amount >= 0) is free, matching Consumable's own rule; offensive (amount < 0) still ends the turn."""
+        return self.amount < 0
 
 class SpellBook(Consumable):
     """A single-use item that permanently teaches its spell. Already known - use() returns without consuming."""

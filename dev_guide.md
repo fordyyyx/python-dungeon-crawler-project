@@ -156,10 +156,21 @@ Real, narrative versions of all three are expected as part of "Populate all
 floors" (`roadmap.md`) — until then, the `test ...` names above are the only
 way to reach any of this outside the automated test suite.
 
+- **Ranged attacks — currently unreachable through *any* means, not even dev
+  tools.** `attack ranged` requires an equipped ranged (`slot="ranged"`)
+  `Weapon`, but no such weapon exists anywhere — not in real game content,
+  and not as dev-test content either (unlike Companions/Spells/status-effect
+  items above, there's no `create_test_*()` ranged weapon and no
+  `ITEM_REGISTRY` entry for one). Until one is added, the only way to
+  exercise the `"ranged"` branch of `Character.attack()` at all is a direct
+  unit test (see `test_characters.py`/`test_combat.py`), not a live
+  `main()` run. `attack`/`attack light`/`attack heavy` need no such
+  workaround — every enemy encounter reaches them fine.
+
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
-2, `is_forge=True`), and Dodge — has real, reachable in-game content and
-needs no dev-tool workaround to try.
+2, `is_forge=True`), Dodge, and light/heavy attacks — has real, reachable
+in-game content and needs no dev-tool workaround to try.
 
 ## Quick recipes
 

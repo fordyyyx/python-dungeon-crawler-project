@@ -1,12 +1,13 @@
 Read CLAUDE.md for project context. Generate tests for each of these
 files, in this order, one at a time:
 characters.py, items.py, world.py, content.py, combat.py, exploration.py,
-character_creation.py, dev_tools.py, engine.py
+character_creation.py, dev_tools.py, engine.py, status_effects.py, spells.py
 
-(The engine.py reorganisation is complete — this is now the full module
-list. Add new files to it as future roadmap items introduce them, e.g.
-skills.py, status_effects.py, spells.py, save_system.py, achievements.py,
-shop.py, difficulty.py, or content.py becoming a content/ package.)
+(The engine.py reorganisation is complete, and status effects/spells are
+now built too — this is the full current module list. Add new files to it
+as future roadmap items introduce them, e.g. skills.py, save_system.py,
+achievements.py, shop.py, difficulty.py, or content.py becoming a
+content/ package.)
 
 For each file, use its matching test file under tests/. Check what's
 already there first — never duplicate existing tests, only add missing

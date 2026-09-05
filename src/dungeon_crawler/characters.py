@@ -7,6 +7,9 @@ from dungeon_crawler.world import Room
 from textwrap import dedent
 import random
 
+HEAVY_ATTACK_MULTIPLIER = 1.75
+HEAVY_ATTACK_MISS_CHANCE = 0.3
+
 class Character:
     """Shared base for anything that can fight - HP, attack, armour, and the ability flags (Double Strike, Thorns, Last Stand) that Skills can turn on."""
 
@@ -17,7 +20,8 @@ class Character:
         self.attack_damage = attack_damage
         self.armour = armour
         self.max_hp = hp
-        self.equipped_weapon: "Weapon | None" = None
+        self.equipped_melee_weapon: "Weapon | None" = None
+        self.equipped_ranged_weapon: "Weapon | None" = None
         self.equipped_helmet: "Armour | None" = None
         self.equipped_body: "Armour | None" = None
         self.has_double_strike = False
@@ -33,10 +37,27 @@ class Character:
         """Chance (0.0-1.0) to avoid an incoming attack entirely. set by DodgeSkill. Lives on Character, not Player, same precedent
         as has_thorns/brace_amount - Enemy/Companion could plausibly use it too later."""
         self.active_effects: list[StatusEffect] = []
+        self.turn_started = False
+        """Guards start-of-turn ticking (status effects/spell cooldowns) so a free action (a healing item) followed by a turn-ending one in the
+        same round only ticks once. Reset to False by resolve_companion_and_enemy_turns() whenever a round actually concludes - see combat.py."""
 
-    def attack(self, target: "Character") -> str:
-        """Attack target once, then a second time at half damage if Double Strike is unlocked. Returns the combined message; does not print."""
-        incoming = self.attack_damage
+    def attack(self, target: "Character", attack_type: str = "light") -> str:
+        """Attack target once, then a second time at half damage if Double Strike is unlocked. attack_type picks which weapon slot (if any)
+        contributes damage: "light" and "ranged" draw from equipped_melee_weapon/equipped_ranged_weapon respectively, with identical maths
+        otherwise (guaranteed hit, no multiplier); "heavy" always draws from equipped_melee_weapon, multiplies the total by 
+        HEAVY_ATTACK_MULTIPLIER, but has a HEAVY_ATTACK_MISS_CHANCE chance to miss entirely (0 damage, turn still spent). Enemy/Companion
+        always call this with the default "light" and never equip weapons, so their behaviour is unchanged."""
+        weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
+        weapon_bonus = weapon.damage if weapon is not None else 0
+        base_damage = self.attack_damage + weapon_bonus
+
+        if attack_type == "heavy":
+            if random.random() < HEAVY_ATTACK_MISS_CHANCE:
+                return f"{self.name} swings a heavy blow at {target.name} - but misses!"
+            incoming = round(base_damage * HEAVY_ATTACK_MULTIPLIER)
+        else:
+            incoming = base_damage
+
         damage_dealt, death_message = target.take_damage(incoming, attacker=self)
         deflected = incoming - damage_dealt
 
@@ -48,8 +69,8 @@ class Character:
             return message
 
         if getattr(self, "has_double_strike", False):
-            # second strike deals half damage - a guaranteed extra hit, not a full second attack
-            second_damage, second_death = target.take_damage(self.attack_damage // 2, attacker=self)
+            # second strike deals half damage, based on the same weapon-inclusive total as the first hit
+            second_damage, second_death = target.take_damage(base_damage // 2, attacker=self)
             message += f"\n{self.name} strikes again for {second_damage} damage."
             if second_death:
                 message += f"\n{second_death}"
@@ -159,6 +180,13 @@ class Player(Character):
     def get_stats(self) -> str:
         """Format the player's core stats and unlocked skills for display, e.g. via the 'stats' command."""
         heritage = f"{self.ancestry_label}" if self.ancestry_label else ""
+        weapon_parts = []
+        if self.equipped_melee_weapon is not None:
+            weapon_parts.append(f"+{self.equipped_melee_weapon.damage} melee")
+        if self.equipped_ranged_weapon is not None:
+            weapon_parts.append(f"+{self.equipped_ranged_weapon.damage} ranged")
+        weapon_summary = f" ({', '.join(weapon_parts)})" if weapon_parts else ""
+
         unlocked_lines = []
         for path in self.skill_tree.paths.values():
             for skill in path.skills[:path.unlocked_count]:
@@ -169,7 +197,7 @@ class Player(Character):
         {self.name} ({heritage}):
         LVL {self.level} --- {self.experience} XP
         {self.hp} HP
-        {self.attack_damage} ATK
+        {self.attack_damage} ATK{weapon_summary}
         {self.armour} DEF
         {self.intellect} INT
         {unlocked_section}

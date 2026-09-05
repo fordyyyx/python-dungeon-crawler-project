@@ -2,23 +2,16 @@ from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, Sta
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
-from dungeon_crawler.engine import pick_up
 
 def test_item_initialises_as_unequipped():
     sword = Weapon(name="Iron Sword", description="", damage=5)
     assert sword.equipped is False
 
-def test_weapon_use_increases_attack_power():
-    hero = Character(name="Hero", hp=100, attack_damage=10)
-    sword = Weapon(name="Iron Sword", description="", damage=5)
-    sword.use(hero)
-    assert hero.attack_damage == 15
-
 def test_weapon_use_returns_equip_message():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     sword = Weapon(name="Iron Sword", description="", damage=5)
     message = sword.use(hero)
-    assert message == "Hero equips Iron Sword (+5 ATK)."
+    assert message == "Hero equips Iron Sword (melee, +5 DMG)."
 
 def test_weapon_use_sets_equipped_flag():
     hero = Character(name="Hero", hp=100, attack_damage=10)
@@ -26,12 +19,13 @@ def test_weapon_use_sets_equipped_flag():
     sword.use(hero)
     assert sword.equipped is True
 
-def test_weapon_use_when_already_equipped_does_not_increase_attack_again():
+def test_weapon_use_does_not_change_attack_damage():
+    """Weapon damage is read directly off the equipped slot during Character.attack(), never added into
+    attack_damage itself - see Weapon's class docstring."""
     hero = Character(name="Hero", hp=100, attack_damage=10)
     sword = Weapon(name="Iron Sword", description="", damage=5)
     sword.use(hero)
-    sword.use(hero)
-    assert hero.attack_damage == 15
+    assert hero.attack_damage == 10
 
 def test_weapon_use_when_already_equipped_returns_already_equipped_message():
     hero = Character(name="Hero", hp=100, attack_damage=10)
@@ -46,7 +40,7 @@ def test_weapon_unequip_when_not_equipped_returns_not_equipped_message():
     message = sword.unequip(hero)
     assert message == "Iron Sword is not equipped."
 
-def test_weapon_unequip_when_equipped_decreases_attack_power():
+def test_weapon_unequip_when_equipped_does_not_change_attack_damage():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     sword = Weapon(name="Iron Sword", description="", damage=5)
     sword.use(hero)
@@ -65,22 +59,45 @@ def test_weapon_unequip_when_equipped_returns_unequip_message():
     sword = Weapon(name="Iron Sword", description="", damage=5)
     sword.use(hero)
     message = sword.unequip(hero)
-    assert message == "Hero unequips Iron Sword (-5 ATK)"
+    assert message == "Hero unequips Iron Sword (-5 DMG)"
 
-def test_weapon_use_sets_character_equipped_weapon():
+def test_weapon_defaults_to_melee_slot():
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    assert sword.slot == "melee"
+
+def test_weapon_use_sets_character_equipped_melee_weapon_by_default():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     sword = Weapon(name="Iron Sword", description="", damage=5)
     sword.use(hero)
-    assert hero.equipped_weapon is sword
+    assert hero.equipped_melee_weapon is sword
 
-def test_weapon_unequip_clears_character_equipped_weapon():
+def test_weapon_use_with_ranged_slot_sets_character_equipped_ranged_weapon():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    bow.use(hero)
+    assert hero.equipped_ranged_weapon is bow
+
+def test_weapon_use_with_ranged_slot_returns_equip_message():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    message = bow.use(hero)
+    assert message == "Hero equips Short Bow (ranged, +4 DMG)."
+
+def test_weapon_unequip_clears_character_equipped_melee_weapon():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     sword = Weapon(name="Iron Sword", description="", damage=5)
     sword.use(hero)
     sword.unequip(hero)
-    assert hero.equipped_weapon is None
+    assert hero.equipped_melee_weapon is None
 
-def test_weapon_use_replacing_equipped_weapon_unequips_old_weapon():
+def test_weapon_unequip_clears_character_equipped_ranged_weapon():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    bow.use(hero)
+    bow.unequip(hero)
+    assert hero.equipped_ranged_weapon is None
+
+def test_weapon_use_replacing_same_slot_unequips_old_weapon():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     old_sword = Weapon(name="Iron Sword", description="", damage=5)
     new_sword = Weapon(name="Steel Sword", description="", damage=8)
@@ -88,29 +105,54 @@ def test_weapon_use_replacing_equipped_weapon_unequips_old_weapon():
     new_sword.use(hero)
     assert old_sword.equipped is False
 
-def test_weapon_use_replacing_equipped_weapon_updates_character_equipped_weapon():
+def test_weapon_use_replacing_same_slot_updates_character_equipped_melee_weapon():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     old_sword = Weapon(name="Iron Sword", description="", damage=5)
     new_sword = Weapon(name="Steel Sword", description="", damage=8)
     old_sword.use(hero)
     new_sword.use(hero)
-    assert hero.equipped_weapon is new_sword
+    assert hero.equipped_melee_weapon is new_sword
 
-def test_weapon_use_replacing_equipped_weapon_updates_attack_damage():
-    hero = Character(name="Hero", hp=100, attack_damage=10)
-    old_sword = Weapon(name="Iron Sword", description="", damage=5)
-    new_sword = Weapon(name="Steel Sword", description="", damage=8)
-    old_sword.use(hero)
-    new_sword.use(hero)
-    assert hero.attack_damage == 18
-
-def test_weapon_use_replacing_equipped_weapon_returns_combined_message():
+def test_weapon_use_replacing_same_slot_returns_combined_message():
     hero = Character(name="Hero", hp=100, attack_damage=10)
     old_sword = Weapon(name="Iron Sword", description="", damage=5)
     new_sword = Weapon(name="Steel Sword", description="", damage=8)
     old_sword.use(hero)
     message = new_sword.use(hero)
-    assert message == "Hero unequips Iron Sword (-5 ATK)\nHero equips Steel Sword (+8 ATK)."
+    assert message == "Hero unequips Iron Sword (-5 DMG)\nHero equips Steel Sword (melee, +8 DMG)."
+
+def test_weapon_use_melee_and_ranged_can_be_equipped_simultaneously():
+    """The whole point of the slot split - a melee weapon and a ranged weapon occupy different slots, so
+    equipping one must not unequip the other, mirroring Armour's helmet/body split."""
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    sword.use(hero)
+    bow.use(hero)
+    assert sword.equipped is True
+    assert bow.equipped is True
+
+def test_weapon_use_different_slots_do_not_unequip_each_other():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    sword.use(hero)
+    bow.use(hero)
+    assert hero.equipped_melee_weapon is sword
+    assert hero.equipped_ranged_weapon is bow
+
+def test_weapon_use_same_slot_swap_does_not_affect_a_different_slot():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    old_sword = Weapon(name="Iron Sword", description="", damage=5)
+    new_sword = Weapon(name="Steel Sword", description="", damage=8)
+    bow = Weapon(name="Short Bow", description="", damage=4, slot="ranged")
+    old_sword.use(hero)
+    bow.use(hero)
+    new_sword.use(hero)
+    assert old_sword.equipped is False
+    assert hero.equipped_melee_weapon is new_sword
+    assert bow.equipped is True
+    assert hero.equipped_ranged_weapon is bow
 
 def test_armour_use_increases_armour():
     hero = Character(name="hero", hp=100, attack_damage=10)
@@ -297,6 +339,18 @@ def test_consumable_defaults_to_zero_heal_amount():
     consumable = Consumable(name="Empty Vial", description="")
     assert consumable.heal_amount == 0
 
+def test_consumable_ends_turn_returns_true_when_heal_amount_is_zero():
+    hero = Player(name="hero", hp=100)
+    consumable = Consumable(name="Empty Vial", description="")
+    assert consumable.ends_turn(hero) is True
+
+def test_consumable_ends_turn_returns_false_when_heal_amount_is_positive():
+    """A genuine heal is a free action mid-combat - it must not end the player's turn (and so must not
+    trigger the enemy's counterattack), unlike every other use() call."""
+    hero = Player(name="hero", hp=100)
+    potion = Consumable(name="potion", heal_amount=3)
+    assert potion.ends_turn(hero) is False
+
 def test_reviver_use_with_no_companion_attribute_returns_message():
     """getattr(character, "companion", None) - a plain Character has no .companion attribute at all,
     distinct from a Player whose companion is explicitly None."""
@@ -448,6 +502,23 @@ def test_item_would_fail_defaults_to_none():
     weapon = Weapon(name="Iron Sword", description="", damage=5)
     player = Player(name="Hero", hp=20)
     assert weapon.would_fail(player) is None
+
+def test_item_ends_turn_defaults_to_true():
+    weapon = Weapon(name="Iron Sword", description="", damage=5)
+    player = Player(name="Hero", hp=20)
+    assert weapon.ends_turn(player) is True
+
+def test_status_effect_item_ends_turn_returns_true_when_amount_is_negative():
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Vial of Poison", description="", effect_name="Poison", amount=-3, duration=4)
+    assert item.ends_turn(player) is True
+
+def test_status_effect_item_ends_turn_returns_false_when_amount_is_non_negative():
+    """A self-targeted heal-over-time is a free action, matching Consumable's own rule - only the
+    offensive (negative-amount) case still ends the turn."""
+    player = Player(name="Hero", hp=20)
+    item = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    assert item.ends_turn(player) is False
 
 def test_status_effect_item_would_fail_returns_none_with_positive_amount_regardless_of_target():
     player = Player(name="Hero", hp=20)
@@ -791,7 +862,7 @@ def test_inventory_unequip_item_returns_items_unequip_message():
     player.inventory.add(sword)
     player.inventory.use_item("Bronze Xiphos", player)
     message = player.inventory.unequip_item("Bronze Xiphos", player)
-    assert message == "hero unequips Bronze Xiphos (-3 ATK)"
+    assert message == "hero unequips Bronze Xiphos (-3 DMG)"
 
 def test_inventory_unequip_item_raises_error_when_item_not_found():
     player = Player(name="hero", hp=100)
@@ -808,7 +879,7 @@ def test_inventory_unequip_item_matches_item_name_case_insensitively():
     player.inventory.add(sword)
     player.inventory.use_item("Bronze Xiphos", player)
     message = player.inventory.unequip_item("bronze xiphos", player)
-    assert message == "hero unequips Bronze Xiphos (-3 ATK)"
+    assert message == "hero unequips Bronze Xiphos (-3 DMG)"
 
 def test_inventory_remove_raises_error_when_item_not_in_inventory():
     player = Player(name="hero", hp=100)

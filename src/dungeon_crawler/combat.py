@@ -156,20 +156,28 @@ def choose_enemy_action(enemy: Enemy, player_team: list[Character]) -> str:
 
     return max(noisy_scores, key=lambda action: noisy_scores[action])
 
-def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy]) -> str:
+def tick_start_of_turn_if_needed(player: Player) -> list[str]:
+    """Tick status effects/spell cooldowns once per round, not once per command - guarded by player.turn_started so a free (non-turn-ending)
+    action followed by a real one in the same round doesn't double-tick. Whichever action actually ends the round is responsible
+    for letting resolve_companion_and_enemy_turns() reset turn_started back to False."""
+    if player.turn_started:
+        return []
+    player.turn_started = True
+    if not player.is_alive():
+        return []
+    messages = player.tick_status_effects()
+    player.tick_spell_cooldowns()
+    return messages
+
+def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], attack_type: str = "light") -> str:
     """One full round: player attacks target, then their companion (if any, and still alive) takes its own turn via
     choose_companion_action(), then every enemy in enemy_team still alive takes its own turn via choose_enemy_action() -
     attack (with real target selection once either side has more than one living member), defend, or heal throughout.
-    Stops rolling further turns the moment the player is dead - continuing would re-trigger take_damage()'s on_death()
-    message repeatedly for no reason (a real bug once, see CLAUDE.md). This also now guards the very first enemy action,
-    not just subsequent ones - a Thorns reflection during the player's own attack could theoretically kill them before
-    any enemy ever acted."""
-    messages = []
-    messages.extend(player.tick_status_effects())
-    player.tick_spell_cooldowns()
+    Stops rolling further turns the moment the player is dead."""
+    messages = tick_start_of_turn_if_needed(player)
 
     if player.is_alive():
-        messages.append(player.attack(target))
+        messages.append(player.attack(target, attack_type))
 
     tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
     if tail:
@@ -177,13 +185,11 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
     messages.append(format_hp_line(player_team, enemy_team))
     return "\n".join(messages)
 
-def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room) -> str:
-    """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly.
-    Checks every member of enemy_team for defeat afterwards, not just target, since a full team round can defeat more than one
-    enemy at once (e.g. a Thorns reflection killing an enemy during its own attack)."""
+def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room, attack_type: str = "light") -> str:
+    """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly."""
     enemies_before = [enemy for enemy in enemy_team if enemy.is_alive()]
 
-    result = resolve_combat_round(player, target, player_team, enemy_team)
+    result = resolve_combat_round(player, target, player_team, enemy_team, attack_type)
 
     newly_defeated = [enemy for enemy in enemies_before if not enemy.is_alive()]
     for enemy in newly_defeated:
@@ -209,6 +215,7 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
     Safe to call even if the player is already dead (returns "" immediately) - though the real guard for that should already exist
     at the call site before this is reached."""
     if not player.is_alive():
+        player.turn_started = False
         return ""
 
     messages = []
@@ -246,6 +253,7 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
             if not player.is_alive():
                 break
 
+    player.turn_started = False
     return "\n".join(messages)
 
 def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
@@ -349,8 +357,13 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
     if command.startswith("target "):
         return handle_target_command(command, enemy_team, player)
 
-    if command == "attack":
-        return resolve_attack_and_check_defeat(player, target, player_team, enemy_team, room)
+    if command == "attack" or command.startswith("attack "):
+        attack_type = command.removeprefix("attack").strip() or "light"
+        if attack_type not in ("light", "heavy", "ranged"):
+            return f"Unknown attack type '{attack_type}'. Try 'attack light', 'attack heavy', or 'attack ranged'."
+        if attack_type == "ranged" and player.equipped_ranged_weapon is None:
+            return "You have nothing to shoot with - equip a ranged weapon first."
+        return resolve_attack_and_check_defeat(player, target, player_team, enemy_team, room, attack_type)
 
     if command.startswith("cast "):
         spell_name = command.removeprefix("cast ").strip()
@@ -366,10 +379,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         if failure is not None:
             return failure
         
-        tick_messages = []
-        if player.is_alive():
-            tick_messages.extend(player.tick_status_effects())
-            player.tick_spell_cooldowns()
+        tick_messages = tick_start_of_turn_if_needed(player)
 
         result = spell.cast(player, target)
         player.mana -= spell.mana_cost
@@ -388,6 +398,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         result = flee_combat(player, enemy_team)
         player.in_combat = False
         player.current_target = None
+        player.turn_started = False
         return result
 
     if command.startswith("use "):
@@ -400,22 +411,21 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         if failure is not None:
             return failure
 
-        tick_messages = []
-
-        if player.is_alive():
-            tick_messages.extend(player.tick_status_effects())
-            player.tick_spell_cooldowns()
+        tick_messages = tick_start_of_turn_if_needed(player)
 
         result = player.inventory.use_item(item_name, player)
 
         result = "\n".join(tick_messages + [result]) if tick_messages else result
-        tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
-        if tail:
-            result += f"\n{tail}"
+
+        if item.ends_turn(player):
+            tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
+            if tail:
+                result += f"\n{tail}"
 
         if not player.is_alive():
             player.in_combat = False
             player.current_target = None
+            player.turn_started = False
 
         result += f"\n{format_hp_line(player_team, enemy_team)}"
         return result

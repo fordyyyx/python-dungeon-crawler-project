@@ -14,7 +14,8 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Multiple enemies at once, each deciding for itself whether to attack, defend, or heal via a utility-based AI (with a little randomness baked in, so it doesn't always play perfectly) — target a specific enemy by name, disambiguating with a number when more than one shares it
 * Recruitable companions who fight alongside you with the same AI-driven decision-making as enemies — a downed companion isn't gone for good, and can be revived or simply dismissed home to recover
 * An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time
-* Item pickup, inventory, use, and unequip — equipping a new weapon replaces the old one, while armour occupies two independent slots (helmet and body) so both can be worn at once, only swapping within the same slot
+* Item pickup, inventory, use, and unequip — both weapons and armour occupy two independent slots each (melee/ranged for weapons, helmet/body for armour) so a piece in each slot can be worn at once, only swapping within the same slot
+* Attack variety — light, heavy (bigger hit, a chance to miss entirely), and ranged (requires an equipped ranged weapon) attacks, chosen per turn
 * Armour durability that wears down as you take hits and can be repaired for gold at the Forge of Prometheus
 * Status effects — poison, flame, and heal-over-time tonics that tick each round, stacking by prolonging duration rather than piling up separate instances
 * Spellcasting — a learnable spellbook, a mana pool, and per-spell cooldowns; rest to recover mana between fights
@@ -69,12 +70,12 @@ pytest --cov=src/dungeon_crawler
 * `fullmap` / `world` - show every reachable room on the current floor
 * `talk` - talk to an ally in the room
 * `toggle auto talk` - allies speak automatically on room entry, without needing `talk` each time
-* `attack` - attack an enemy in the room; this locks you into combat until every enemy is defeated or you flee
+* `attack` / `attack light` / `attack heavy` / `attack ranged` - attack an enemy in the room; this locks you into combat until every enemy is defeated or you flee. Heavy hits harder but can miss entirely; ranged requires an equipped ranged weapon
 * `target <name>` - set your attack target, persisting across rounds; if two or more enemies share a name, add a number (e.g. `target harpies 2`)
 * `cast <spell>` - cast a known spell (mid-combat only); costs mana and may set the spell on a one-turn cooldown
 * `flee` - disengage from combat (mid-combat only)
 * `take <item>` - pick up an item from the room
-* `use <item>` - use or equip an item from your inventory (mid-combat, this uses your turn, and the enemy still acts)
+* `use <item>` - use or equip an item from your inventory (mid-combat, a genuine heal is a free action that doesn't use your turn; anything else — an offensive item, a non-healing use — still uses your turn, and the enemy still acts)
 * `unequip <item>` - unequip an item
 * `drop <item>` - drop an item into the room (quest items can't be dropped)
 * `take <item> from <ally>` - take an item from an ally's inventory
@@ -92,7 +93,7 @@ pytest --cov=src/dungeon_crawler
 
 ## Project structure
 * `characters.py` - `Character`, `Player`, `Enemy`, `Ally`, `Companion`, `Skill`, `SkillPath`, `SkillTree`
-* `items.py` - `Item`, `Weapon`, `Armour`, `Consumable`, `Reviver`, `StatusEffectItem`, `SpellBook`, `QuestItem`, `Inventory`
+* `items.py` - `Item`, `Weapon`, `Armour`, `Consumable`, `Reviver`, `StatusEffectItem`, `SpellBook`, `QuestItem`, `SkillPointReward`, `Inventory`
 * `status_effects.py` - `StatusEffect` - the poison/flame/heal-over-time engine, ticked once per combat turn
 * `spells.py` - `Spell` - offensive/defensive/utility spellcasting
 * `world.py` - `Room`, `Map`
@@ -104,7 +105,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, and spellcasting, plus the first main floor. Planned additions include broader attack variety, further floors drawing on the Iliad and Odyssey, and additional bosses.
+The current release covers character creation, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, and attack variety (light/heavy/ranged), plus the first main floor. Planned additions include further floors drawing on the Iliad and Odyssey, multi-stage bosses, and a save/load system.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

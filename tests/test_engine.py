@@ -174,6 +174,21 @@ def test_get_controls_text_lists_recruit_and_dismiss_commands():
     assert "recruit <name> - recruit a companion who joins your team in combat (requires specific items)" in text
     assert "dismiss - release your current companion, who returns home" in text
 
+def test_get_controls_text_lists_cast_command():
+    text = get_controls_text()
+
+    assert "cast <spell> - cast a known spell (mid-combat only); costs mana and may set a one-turn cooldown" in text
+
+def test_get_controls_text_lists_rest_and_wait_command():
+    text = get_controls_text()
+
+    assert "rest / wait - recover mana outside of combat" in text
+
+def test_get_controls_text_lists_repair_command():
+    text = get_controls_text()
+
+    assert "repair <item> - repair an item to full durability (requires gold)" in text
+
 def test_main_happy_path_smoke_test(monkeypatch, capsys):
     """Scripted playthrough of the full routing chain: name/ancestry prompts, movement, take, use, and quit."""
     monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
@@ -193,7 +208,7 @@ def test_main_happy_path_smoke_test(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "Chamber of Chiron (North)" in captured.out
     assert "You take the Wooden Sword." in captured.out
-    assert "Hero equips Wooden Sword (+1 ATK)." in captured.out
+    assert "Hero equips Wooden Sword (melee, +1 DMG)." in captured.out
     assert "Hero has died" not in captured.out
 
 def test_main_dev_command_routing_smoke_test(monkeypatch, capsys):

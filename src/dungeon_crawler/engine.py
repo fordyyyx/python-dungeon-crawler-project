@@ -47,7 +47,7 @@ def get_controls_text() -> str:
         "fullmap / world - show every reachable room on the current floor\n"
         "talk - talk to an ally in the room\n"
         "toggle auto talk - allies speak automatically on room entry\n"
-        "attack - attack an enemy in the room (locks you into combat)\n"
+        "attack / attack light / attack heavy / attack ranged - attack an enemy in the room (locks you into combat); heavy hits harder but can miss, ranged needs an equipped ranged weapon\n"
         "target <name> - set your attack target; add a number if enemies share a name (e.g. target harpies 2)\n"
         "cast <spell> - cast a known spell (mid-combat only); costs mana and may set a one-turn cooldown\n"
         "flee - disengages from combat (mid-combat only)\n"

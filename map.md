@@ -168,6 +168,11 @@ Floor 9 (Tartarus): Tartarus
 
 STATUS: Full shell built and playtested (all rooms reachable, correctly connected).
 Population (enemies/allies/items/trades) is COMPLETE for Floor 0 and mostly
-complete for Floor 1/2 (per earlier build sessions - Wounded Soldier, Ares,
-Athena, Hermes trades already built). Floors 3-9 are shell-only, population
-deferred to the "Populate all floors" roadmap item.
+complete for Floor 1 (Wounded Soldier, Charon, one Skeleton Warrior; Fields
+of Asphodel is empty). Floor 2 is currently shell-only in `build_floor_2()` -
+the Athena/Ares/Hermes/Prometheus allies and their trade rewards (Breastplate
+of Athena, Spear of Ares, Favour of Hermes) are all fully written in
+`content.py`, but none of the `create_*()` calls for them are actually wired
+into `build_floor_2()` yet, so none of floor 2's five rooms currently hold an
+ally, enemy, or item. Floors 2 (population) and 3-9 (shell and population)
+are all deferred to the "Populate all floors" roadmap item.
