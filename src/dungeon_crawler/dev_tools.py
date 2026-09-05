@@ -121,17 +121,20 @@ def handle_dev_set(stat_name: str, value_str: str, player: Player) -> str:
         return f"[DEV] Skill points set to {value}."
 
     attr_name = STAT_ALIASES.get(stat_name, stat_name)
-    if not hasattr(player, attr_name):
-        return f"[DEV] Unknown stat '{stat_name}'."
+    return _apply_stat(player, attr_name, value, "[DEV]", stat_name)
 
-    setattr(player, attr_name, value)
+def handle_dummy_set(stat_name: str, value_str: str, dummy: Enemy) -> str:
+    """Player-facing equivalent of handle_dev_set(), scoped to the practice dummy - same generic reflection/STAT_ALIASES pattern
+    roadmap.md's Practice chamber item calls for reusing, minus the skillpoints special case (Enemy has no skill_tree). Message prefix
+    is '[Practice]', not '[DEV]' - this is a normal player command, not a dev tool."""
+    stat_name = stat_name.strip().lower()
+    try:
+        value = int(value_str.strip())
+    except ValueError:
+        return f"[Practice] Invalid value '{value_str.strip()}'."
 
-    if attr_name == "hp" and value > player.max_hp:
-        player.max_hp = value
-    if attr_name == "max_hp" and player.hp > value:
-        player.hp = value
-
-    return f"[DEV] {stat_name} set to {value}."
+    attr_name = STAT_ALIASES.get(stat_name, stat_name)
+    return _apply_stat(dummy, attr_name, value, "[Practice]", stat_name)
 
 def handle_dev_kill(player: Player, room: Room) -> str:
     """Instantly defeat the player's current combat target if it's in this room, otherwise the room's first enemy. Reuses
@@ -248,8 +251,18 @@ def handle_dev_set_durability(slot: str, value_str: str, player: Player) -> str:
 
     return f"[DEV] {item.name} durability set to {item.durability}/{item.max_durability}."
 
-    
+def _apply_stat(character, attr_name: str, value: int, prefix: str, display_name: str):
+    """Shared setattr + hp/max_hp consistency logic behind handle_dev_set()/handle_dummy_set()."""
+    if not hasattr(character, attr_name):
+        return f"{prefix} Unknown stat '{display_name}'."
+    setattr(character, attr_name, value)
+    if attr_name == "hp" and value > character.max_hp:
+        character.max_hp = value
+    if attr_name == "max_hp" and character.hp > value:
+        character.hp = value
+    return f"{prefix} {display_name} set to {value}."
 
+    
 def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -> tuple[str, "Room | None"]:
     """Dispatch a 'dev ...' command (with the 'dev ' prefix already stripped) to the matching handle_dev_*() function.
     Always returns (message, new_room) - new_room is only ever non-None for 'dev teleport', letting main() reassign

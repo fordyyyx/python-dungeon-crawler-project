@@ -20,6 +20,10 @@ something occurs to you mid-build.
   see a number change.
 
 ## Combat
+- **The Practice Chamber (a respawning, stat-customisable dummy, free spellcasting) is a natural fit for a dedicated training-room
+  mode** - a UI that surfaces its free-action nature explicitly (no resource bars depleting, an obvious "practice" badge) rather than
+  relying on the player noticing mana/cooldowns just aren't moving. The dummy's customisable stats (`dummy set <stat> <value>` in
+  text) become sliders or a stat-editor panel in a visual version, rather than typed commands.
 - Both combatants' HP should be visible **simultaneously** as health bars,
   rather than the sequential "you take damage, then see the result" text
   flow — a visual version can show both changing in real time. With full

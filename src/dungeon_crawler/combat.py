@@ -188,7 +188,6 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
 def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room, attack_type: str = "light") -> str:
     """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly."""
     enemies_before = [enemy for enemy in enemy_team if enemy.is_alive()]
-
     result = resolve_combat_round(player, target, player_team, enemy_team, attack_type)
 
     newly_defeated = [enemy for enemy in enemies_before if not enemy.is_alive()]
@@ -201,7 +200,8 @@ def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: 
         if defeat_extras:
             result += f"\n{defeat_extras}"
 
-    if newly_defeated and any(enemy.is_alive() for enemy in room.enemies):
+    still_relevant_enemies = [e for e in room.enemies if not e.respawns]
+    if newly_defeated and any(enemy.is_alive() for enemy in still_relevant_enemies):
         # something died this round, but the room still has living enemies (either teammates who survived, or a fresh boss
         # phase handle_enemy_defeat() just added) - combat isn't over, even though the loop above just cleared in_combat
         # for the specific enemy that died 
@@ -267,6 +267,12 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         player.in_combat = True
         player.current_target = next_phase
         return f"{enemy.name} falls, but something rises to take its place - {next_phase.name}."
+
+    if enemy.respawns:
+        enemy.hp = enemy.max_hp
+        enemy.active_effects = []
+        enemy.pending_damage_reduction = 0
+        return f"{enemy.name} resets, ready for another round."
 
     room.remove_enemy(enemy)
 
@@ -370,10 +376,14 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         spell = next((s for s in player.known_spells if s.name.lower() == spell_name.lower()), None)
         if spell is None:
             return f"You don't know a spell called '{spell_name}'."
-        if spell.name in player.spell_cooldowns:
-            return f"{spell.name} is still on cooldown."
-        if player.mana < spell.mana_cost:
-            return f"Not enough mana for {spell.name} ({spell.mana_cost} needed, {player.mana} available)."
+
+        if not room.is_practice_chamber:
+            if spell.name in player.spell_cooldowns:
+                return f"{spell.name} is still on cooldown."
+            if player.mana < spell.mana_cost:
+                return f"Not enough mana for {spell.name} ({spell.mana_cost} needed, {player.mana} available)."
+
+
 
         failure = spell.would_fail(player, target)
         if failure is not None:
@@ -382,8 +392,9 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         tick_messages = tick_start_of_turn_if_needed(player)
 
         result = spell.cast(player, target)
-        player.mana -= spell.mana_cost
-        player.spell_cooldowns[spell.name] = 1
+        if not room.is_practice_chamber:
+            player.mana -= spell.mana_cost
+            player.spell_cooldowns[spell.name] = 1
 
         result = "\n".join(tick_messages + [result]) if tick_messages else result
 

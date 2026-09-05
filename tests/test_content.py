@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -120,6 +120,23 @@ def test_create_training_dummy_drops_dummy_head():
     training_dummy = create_training_dummy()
     message = training_dummy.on_death()
     assert "Dummy Head" in message
+
+def test_create_practice_dummy_has_correct_stats():
+    practice_dummy = create_practice_dummy()
+    assert practice_dummy.name == "Practice Enemy"
+    assert practice_dummy.hp == 20
+    assert practice_dummy.attack_damage == 1
+    assert practice_dummy.armour == 0
+    assert practice_dummy.experience_reward == 0
+    assert practice_dummy.gold_reward == 0
+
+def test_create_practice_dummy_respawns():
+    practice_dummy = create_practice_dummy()
+    assert practice_dummy.respawns is True
+
+def test_create_practice_dummy_has_no_loot():
+    practice_dummy = create_practice_dummy()
+    assert practice_dummy.loot == []
 
 def test_create_wooden_sword_has_correct_damage_and_description():
     sword = create_wooden_sword()
@@ -438,9 +455,9 @@ def test_create_hermes_favour_has_correct_points():
     favour = create_hermes_favour()
     assert favour.points == 1
 
-def test_build_world_returns_fifty_rooms():
+def test_build_world_returns_fifty_one_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(dungeon) == 50
+    assert len(dungeon) == 51
 
 def test_build_blank_test_room_has_correct_name_and_description():
     room = build_blank_test_room()
@@ -645,9 +662,9 @@ def test_build_world_floor_1_rooms_dict_contains_four_rooms():
     dungeon, entrance, floors = build_world()
     assert len(floors["floor_1"]) == 4
 
-def test_build_world_floor_2_rooms_dict_contains_five_rooms():
+def test_build_world_floor_2_rooms_dict_contains_six_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(floors["floor_2"]) == 5
+    assert len(floors["floor_2"]) == 6
 
 def test_build_world_floor_3_rooms_dict_contains_five_rooms():
     dungeon, entrance, floors = build_world()
@@ -862,9 +879,9 @@ def test_build_floor_2_returns_library_of_athena_as_start_room():
     start, rooms = build_floor_2()
     assert start.name == "Library of Athena"
 
-def test_build_floor_2_returns_rooms_dict_with_five_rooms():
+def test_build_floor_2_returns_rooms_dict_with_six_rooms():
     start, rooms = build_floor_2()
-    assert len(rooms) == 5
+    assert len(rooms) == 6
 
 def test_build_floor_2_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_2()
@@ -909,6 +926,35 @@ def test_build_floor_2_other_rooms_are_not_forges():
     assert rooms["Armoury of Ares"].is_forge is False
     assert rooms["Hall of Hermes"].is_forge is False
     assert rooms["Trophy Room of Zeus"].is_forge is False
+    assert rooms["Practice Chamber"].is_forge is False
+
+def test_build_floor_2_forge_connects_to_practice_chamber_via_east():
+    start, rooms = build_floor_2()
+    forge = rooms["Forge of Prometheus"]
+    assert forge.get_exit("east") is rooms["Practice Chamber"]
+
+def test_build_floor_2_practice_chamber_connects_back_to_forge_via_west():
+    start, rooms = build_floor_2()
+    practice_chamber = rooms["Practice Chamber"]
+    assert practice_chamber.get_exit("west") is rooms["Forge of Prometheus"]
+
+def test_build_floor_2_practice_chamber_is_a_practice_chamber():
+    start, rooms = build_floor_2()
+    assert rooms["Practice Chamber"].is_practice_chamber is True
+
+def test_build_floor_2_other_rooms_are_not_practice_chambers():
+    start, rooms = build_floor_2()
+    assert rooms["Library of Athena"].is_practice_chamber is False
+    assert rooms["Armoury of Ares"].is_practice_chamber is False
+    assert rooms["Hall of Hermes"].is_practice_chamber is False
+    assert rooms["Forge of Prometheus"].is_practice_chamber is False
+    assert rooms["Trophy Room of Zeus"].is_practice_chamber is False
+
+def test_build_floor_2_practice_chamber_has_practice_dummy_enemy():
+    start, rooms = build_floor_2()
+    practice_chamber = rooms["Practice Chamber"]
+    assert len(practice_chamber.enemies) == 1
+    assert practice_chamber.enemies[0].name == "Practice Enemy"
 
 def test_build_floor_3_returns_bony_crypt_as_start_room():
     start, rooms = build_floor_3()

@@ -174,6 +174,11 @@ def test_get_controls_text_lists_recruit_and_dismiss_commands():
     assert "recruit <name> - recruit a companion who joins your team in combat (requires specific items)" in text
     assert "dismiss - release your current companion, who returns home" in text
 
+def test_get_controls_text_lists_dummy_set_command():
+    text = get_controls_text()
+
+    assert "dummy set <stat> <value> - customise the practice dummy's stats (Practice Chamber only)" in text
+
 def test_get_controls_text_lists_cast_command():
     text = get_controls_text()
 
@@ -363,6 +368,30 @@ def test_main_rest_and_wait_restore_mana_smoke_test(monkeypatch, capsys):
     assert "Dev rests and recovers 10 mana." in captured.out # 5 -> 15
     assert "Dev rests and recovers 5 mana." in captured.out # 15 -> 20 (wait, same branch)
     assert "Dev rests and recovers 2 mana." in captured.out # 18 -> 20, capped rather than overfilling
+
+def test_main_dummy_set_routing_smoke_test(monkeypatch, capsys):
+    """Scripted playthrough confirming 'dummy set <stat> <value>' routes to handle_dummy_set() once a
+    practice dummy is present, and reports the room-lookup/usage errors that live only in main()'s own
+    routing (not handle_dummy_set() itself) when it isn't."""
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "developer mode",
+        "basic",
+        "floor_0",
+        "dummy set atk 50",
+        "dev teleport practice chamber",
+        "dummy set atk",
+        "dummy set atk 50",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "There's no practice dummy here." in captured.out
+    assert "[Practice] Usage: dummy set <stat> <value>" in captured.out
+    assert "[Practice] atk set to 50." in captured.out
 
 def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys):
     """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,

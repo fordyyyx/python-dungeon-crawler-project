@@ -127,6 +127,21 @@ def create_training_dummy() -> Enemy:
         gold_reward=0
     )
 
+def create_practice_dummy() -> Enemy:
+    """Player-customisable practice dummy - respawns=True (see handle_enemy_defeat()), zero XP/gold reward regardless of what 'dummy set'
+    changes. Distinct from the narrative Training Dummy at Chamber of Chiron (South) - that one is a one-time tutorial enemy;
+    this is a genuine, repeatable testing sandbox."""
+    return Enemy(
+        name="Practice Enemy",
+        hp=20,
+        attack_damage=1,
+        armour=0,
+        description="A well-worn straw dummy, stitched back together more times than anyone's bothered to count.",
+        experience_reward=0,
+        gold_reward=0,
+        respawns=True,
+    )
+
 def create_wooden_sword() -> Weapon:
     """Create the Wooden Sword weapon."""
     return Weapon(
@@ -367,6 +382,7 @@ def create_test_venom_vial() -> StatusEffectItem:
         duration=3
     )
 
+
 def build_blank_test_room() -> Room:
     """A single, deliberately empty room for dev testing - not connected to anything via exits, only ever reached by 
     'dev teleport dev test room'. Nothing pre-populated; use dev spawn / dev add once inside. """
@@ -452,6 +468,7 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     armoury_of_ares = Room(name="Armoury of Ares", description="Racks of corroded bronze weapons line the walls, still faintly warm to the touch.", examine_text="One section of the far wall looks less like stone, and more like it's been built to resemble stone.", required_intellect=3)
     hall_of_hermes = Room(name="Hall of Hermes", description="A cluttered waypoint stacked with parcels and letters never delivered, sandals of every size hung along one wall.")
     forge_of_prometheus = Room(name="Forge of Prometheus", description="The air shimmers with heat from a fire that never seems to go out, chained tools scattered across a worn anvil.", is_forge=True)
+    practice_chamber = Room(name="Practice Chamber", description="A sand-floored alcove beside the forge's heat, a single straw-and-rope dummy standing ready at its centre.", is_practice_chamber=True)
     trophy_room_of_zeus = Room(name="Trophy Room of Zeus", description="A narrow chamber lit by no visible flame, empty display alcoves lining every wall, patiently waiting to be filled.")
 
     library_of_athena.connect("west", armoury_of_ares)
@@ -462,9 +479,13 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     hall_of_hermes.connect("north", library_of_athena)
     hall_of_hermes.connect("south", forge_of_prometheus)
     forge_of_prometheus.connect("north", hall_of_hermes)
+    forge_of_prometheus.connect("east", practice_chamber)
+    practice_chamber.connect("west", forge_of_prometheus)
+
+    practice_chamber.add_enemy(create_practice_dummy())
 
     return library_of_athena, {
-        room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus, trophy_room_of_zeus)
+        room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus, trophy_room_of_zeus, practice_chamber)
     }
 
 def build_floor_3() -> tuple[Room, dict[str, Room]]:

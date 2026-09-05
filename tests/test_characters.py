@@ -1506,3 +1506,11 @@ def test_enemy_initialises_with_no_heal_amount_by_default():
 def test_enemy_initialises_with_custom_heal_amount():
     enemy = Enemy(name="Priest", hp=15, attack_damage=4, heal_amount=5)
     assert enemy.heal_amount == 5
+
+def test_enemy_initialises_with_respawns_false_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.respawns is False
+
+def test_enemy_initialises_with_respawns_true():
+    enemy = Enemy(name="Practice Enemy", hp=15, attack_damage=4, respawns=True)
+    assert enemy.respawns is True

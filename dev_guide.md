@@ -169,8 +169,28 @@ way to reach any of this outside the automated test suite.
 
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
-2, `is_forge=True`), Dodge, and light/heavy attacks — has real, reachable
-in-game content and needs no dev-tool workaround to try.
+2, `is_forge=True`), Dodge, light/heavy attacks, and the Practice Chamber's
+respawning dummy — has real, reachable in-game content and needs no dev-tool
+workaround to try.
+
+## The Practice Chamber isn't a dev tool
+Unlike everything else in this file, the Practice Chamber (floor 2, next to
+the Forge of Prometheus) and its `dummy set <stat> <value>` command are
+**real, player-facing content** — reachable by walking there normally, and
+working with `DEV_MODE` off. It's listed in `get_controls_text()`/the
+README's Controls section like any other command, not hidden the way every
+`dev ...` command deliberately is.
+
+- The room's dummy (`Enemy.respawns = True`) resets to full HP - instead of
+  being removed - the moment it's defeated, so it can be fought indefinitely.
+- Casting a spell inside costs no mana and never starts a cooldown
+  (`room.is_practice_chamber` short-circuits both checks in
+  `handle_combat_command()`) - items and weapons were already free of any
+  resource cost, so nothing changed for those.
+- `dummy set <stat> <value>` (message-prefixed `[Practice]`) works the same
+  way `dev set` does for the player, minus the `skillpoints` special case
+  (the dummy has no skill tree) - see `handle_dummy_set()`/`_apply_stat()`
+  in `dev_tools.py`.
 
 ## Quick recipes
 
@@ -217,3 +237,16 @@ cast test bolt
 (`cast` only works mid-combat, so `attack` first to lock in; a tougher enemy
 like the Minotaur keeps it alive long enough to see both the damage and the
 poison apply in the same cast.)
+
+**Try the Practice Chamber (free casting, a dummy you can't permanently kill):**
+```
+dev grant spell test bolt
+dev teleport practice chamber
+attack
+cast test bolt
+cast test bolt
+```
+The second `cast test bolt` succeeds immediately - no cooldown, no mana
+spent - which would block it anywhere else. Follow up with
+`dummy set atk 20` between fights to make the dummy hit back harder, or
+`dummy set hp 100` to make it last longer against high-damage builds.

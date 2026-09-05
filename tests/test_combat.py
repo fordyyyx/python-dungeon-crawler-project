@@ -493,6 +493,130 @@ def test_handle_enemy_defeat_with_next_phase_factory_does_not_grant_gold_or_expe
     assert player.gold == 0
     assert player.experience == 0
 
+def test_handle_enemy_defeat_with_respawns_resets_hp_to_max_hp():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True)
+    enemy.hp = 0
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert enemy.hp == 20
+
+def test_handle_enemy_defeat_with_respawns_clears_active_effects():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True)
+    enemy.apply_status_effect(StatusEffect("Poison", -3, 4))
+    enemy.hp = 0
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert enemy.active_effects == []
+
+def test_handle_enemy_defeat_with_respawns_clears_pending_damage_reduction():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True)
+    enemy.pending_damage_reduction = 4
+    enemy.hp = 0
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert enemy.pending_damage_reduction == 0
+
+def test_handle_enemy_defeat_with_respawns_returns_reset_message():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True)
+    enemy.hp = 0
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert message == "Practice Enemy resets, ready for another round."
+
+def test_handle_enemy_defeat_with_respawns_does_not_remove_enemy_from_room():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True)
+    enemy.hp = 0
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert enemy in room.enemies
+
+def test_handle_enemy_defeat_with_respawns_does_not_grant_gold_or_experience():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True, gold_reward=50, experience_reward=50)
+    enemy.hp = 0
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.gold == 0
+    assert player.experience == 0
+
+def test_handle_enemy_defeat_with_respawns_does_not_add_loot_to_room():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    sword = Weapon(name="Iron Sword", description="", damage=5)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True, loot=[sword])
+    enemy.hp = 0
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert sword not in room.items
+
+def test_resolve_attack_and_check_defeat_with_only_a_respawning_enemy_ends_combat():
+    """The respawns filter in resolve_attack_and_check_defeat() must exclude a respawning enemy from the
+    'is combat still going' check, even though handle_enemy_defeat() has just made it alive again -
+    otherwise a solo practice dummy would keep the player locked in combat forever."""
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=10, attack_damage=0, respawns=True)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    player.in_combat = True
+    player.current_target = enemy
+
+    resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
+
+    assert player.in_combat is False
+
+def test_resolve_attack_and_check_defeat_with_respawning_enemy_resets_its_hp():
+    room = Room("Practice Chamber", is_practice_chamber=True)
+    enemy = Enemy(name="Practice Enemy", hp=10, attack_damage=0, respawns=True)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50, attack_damage=100)
+
+    resolve_attack_and_check_defeat(player, enemy, [player], room.enemies, room)
+
+    assert enemy.hp == 10
+
+def test_resolve_attack_and_check_defeat_defeating_a_normal_enemy_alongside_a_respawning_one_keeps_combat_going():
+    """A living, non-respawning teammate must still keep combat going, exactly as before - only respawning
+    enemies are excluded from the 'still relevant' check."""
+    room = Room("Arena")
+    respawning = Enemy(name="Practice Enemy", hp=100, attack_damage=0, respawns=True)
+    normal = Enemy(name="Goblin", hp=100, attack_damage=0)
+    dying = Enemy(name="Weakling", hp=10, attack_damage=0)
+    room.add_enemy(respawning)
+    room.add_enemy(normal)
+    room.add_enemy(dying)
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    player.in_combat = True
+    player.current_target = dying
+
+    resolve_attack_and_check_defeat(player, dying, [player], room.enemies, room)
+
+    assert player.in_combat is True
+
 def test_flee_lands_free_hit_when_random_forces_it(monkeypatch):
     """Deterministic version of the free-hit chance - forces random.random() to return 0.0 (always below any nonzero chance)
     so the hit branch is guaranteed to fire, rather than relying on running the test many times."""
@@ -812,6 +936,70 @@ def test_handle_combat_command_cast_cooldown_blocks_an_immediate_second_cast():
     message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
 
     assert message == "Firebolt is still on cooldown."
+
+def test_handle_combat_command_cast_in_practice_chamber_does_not_deduct_mana():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=5)
+    room = Room("Practice Chamber", is_practice_chamber=True)
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert player.mana == 20
+
+def test_handle_combat_command_cast_in_practice_chamber_does_not_set_cooldown():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=5)
+    room = Room("Practice Chamber", is_practice_chamber=True)
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert player.spell_cooldowns == {}
+
+def test_handle_combat_command_cast_in_practice_chamber_succeeds_with_zero_mana():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 0
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=5)
+    room = Room("Practice Chamber", is_practice_chamber=True)
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert "Hero casts Firebolt at Practice Enemy for 10 damage." in message
+
+def test_handle_combat_command_cast_in_practice_chamber_ignores_existing_cooldown():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    player.spell_cooldowns["Firebolt"] = 2
+    enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=5)
+    room = Room("Practice Chamber", is_practice_chamber=True)
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert "Hero casts Firebolt at Practice Enemy for 10 damage." in message
+
+def test_handle_combat_command_cast_in_practice_chamber_allows_immediate_repeat_cast():
+    """Regression check for the combination of both practice-chamber exemptions - two casts in a row
+    must both succeed, since neither mana nor cooldown is ever actually spent inside the chamber."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Practice Enemy", hp=100, attack_damage=5)
+    room = Room("Practice Chamber", is_practice_chamber=True)
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert "Hero casts Firebolt at Practice Enemy for 10 damage." in message
 
 def test_handle_combat_command_cast_self_applied_effect_is_not_ticked_same_turn():
     """Regression test for the fix: player.tick_status_effects() now runs BEFORE spell.cast(), so a spell's

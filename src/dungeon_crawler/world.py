@@ -3,7 +3,7 @@
 class Room:
     """A single location in the world - holds its own items/enemies/allies, and its exits (including locked and hidden ones) to other rooms."""
 
-    def __init__(self, name: str, description: str = "", examine_text: str = "", required_intellect = 0, is_forge: bool = False):
+    def __init__(self, name: str, description: str = "", examine_text: str = "", required_intellect = 0, is_forge: bool = False, is_practice_chamber: bool = False):
         """Build an empty room; items/enemies/allies/exits are all populated afterwards via add_*()/connect()/lock_exit() calls."""
         self.name = name
         self.description = description
@@ -19,6 +19,7 @@ class Room:
         self._allies: list = []
         self._companions: list = []
         self.is_forge = is_forge
+        self.is_practice_chamber = is_practice_chamber
 
     def connect(self, direction: str, other_room: "Room") -> None:
         """Add a normal (unlocked, visible) exit from this room to other_room."""

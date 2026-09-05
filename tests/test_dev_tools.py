@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Weapon, Armour
-from dungeon_crawler.dev_tools import find_item_by_name, handle_dev_command, handle_dev_set, find_enemy_by_name, find_ally_by_name, find_companion_by_name, find_spell_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, handle_dev_afflict, handle_dev_set_durability
+from dungeon_crawler.dev_tools import find_item_by_name, handle_dev_command, handle_dev_set, handle_dummy_set, find_enemy_by_name, find_ally_by_name, find_companion_by_name, find_spell_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, handle_dev_afflict, handle_dev_set_durability
 
 def test_find_item_by_name_returns_item_for_known_name():
     item = find_item_by_name("wooden sword")
@@ -330,6 +330,43 @@ def test_handle_dev_set_maxhp_above_current_hp_does_not_change_hp():
     player = Player(name="hero", hp=100)
     handle_dev_set("maxhp", "150", player)
     assert player.hp == 100
+
+def test_handle_dummy_set_updates_aliased_stat():
+    dummy = Enemy(name="Practice Enemy", hp=20, attack_damage=3)
+    handle_dummy_set("atk", "50", dummy)
+    assert dummy.attack_damage == 50
+
+def test_handle_dummy_set_returns_confirmation_message():
+    dummy = Enemy(name="Practice Enemy", hp=20, attack_damage=3)
+    message = handle_dummy_set("atk", "50", dummy)
+    assert message == "[Practice] atk set to 50."
+
+def test_handle_dummy_set_unknown_stat_returns_error_message():
+    dummy = Enemy(name="Practice Enemy", hp=20, attack_damage=3)
+    message = handle_dummy_set("nonsense", "5", dummy)
+    assert message == "[Practice] Unknown stat 'nonsense'."
+
+def test_handle_dummy_set_invalid_value_returns_error_message():
+    dummy = Enemy(name="Practice Enemy", hp=20, attack_damage=3)
+    message = handle_dummy_set("atk", "abc", dummy)
+    assert message == "[Practice] Invalid value 'abc'."
+
+def test_handle_dummy_set_hp_above_max_hp_raises_max_hp():
+    dummy = Enemy(name="Practice Enemy", hp=20, attack_damage=3)
+    handle_dummy_set("hp", "50", dummy)
+    assert dummy.max_hp == 50
+
+def test_handle_dummy_set_maxhp_below_current_hp_clamps_hp_down():
+    dummy = Enemy(name="Practice Enemy", hp=20, attack_damage=3)
+    handle_dummy_set("maxhp", "10", dummy)
+    assert dummy.hp == 10
+
+def test_handle_dummy_set_has_no_skillpoints_special_case():
+    """Unlike handle_dev_set(), handle_dummy_set() has no skillpoints branch - Enemy has no skill_tree,
+    so 'skillpoints' must fall through to the generic unknown-stat path, not raise an AttributeError."""
+    dummy = Enemy(name="Practice Enemy", hp=20, attack_damage=3)
+    message = handle_dummy_set("skillpoints", "5", dummy)
+    assert message == "[Practice] Unknown stat 'skillpoints'."
 
 def test_find_enemy_by_name_returns_enemy_for_known_name():
     enemy = find_enemy_by_name("minotaur")

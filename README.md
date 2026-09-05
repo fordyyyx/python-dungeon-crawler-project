@@ -26,6 +26,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Gold, earned from defeating enemies, tracked separately from your core stats
 * Special combat abilities — Double Strike, Thorns, Last Stand, and Dodge
 * Enemies with loot drops
+* A Practice Chamber (floor 2, by the Forge of Prometheus) with an infinitely-respawning, customisable dummy — freely test weapons/spells/potions with no mana cost or cooldowns while inside
 * Win/lose conditions
 
 ## Design Highlights
@@ -83,6 +84,7 @@ pytest --cov=src/dungeon_crawler
 * `recruit <name>` - recruit a companion who joins your team in combat (requires specific items)
 * `dismiss` - release your current companion, who returns home
 * `repair <item>` - repair an item to full durability at a Forge (requires gold)
+* `dummy set <stat> <value>` - customise the practice dummy's stats (Practice Chamber only)
 * `rest` / `wait` - recover mana outside of combat
 * `skills` - view your skill tree progress and available points (also available mid-combat)
 * `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`) (also available mid-combat)
@@ -105,7 +107,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, and attack variety (light/heavy/ranged), plus the first main floor. Planned additions include further floors drawing on the Iliad and Odyssey, multi-stage bosses, and a save/load system.
+The current release covers character creation, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), and a practice chamber for testing loadouts risk-free, plus the first main floor. Planned additions include further floors drawing on the Iliad and Odyssey, multi-stage bosses, and a save/load system.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

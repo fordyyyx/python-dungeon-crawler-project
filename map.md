@@ -40,7 +40,10 @@ Hall of Hermes {Hermes - Friendly}
 * south -> Forge of Prometheus
 Forge of Prometheus {Prometheus - Friendly}
 * north -> Hall of Hermes
+* east -> Practice Chamber
 * descend -> Bony Crypt
+Practice Chamber {Practice Enemy - Enemy} [NOTE: is_practice_chamber=True; the enemy has respawns=True and resets on defeat instead of being removed]
+* west -> Forge of Prometheus
 
 Bony Crypt {Skeleton Warrior - Enemy}
 * ascend -> Forge of Prometheus
@@ -157,7 +160,7 @@ Tartarus {Typhon - Enemy}
 FLOOR ASSIGNMENTS (confirmed):
 Floor 0 (Chiron's Training Grounds): Chamber of Chiron + 4 variants
 Floor 1 (The Underworld Gateway): Cave Entrance, Styx Crossing, Fields of Asphodel, Sunken Vault
-Floor 2 (Domains of the Gods): Library of Athena, Armoury of Ares, Trophy Room of Zeus, Hall of Hermes, Forge of Prometheus
+Floor 2 (Domains of the Gods): Library of Athena, Armoury of Ares, Trophy Room of Zeus, Hall of Hermes, Forge of Prometheus, Practice Chamber
 Floor 3 (Low Dungeon): Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, Overgrown Forest
 Floor 4 (Labyrinth and Greater Monsters): Labyrinth of the Minotaur, Stony Lair, Cavern of the Cyclops, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, Lair of Medusa
 Floor 5 (Shadow of Troy): Shadow of Army Camp, Shadow of Troy (North/Central/Alleyway/South), Shadow of Pylos
@@ -169,10 +172,14 @@ Floor 9 (Tartarus): Tartarus
 STATUS: Full shell built and playtested (all rooms reachable, correctly connected).
 Population (enemies/allies/items/trades) is COMPLETE for Floor 0 and mostly
 complete for Floor 1 (Wounded Soldier, Charon, one Skeleton Warrior; Fields
-of Asphodel is empty). Floor 2 is currently shell-only in `build_floor_2()` -
-the Athena/Ares/Hermes/Prometheus allies and their trade rewards (Breastplate
-of Athena, Spear of Ares, Favour of Hermes) are all fully written in
-`content.py`, but none of the `create_*()` calls for them are actually wired
-into `build_floor_2()` yet, so none of floor 2's five rooms currently hold an
-ally, enemy, or item. Floors 2 (population) and 3-9 (shell and population)
-are all deferred to the "Populate all floors" roadmap item.
+of Asphodel is empty). Floor 2's five narrative rooms are still shell-only in
+`build_floor_2()` - the Athena/Ares/Hermes/Prometheus allies and their trade
+rewards (Breastplate of Athena, Spear of Ares, Favour of Hermes) are all
+fully written in `content.py`, but none of the `create_*()` calls for them
+are actually wired into `build_floor_2()` yet, so none of those five rooms
+currently hold an ally, enemy, or item. The sixth floor-2 room, Practice
+Chamber, is the one exception - it's real, populated content (a respawning
+practice dummy, `create_practice_dummy()`), not deferred to "Populate all
+floors" like the rest of the floor. Floor 2's five narrative rooms
+(population) and floors 3-9 (shell and population) are all deferred to the
+"Populate all floors" roadmap item.

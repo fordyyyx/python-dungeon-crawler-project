@@ -62,6 +62,7 @@ def get_controls_text() -> str:
         "recruit <name> - recruit a companion who joins your team in combat (requires specific items)\n"
         "repair <item> - repair an item to full durability (requires gold)\n"
         "dismiss - release your current companion, who returns home\n"
+        "dummy set <stat> <value> - customise the practice dummy's stats (Practice Chamber only)\n"
         "skills - view your skill tree progress and available points\n"
         "learn <path> - spend a skill point (attack, defence, or abilities)\n"
         "rest / wait - recover mana outside of combat\n"
@@ -132,6 +133,17 @@ def main() -> None:
 
         elif command.startswith("target "):
             print(handle_target_command(command, current_room.enemies, player))
+
+        elif command.startswith("dummy set "):
+            parts = command.removeprefix("dummy set ").split(" ", 1)
+            if len(parts) != 2:
+                print("[Practice] Usage: dummy set <stat> <value>")
+            else:
+                dummy = next((enemy for enemy in current_room.enemies if enemy.respawns), None)
+                if dummy is None:
+                    print("There's no practice dummy here.")
+                else:
+                    print(dev_tools.handle_dummy_set(parts[0], parts[1], dummy))
 
         elif player.in_combat:
             if player.current_target is not None:

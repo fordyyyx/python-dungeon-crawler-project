@@ -231,6 +231,14 @@ def test_room_initialises_with_is_forge_true():
     room = Room("A", is_forge=True)
     assert room.is_forge is True
 
+def test_room_initialises_with_is_practice_chamber_false_by_default():
+    room = Room("A")
+    assert room.is_practice_chamber is False
+
+def test_room_initialises_with_is_practice_chamber_true():
+    room = Room("A", is_practice_chamber=True)
+    assert room.is_practice_chamber is True
+
 def test_room_initialises_with_no_hidden_exits():
     room = Room("A")
     assert room.hidden_exits == {}
