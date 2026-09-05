@@ -42,6 +42,8 @@ def get_controls_text() -> str:
     locked in combat. Mirrors the README's Controls section - keep both in sync when commands change."""
     return (
         "look - display room name and description\n"
+        "examine - look closer at your surroundings; may reveal hidden passages\n"
+        "examine <item> - view an item's description\n"
         "north / east / south / west / descend / ascend - move in that direction\n"
         "map - show the exits available from your current room\n"
         "fullmap / world - show every reachable room on the current floor\n"

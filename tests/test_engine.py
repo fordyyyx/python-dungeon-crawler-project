@@ -147,7 +147,7 @@ def test_print_room_with_no_companions_does_not_print_recruit_message(capsys):
 def test_get_controls_text_lists_movement_and_combat_commands():
     text = get_controls_text()
 
-    assert "attack - attack an enemy in the room (locks you into combat)" in text
+    assert "attack / attack light / attack heavy / attack ranged - attack an enemy in the room (locks you into combat); heavy hits harder but can miss, ranged needs an equipped ranged weapon" in text
     assert "flee - disengages from combat (mid-combat only)" in text
     assert "north / east / south / west / descend / ascend - move in that direction" in text
 
@@ -183,6 +183,21 @@ def test_get_controls_text_lists_rest_and_wait_command():
     text = get_controls_text()
 
     assert "rest / wait - recover mana outside of combat" in text
+
+def test_get_controls_text_lists_attack_type_variants():
+    text = get_controls_text()
+
+    assert "attack light" in text
+    assert "attack heavy" in text
+    assert "attack ranged" in text
+    assert "heavy hits harder but can miss" in text
+    assert "ranged needs an equipped ranged weapon" in text
+
+def test_get_controls_text_lists_examine_commands():
+    text = get_controls_text()
+
+    assert "examine - look closer at your surroundings; may reveal hidden passages" in text
+    assert "examine <item> - view an item's description" in text
 
 def test_get_controls_text_lists_repair_command():
     text = get_controls_text()
