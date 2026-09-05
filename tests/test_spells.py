@@ -155,3 +155,29 @@ def test_spell_cast_combining_damage_and_offensive_effect():
     assert len(target.active_effects) == 1
     assert "casts Venom Bolt at Goblin for 5 damage." in message
     assert "afflicted with Poison" in message
+
+def test_spell_cast_lethal_damage_skips_offensive_effect_on_dead_target():
+    """Regression test for the fix: would_fail() only checks aliveness before the cast starts, so it can't catch
+    this cast's own damage killing the target. cast() must skip the effect itself rather than applying poison
+    to an already-dead target."""
+    caster = Character(name="Hero", hp=20, attack_damage=5)
+    target = Character(name="Goblin", hp=5, attack_damage=0)
+    spell = Spell(name="Venom Bolt", description="", mana_cost=5, damage=5, effect_name="Poison", effect_amount=-2, effect_duration=3)
+
+    message = spell.cast(caster, target)
+
+    assert target.active_effects == []
+    assert "afflicted with Poison" not in message
+    assert "Goblin has died." in message
+
+def test_spell_cast_self_effect_still_applies_when_damage_kills_target():
+    """The is_alive() guard must only ever affect the offensive-recipient branch (recipient is target) - a
+    self-targeted effect (recipient is caster) must still apply even when this same cast's damage kills target."""
+    caster = Character(name="Hero", hp=15, attack_damage=5)
+    target = Character(name="Goblin", hp=5, attack_damage=0)
+    spell = Spell(name="Draining Bolt", description="", mana_cost=5, damage=5, effect_name="Regen", effect_amount=3, effect_duration=3)
+
+    spell.cast(caster, target)
+
+    assert len(caster.active_effects) == 1
+    assert caster.active_effects[0].name == "Regen"

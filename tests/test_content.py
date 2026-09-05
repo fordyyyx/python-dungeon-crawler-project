@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -1217,3 +1217,60 @@ def test_build_floor_9_returns_rooms_dict_with_one_rooms():
 def test_build_floor_9_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_9()
     assert rooms["Tartarus"] is start
+
+def test_build_companion_test_camp_has_correct_name_and_description():
+    room = build_companion_test_camp()
+    assert room.name == "Companion Test Camp"
+    assert room.description == "A quiet clearing set aside for testing recruitment and dismissal - not part of any real floor."
+
+def test_create_test_companion_has_correct_stats():
+    companion = create_test_companion()
+    assert companion.name == "Test Companion"
+    assert companion.hp == 20
+    assert companion.attack_damage == 6
+    assert companion.armour == 1
+    assert companion.heal_amount == 4
+    assert companion.brace_amount == 2
+
+def test_create_test_companion_has_no_required_items():
+    companion = create_test_companion()
+    assert companion.required_items == []
+
+def test_create_test_companion_home_room_is_companion_test_camp():
+    companion = create_test_companion()
+    assert companion.home_room.name == "Companion Test Camp"
+
+def test_create_test_spell_has_correct_stats():
+    spell = create_test_spell()
+    assert spell.name == "Test Bolt"
+    assert spell.mana_cost == 5
+    assert spell.damage == 6
+
+def test_create_test_spell_has_correct_effect():
+    spell = create_test_spell()
+    assert spell.effect_name == "Poison"
+    assert spell.effect_amount == -2
+    assert spell.effect_duration == 3
+
+def test_create_test_spellbook_has_correct_name_and_description():
+    spellbook = create_test_spellbook()
+    assert spellbook.name == "Test Spellbook"
+    assert spellbook.description == "A dev-only spellbook. Reading it teaches Test Bolt."
+
+def test_create_test_spellbook_teaches_test_bolt():
+    spellbook = create_test_spellbook()
+    assert spellbook.spell.name == "Test Bolt"
+
+def test_create_test_healing_tonic_has_correct_effect():
+    tonic = create_test_healing_tonic()
+    assert tonic.name == "Test Healing Tonic"
+    assert tonic.effect_name == "Regen"
+    assert tonic.amount == 3
+    assert tonic.duration == 3
+
+def test_create_test_venom_vial_has_correct_effect():
+    vial = create_test_venom_vial()
+    assert vial.name == "Test Venom Vial"
+    assert vial.effect_name == "Poison"
+    assert vial.amount == -3
+    assert vial.duration == 3

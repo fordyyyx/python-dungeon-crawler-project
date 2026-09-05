@@ -48,7 +48,11 @@ content getting in the way.
 - `dev add <item>` — adds a known item straight to your inventory (see the
   registry list below for exactly what "known" means right now).
 - `dev spawn <character>` — spawns a known enemy, ally, or companion into the
-  current room.
+  current room. Enemy, ally, and companion registries are checked in that
+  order, so a name can only ever match one of the three.
+  - Spawning a companion doesn't automatically add them to your team — follow
+    up with `recruit <name>` (companions spawned this way have no
+    `required_items`, so recruiting succeeds immediately).
 - `dev remove <character>` — removes the first matching enemy or ally in the
   room by name.
 - `dev remove all <character>` — removes every instance of that name.
@@ -76,9 +80,10 @@ content getting in the way.
 
 ### Spells
 - `dev grant spell <name>` — grants a known spell straight to your spellbook
-  (`player.known_spells`), skipping the need for a `SpellBook` item. See
-  "What can't be playtested yet" below — right now there's nothing registered
-  for this to find.
+  (`player.known_spells`), skipping the need for a `SpellBook` item.
+  - Example: `dev grant spell test bolt` — the only spell registered right
+    now (see below); mid-combat, `cast test bolt` deals 6 damage and applies
+    3 turns of poison in one go.
 
 ### Movement and world state
 - `dev teleport <room name>` — case-insensitive teleport to any room in the
@@ -107,7 +112,8 @@ case-insensitively):
 `mentor's token`, `charon's coin`, `bronze xiphos`, `shield of aegis
 (fragment)`, `vial of ambrosia`, `bronze breastplate`, `small healing
 potion`, `cyclops eye`, `spear of ares`, `centaur's broken bow`, `breastplate
-of athena`, `favour of hermes`.
+of athena`, `favour of hermes`, `test spellbook`, `test healing tonic`,
+`test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`.
@@ -115,29 +121,40 @@ of athena`, `favour of hermes`.
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`.
 
-**Companions, Spells**: none yet — see below.
+**Companions** (`dev spawn <name>`): `test companion` — a dev-only stand-in
+with all three AI actions live (non-zero attack, `heal_amount`, and
+`brace_amount`), no `required_items`, so `recruit test companion` succeeds
+immediately after spawning.
 
-## What can't be playtested yet
+**Spells** (`dev grant spell <name>`): `test bolt` — a dev-only combo spell
+(damage + poison in one cast).
 
-Three systems have their full engine built and unit-tested, but no real
-in-game content to actually reach them through *any* command, dev-assisted or
-not:
+## What can't be playtested through real game content yet
 
-- **Companions.** No `Companion` exists anywhere in the built world, and
-  `dev spawn`'s companion lookup has an empty registry to search — `recruit`
-  can never succeed right now. The whole system (recruiting, fighting
-  alongside you, being downed, `dismiss`, `Reviver`) is exercised only by the
-  automated test suite.
-- **Spells.** No `Spell` is registered anywhere, so `dev grant spell` can
-  never find one, and there's no `SpellBook` item to pick up either — you can
-  never end up with anything in `known_spells`, so `cast <spell>` can never
-  actually be tried in play. Mana/`rest`/`wait` work fine on their own; there
-  is simply nothing to spend the mana on yet.
-- **Status-effect items.** No `StatusEffectItem` is registered in `dev add`'s
-  item list, and none exist as real loot/trade rewards either. `dev afflict`
-  (above) is the one deliberate exception carved out specifically so this
-  system *can* be playtested despite that — it applies the same
-  `StatusEffect`/`apply_status_effect()` machinery a real item or spell would.
+Companions, Spells, and status-effect items all have their full engine
+built and unit-tested, and are now genuinely reachable in a live `main()`
+run through dev tooling (see the recipes above and below) — but none of the
+three exist as *real, narrative* content placed anywhere by `build_world()`:
+
+- **Companions.** No room in the actual world holds a recruitable
+  `Companion` — `dev spawn test companion` (above) is the only way to reach
+  one right now. The full system (recruiting, fighting alongside you, being
+  downed, `dismiss`, `Reviver`) works identically either way, since it's the
+  same `Companion` class and the same `recruit_companion()`/combat AI either
+  way.
+- **Spells.** `test bolt` (above) is the only registered `Spell`, and `test
+  spellbook` (`dev add`) is the only way to actually pick up a `SpellBook`
+  item — no real ally/loot grants one yet. Mana/`rest`/`wait` work fine on
+  their own regardless.
+- **Status-effect items.** `test healing tonic` and `test venom vial`
+  (`dev add`, above) are the only two `StatusEffectItem`s that exist, and
+  neither is real loot or a trade reward yet. `dev afflict` (above) remains
+  the more direct way to test status-effect ticking without needing either
+  item.
+
+Real, narrative versions of all three are expected as part of "Populate all
+floors" (`roadmap.md`) — until then, the `test ...` names above are the only
+way to reach any of this outside the automated test suite.
 
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
@@ -170,3 +187,22 @@ dev spawn skeleton warrior
 dev afflict skeleton warrior poison -2 3
 attack
 ```
+
+**Recruit a companion and fight alongside them:**
+```
+dev spawn test companion
+recruit test companion
+dev spawn skeleton warrior
+attack
+```
+
+**Try casting a spell:**
+```
+dev grant spell test bolt
+dev spawn minotaur
+attack
+cast test bolt
+```
+(`cast` only works mid-combat, so `attack` first to lock in; a tougher enemy
+like the Minotaur keeps it alive long enough to see both the damage and the
+poison apply in the same cast.)

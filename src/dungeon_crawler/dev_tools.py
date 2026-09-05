@@ -10,6 +10,7 @@ from dungeon_crawler.spells import Spell
 from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour
 from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
+from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat
 
 DEV_MODE = False
@@ -32,6 +33,9 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "centaur's broken bow": create_centaurs_broken_bow,
     "breastplate of athena": create_breastplate_of_athena,
     "favour of hermes": create_hermes_favour,
+    "test spellbook": create_test_spellbook,
+    "test healing tonic": create_test_healing_tonic,
+    "test venom vial": create_test_venom_vial,
 }
 
 ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
@@ -52,9 +56,13 @@ ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {
     "prometheus": create_prometheus,
 }
 
-COMPANION_REGISTRY: dict[str, Callable[[], Companion]] = {}
+COMPANION_REGISTRY: dict[str, Callable[[], Companion]] = {
+    "test companion": create_test_companion,
+}
 
-SPELL_REGISTRY: dict[str, Callable[[], Spell]] = {}
+SPELL_REGISTRY: dict[str, Callable[[], Spell]] = {
+    "test bolt": create_test_spell,
+}
 
 STAT_ALIASES = {
     "atk": "attack_damage",

@@ -22,6 +22,21 @@ def test_find_item_by_name_returns_new_instance_each_call():
     item2 = find_item_by_name("wooden sword")
     assert item1 is not item2
 
+def test_find_item_by_name_returns_test_spellbook_for_known_name():
+    item = find_item_by_name("test spellbook")
+    assert item is not None
+    assert item.name == "Test Spellbook"
+
+def test_find_item_by_name_returns_test_healing_tonic_for_known_name():
+    item = find_item_by_name("test healing tonic")
+    assert item is not None
+    assert item.name == "Test Healing Tonic"
+
+def test_find_item_by_name_returns_test_venom_vial_for_known_name():
+    item = find_item_by_name("test venom vial")
+    assert item is not None
+    assert item.name == "Test Venom Vial"
+
 def test_handle_dev_command_add_known_item_adds_to_inventory():
     player = Player(name="hero", hp=100)
     room = Room("A")
@@ -154,6 +169,15 @@ def test_handle_dev_command_spawn_ally_adds_to_room():
     assert message == "[DEV] Spawned Chiron."
     ally_names = [ally.name for ally in room.allies]
     assert "Chiron" in ally_names
+
+def test_handle_dev_command_spawn_companion_adds_to_room():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    dungeon = Map()
+    message, new_room = handle_dev_command("spawn test companion", player, room, dungeon)
+    assert message == "[DEV] Spawned Test Companion. Use 'recruit Test Companion' to add them to your team."
+    companion_names = [companion.name for companion in room.companions]
+    assert "Test Companion" in companion_names
 
 def test_handle_dev_command_spawn_unknown_name_returns_error_message():
     player = Player(name="hero", hp=100)
@@ -536,17 +560,43 @@ def test_handle_dev_clear_room_with_empty_room_returns_zero_counts():
 
     assert message == "[DEV] Cleared room: removed 0 enemies and 0 allies."
 
-def test_find_companion_by_name_returns_none_since_registry_is_currently_empty():
-    """COMPANION_REGISTRY has no entries yet - no Companion exists as real game content. This test documents
-    the current, honest state and will need a real entry once one does."""
-    companion = find_companion_by_name("anything")
+def test_find_companion_by_name_returns_companion_for_known_name():
+    companion = find_companion_by_name("test companion")
+    assert companion is not None
+    assert companion.name == "Test Companion"
+
+def test_find_companion_by_name_is_case_insensitive():
+    companion = find_companion_by_name("TEST COMPANION")
+    assert companion is not None
+    assert companion.name == "Test Companion"
+
+def test_find_companion_by_name_returns_none_for_unknown_name():
+    companion = find_companion_by_name("nonexistent")
     assert companion is None
 
-def test_find_spell_by_name_returns_none_since_registry_is_currently_empty():
-    """SPELL_REGISTRY has no entries yet - no Spell exists as real game content. This test documents the
-    current, honest state and will need a real entry once one does."""
-    spell = find_spell_by_name("anything")
+def test_find_companion_by_name_returns_new_instance_each_call():
+    companion1 = find_companion_by_name("test companion")
+    companion2 = find_companion_by_name("test companion")
+    assert companion1 is not companion2
+
+def test_find_spell_by_name_returns_spell_for_known_name():
+    spell = find_spell_by_name("test bolt")
+    assert spell is not None
+    assert spell.name == "Test Bolt"
+
+def test_find_spell_by_name_is_case_insensitive():
+    spell = find_spell_by_name("TEST BOLT")
+    assert spell is not None
+    assert spell.name == "Test Bolt"
+
+def test_find_spell_by_name_returns_none_for_unknown_name():
+    spell = find_spell_by_name("nonexistent")
     assert spell is None
+
+def test_find_spell_by_name_returns_new_instance_each_call():
+    spell1 = find_spell_by_name("test bolt")
+    spell2 = find_spell_by_name("test bolt")
+    assert spell1 is not spell2
 
 def test_handle_dev_afflict_applies_effect_to_player():
     player = Player(name="hero", hp=100)
@@ -806,8 +856,6 @@ def test_handle_dev_command_afflict_unknown_multi_word_target_returns_full_name_
     assert message == "[DEV] No character named 'some unknown thing' found here."
 
 def test_handle_dev_command_grant_spell_with_unknown_spell_returns_message():
-    """SPELL_REGISTRY is currently empty, so this is the only reachable branch of 'grant spell' through
-    handle_dev_command() right now - see find_spell_by_name()'s own tests for why."""
     player = Player(name="hero", hp=100)
     room = Room("Arena")
     dungeon = Map()
@@ -815,3 +863,32 @@ def test_handle_dev_command_grant_spell_with_unknown_spell_returns_message():
     message, new_room = handle_dev_command("grant spell firebolt", player, room, dungeon)
 
     assert message == "[DEV] No known spell named 'firebolt'."
+
+def test_handle_dev_command_grant_spell_adds_to_known_spells():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    handle_dev_command("grant spell test bolt", player, room, dungeon)
+
+    spell_names = [spell.name for spell in player.known_spells]
+    assert "Test Bolt" in spell_names
+
+def test_handle_dev_command_grant_spell_returns_confirmation_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("grant spell test bolt", player, room, dungeon)
+
+    assert message == "[DEV] Granted spell: Test Bolt."
+
+def test_handle_dev_command_grant_spell_already_known_returns_message():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+    handle_dev_command("grant spell test bolt", player, room, dungeon)
+
+    message, new_room = handle_dev_command("grant spell test bolt", player, room, dungeon)
+
+    assert message == "[DEV] Test Bolt is already known."

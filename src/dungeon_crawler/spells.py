@@ -37,8 +37,9 @@ class Spell:
             recipient = caster if self.effect_amount >= 0 else target
             if recipient is None:
                 raise ValueError(f"You need a target for {self.name} - try 'target <enemy>' first.")
-            effect = StatusEffect(self.effect_name, self.effect_amount, self.effect_duration)
-            messages.append(recipient.apply_status_effect(effect))
+            if recipient.is_alive():
+                effect = StatusEffect(self.effect_name, self.effect_amount, self.effect_duration)
+                messages.append(recipient.apply_status_effect(effect))
         return "\n".join(messages)
 
     def would_fail(self, caster, target) -> str | None:
