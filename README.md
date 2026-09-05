@@ -6,7 +6,7 @@ This game follows a hero (you) on the descent into the Underworld, facing monste
 It is built purely in Python to demonstrate my skills in object-oriented programming, as well as brush up on things I hadn't used for a while.
 
 ## Features
-* Character creation — name your hero and choose an ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs)
+* Character creation — name your hero, choose a primary ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs), then a second, different figure for a passive secondary gift — a distinct ability rather than more stats (heavy attacks that never miss, spells that never go on cooldown, a guaranteed clean escape, and more)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
 * Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements — some passages are hidden entirely until you stop and `examine` your surroundings
 * An Intellect stat, set by ancestry and grown through levelling, that unlocks additional flavour text and lore when examining — never anything required to progress
@@ -36,7 +36,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * **Polymorphism** — `on_death()` behaves differently per subclass; `use()`/`unequip()`/`would_fail()` behave differently per `Item` subclass; each `Skill` subclass applies its own effect via `apply()`
 * **A standalone `Ally` class** (not inheriting `Character`) — friendly NPCs don't carry unused combat stats they'd never use, a deliberate design choice over blanket inheritance. `Companion` deliberately breaks from that pattern instead: it genuinely *is* a `Character`, since it needs real combat stats to fight alongside the player
 * **Data-driven NPC behaviour** — trade requirements, rewards, and conditional dialogue live as attributes on each `Ally` object, rather than name-based branching in the game loop. The same principle extends to combat AI — an enemy or companion's personality (aggression, caution, randomness) is data on the object, not a chain of `if` statements
-* **Data-driven character creation** — ancestry options and their stat trade-offs are defined as data (`ANCESTRIES`), not a chain of conditionals
+* **Data-driven character creation** — ancestry options, their stat trade-offs, and each one's secondary passive ability are all defined as data (`ANCESTRIES`), not a chain of conditionals — applying a secondary gift is one shared function call, not a branch per ancestry
 * **Utility-based AI** — every enemy and companion scores its candidate actions (attack, defend, heal) each turn based on real combat state (kill potential, incoming threat, missing HP), adds a little randomness, and acts on whichever scores highest — occasionally "wrong," by design, rather than always optimal
 * **Validate-then-commit action handling** — spells and certain items expose a `would_fail()` dry-run check alongside their real `cast()`/`use()`, so combat can fully confirm an action will succeed *before* any of the turn's other state (status effect ticks, spell cooldowns) is touched — a failed action never costs the player anything
 
@@ -107,7 +107,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), and a practice chamber for testing loadouts risk-free, plus the first main floor. Planned additions include further floors drawing on the Iliad and Odyssey, multi-stage bosses, and a save/load system.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), and a practice chamber for testing loadouts risk-free, plus the first main floor. Planned additions include a save/load system, multi-stage bosses, and further floors drawing on the Iliad and Odyssey.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

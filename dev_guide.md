@@ -250,3 +250,19 @@ The second `cast test bolt` succeeds immediately - no cooldown, no mana
 spent - which would block it anywhere else. Follow up with
 `dummy set atk 20` between fights to make the dummy hit back harder, or
 `dummy set hp 100` to make it last longer against high-damage builds.
+
+**Try a secondary ancestor ability without restarting character creation:**
+```
+dev set has_petrifying_gaze 1
+dev spawn skeleton warrior
+attack
+```
+`dev set` writes any real `Player` attribute by name (see above), and that
+happens to include all ten secondary-ancestor flags
+(`has_reckless_strength`, `has_measured_casting`, `has_swift_feet`,
+`has_unyielding_tide`, `has_berserking`, `has_silver_tongue`,
+`can_ranged_without_weapon`, `has_petrifying_gaze`, `has_bull_rush`,
+`has_iron_hide`) - `setattr` doesn't care that the value arrives as `1`
+(an `int`) rather than `True` (a `bool`), and every `if self.has_...:`
+check treats them identically. Much faster than restarting the game to
+pick a different secondary ancestor each time you want to try one.

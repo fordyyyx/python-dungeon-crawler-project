@@ -125,6 +125,13 @@ something occurs to you mid-build.
 - Ancestry selection is a natural fit for a character-select screen with
   portraits per option, rather than a text list — the ANCESTRIES dict
   already has everything needed (label, stats) to drive such a screen.
+- The two-step primary/secondary ancestor pick (stats, then a passive
+  ability from a different figure) suggests a two-panel or two-stage
+  select screen — primary on one side with live stat previews, secondary
+  on the other with an icon/tooltip per ability rather than the text
+  version's plain description line. Graying out (not hiding) whichever
+  figure was already picked as primary would read more clearly than the
+  text version's "you've already claimed that blood, try again" reprompt.
 
 ## Input
 - Controller support (stick for movement, buttons for actions) should be
