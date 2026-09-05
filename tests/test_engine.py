@@ -215,6 +215,7 @@ def test_main_happy_path_smoke_test(monkeypatch, capsys):
     responses = iter([
         "Hero",
         "basic",
+        "ares",
         "north",
         "take wooden sword",
         "use wooden sword",
@@ -238,6 +239,7 @@ def test_main_dev_command_routing_smoke_test(monkeypatch, capsys):
     responses = iter([
         "developer mode",
         "basic",
+        "ares",
         "floor_0",
         "dev set hp 999",
         "quit",
@@ -257,6 +259,7 @@ def test_main_combat_routing_smoke_test(monkeypatch, capsys):
     responses = iter([
         "developer mode",
         "basic",
+        "ares",
         "floor_0",
         "dev spawn training dummy",
         "attack",
@@ -280,6 +283,7 @@ def test_main_target_command_redirects_pre_combat_attack_smoke_test(monkeypatch,
     responses = iter([
         "developer mode",
         "basic",
+        "ares",
         "floor_0",
         "dev spawn training dummy",
         "dev spawn skeleton warrior",
@@ -308,6 +312,7 @@ def test_main_recruit_and_dismiss_routing_smoke_test(monkeypatch, capsys):
     responses = iter([
         "Hero",
         "basic",
+        "ares",
         "recruit nobody",
         "dismiss",
         "quit",
@@ -329,6 +334,7 @@ def test_main_repair_command_routing_smoke_test(monkeypatch, capsys):
     responses = iter([
         "developer mode",
         "basic",
+        "ares",
         "floor_0",
         "repair bronze breastplate",
         "dev teleport forge of prometheus",
@@ -352,6 +358,7 @@ def test_main_rest_and_wait_restore_mana_smoke_test(monkeypatch, capsys):
     responses = iter([
         "developer mode",
         "basic",
+        "ares",
         "floor_0",
         "dev set mana 5",
         "rest",
@@ -377,6 +384,7 @@ def test_main_dummy_set_routing_smoke_test(monkeypatch, capsys):
     responses = iter([
         "developer mode",
         "basic",
+        "ares",
         "floor_0",
         "dummy set atk 50",
         "dev teleport practice chamber",
@@ -400,6 +408,7 @@ def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys):
     responses = iter([
         "developer mode",
         "basic",
+        "ares",
         "floor_0",
         "dev set hp 1",
         "dev spawn skeleton warrior",

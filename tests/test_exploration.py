@@ -103,6 +103,30 @@ def test_trade_with_ally_removes_required_items_from_player_inventory_when_compl
 
     assert sword not in player.inventory.items
 
+def test_trade_with_ally_with_silver_tongue_does_not_remove_required_items():
+    coin = QuestItem(name="Charon's Coin", description="")
+    ally = Ally(name="Chiron", required_items=["Wooden Sword"], reward=coin)
+    player = Player(name="hero", hp=100)
+    player.has_silver_tongue = True
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    trade_with_ally(ally, player)
+
+    assert sword in player.inventory.items
+
+def test_trade_with_ally_with_silver_tongue_still_adds_reward():
+    coin = QuestItem(name="Charon's Coin", description="")
+    ally = Ally(name="Chiron", required_items=["Wooden Sword"], reward=coin)
+    player = Player(name="hero", hp=100)
+    player.has_silver_tongue = True
+    sword = Weapon(name="Wooden Sword", description="", damage=1)
+    player.inventory.add(sword)
+
+    trade_with_ally(ally, player)
+
+    assert coin in player.inventory.items
+
 def test_trade_with_ally_adds_reward_to_player_inventory_when_complete():
     coin = QuestItem(name="Charon's Coin", description="")
     ally = Ally(name="Chiron", required_items=["Wooden Sword"], reward=coin)

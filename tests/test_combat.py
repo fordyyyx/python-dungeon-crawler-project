@@ -630,6 +630,47 @@ def test_flee_lands_free_hit_when_random_forces_it(monkeypatch):
     assert "gets a hit in" in result
     assert enemy.has_been_fled_from is True
 
+def test_flee_with_swift_feet_disengages_cleanly_even_when_random_would_force_a_hit(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)  # would normally guarantee a hit at this HP%
+    player = Player(name="Hero", hp=20)
+    player.has_swift_feet = True
+    enemy = Enemy(name="Test", hp=10, attack_damage=3)  # full HP -> chance_of_free_hit = 1.0 normally
+
+    result = flee_combat(player, [enemy])
+
+    assert result == "You disengage cleanly, leaving your enemies behind."
+
+def test_flee_with_swift_feet_takes_no_damage(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    player = Player(name="Hero", hp=20)
+    player.has_swift_feet = True
+    enemy = Enemy(name="Test", hp=10, attack_damage=3)
+
+    flee_combat(player, [enemy])
+
+    assert player.hp == 20
+
+def test_flee_with_swift_feet_marks_living_enemies_as_fled_from(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    player = Player(name="Hero", hp=20)
+    player.has_swift_feet = True
+    enemy = Enemy(name="Test", hp=10, attack_damage=3)
+
+    flee_combat(player, [enemy])
+
+    assert enemy.has_been_fled_from is True
+
+def test_flee_with_swift_feet_does_not_mark_dead_enemies_as_fled_from(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    player = Player(name="Hero", hp=20)
+    player.has_swift_feet = True
+    dead_enemy = Enemy(name="Fallen", hp=10, attack_damage=3)
+    dead_enemy.hp = 0
+
+    flee_combat(player, [dead_enemy])
+
+    assert dead_enemy.has_been_fled_from is False
+
 def test_flee_escapes_cleanly_when_random_forces_it(monkeypatch):
     """Forces random.random() to return 0.99 above the enemy's actual (non-maximal) flee-hit chance, so the clean-escape branch
     is guaranteed to fire."""
@@ -810,6 +851,26 @@ def test_handle_combat_command_attack_ranged_without_ranged_weapon_does_not_chan
 
     assert enemy.hp == 20
 
+def test_handle_combat_command_attack_ranged_with_can_ranged_without_weapon_bypasses_weapon_check():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.can_ranged_without_weapon = True
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("attack ranged", player, enemy, [player], [enemy], room)
+
+    assert message != "You have nothing to shoot with - equip a ranged weapon first."
+
+def test_handle_combat_command_attack_ranged_with_can_ranged_without_weapon_deals_damage():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.can_ranged_without_weapon = True
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("attack ranged", player, enemy, [player], [enemy], room)
+
+    assert enemy.hp == 10  # 20 - 10 attack_damage, no weapon bonus
+
 def test_handle_combat_command_attack_with_unknown_type_returns_message():
     player = Player(name="Hero", hp=50, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
@@ -936,6 +997,74 @@ def test_handle_combat_command_cast_cooldown_blocks_an_immediate_second_cast():
     message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
 
     assert message == "Firebolt is still on cooldown."
+
+def test_handle_combat_command_cast_with_measured_casting_ignores_existing_cooldown():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    player.has_measured_casting = True
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    player.spell_cooldowns["Firebolt"] = 2
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert "Hero casts Firebolt at Goblin for 10 damage." in message
+
+def test_handle_combat_command_cast_with_measured_casting_never_sets_a_cooldown():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    player.has_measured_casting = True
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert player.spell_cooldowns == {}
+
+def test_handle_combat_command_cast_with_measured_casting_allows_immediate_repeat_cast():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    player.has_measured_casting = True
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert "Hero casts Firebolt at Goblin for 10 damage." in message
+
+def test_handle_combat_command_cast_with_measured_casting_still_blocks_on_insufficient_mana():
+    """has_measured_casting removes the cooldown check only - mana is still required, and still enforced."""
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 3
+    player.has_measured_casting = True
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert message == "Not enough mana for Firebolt (5 needed, 3 available)."
+
+def test_handle_combat_command_cast_with_measured_casting_still_deducts_mana():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.mana = 20
+    player.has_measured_casting = True
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=10)
+    player.known_spells.append(spell)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("cast firebolt", player, enemy, [player], [enemy], room)
+
+    assert player.mana == 15
 
 def test_handle_combat_command_cast_in_practice_chamber_does_not_deduct_mana():
     player = Player(name="Hero", hp=100, attack_damage=1)

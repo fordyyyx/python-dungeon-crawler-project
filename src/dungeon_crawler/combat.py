@@ -293,7 +293,14 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
 
 def flee_combat(player: Player, enemy_team: list[Enemy]) -> str:
     """Attempt to disengage from combat. Always succeeds, but every still=living enemy in enemy_team independently rolls its own
-    chance of landing a free hit as the player disengages, scaled by that enemy's own HP%."""
+    chance of landing a free hit as the player disengages, scaled by that enemy's own HP%. has_swift_feet bypasses every enemy's
+    free-hit roll entirely - a clean escape, guaranteed - but still marks every living enemy as has_been_fled_from, same as a normal escape."""
+    if player.has_swift_feet:
+        for enemy in enemy_team:
+            if enemy.is_alive():
+                enemy.has_been_fled_from = True
+        return "You disengage cleanly, leaving your enemies behind."
+
     messages = []
     hit_landed = False
 
@@ -367,7 +374,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         attack_type = command.removeprefix("attack").strip() or "light"
         if attack_type not in ("light", "heavy", "ranged"):
             return f"Unknown attack type '{attack_type}'. Try 'attack light', 'attack heavy', or 'attack ranged'."
-        if attack_type == "ranged" and player.equipped_ranged_weapon is None:
+        if attack_type == "ranged" and player.equipped_ranged_weapon is None and not player.can_ranged_without_weapon:
             return "You have nothing to shoot with - equip a ranged weapon first."
         return resolve_attack_and_check_defeat(player, target, player_team, enemy_team, room, attack_type)
 
@@ -378,7 +385,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
             return f"You don't know a spell called '{spell_name}'."
 
         if not room.is_practice_chamber:
-            if spell.name in player.spell_cooldowns:
+            if not player.has_measured_casting and spell.name in player.spell_cooldowns:
                 return f"{spell.name} is still on cooldown."
             if player.mana < spell.mana_cost:
                 return f"Not enough mana for {spell.name} ({spell.mana_cost} needed, {player.mana} available)."
@@ -394,7 +401,8 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         result = spell.cast(player, target)
         if not room.is_practice_chamber:
             player.mana -= spell.mana_cost
-            player.spell_cooldowns[spell.name] = 1
+            if not player.has_measured_casting:
+                player.spell_cooldowns[spell.name] = 1
 
         result = "\n".join(tick_messages + [result]) if tick_messages else result
 

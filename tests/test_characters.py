@@ -32,6 +32,18 @@ def test_take_damage_with_armour_exceeding_damage_deals_no_damage():
     character.take_damage(4)
     assert character.hp == 30
 
+def test_take_damage_with_iron_hide_reduces_damage_by_one():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.has_iron_hide = True
+    damage_dealt, message = character.take_damage(10)
+    assert damage_dealt == 9
+
+def test_take_damage_with_iron_hide_does_not_go_below_zero():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=10)
+    character.has_iron_hide = True
+    damage_dealt, message = character.take_damage(4)  # already fully blocked by armour
+    assert damage_dealt == 0
+
 def test_take_damage_kills_character():
     character = Character(name="Hero", hp=10, attack_damage=5)
     character.take_damage(10)
@@ -229,6 +241,23 @@ def test_take_damage_already_broken_armour_does_not_reduce_defence_again():
     character.take_damage(1) # already broken - nothing left to back out
     assert armour.durability == 0
     assert character.armour == 0
+
+def test_take_damage_with_unyielding_tide_does_not_back_out_defence_when_armour_breaks():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=0)
+    character.has_unyielding_tide = True
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=1)
+    armour.use(character) # character.armour == 3
+    character.take_damage(1)
+    assert armour.durability == 0
+    assert character.armour == 3
+
+def test_take_damage_with_unyielding_tide_still_degrades_durability():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=0)
+    character.has_unyielding_tide = True
+    armour = Armour(name="Shield", description="", defence=3, slot="body", max_durability=5)
+    armour.use(character)
+    character.take_damage(1)
+    assert armour.durability == 4
 
 def test_take_damage_armour_still_reduces_damage_on_the_hit_that_breaks_it():
     """Durability degrades after reduced (this hit's damage) is already calculated - the piece's defence
@@ -451,6 +480,65 @@ def test_attack_triggers_thorns_counter_attack_on_attacker():
     message = attacker.attack(target)
     assert attacker.hp == 48
     assert "Hero takes 2 damage from the counter-strike." in message
+
+def test_attack_with_berserking_at_or_below_half_hp_adds_bonus_damage():
+    attacker = Character(name="Hero", hp=20, attack_damage=10)
+    attacker.hp = 10  # exactly half of max_hp
+    attacker.has_berserking = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert target.hp == 88  # 100 - (10 + 2)
+
+def test_attack_with_berserking_above_half_hp_adds_no_bonus_damage():
+    attacker = Character(name="Hero", hp=20, attack_damage=10)
+    attacker.hp = 15  # above half of max_hp
+    attacker.has_berserking = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert target.hp == 90  # 100 - 10, no bonus
+
+def test_attack_with_bull_rush_against_full_hp_target_adds_bonus_damage():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_bull_rush = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert target.hp == 87  # 100 - (10 + 3)
+
+def test_attack_with_bull_rush_against_damaged_target_adds_no_bonus_damage():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_bull_rush = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    target.hp = 50
+    attacker.attack(target)
+    assert target.hp == 40  # 50 - 10, no bonus
+
+def test_attack_petrifying_gaze_forced_success_poisons_surviving_target(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)  # below the 0.15 threshold
+    attacker = Character(name="Hero", hp=30, attack_damage=5)
+    attacker.has_petrifying_gaze = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert len(target.active_effects) == 1
+    assert target.active_effects[0].name == "Poison"
+
+def test_attack_petrifying_gaze_forced_failure_does_not_poison_target(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.2)  # above the 0.15 threshold
+    attacker = Character(name="Hero", hp=30, attack_damage=5)
+    attacker.has_petrifying_gaze = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert target.active_effects == []
+
+def test_attack_petrifying_gaze_does_not_apply_to_a_target_killed_by_the_hit(monkeypatch):
+    """The death_message branch returns early, before the petrifying gaze check - a killed target
+    must never be poisoned, even when the roll would otherwise succeed."""
+    monkeypatch.setattr("random.random", lambda: 0.0)  # would trigger the gaze if the code ever reached it
+    attacker = Character(name="Hero", hp=30, attack_damage=100)
+    attacker.has_petrifying_gaze = True
+    target = Character(name="Goblin", hp=10, attack_damage=0)
+    message = attacker.attack(target)
+    assert target.active_effects == []
+    assert "afflicted with Poison" not in message
 
 def test_player_initialises_with_inventory():
     player = Player(name="Hero", hp=10)
@@ -692,10 +780,25 @@ def test_player_initialises_with_auto_talk_false():
     player = Player(name="hero", hp=100)
     assert player.auto_talk is False
 
+def test_player_initialises_with_empty_secondary_ancestry_label_by_default():
+    player = Player(name="hero", hp=100)
+    assert player.secondary_ancestry_label == ""
+
 def test_get_stats_header_line_includes_ancestry_label_when_set():
     player = Player(name="hero", hp=100, ancestry_label="Descendant of Zeus")
     stats = player.get_stats()
     assert stats.startswith("hero (Descendant of Zeus):")
+
+def test_get_stats_does_not_include_secondary_gift_line_by_default():
+    player = Player(name="hero", hp=100)
+    stats = player.get_stats()
+    assert "Secondary gift" not in stats
+
+def test_get_stats_includes_secondary_gift_line_when_set():
+    player = Player(name="hero", hp=100)
+    player.secondary_ancestry_label = "Reckless Strength - heavy attacks never miss"
+    stats = player.get_stats()
+    assert "Secondary gift: Reckless Strength - heavy attacks never miss" in stats
 
 def test_get_stats_does_not_include_unlocked_skills_section_by_default():
     player = Player(name="hero", hp=100)
@@ -1016,6 +1119,46 @@ def test_character_initialises_with_zero_dodge_chance():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.dodge_chance == 0.0
 
+def test_character_initialises_with_has_reckless_strength_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_reckless_strength is False
+
+def test_character_initialises_with_has_measured_casting_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_measured_casting is False
+
+def test_character_initialises_with_has_swift_feet_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_swift_feet is False
+
+def test_character_initialises_with_has_unyielding_tide_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_unyielding_tide is False
+
+def test_character_initialises_with_has_berserking_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_berserking is False
+
+def test_character_initialises_with_has_silver_tongue_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_silver_tongue is False
+
+def test_character_initialises_with_can_ranged_without_weapon_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.can_ranged_without_weapon is False
+
+def test_character_initialises_with_has_petrifying_gaze_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_petrifying_gaze is False
+
+def test_character_initialises_with_has_bull_rush_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_bull_rush is False
+
+def test_character_initialises_with_has_iron_hide_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_iron_hide is False
+
 def test_character_initialises_with_turn_started_false():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.turn_started is False
@@ -1087,6 +1230,14 @@ def test_attack_heavy_forced_miss_returns_miss_message(monkeypatch):
     target = Character(name="Goblin", hp=100, attack_damage=5)
     message = attacker.attack(target, attack_type="heavy")
     assert message == "Hero swings a heavy blow at Goblin - but misses!"
+
+def test_attack_heavy_with_reckless_strength_never_misses(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)  # would normally guarantee a miss
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_reckless_strength = True
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert message == "Hero attacks Goblin for 18 damage."
 
 def test_attack_heavy_forced_hit_returns_message_naming_attacker_and_target(monkeypatch):
     monkeypatch.setattr("random.random", lambda: 0.9)

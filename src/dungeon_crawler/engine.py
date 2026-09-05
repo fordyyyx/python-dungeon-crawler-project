@@ -6,7 +6,7 @@ from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item
-from dungeon_crawler.character_creation import choose_ancestry, create_player
+from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player
 
 REST_MANA_AMOUNT = 10
 
@@ -87,7 +87,8 @@ def main() -> None:
         name = "Dev"
 
     ancestry_key = choose_ancestry()
-    player = create_player(name, ancestry_key)
+    secondary_ancestry_key = choose_secondary_ancestry(ancestry_key)
+    player = create_player(name, ancestry_key, secondary_ancestry_key)
 
     dungeon, current_room, all_floors = build_world()
 

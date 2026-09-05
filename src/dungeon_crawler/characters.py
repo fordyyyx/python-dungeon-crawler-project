@@ -40,19 +40,40 @@ class Character:
         self.turn_started = False
         """Guards start-of-turn ticking (status effects/spell cooldowns) so a free action (a healing item) followed by a turn-ending one in the
         same round only ticks once. Reset to False by resolve_companion_and_enemy_turns() whenever a round actually concludes - see combat.py."""
+        self.has_reckless_strength = False
+        self.has_measured_casting = False
+        self.has_swift_feet = False
+        self.has_unyielding_tide = False
+        self.has_berserking = False
+        self.has_silver_tongue = False
+        self.can_ranged_without_weapon = False
+        self.has_petrifying_gaze = False
+        self.has_bull_rush = False
+        self.has_iron_hide = False
+        """These ten flags are all secondary-ancestor abilities (see ANCESTRIES['secondary_effect'] in content.py) - same shape as 
+        has_thorns/dodge_chance, but granted once at character creation, never by the skill tree. Deliberately zero overlap with the skill
+        tree's four ability flags (has_double_strike, has_last_stand, has_thorns, dodge_chance) - see roadmap.md"""
 
     def attack(self, target: "Character", attack_type: str = "light") -> str:
         """Attack target once, then a second time at half damage if Double Strike is unlocked. attack_type picks which weapon slot (if any)
         contributes damage: "light" and "ranged" draw from equipped_melee_weapon/equipped_ranged_weapon respectively, with identical maths
         otherwise (guaranteed hit, no multiplier); "heavy" always draws from equipped_melee_weapon, multiplies the total by 
         HEAVY_ATTACK_MULTIPLIER, but has a HEAVY_ATTACK_MISS_CHANCE chance to miss entirely (0 damage, turn still spent). Enemy/Companion
-        always call this with the default "light" and never equip weapons, so their behaviour is unchanged."""
+        always call this with the default "light" and never equip weapons, so their behaviour is unchanged. has_berserking adds +2 to base_damage
+        at or below half HP; has_bull_rush adds +3 against a target still at full HP; has_reckless_strength removes the heavy attack miss chance
+        entirely; has_petrifying_gaze gives a 15% chance to also poison a target that survives the hit. All four apply to base_damage before the
+        heavy multiplier, same as weapon_bonus does."""
         weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
         weapon_bonus = weapon.damage if weapon is not None else 0
         base_damage = self.attack_damage + weapon_bonus
 
+        if self.has_berserking and self.hp <= self.max_hp / 2:
+            base_damage += 2
+        if self.has_bull_rush and target.hp == target.max_hp:
+            base_damage += 3
+
         if attack_type == "heavy":
-            if random.random() < HEAVY_ATTACK_MISS_CHANCE:
+            if not self.has_reckless_strength and random.random() < HEAVY_ATTACK_MISS_CHANCE:
                 return f"{self.name} swings a heavy blow at {target.name} - but misses!"
             incoming = round(base_damage * HEAVY_ATTACK_MULTIPLIER)
         else:
@@ -67,6 +88,9 @@ class Character:
         if death_message:
             message += f"\n{death_message}"
             return message
+
+        if self.has_petrifying_gaze and random.random() < 0.15:
+            message += f"\n{target.apply_status_effect(StatusEffect('Poison', -3, 3))}"
 
         if getattr(self, "has_double_strike", False):
             # second strike deals half damage, based on the same weapon-inclusive total as the first hit
@@ -88,11 +112,13 @@ class Character:
         braced_amount = max(0, amount - self.pending_damage_reduction)
         self.pending_damage_reduction = 0
         reduced = max(0, braced_amount - self.armour)
+        if self.has_iron_hide:
+            reduced = max(0, reduced - 1)
 
         for piece in (self.equipped_helmet, self.equipped_body):
             if piece is not None and piece.durability > 0:
                 piece.durability -= 1
-                if piece.durability == 0:
+                if piece.durability == 0 and not self.has_unyielding_tide:
                     self.armour -= piece.defence
 
         would_be_lethal = (self.hp - reduced) <= 0
@@ -172,6 +198,7 @@ class Player(Character):
         self.mana = 20
         self.max_mana = 20
         self.spell_cooldowns: dict[str, int] = {}
+        self.secondary_ancestry_label = ""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -180,6 +207,7 @@ class Player(Character):
     def get_stats(self) -> str:
         """Format the player's core stats and unlocked skills for display, e.g. via the 'stats' command."""
         heritage = f"{self.ancestry_label}" if self.ancestry_label else ""
+        secondary_line = f"\nSecondary gift: {self.secondary_ancestry_label}" if self.secondary_ancestry_label else ""
         weapon_parts = []
         if self.equipped_melee_weapon is not None:
             weapon_parts.append(f"+{self.equipped_melee_weapon.damage} melee")
@@ -199,7 +227,7 @@ class Player(Character):
         {self.hp} HP
         {self.attack_damage} ATK{weapon_summary}
         {self.armour} DEF
-        {self.intellect} INT
+        {self.intellect} INT{secondary_line}
         {unlocked_section}
         """
         return dedent(stat_string).strip()

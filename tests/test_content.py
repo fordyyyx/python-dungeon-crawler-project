@@ -325,6 +325,81 @@ def test_ancestries_cyclops_has_correct_stats():
     assert cyclops["hp"] == 25
     assert cyclops["intellect"] == 0
 
+def test_ancestries_basic_has_no_secondary_effect():
+    basic = ANCESTRIES["basic"]
+    assert basic["secondary_effect"] is None
+    assert basic["secondary_ability_label"] == "No secondary gift"
+
+def test_ancestries_ares_secondary_effect_grants_reckless_strength():
+    ares = ANCESTRIES["ares"]
+    player = Player(name="hero", hp=100)
+    ares["secondary_effect"](player)
+    assert player.has_reckless_strength is True
+    assert ares["secondary_ability_label"] == "Reckless Strength - heavy attacks never miss"
+
+def test_ancestries_athena_secondary_effect_grants_measured_casting():
+    athena = ANCESTRIES["athena"]
+    player = Player(name="hero", hp=100)
+    athena["secondary_effect"](player)
+    assert player.has_measured_casting is True
+    assert athena["secondary_ability_label"] == "Measured Casting - spells never go on cooldown"
+
+def test_ancestries_hermes_secondary_effect_grants_swift_feet():
+    hermes = ANCESTRIES["hermes"]
+    player = Player(name="hero", hp=100)
+    hermes["secondary_effect"](player)
+    assert player.has_swift_feet is True
+    assert hermes["secondary_ability_label"] == "Swift Feet - fleeing always succeeds cleanly"
+
+def test_ancestries_poseidon_secondary_effect_grants_unyielding_tide():
+    poseidon = ANCESTRIES["poseidon"]
+    player = Player(name="hero", hp=100)
+    poseidon["secondary_effect"](player)
+    assert player.has_unyielding_tide is True
+    assert poseidon["secondary_ability_label"] == "Unyielding Tide - armour's defence never breaks"
+
+def test_ancestries_achilles_secondary_effect_grants_berserking():
+    achilles = ANCESTRIES["achilles"]
+    player = Player(name="hero", hp=100)
+    achilles["secondary_effect"](player)
+    assert player.has_berserking is True
+    assert achilles["secondary_ability_label"] == "Berserking - +2 damage at or below half HP"
+
+def test_ancestries_odysseus_secondary_effect_grants_silver_tongue():
+    odysseus = ANCESTRIES["odysseus"]
+    player = Player(name="hero", hp=100)
+    odysseus["secondary_effect"](player)
+    assert player.has_silver_tongue is True
+    assert odysseus["secondary_ability_label"] == "Silver Tongue - trades never consume your items"
+
+def test_ancestries_atalanta_secondary_effect_grants_ranged_without_weapon():
+    atalanta = ANCESTRIES["atalanta"]
+    player = Player(name="hero", hp=100)
+    atalanta["secondary_effect"](player)
+    assert player.can_ranged_without_weapon is True
+    assert atalanta["secondary_ability_label"] == "Fleet-Footed - ranged attacks need no weapon"
+
+def test_ancestries_medusa_secondary_effect_grants_petrifying_gaze():
+    medusa = ANCESTRIES["medusa"]
+    player = Player(name="hero", hp=100)
+    medusa["secondary_effect"](player)
+    assert player.has_petrifying_gaze is True
+    assert medusa["secondary_ability_label"] == "Petrifying Gaze - chance to poison on attack"
+
+def test_ancestries_minotaur_secondary_effect_grants_bull_rush():
+    minotaur = ANCESTRIES["minotaur"]
+    player = Player(name="hero", hp=100)
+    minotaur["secondary_effect"](player)
+    assert player.has_bull_rush is True
+    assert minotaur["secondary_ability_label"] == "Bull Rush - bonus damage vs a full-HP target"
+
+def test_ancestries_cyclops_secondary_effect_grants_iron_hide():
+    cyclops = ANCESTRIES["cyclops"]
+    player = Player(name="hero", hp=100)
+    cyclops["secondary_effect"](player)
+    assert player.has_iron_hide is True
+    assert cyclops["secondary_ability_label"] == "Iron Hide - reduces every hit taken by 1"
+
 def test_create_bronze_breastplate_has_correct_defence_and_description():
     breastplate = create_bronze_breastplate()
     assert breastplate.name == "Bronze Breastplate"

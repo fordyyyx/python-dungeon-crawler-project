@@ -39,9 +39,10 @@ def trade_with_ally(ally: Ally, player: Player):
         equipped_names = ", ".join(item.name for item in equipped_items)
         return f"{ally.name} shakes their head. \"You'll need to unequip: {equipped_names}.\""
 
-    for name in ally.required_items:
-        item = next(item for item in player.inventory.items if item.name == name)
-        player.inventory.remove(item)
+    if not player.has_silver_tongue:
+        for name in ally.required_items:
+            item = next(item for item in player.inventory.items if item.name == name)
+            player.inventory.remove(item)
 
     player.inventory.add(ally.reward)
     ally.trade_completed = True
