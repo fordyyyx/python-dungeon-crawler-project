@@ -253,7 +253,9 @@ def handle_dev_set_durability(slot: str, value_str: str, player: Player) -> str:
 
 def _apply_stat(character, attr_name: str, value: int, prefix: str, display_name: str):
     """Shared setattr + hp/max_hp consistency logic behind handle_dev_set()/handle_dummy_set()."""
-    if not hasattr(character, attr_name):
+    current_value = getattr(character, attr_name, None)
+
+    if not hasattr(character, attr_name) or callable(current_value):
         return f"{prefix} Unknown stat '{display_name}'."
     setattr(character, attr_name, value)
     if attr_name == "hp" and value > character.max_hp:
