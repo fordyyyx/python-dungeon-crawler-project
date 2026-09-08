@@ -53,7 +53,7 @@ def slot_summary(profile_num: int, slot_num: int) -> str | None:
     with open(slot_path(profile_num, slot_num), "r") as f:
         data = json.load(f)
     p = data["player"]
-    return f"{p["name"]} - LVL {p["level"]} {p["ancestry_label"]} - {p["current_room"]}"
+    return f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']}"
 
 
 def serialise_player(player: Player, current_room) -> dict:
@@ -141,7 +141,8 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
 
     current_room = world.get_room(data["current_room"])
     if current_room is None:
-        raise ValueError(f"Save references unknown room '{data["current_room"]}' - save file may be corrupted.")
+        room_name = data["current_room"]
+        raise ValueError(f"Save references unknown room '{room_name}' - save file may be corrupted.")
     return player, current_room
 
 
