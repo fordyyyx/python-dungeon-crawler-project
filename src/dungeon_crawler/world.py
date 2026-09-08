@@ -20,6 +20,9 @@ class Room:
         self._companions: list = []
         self.is_forge = is_forge
         self.is_practice_chamber = is_practice_chamber
+        self.floor: int | None = None
+        """Which floor this room belongs to - set by build_world() after each build_floor_N() returns, not passed into __init__.
+        Used by autosave's visited_floors check (see Player.visited_floors)."""
 
     def connect(self, direction: str, other_room: "Room") -> None:
         """Add a normal (unlocked, visible) exit from this room to other_room."""

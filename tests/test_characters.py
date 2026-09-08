@@ -784,6 +784,10 @@ def test_player_initialises_with_empty_secondary_ancestry_label_by_default():
     player = Player(name="hero", hp=100)
     assert player.secondary_ancestry_label == ""
 
+def test_player_initialises_with_empty_visited_floors_by_default():
+    player = Player(name="hero", hp=100)
+    assert player.visited_floors == set()
+
 def test_get_stats_header_line_includes_ancestry_label_when_set():
     player = Player(name="hero", hp=100, ancestry_label="Descendant of Zeus")
     stats = player.get_stats()
