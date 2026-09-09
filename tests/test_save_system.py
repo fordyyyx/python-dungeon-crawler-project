@@ -152,7 +152,15 @@ def test_serialise_player_with_companion_includes_name_and_hp():
     companion.hp = 10
     player.companion = companion
     data = serialise_player(player, Room("Chamber"))
-    assert data["companion"] == {"name": "Imp", "hp": 10}
+    assert data["companion"] == {"name": "Imp", "hp": 10, "active_effects": []}
+
+def test_serialise_player_with_companion_includes_active_effects():
+    player = Player(name="Hero", hp=50)
+    companion = Companion(name="Imp", hp=15, home_room=Room("Camp"))
+    companion.apply_status_effect(StatusEffect("Poison", -2, 3))
+    player.companion = companion
+    data = serialise_player(player, Room("Chamber"))
+    assert data["companion"]["active_effects"] == [{"name": "Poison", "amount": -2, "duration": 3}]
 
 # ---- player_from_save_data ----
 
@@ -282,11 +290,22 @@ def test_player_from_save_data_with_no_companion_leaves_companion_none():
 def test_player_from_save_data_reconstructs_companion():
     dungeon = Map()
     dungeon.add_room(Room("Chamber"))
-    data = base_player_data(companion={"name": "Test Companion", "hp": 7})
+    data = base_player_data(companion={"name": "Test Companion", "hp": 7, "active_effects": []})
     player, current_room = player_from_save_data(data, dungeon)
     assert player.companion is not None
     assert player.companion.name == "Test Companion"
     assert player.companion.hp == 7
+
+def test_player_from_save_data_reconstructs_companion_active_effects():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    data = base_player_data(companion={
+        "name": "Test Companion", "hp": 7, "active_effects": [{"name": "Poison", "amount": -2, "duration": 3}],
+    })
+    player, current_room = player_from_save_data(data, dungeon)
+    assert player.companion is not None
+    assert len(player.companion.active_effects) == 1
+    assert player.companion.active_effects[0].name == "Poison"
 
 def test_player_from_save_data_skips_unknown_companion_name():
     dungeon = Map()
@@ -504,6 +523,23 @@ def test_save_game_then_load_game_restores_player_name(monkeypatch, tmp_path):
     assert reloaded_player.name == "Hero"
     assert reloaded_room is room
 
+def test_save_game_then_load_game_removes_defeated_enemy_from_fresh_world(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    player = Player(name="Hero", hp=50)
+    dungeon = Map()
+    room = Room("Chamber")  # enemy already defeated - room starts empty
+    dungeon.add_room(room)
+    save_game(1, 1, player, room, dungeon)
+
+    fresh_dungeon = Map()
+    fresh_room = Room("Chamber")
+    fresh_enemy = Enemy(name="Goblin", hp=10, attack_damage=3)
+    fresh_room.add_enemy(fresh_enemy)
+    fresh_dungeon.add_room(fresh_room)
+
+    load_game(1, 1, fresh_dungeon)
+    assert fresh_room.enemies == []
+
 def test_save_game_overwrites_existing_slot(monkeypatch, tmp_path):
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     dungeon = Map()
@@ -541,6 +577,11 @@ def test_delete_save_returns_true_and_removes_file(monkeypatch, tmp_path):
 def test_delete_profile_returns_false_when_profile_does_not_exist(monkeypatch, tmp_path):
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     assert delete_profile(1) is False
+
+def test_delete_profile_returns_true_for_existing_profile_with_no_slots(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    ensure_profile_dir(1)
+    assert delete_profile(1) is True
 
 def test_delete_profile_removes_every_slot(monkeypatch, tmp_path):
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))

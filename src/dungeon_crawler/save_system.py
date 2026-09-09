@@ -85,7 +85,9 @@ def serialise_player(player: Player, current_room) -> dict:
             {"name": item.name, "equipped": item.equipped, "durability": getattr(item, "durability", None)} for item in player.inventory.items
         ],
         "companion": (
-            {"name": player.companion.name, "hp": player.companion.hp} if player.companion is not None else None
+            {"name": player.companion.name, "hp": player.companion.hp,
+             "active_effects": [{"name": e.name, "amount": e.amount, "duration": e.duration} for e in player.companion.active_effects]}
+            if player.companion is not None else None
         ),
     }
 
@@ -137,6 +139,7 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
         companion = find_companion_by_name(data["companion"]["name"])
         if companion is not None:
             companion.hp = data["companion"]["hp"]
+            companion.active_effects = [StatusEffect(e["name"], e["amount"], e["duration"]) for e in data["companion"]["active_effects"]]
             player.companion = companion
 
     current_room = world.get_room(data["current_room"])
@@ -147,7 +150,10 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
 
 
 def serialise_room(room) -> dict:
-    """Full snapshot of one room's current state - see module docstring re: why every room is snapshotted not just changed ones."""
+    """Full snapshot of one room's current state - see module docstring re: why every room is snapshotted not just changed ones.
+    locked_exits is deliberately never serialised - it's static, set once at world-build time and only ever mutated by dev unlock/dev
+    unlock all (out of scope for a production save). is_exit_locked() checks the player's current inventory live, every time, not a 
+    persisted flag - so a fresh build_world() always reproduces identical locked_exits."""
     return {
         "enemies": [{"name": e.name, "hp": e.hp, "has_been_fled_from": e.has_been_fled_from} for e in room.enemies if e.is_alive()],
         "items": [
