@@ -319,17 +319,21 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False):
         """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py
         aggression_weight/caution_weight/randomness_weight feed choose_enemy_action()'s utility scoring (combat.py) - a balanced
         default (1.0/1.0/0.3) suits most enemies; named/boss enemies should get bespoke values tied to their lore.
         brace_amount is the flat damage reduction this enemy applies to itself when it chooses Defend; heal_amount is the flat HP
         it restores when it chooses Heal - heal_amount = 0 excludes Heal from the candidate list entirely (see _score_candidate_actions()),
-        not scored at zero."""
+        not scored at zero. next_wave_factories spawns a set of ordinary adds on a defeat instead of going straight to next_phase_factory
+        - each add gets wave_gate_factory set to this phase's own next_phase_factory (the deferred transition), carried on the adds
+        themselves rather than tracked on Room/Player. See handle_enemy_defeat()."""
         super().__init__(name, hp, attack_damage, armour)
         self.loot = loot or []
         self.description = description
         self.next_phase_factory = next_phase_factory
+        self.next_wave_factories = next_wave_factories
+        self.wave_gate_factory = wave_gate_factory
         self.has_been_fled_from = False
         """Set to True the first time the player succesfully flees from this enemy;
             used to vary the room-entry message on a second encounter."""

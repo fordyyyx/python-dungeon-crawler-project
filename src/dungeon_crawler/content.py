@@ -403,6 +403,21 @@ def create_test_venom_vial() -> StatusEffectItem:
         duration=3
     )
 
+def create_test_boss() -> Enemy:
+    """Generic dev-test boss - two phases, the first gated behind a two-add wave purely to exercise next_wave_factories/wave_gate_factory/
+    next_phase_factory end-to-end via 'dev spawn test boss'. Not tied to any lore - a real named boss with this shape is still pending
+    design (roadmap.md's Populate all floors)."""
+    return Enemy(
+        name="Test Boss",
+        hp=1,
+        attack_damage=1,
+        next_wave_factories=[
+            lambda: Enemy(name="Test Add", hp=1, attack_damage=1, experience_reward=1, gold_reward=1),
+            lambda: Enemy(name="Test Add", hp=1, attack_damage=1, experience_reward=1, gold_reward=1),
+        ],
+        next_phase_factory=lambda: Enemy(name="Test Boss (Phase 2)", hp=1, attack_damage=1, experience_reward=5, gold_reward=5)
+    )
+
 
 def build_blank_test_room() -> Room:
     """A single, deliberately empty room for dev testing - not connected to anything via exits, only ever reached by 

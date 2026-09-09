@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -1395,3 +1395,31 @@ def test_create_test_venom_vial_has_correct_effect():
     assert vial.effect_name == "Poison"
     assert vial.amount == -3
     assert vial.duration == 3
+
+def test_create_test_boss_has_correct_stats():
+    boss = create_test_boss()
+    assert boss.name == "Test Boss"
+    assert boss.hp == 1
+    assert boss.attack_damage == 1
+
+def test_create_test_boss_has_two_wave_add_factories():
+    boss = create_test_boss()
+    assert len(boss.next_wave_factories) == 2
+
+def test_create_test_boss_wave_add_factories_produce_test_adds():
+    boss = create_test_boss()
+    add = boss.next_wave_factories[0]()
+    assert add.name == "Test Add"
+    assert add.hp == 1
+    assert add.attack_damage == 1
+    assert add.experience_reward == 1
+    assert add.gold_reward == 1
+
+def test_create_test_boss_next_phase_factory_produces_phase_two():
+    boss = create_test_boss()
+    phase_two = boss.next_phase_factory()
+    assert phase_two.name == "Test Boss (Phase 2)"
+    assert phase_two.hp == 1
+    assert phase_two.attack_damage == 1
+    assert phase_two.experience_reward == 5
+    assert phase_two.gold_reward == 5

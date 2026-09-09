@@ -202,10 +202,9 @@ def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: 
 
     still_relevant_enemies = [e for e in room.enemies if not e.respawns]
     if newly_defeated and any(enemy.is_alive() for enemy in still_relevant_enemies):
-        # something died this round, but the room still has living enemies (either teammates who survived, or a fresh boss
-        # phase handle_enemy_defeat() just added) - combat isn't over, even though the loop above just cleared in_combat
-        # for the specific enemy that died 
         player.in_combat = True
+        if player.current_target is None:
+            player.current_target = next(e for e in still_relevant_enemies if e.is_alive())
 
     return result
 
@@ -257,7 +256,21 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
     return "\n".join(messages)
 
 def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
-    """Remove the defeated enemy, drop loot (or trigger a phase transition), and grant XP/gold. Assembles one combined message, does not print."""
+    """Remove the defeated enemy, drop loot (or trigger a phase transition), and grant XP/gold. Assembles one combined message, does not print.
+    A phase with next_wave_factories spawns those adds instead of firing its own next_phase_factory immediately - the deferred factory
+    travels with each add via wave_gate_factory. Whenever a wave_gate_factory-tagged enemy dies, checks room.enemies fresh for any surviving 
+    sibling sharing that same factory; only once none remain does the next phase actually appear - correct regardless of kill order, including
+    a bystander killed by Thorns, same as the existing multi-enemy-team defeat handling already relies on."""
+    if enemy.next_wave_factories is not None:
+        room.remove_enemy(enemy)
+        adds = [factory() for factory in enemy.next_wave_factories]
+        for add in adds:
+            add.wave_gate_factory = enemy.next_phase_factory
+            room.add_enemy(add)
+        player.in_combat = True
+        player.current_target = adds[0]
+        return f"{enemy.name} falls, but conjures {len(adds)} lesser foes to bar your path!"
+
     if enemy.next_phase_factory is not None:
         next_phase = enemy.next_phase_factory()
         room.remove_enemy(enemy)
@@ -288,6 +301,17 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
 
     if enemy.experience_reward > 0:
         messages.append(player.gain_experience(enemy.experience_reward))
+
+    if enemy.wave_gate_factory is not None:
+        siblings_alive = any(
+            e.is_alive() for e in room.enemies if getattr(e, "wave_gate_factory", None) is enemy.wave_gate_factory
+        )
+        if not siblings_alive:
+            next_phase = enemy.wave_gate_factory()
+            room.add_enemy(next_phase)
+            player.in_combat = True
+            player.current_target = next_phase
+            messages.append(f"The last of them falls - something greater emerges: {next_phase.name}.")
 
     return "\n".join(messages)
 

@@ -161,6 +161,15 @@ def test_handle_dev_command_spawn_enemy_adds_to_room():
     enemy_names = [enemy.name for enemy in room.enemies]
     assert "Minotaur" in enemy_names
 
+def test_handle_dev_command_spawn_test_boss_adds_to_room():
+    player = Player(name="hero", hp=100)
+    room = Room("A")
+    dungeon = Map()
+    message, new_room = handle_dev_command("spawn test boss", player, room, dungeon)
+    assert message == "[DEV] Spawned Test Boss."
+    enemy_names = [enemy.name for enemy in room.enemies]
+    assert "Test Boss" in enemy_names
+
 def test_handle_dev_command_spawn_ally_adds_to_room():
     player = Player(name="hero", hp=100)
     room = Room("A")
@@ -386,6 +395,11 @@ def test_find_enemy_by_name_returns_new_instance_each_call():
     enemy1 = find_enemy_by_name("minotaur")
     enemy2 = find_enemy_by_name("minotaur")
     assert enemy1 is not enemy2
+
+def test_find_enemy_by_name_returns_test_boss_for_known_name():
+    enemy = find_enemy_by_name("test boss")
+    assert enemy is not None
+    assert enemy.name == "Test Boss"
 
 def test_find_ally_by_name_returns_ally_for_known_name():
     ally = find_ally_by_name("chiron")

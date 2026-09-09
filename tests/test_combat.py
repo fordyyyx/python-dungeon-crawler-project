@@ -493,6 +493,198 @@ def test_handle_enemy_defeat_with_next_phase_factory_does_not_grant_gold_or_expe
     assert player.gold == 0
     assert player.experience == 0
 
+def test_handle_enemy_defeat_with_next_wave_factories_removes_original_enemy():
+    room = Room("Crypt")
+    add_factory = lambda: Enemy(name="Skeleton", hp=10, attack_damage=3)
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_wave_factories=[add_factory])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert enemy not in room.enemies
+
+def test_handle_enemy_defeat_with_next_wave_factories_adds_every_wave_member_to_room():
+    room = Room("Crypt")
+    factory_a = lambda: Enemy(name="Skeleton A", hp=10, attack_damage=3)
+    factory_b = lambda: Enemy(name="Skeleton B", hp=10, attack_damage=3)
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_wave_factories=[factory_a, factory_b])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    names = [e.name for e in room.enemies]
+    assert "Skeleton A" in names
+    assert "Skeleton B" in names
+
+def test_handle_enemy_defeat_with_next_wave_factories_tags_each_add_with_wave_gate_factory():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    add_factory = lambda: Enemy(name="Skeleton", hp=10, attack_damage=3)
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_phase_factory=lambda: next_phase, next_wave_factories=[add_factory])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    add = next(e for e in room.enemies if e.name == "Skeleton")
+    assert add.wave_gate_factory is enemy.next_phase_factory
+
+def test_handle_enemy_defeat_with_next_wave_factories_sets_player_current_target_to_first_add():
+    room = Room("Crypt")
+    factory_a = lambda: Enemy(name="Skeleton A", hp=10, attack_damage=3)
+    factory_b = lambda: Enemy(name="Skeleton B", hp=10, attack_damage=3)
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_wave_factories=[factory_a, factory_b])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.current_target is not None
+    assert player.current_target.name == "Skeleton A"
+
+def test_handle_enemy_defeat_with_next_wave_factories_keeps_player_in_combat():
+    room = Room("Crypt")
+    add_factory = lambda: Enemy(name="Skeleton", hp=10, attack_damage=3)
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_wave_factories=[add_factory])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert player.in_combat is True
+
+def test_handle_enemy_defeat_with_next_wave_factories_returns_wave_summon_message():
+    room = Room("Crypt")
+    factory_a = lambda: Enemy(name="Skeleton A", hp=10, attack_damage=3)
+    factory_b = lambda: Enemy(name="Skeleton B", hp=10, attack_damage=3)
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_wave_factories=[factory_a, factory_b])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert message == "Necromancer falls, but conjures 2 lesser foes to bar your path!"
+
+def test_handle_enemy_defeat_with_next_wave_factories_takes_priority_over_next_phase_factory():
+    """When both next_wave_factories and next_phase_factory are set, the wave spawns first - the phase
+    transition is deferred until every add sharing wave_gate_factory has died (see the wave_gate_factory
+    tests below), not triggered immediately."""
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    add_factory = lambda: Enemy(name="Skeleton", hp=10, attack_damage=3)
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_phase_factory=lambda: next_phase, next_wave_factories=[add_factory])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, enemy, player)
+
+    assert next_phase not in room.enemies
+
+def test_handle_enemy_defeat_with_wave_gate_factory_and_surviving_sibling_does_not_spawn_next_phase():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    gate = lambda: next_phase
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=gate)
+    surviving_add = Enemy(name="Skeleton B", hp=10, attack_damage=3, wave_gate_factory=gate)
+    room.add_enemy(dying_add)
+    room.add_enemy(surviving_add)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, dying_add, player)
+
+    assert next_phase not in room.enemies
+
+def test_handle_enemy_defeat_with_wave_gate_factory_and_last_sibling_spawns_next_phase():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=lambda: next_phase)
+    room.add_enemy(dying_add)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, dying_add, player)
+
+    assert next_phase in room.enemies
+
+def test_handle_enemy_defeat_with_wave_gate_factory_ignores_already_dead_siblings():
+    """A sibling that's already dead but still lingering in room.enemies must not count as 'alive' and
+    block the transition - only is_alive() siblings count."""
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    gate = lambda: next_phase
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=gate)
+    already_dead_sibling = Enemy(name="Skeleton B", hp=0, attack_damage=3, wave_gate_factory=gate)
+    room.add_enemy(dying_add)
+    room.add_enemy(already_dead_sibling)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, dying_add, player)
+
+    assert next_phase in room.enemies
+
+def test_handle_enemy_defeat_with_wave_gate_factory_only_counts_siblings_sharing_the_same_gate():
+    """An enemy tagged with a different wave_gate_factory (a separate, unrelated wave) must not count as
+    a sibling blocking this wave's transition - matched by identity (is), not equality."""
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    gate = lambda: next_phase
+    other_gate = lambda: Enemy(name="Other Boss", hp=1, attack_damage=1)
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=gate)
+    unrelated_add = Enemy(name="Other Add", hp=10, attack_damage=3, wave_gate_factory=other_gate)
+    room.add_enemy(dying_add)
+    room.add_enemy(unrelated_add)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, dying_add, player)
+
+    assert next_phase in room.enemies
+
+def test_handle_enemy_defeat_with_wave_gate_factory_and_last_sibling_sets_player_current_target():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=lambda: next_phase)
+    room.add_enemy(dying_add)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, dying_add, player)
+
+    assert player.current_target is next_phase
+
+def test_handle_enemy_defeat_with_wave_gate_factory_and_last_sibling_keeps_player_in_combat():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=lambda: next_phase)
+    room.add_enemy(dying_add)
+    player = Player(name="Hero", hp=50)
+
+    handle_enemy_defeat(room, dying_add, player)
+
+    assert player.in_combat is True
+
+def test_handle_enemy_defeat_with_wave_gate_factory_and_last_sibling_appends_transition_message():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=lambda: next_phase)
+    room.add_enemy(dying_add)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, dying_add, player)
+
+    assert "The last of them falls - something greater emerges: Necromancer (Awakened)." in message
+
+def test_handle_enemy_defeat_with_wave_gate_factory_combines_reward_and_transition_messages():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, gold_reward=5, wave_gate_factory=lambda: next_phase)
+    room.add_enemy(dying_add)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, dying_add, player)
+
+    assert "picked up 5 gold" in message
+    assert "something greater emerges" in message
+
 def test_handle_enemy_defeat_with_respawns_resets_hp_to_max_hp():
     room = Room("Practice Chamber", is_practice_chamber=True)
     enemy = Enemy(name="Practice Enemy", hp=20, attack_damage=3, respawns=True)
@@ -1674,6 +1866,21 @@ def test_resolve_attack_and_check_defeat_keeps_combat_locked_when_enemy_team_has
     assert target not in room.enemies
     assert teammate in room.enemies
     assert player.in_combat is True
+
+def test_resolve_attack_and_check_defeat_auto_targets_surviving_teammate_when_current_target_cleared():
+    """A defeated target with no phase transition leaves current_target None after handle_enemy_defeat() -
+    when the room still has a living teammate, resolve_attack_and_check_defeat() now auto-selects that
+    survivor as the new target, rather than leaving current_target unset."""
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    target = Enemy(name="Goblin", hp=10, attack_damage=5)
+    teammate = Enemy(name="Imp", hp=20, attack_damage=1)
+    room = Room("Arena")
+    room.add_enemy(target)
+    room.add_enemy(teammate)
+
+    resolve_attack_and_check_defeat(player, target, [player], room.enemies, room)
+
+    assert player.current_target is teammate
 
 def test_resolve_attack_and_check_defeat_removes_enemy_defeated_via_thorns_even_if_not_the_target(monkeypatch):
     """Checks every member of enemy_team for defeat, not just the target - here Thorns reflects

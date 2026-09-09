@@ -20,6 +20,13 @@ something occurs to you mid-build.
   see a number change.
 
 ## Combat
+- **Multi-stage boss phase transitions and wave-gated adds are a natural fit for a cutscene beat or arena
+  reveal** - the seamless "combat never unlocks" transition (`next_phase_factory`) that reads as a single
+  printed line in text wants a proper beat in a visual version (a brief cinematic camera pull, a boss
+  roar, an arena lighting change) rather than just swapping the health bar's portrait instantly. The
+  wave-gate mechanic (`next_wave_factories`/`wave_gate_factory` - clear every add before the boss reveals
+  its next phase) maps naturally onto a visible "adds remaining" counter or highlighted-add-portraits UI,
+  so the player understands *why* the boss isn't transitioning yet without needing to infer it themselves.
 - **The Practice Chamber (a respawning, stat-customisable dummy, free spellcasting) is a natural fit for a dedicated training-room
   mode** - a UI that surfaces its free-action nature explicitly (no resource bars depleting, an obvious "practice" badge) rather than
   relying on the player noticing mana/cooldowns just aren't moving. The dummy's customisable stats (`dummy set <stat> <value>` in

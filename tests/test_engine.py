@@ -288,6 +288,39 @@ def test_main_combat_routing_smoke_test(monkeypatch, capsys, tmp_path):
     assert "Training Dummy has been defeated." in captured.out
     assert "It dropped: Dummy Head" in captured.out
 
+def test_main_multi_stage_boss_wave_and_phase_transition_smoke_test(monkeypatch, capsys, tmp_path):
+    """Scripted playthrough of the full multi-stage boss mechanic through main(): defeating Test Boss
+    spawns its two-add wave (next_wave_factories) instead of transitioning immediately; defeating the
+    first add alone must not trigger the phase transition (a living sibling still blocks it via
+    wave_gate_factory); defeating the second (last) add triggers the deferred transition to Test Boss
+    (Phase 2); and defeating that phase ends combat normally, with its own gold/XP reward."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "dev spawn test boss",
+        "attack",  # kills Test Boss -> spawns the two-add wave
+        "attack",  # kills the first add -> sibling still alive, no transition yet
+        "attack",  # kills the second (last) add -> transition to Test Boss (Phase 2)
+        "attack",  # kills Test Boss (Phase 2) -> normal defeat, ends combat
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Test Boss falls, but conjures 2 lesser foes to bar your path!" in captured.out
+    assert captured.out.count("something greater emerges") == 1
+    assert "something greater emerges: Test Boss (Phase 2)." in captured.out
+    assert "Test Boss (Phase 2) has been defeated." in captured.out
+    assert "Dev picked up 5 gold." in captured.out
+    assert "Dev gains 5 experience." in captured.out
+
 def test_main_target_command_redirects_pre_combat_attack_smoke_test(monkeypatch, capsys, tmp_path):
     """Scripted playthrough covering the 'target <name>' command: with two different enemies in the room,
     targeting the second by name before the first 'attack' must redirect that first attack to it, rather

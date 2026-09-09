@@ -122,7 +122,9 @@ of athena`, `favour of hermes`, `test spellbook`, `test healing tonic`,
 `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
-`minotaur`, `hades`.
+`minotaur`, `hades`, `test boss` — a dev-only, two-phase boss (hp 1
+throughout) whose first phase is gated behind a two-add wave, exercising
+`next_wave_factories`/`wave_gate_factory`/`next_phase_factory` end-to-end.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`.
@@ -232,6 +234,22 @@ recruit test companion
 dev spawn skeleton warrior
 attack
 ```
+
+**Try a multi-stage boss fight (wave, then phase transition):**
+```
+dev spawn test boss
+attack
+attack
+attack
+attack
+```
+Every enemy in this chain has 1 hp, so a single hit kills each one. The first
+`attack` kills Test Boss and spawns two Test Adds (the wave) - `current_target`
+auto-updates to the first one. The second `attack` kills that add; since its
+sibling is still alive, nothing else happens yet. The third `attack` kills the
+last add, triggering the deferred transition to Test Boss (Phase 2). The
+fourth `attack` kills Phase 2 for good, ending combat with its own gold/XP
+reward.
 
 **Try casting a spell:**
 ```

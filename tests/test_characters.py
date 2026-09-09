@@ -1602,6 +1602,24 @@ def test_enemy_initialises_with_next_phase_factory():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4, next_phase_factory=factory)
     assert enemy.next_phase_factory is factory
 
+def test_enemy_initialises_with_no_next_wave_factories_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.next_wave_factories is None
+
+def test_enemy_initialises_with_next_wave_factories():
+    factories = [lambda: Enemy(name="Skeleton", hp=5, attack_damage=2)]
+    enemy = Enemy(name="Necromancer", hp=15, attack_damage=4, next_wave_factories=factories)
+    assert enemy.next_wave_factories is factories
+
+def test_enemy_initialises_with_no_wave_gate_factory_by_default():
+    enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
+    assert enemy.wave_gate_factory is None
+
+def test_enemy_initialises_with_wave_gate_factory():
+    factory = lambda: Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    enemy = Enemy(name="Skeleton", hp=5, attack_damage=2, wave_gate_factory=factory)
+    assert enemy.wave_gate_factory is factory
+
 def test_enemy_initialises_with_has_been_fled_from_false():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
     assert enemy.has_been_fled_from is False
