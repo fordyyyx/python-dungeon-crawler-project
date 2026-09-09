@@ -6,7 +6,8 @@ from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item
-from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player
+from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
+from dungeon_crawler import save_system
 
 REST_MANA_AMOUNT = 10
 
@@ -66,6 +67,8 @@ def get_controls_text() -> str:
         "skills - view your skill tree progress and available points\n"
         "learn <path> - spend a skill point (attack, defence, or abilities)\n"
         "rest / wait - recover mana outside of combat\n"
+        "save / save <profile> <slot> - save your progress outside of combat; bare 'save' targets your active slot, 'save <profile> <slot>' targets a specific one (confirms first if it's already occupied)\n"
+        "load <profile> <slot> - load a different save outside of combat; always confirms, since it discards any unsaved progress\n"
         "inventory - display carried items\n"
         "stats - display your core stats and ancestry\n"
         "controls - show this list\n"
@@ -77,36 +80,74 @@ def main() -> None:
     """Run the game from name entry through to the player quitting or dying: developer-mode activation, ancestry
     selection, world construction, then the read-command/dispatch loop. Top-level command routing only - each
     branch calls straight into combat.py/exploration.py/dev_tools.py/characters.py for the actual behaviour."""
-    print("What is your name, hero?")
-    name = input("> ").strip() or "Hero"
+    active_profile: int | None = None
+    active_slot: int | None = None
 
-    starting_floor_key = "floor_0"
-    if name.lower() == "developer mode":
-        dev_tools.DEV_MODE = True
-        print("[DEV] Developer mode activated.")
-        name = "Dev"
+    while True:
+        action = choose_title_screen_action()
 
-    ancestry_key = choose_ancestry()
-    secondary_ancestry_key = choose_secondary_ancestry(ancestry_key)
-    player = create_player(name, ancestry_key, secondary_ancestry_key)
+        if action == "quit":
+            return
 
-    dungeon, current_room, all_floors = build_world()
+        if action == "delete":
+            profile_num = choose_profile()
+            slot_num = choose_occupied_slot(profile_num)
+            if slot_num is not None and confirm(f"Delete profile {profile_num}, slot {slot_num}?"):
+                save_system.delete_save(profile_num, slot_num)
+                print("Deleted.")
+            continue
 
-    if dev_tools.DEV_MODE:
-        print("\n[DEV] Which floor should you start on?")
-        for floor_key in all_floors:
-            print(f"  {floor_key}")
-        while True:
-            choice = input("> ").strip().lower()
-            if choice in all_floors:
-                starting_floor_key = choice
-                break
-            print("[DEV] Unknown floor. Try again.")
+        if action == "load":
+            profile_num = choose_profile()
+            slot_num = choose_occupied_slot(profile_num)
+            if slot_num is None:
+                continue
+            dungeon, _, all_floors = build_world()
+            player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
+            active_profile, active_slot = profile_num, slot_num
+            break
 
-    current_floor_rooms = all_floors[starting_floor_key]
-    if starting_floor_key != "floor_0":
-        current_room = next(iter(current_floor_rooms.values()))
+        profile_num = choose_profile()
+        slot_num = choose_slot(profile_num)
+        if save_system.slot_exists(profile_num, slot_num):
+            if not confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?"):
+                continue
+        active_profile, active_slot = profile_num, slot_num
 
+        print("What is your name, hero?")
+        name = input("> ").strip() or "Hero"
+
+        starting_floor_key = "floor_0"
+        if name.lower() == "developer mode":
+            dev_tools.DEV_MODE = True
+            print("[DEV] Developer mode activated.")
+            name = "Dev"
+
+        ancestry_key = choose_ancestry()
+        secondary_ancestry_key = choose_secondary_ancestry(ancestry_key)
+        player = create_player(name, ancestry_key, secondary_ancestry_key)
+
+        dungeon, current_room, all_floors = build_world()
+
+        if dev_tools.DEV_MODE:
+            print("\n[DEV] Which floor should you start on?")
+            for floor_key in all_floors:
+                print(f"  {floor_key}")
+            while True:
+                choice = input("> ").strip().lower()
+                if choice in all_floors:
+                    starting_floor_key = choice
+                    break
+                print("[DEV] Unknown floor. Try again.")
+
+        current_floor_rooms = all_floors[starting_floor_key]
+        if starting_floor_key != "floor_0":
+            current_room = next(iter(current_floor_rooms.values()))
+        break
+
+    starting_floor = find_floor_for_room(current_room, all_floors)
+    if starting_floor is not None:
+        player.visited_floors.add(starting_floor)
     print_room(current_room, player)
     print("\nNot sure where to start? Try talking to whoever is in the room with you.")
 
@@ -116,6 +157,40 @@ def main() -> None:
 
         if command in ("quit", "exit"):
             break
+
+        elif command == "save" and not player.in_combat:
+            if active_profile is None:
+                print("No active save slot - use 'save <profile> <slot>' first.")
+            else:
+                save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
+                print(f"Saved to profile {active_profile}, slot {active_slot}")
+
+        elif command.startswith("save ") and not player.in_combat:
+            parts = command.removeprefix("save ").split()
+            if len(parts) != 2 or not all(p.isdigit() for p in parts):
+                print("Usage: save <profile> <slot>")
+            else:
+                profile_num, slot_num = int(parts[0]), int(parts[1])
+                proceed = True
+                if save_system.slot_exists(profile_num, slot_num):
+                    proceed = confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?")
+                if proceed:
+                    save_system.save_game(profile_num, slot_num, player, current_room, dungeon)
+                    active_profile, active_slot = profile_num, slot_num
+                    print(f"Saved to profile {profile_num}, slot {slot_num}.")
+
+        elif command.startswith("load ") and not player.in_combat:
+            parts = command.removeprefix("load ").split()
+            if len(parts) != 2 or not all(p.isdigit() for p in parts):
+                print("Usage: load <profile> <slot>")
+            else:
+                profile_num, slot_num = int(parts[0]), int(parts[1])
+                if not save_system.slot_exists(profile_num, slot_num):
+                    print(f"There's no save in profile {profile_num}, slot {slot_num}.")
+                elif confirm("Loading will discard any unsaved progress since your last save. Continue?"):
+                    player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
+                    active_profile, active_slot = profile_num, slot_num
+                    print_room(current_room, player)
 
         elif command == "controls":
             print(get_controls_text())
@@ -201,6 +276,11 @@ def main() -> None:
                 found_floor = find_floor_for_room(current_room, all_floors)
                 if found_floor is not None:
                     current_floor_rooms = all_floors[found_floor]
+                    if found_floor not in player.visited_floors:
+                        player.visited_floors.add(found_floor)
+                        if active_profile is not None:
+                            save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
+                            print("(autosaved)")
                 print_room(current_room, player)
 
         elif command == "look":

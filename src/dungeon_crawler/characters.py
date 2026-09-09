@@ -199,9 +199,10 @@ class Player(Character):
         self.max_mana = 20
         self.spell_cooldowns: dict[str, int] = {}
         self.secondary_ancestry_label = ""
-        self.visited_floors: set[int] = set()
-        """Which floor numbers this run has reached - populated by whatever wires up autosave (not yet built, see roadmap.md),
-        checked against Room.floor so re-crossing an already-visited floor boundary doesn't re-trigger it."""
+        self.visited_floors: set[str] = set()
+        """Which floors this run has reached, keyed by build_world()'s floor names (e.g. 'floor_0') - populated by main()'s
+        autosave on first crossing into a new floor, checked via find_floor_for_room() so re-crossing an already-visited
+        floor boundary doesn't re-trigger it."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""

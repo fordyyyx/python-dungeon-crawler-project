@@ -133,6 +133,26 @@ something occurs to you mid-build.
   figure was already picked as primary would read more clearly than the
   text version's "you've already claimed that blood, try again" reprompt.
 
+## Save / Load
+- Profile/slot selection (3 profiles, 5 slots each) is a natural fit for a
+  save-slot picker screen — `slot_summary()`'s one-line format (name, level,
+  ancestry, current room) is already exactly what such a UI would show per
+  slot.
+- The current JSON-per-slot format (`save_system.py`) is a reasonable
+  reference for *what* fields a save actually needs, but Unreal's own
+  `USaveGame`/`SaveGameToSlot` system would likely replace it outright
+  rather than reading the same JSON — treat `save_system.py` as a spec of
+  what to persist, not how.
+- Autosave firing silently on the first crossing into a new floor (a plain
+  `"(autosaved)"` line in text) wants a small, unobtrusive UI cue in a
+  visual version — a corner icon or brief toast, not a loading-screen
+  moment, since nothing actually pauses for it.
+- The deliberate "full room snapshot every save, not a delta of only
+  changed rooms" simplification (safe for a text game's trivial JSON size)
+  is worth revisiting for a visual port with much larger per-room state
+  (positions, animation state, particle spawns) — a real delta/dirty-flag
+  model becomes worth the complexity there in a way it isn't here.
+
 ## Input
 - Controller support (stick for movement, buttons for actions) should be
   built Unreal-native, not retrofitted into the Python version — Unreal's

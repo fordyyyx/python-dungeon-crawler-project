@@ -27,6 +27,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Special combat abilities — Double Strike, Thorns, Last Stand, and Dodge
 * Enemies with loot drops
 * A Practice Chamber (floor 2, by the Forge of Prometheus) with an infinitely-respawning, customisable dummy — freely test weapons/spells/potions with no mana cost or cooldowns while inside
+* A full save/load system — 3 profiles, 5 slots each, with a New Game / Load Game / Delete Save title screen, manual save/load commands mid-game, and autosave the first time you reach a new floor
 * Win/lose conditions
 
 ## Design Highlights
@@ -86,6 +87,8 @@ pytest --cov=src/dungeon_crawler
 * `repair <item>` - repair an item to full durability at a Forge (requires gold)
 * `dummy set <stat> <value>` - customise the practice dummy's stats (Practice Chamber only)
 * `rest` / `wait` - recover mana outside of combat
+* `save` / `save <profile> <slot>` - save your progress outside of combat; bare `save` targets your active slot, `save <profile> <slot>` targets a specific one (confirms first if it's already occupied)
+* `load <profile> <slot>` - load a different save outside of combat; always confirms, since it discards any unsaved progress
 * `skills` - view your skill tree progress and available points (also available mid-combat)
 * `learn <path>` - spend a skill point on the next skill in a path (`attack`, `defence`, or `abilities`) (also available mid-combat)
 * `inventory` - display carried items, with equipped gear, quest items, and gold marked separately (also available mid-combat)
@@ -102,12 +105,13 @@ pytest --cov=src/dungeon_crawler
 * `content.py` - the actual game content: specific rooms, enemies, allies, and items, organized by floor, plus the ancestry options for character creation
 * `combat.py` - combat resolution: team-vs-team turns, targeting, status-effect ticking, spellcasting, defeat handling, and fleeing
 * `exploration.py` - everything outside combat: picking up items, trading, recruiting/dismissing companions, repairing armour, examining, and the map
-* `character_creation.py` - ancestry selection and building the player character
+* `character_creation.py` - ancestry selection and building the player character, plus the title screen and every save/load prompt
+* `save_system.py` - the save/load system: profile and slot management, JSON persistence for player state and per-room deltas
 * `dev_tools.py` - the developer command set (not part of the standard game)
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), and a practice chamber for testing loadouts risk-free, plus the first main floor. Planned additions include a save/load system, multi-stage bosses, and further floors drawing on the Iliad and Odyssey.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, a full save/load system with profiles/slots and autosave, and the first main floor. Planned additions include multi-stage bosses and further floors drawing on the Iliad and Odyssey.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

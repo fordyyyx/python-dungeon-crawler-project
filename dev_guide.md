@@ -7,6 +7,12 @@ right now, and which newer systems can't be reached through normal play yet
 dev commands are deliberately hidden from that list.
 
 ## Activating developer mode
+- **The title screen comes first now** — New Game / Load Game / Delete Save /
+  Quit, then a profile and slot prompt. None of this is dev-specific; pick
+  New Game and any empty profile/slot to reach the name prompt below. (Real
+  save files land under `saves/` in the working directory — fine for
+  throwaway dev testing, but worth clearing out afterwards if you don't want
+  test saves cluttering the slot picker.)
 - **At the very start of a run**: when asked "What is your name, hero?", type
   `developer mode`. This renames you to `Dev`, activates `DEV_MODE`, and adds
   an extra prompt letting you pick which floor to start on (`floor_0` through

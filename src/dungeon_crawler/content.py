@@ -702,7 +702,7 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
         "floor_9": floor_9_rooms,
     }
 
-    for floor_rooms in all_floors.values():
+    for floor_key, floor_rooms in all_floors.items():
         for room in floor_rooms.values():
             dungeon.add_room(room)
 

@@ -239,15 +239,6 @@ def test_room_initialises_with_is_practice_chamber_true():
     room = Room("A", is_practice_chamber=True)
     assert room.is_practice_chamber is True
 
-def test_room_initialises_with_no_floor_by_default():
-    room = Room("A")
-    assert room.floor is None
-
-def test_room_floor_can_be_set_after_construction():
-    room = Room("A")
-    room.floor = 2
-    assert room.floor == 2
-
 def test_room_initialises_with_no_hidden_exits():
     room = Room("A")
     assert room.hidden_exits == {}

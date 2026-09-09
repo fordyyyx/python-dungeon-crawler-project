@@ -203,8 +203,9 @@ def apply_world_data(world: Map, data: dict) -> None:
 
 
 def save_game(profile_num: int, slot_num: int, player: Player, current_room, world: Map) -> None:
-    """Write a full save to profile_num/slot_num, overwriting anything already there. No confirmation logic here - that belongs to whatever
-    calls this (main()'s save/load commands, not yet built)."""
+    """Write a full save to profile_num/slot_num, overwriting anything already there. No confirmation logic here - that's
+    main()'s job (its title-screen New Game flow and the 'save <profile> <slot>' command both confirm before overwriting
+    an occupied slot; this function itself always overwrites unconditionally)."""
     ensure_profile_dir(profile_num)
     data = {"player": serialise_player(player, current_room), "world": serialise_world(world)}
     with open(slot_path(profile_num, slot_num), "w") as f:
