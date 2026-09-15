@@ -171,15 +171,21 @@ Floor 9 (Tartarus): Tartarus
 
 STATUS: Full shell built and playtested (all rooms reachable, correctly connected).
 Population (enemies/allies/items/trades) is COMPLETE for Floor 0 and mostly
-complete for Floor 1 (Wounded Soldier, Charon, one Skeleton Warrior; Fields
-of Asphodel is empty). Floor 2's five narrative rooms are still shell-only in
-`build_floor_2()` - the Athena/Ares/Hermes/Prometheus allies and their trade
-rewards (Breastplate of Athena, Spear of Ares, Favour of Hermes) are all
-fully written in `content.py`, but none of the `create_*()` calls for them
-are actually wired into `build_floor_2()` yet, so none of those five rooms
-currently hold an ally, enemy, or item. The sixth floor-2 room, Practice
-Chamber, is the one exception - it's real, populated content (a respawning
-practice dummy, `create_practice_dummy()`), not deferred to "Populate all
-floors" like the rest of the floor. Floor 2's five narrative rooms
-(population) and floors 3-9 (shell and population) are all deferred to the
-"Populate all floors" roadmap item.
+complete for Floor 1 (Wounded Soldier, Charon, one Skeleton Warrior that now
+also drops the Skeleton Bone needed for Hermes' trade below; Fields of
+Asphodel is empty). Floor 2's four god rooms (Library of Athena, Armoury of
+Ares, Hall of Hermes, Forge of Prometheus) now hold their allies - the
+Athena/Ares/Hermes/Prometheus `create_*()` calls are wired into
+`build_floor_2()`. Hermes' trade is genuinely completable through normal
+play (his required Skeleton Bone drops in Sunken Vault, floor 1). Athena's
+and Ares' trades still aren't - their required items (`Centaur's Broken
+Bow`, `Cyclops' Eye`) aren't dropped or placed as loot anywhere (though both
+are `dev add`-able for testing). Prometheus has no required items *or*
+reward, so his trade currently completes instantly for nothing - unwritten
+content, not a placement gap. Trophy Room of Zeus remains fully unpopulated
+- no Zeus content (ally or otherwise) has been written yet. The sixth
+floor-2 room, Practice Chamber, is real,
+populated content (a respawning practice dummy, `create_practice_dummy()`),
+same as before. Finishing Floor 2's population (Athena's and Ares' required
+items, Prometheus' trade, and Trophy Room of Zeus) and floors 3-9 (shell and
+population) are all deferred to the "Populate all floors" roadmap item.

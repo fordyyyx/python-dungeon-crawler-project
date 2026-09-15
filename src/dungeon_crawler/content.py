@@ -49,7 +49,7 @@ def create_skeleton_warrior() -> Enemy:
         hp=8,
         attack_damage=3,
         armour=0,
-        loot=[create_small_healing_potion()],
+        loot=[create_small_healing_potion(), create_skeleton_bone()],
         description="Bones held together by little more than old habit, still gripping a rusted blade with mechanical resolve.",
         experience_reward=5,
         gold_reward=2,
@@ -103,6 +103,13 @@ def create_aegis_fragment() -> Armour:
         name="Shield of Aegis (fragment)",
         defence=2,
         description="A shard of bronze etched with a single unblinking eye.",
+    )
+
+def create_skeleton_bone() -> QuestItem:
+    """Create the Skeleton Bone quest item, the required trade item for Hermes' reward - dropped by the Skeleton Warrior"""
+    return QuestItem(
+        name="Skeleton Bone",
+        description="Picked clean, oddly light - the kind of thing a god who deals in messages and thresholds might want as proof of passage."
     )
 
 def create_ambrosia() -> Consumable:
@@ -260,7 +267,7 @@ def create_small_healing_potion() -> Consumable:
     )
 
 def create_athena() -> Ally:
-    """Create the Athena ally for floor 2; not yet placed in build_floor_2()."""
+    """Create the Athena ally for floor 2, placed in the Library of Athena by build_floor_2()."""
     return Ally(
         name="Athena",
         description="Calm, measured, and faintly amused — as if she already knows exactly how this ends.",
@@ -272,7 +279,7 @@ def create_athena() -> Ally:
     )
 
 def create_ares() -> Ally:
-    """Create the Ares ally for floor 2; not yet placed in build_floor_2()."""
+    """Create the Ares ally for floor 2, placed in the Armoury of Ares by build_floor_2()."""
     return Ally(
         name="Ares",
         description="He barely looks up from sharpening a blade, though he's clearly aware of every move you make.",
@@ -284,7 +291,7 @@ def create_ares() -> Ally:
     )
 
 def create_hermes() -> Ally:
-    """Create the Hermes ally for floor 2; not yet placed in build_floor_2()."""
+    """Create the Hermes ally for floor 2, placed in the Hall of Hermes by build_floor_2()."""
     return Ally(
         name="Hermes",
         description="Never quite still, halfway through some errand even while talking to you.",
@@ -296,7 +303,7 @@ def create_hermes() -> Ally:
     )
 
 def create_prometheus() -> Ally:
-    """Create the Prometheus ally for floor 2; not yet placed in build_floor_2()."""
+    """Create the Prometheus ally for floor 2, placed in the Forge of Prometheus by build_floor_2()."""
     return Ally(
         name="Prometheus",
         description="Chained but unbroken, watching you with the weary patience of someone who's paid dearly for helping before.",
@@ -314,7 +321,7 @@ def create_cyclops_eye() -> QuestItem:
     )
 
 def create_breastplate_of_athena() -> Armour:
-    """Create the Breastplate of Athena armour - Athena's trade reward; not yet placed in build_floor_2()."""
+    """Create the Breastplate of Athena armour - Athena's trade reward, reachable now that create_athena() is placed in build_floor_2()."""
     return Armour(
         name="Breastplate of Athena",
         description="Cool to the touch even in the deepest heat, etched with an owl that seems to watch whichever way danger comes from.",
@@ -329,7 +336,7 @@ def create_centaurs_broken_bow() -> QuestItem:
     )
 
 def create_hermes_favour() -> SkillPointReward:
-    """Create the Favour of Hermes skill point reward - Hermes' trade reward; not yet placed in build_floor_2()."""
+    """Create the Favour of Hermes skill point reward - Hermes' trade reward, reachable now that create_hermes() is placed in build_floor_2()."""
     return SkillPointReward(
         name="Favour of Hermes",
         description="Quick, light, and gone before you've noticed - much like the god who gave it.",

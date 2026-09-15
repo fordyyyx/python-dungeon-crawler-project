@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -24,7 +24,7 @@ def test_create_skeleton_warrior_has_correct_stats():
     assert skeleton_warrior.hp == 8
     assert skeleton_warrior.attack_damage == 3
     assert skeleton_warrior.armour == 0
-    assert len(skeleton_warrior.loot) == 1
+    assert len(skeleton_warrior.loot) == 2
     assert skeleton_warrior.experience_reward == 5
     assert skeleton_warrior.gold_reward == 2
 
@@ -32,6 +32,20 @@ def test_create_skeleton_warrior_drops_small_healing_potion():
     skeleton_warrior = create_skeleton_warrior()
     message = skeleton_warrior.on_death()
     assert "Small Healing Potion" in message
+
+def test_create_skeleton_warrior_drops_skeleton_bone():
+    skeleton_warrior = create_skeleton_warrior()
+    message = skeleton_warrior.on_death()
+    assert "Skeleton Bone" in message
+
+def test_create_skeleton_bone_has_correct_name_and_description():
+    bone = create_skeleton_bone()
+    assert bone.name == "Skeleton Bone"
+    assert bone.description == "Picked clean, oddly light - the kind of thing a god who deals in messages and thresholds might want as proof of passage."
+
+def test_create_skeleton_bone_is_a_quest_item():
+    bone = create_skeleton_bone()
+    assert isinstance(bone, QuestItem)
 
 
 def test_create_hades_has_correct_stats():

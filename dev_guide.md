@@ -14,12 +14,17 @@ dev commands are deliberately hidden from that list.
   throwaway dev testing, but worth clearing out afterwards if you don't want
   test saves cluttering the slot picker.)
 - **At the very start of a run**: when asked "What is your name, hero?", type
-  `developer mode`. This renames you to `Dev`, activates `DEV_MODE`, and adds
-  an extra prompt letting you pick which floor to start on (`floor_0` through
-  `floor_9`).
+  `developer mode`. This renames you to `Dev`, sets `player.dev_mode = True`,
+  and adds an extra prompt letting you pick which floor to start on
+  (`floor_0` through `floor_9`).
 - **Mid-game**: type `developer mode` as a command at any point to toggle
-  `DEV_MODE` on or off, without restarting. Dev commands only work while it's
-  on.
+  `player.dev_mode` on or off, without restarting. Dev commands only work
+  while it's on.
+- **`dev_mode` is per-save now, not per-process** — it lives on `Player`
+  (round-tripped through `save_system.py` like any other field, having moved
+  off an old `dev_tools.py` module global), so a save you started in
+  developer mode reloads back into developer mode, and a normal save stays
+  normal, regardless of what any other save/session did.
 - Dev commands are checked ahead of the combat-lock routing, so they always
   work — even mid-fight.
 
@@ -117,9 +122,9 @@ case-insensitively):
 **Items** (`dev add <name>`): `wooden sword`, `wooden shield`, `dummy head`,
 `mentor's token`, `charon's coin`, `bronze xiphos`, `shield of aegis
 (fragment)`, `vial of ambrosia`, `bronze breastplate`, `small healing
-potion`, `cyclops eye`, `spear of ares`, `centaur's broken bow`, `breastplate
-of athena`, `favour of hermes`, `test spellbook`, `test healing tonic`,
-`test venom vial`.
+potion`, `cyclops eye`, `spear of ares`, `centaur's broken bow`, `skeleton
+bone`, `breastplate of athena`, `favour of hermes`, `test spellbook`, `test
+healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `test boss` — a dev-only, two-phase boss (hp 1
@@ -174,6 +179,19 @@ way to reach any of this outside the automated test suite.
   unit test (see `test_characters.py`/`test_combat.py`), not a live
   `main()` run. `attack`/`attack light`/`attack heavy` need no such
   workaround — every enemy encounter reaches them fine.
+- **Floor 2's four god trades (Athena, Ares, Hermes, Prometheus) — allies are
+  real content now, and Hermes' trade is genuinely completable through
+  normal play.** His required item (`"Skeleton Bone"`) is dropped by the
+  Skeleton Warrior in Sunken Vault (floor 1) - kill it, carry the bone to
+  the Hall of Hermes, `trade` for the Favour of Hermes skill point. Athena's
+  and Ares' trades still aren't completable through normal play - their
+  required items (`Centaur's Broken Bow`, `Cyclops' Eye`) aren't dropped or
+  placed as loot anywhere, though both *are* in `ITEM_REGISTRY` - `dev add
+  centaur's broken bow`/`dev add cyclops eye` lets you complete either trade
+  for testing. Prometheus has no required items *or* reward, so trading with
+  him completes instantly for nothing regardless of dev tools - that's
+  unwritten content, not a placement gap. See roadmap.md's "Populate all
+  floors."
 
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
@@ -185,7 +203,7 @@ workaround to try.
 Unlike everything else in this file, the Practice Chamber (floor 2, next to
 the Forge of Prometheus) and its `dummy set <stat> <value>` command are
 **real, player-facing content** — reachable by walking there normally, and
-working with `DEV_MODE` off. It's listed in `get_controls_text()`/the
+working with `player.dev_mode` off. It's listed in `get_controls_text()`/the
 README's Controls section like any other command, not hidden the way every
 `dev ...` command deliberately is.
 

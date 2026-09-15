@@ -37,6 +37,11 @@ def test_find_item_by_name_returns_test_venom_vial_for_known_name():
     assert item is not None
     assert item.name == "Test Venom Vial"
 
+def test_find_item_by_name_returns_skeleton_bone_for_known_name():
+    item = find_item_by_name("skeleton bone")
+    assert item is not None
+    assert item.name == "Skeleton Bone"
+
 def test_handle_dev_command_add_known_item_adds_to_inventory():
     player = Player(name="hero", hp=100)
     room = Room("A")
