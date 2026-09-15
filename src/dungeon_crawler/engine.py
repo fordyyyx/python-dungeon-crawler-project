@@ -118,18 +118,19 @@ def main() -> None:
         name = input("> ").strip() or "Hero"
 
         starting_floor_key = "floor_0"
-        if name.lower() == "developer mode":
-            dev_tools.DEV_MODE = True
+        dev_mode_requested = name.lower() == "developer mode"
+        if dev_mode_requested:
             print("[DEV] Developer mode activated.")
             name = "Dev"
 
         ancestry_key = choose_ancestry()
         secondary_ancestry_key = choose_secondary_ancestry(ancestry_key)
         player = create_player(name, ancestry_key, secondary_ancestry_key)
+        player.dev_mode = dev_mode_requested
 
         dungeon, current_room, all_floors = build_world()
 
-        if dev_tools.DEV_MODE:
+        if player.dev_mode:
             print("\n[DEV] Which floor should you start on?")
             for floor_key in all_floors:
                 print(f"  {floor_key}")
@@ -196,11 +197,11 @@ def main() -> None:
             print(get_controls_text())
 
         elif command == "developer mode":
-            dev_tools.DEV_MODE = not dev_tools.DEV_MODE
+            player.dev_mode = not player.dev_mode
 
         # checked ahead of the in_combat branch below (not nested inside the exploration-only path) so dev commands
         # always work regardless of combat state - this was a real bug once, see CLAUDE.md
-        elif command.startswith("dev ") and dev_tools.DEV_MODE:
+        elif command.startswith("dev ") and player.dev_mode:
             message, new_room = dev_tools.handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
             print(message)
             if new_room is not None:

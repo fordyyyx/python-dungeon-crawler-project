@@ -1031,6 +1031,31 @@ def test_build_floor_2_practice_chamber_has_practice_dummy_enemy():
     assert len(practice_chamber.enemies) == 1
     assert practice_chamber.enemies[0].name == "Practice Enemy"
 
+def test_build_floor_2_library_of_athena_has_athena_ally():
+    start, rooms = build_floor_2()
+    ally_names = [ally.name for ally in rooms["Library of Athena"].allies]
+    assert "Athena" in ally_names
+
+def test_build_floor_2_armoury_of_ares_has_ares_ally():
+    start, rooms = build_floor_2()
+    ally_names = [ally.name for ally in rooms["Armoury of Ares"].allies]
+    assert "Ares" in ally_names
+
+def test_build_floor_2_hall_of_hermes_has_hermes_ally():
+    start, rooms = build_floor_2()
+    ally_names = [ally.name for ally in rooms["Hall of Hermes"].allies]
+    assert "Hermes" in ally_names
+
+def test_build_floor_2_forge_of_prometheus_has_prometheus_ally():
+    start, rooms = build_floor_2()
+    ally_names = [ally.name for ally in rooms["Forge of Prometheus"].allies]
+    assert "Prometheus" in ally_names
+
+def test_build_floor_2_trophy_room_of_zeus_has_no_ally():
+    """Trophy Room of Zeus is still shell-only - populating it isn't part of what this pass wired up."""
+    start, rooms = build_floor_2()
+    assert rooms["Trophy Room of Zeus"].allies == []
+
 def test_build_floor_3_returns_bony_crypt_as_start_room():
     start, rooms = build_floor_3()
     assert start.name == "Bony Crypt"

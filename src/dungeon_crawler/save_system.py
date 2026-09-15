@@ -89,6 +89,7 @@ def serialise_player(player: Player, current_room) -> dict:
              "active_effects": [{"name": e.name, "amount": e.amount, "duration": e.duration} for e in player.companion.active_effects]}
             if player.companion is not None else None
         ),
+        "dev_mode": player.dev_mode,
     }
 
 def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
@@ -141,6 +142,8 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
             companion.hp = data["companion"]["hp"]
             companion.active_effects = [StatusEffect(e["name"], e["amount"], e["duration"]) for e in data["companion"]["active_effects"]]
             player.companion = companion
+
+    player.dev_mode = data["dev_mode"]
 
     current_room = world.get_room(data["current_room"])
     if current_room is None:

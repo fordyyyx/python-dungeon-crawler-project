@@ -203,6 +203,10 @@ class Player(Character):
         """Which floors this run has reached, keyed by build_world()'s floor names (e.g. 'floor_0') - populated by main()'s
         autosave on first crossing into a new floor, checked via find_floor_for_room() so re-crossing an already-visited
         floor boundary doesn't re-trigger it."""
+        self.dev_mode = False
+        """Whether developer commands are available for this save - moved off a dev_tools.py module global (see CLAUDE.md's note on why)
+        so it's per-save state , not per process. Set once via the 'developer mode' name-trick or the mid-game 'developer mode' toggle,
+        persisted through save/load like any other Player field."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""

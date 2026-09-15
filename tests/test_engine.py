@@ -219,7 +219,6 @@ def test_main_happy_path_smoke_test(monkeypatch, capsys, tmp_path):
     """Scripted playthrough of the full routing chain: title screen, name/ancestry prompts, movement,
     take, use, and quit."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",  # title screen: New Game, profile 1, slot 1
         "Hero",
@@ -245,7 +244,6 @@ def test_main_dev_command_routing_smoke_test(monkeypatch, capsys, tmp_path):
     """Scripted playthrough covering dev-mode activation via the 'developer mode' name, the floor-select
     prompt it unlocks, and dispatch of a dev command - all routed before the in_combat check."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -263,11 +261,34 @@ def test_main_dev_command_routing_smoke_test(monkeypatch, capsys, tmp_path):
     assert "[DEV] Developer mode activated." in captured.out
     assert "[DEV] hp set to 999." in captured.out
 
+def test_main_developer_mode_toggle_command_smoke_test(monkeypatch, capsys, tmp_path):
+    """Scripted playthrough confirming the mid-game 'developer mode' command toggles player.dev_mode -
+    a dev command is blocked for a normal (non-'developer mode'-name) player, works once toggled on,
+    then is blocked again once toggled back off."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "Hero",
+        "basic",
+        "ares",
+        "dev set hp 999",  # blocked - dev_mode starts False for a normal player
+        "developer mode",  # toggles dev_mode on
+        "dev set hp 999",  # now works
+        "developer mode",  # toggles dev_mode back off
+        "dev set hp 999",  # blocked again
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert captured.out.count("[DEV] hp set to 999.") == 1
+
 def test_main_combat_routing_smoke_test(monkeypatch, capsys, tmp_path):
     """Scripted playthrough covering both combat-entry paths: the 'attack' elif branch starts combat,
     then the earlier player.in_combat elif branch takes over for the follow-up 'attack'."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -295,7 +316,6 @@ def test_main_multi_stage_boss_wave_and_phase_transition_smoke_test(monkeypatch,
     wave_gate_factory); defeating the second (last) add triggers the deferred transition to Test Boss
     (Phase 2); and defeating that phase ends combat normally, with its own gold/XP reward."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -326,7 +346,6 @@ def test_main_target_command_redirects_pre_combat_attack_smoke_test(monkeypatch,
     targeting the second by name before the first 'attack' must redirect that first attack to it, rather
     than defaulting to whichever enemy is first in the room."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -357,7 +376,6 @@ def test_main_recruit_and_dismiss_routing_smoke_test(monkeypatch, capsys, tmp_pa
     Companion yet, and there's no dev-spawn support for them either, so a successful recruit isn't
     reachable through main() at all right now."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "Hero",
@@ -381,7 +399,6 @@ def test_main_repair_command_routing_smoke_test(monkeypatch, capsys, tmp_path):
     down below full durability requires real combat exchanges, better left to manual playtesting than
     scripted here."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -407,7 +424,6 @@ def test_main_rest_and_wait_restore_mana_smoke_test(monkeypatch, capsys, tmp_pat
     """Scripted playthrough confirming both 'rest' and 'wait' route to the same mana-recovery branch, and
     that recovery caps at max_mana rather than overfilling."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -435,7 +451,6 @@ def test_main_dummy_set_routing_smoke_test(monkeypatch, capsys, tmp_path):
     practice dummy is present, and reports the room-lookup/usage errors that live only in main()'s own
     routing (not handle_dummy_set() itself) when it isn't."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -461,7 +476,6 @@ def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_pa
     """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,
     and the game-over message prints afterwards."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",
@@ -485,7 +499,6 @@ def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_pa
 def test_main_quit_from_title_screen_does_nothing(monkeypatch, capsys, tmp_path):
     """Choosing Quit at the very first prompt exits before any world/player is ever built."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     monkeypatch.setattr("builtins.input", lambda prompt="": "4")
 
     main()
@@ -497,7 +510,6 @@ def test_main_new_game_prompts_overwrite_confirmation_for_occupied_slot(monkeypa
     """Picking a slot that already has a save under it must ask before overwriting - declining returns to
     the title screen instead of silently starting a new game over it."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     from dungeon_crawler import save_system
     from dungeon_crawler.characters import Player
     from dungeon_crawler.world import Room, Map
@@ -520,7 +532,6 @@ def test_main_new_game_prompts_overwrite_confirmation_for_occupied_slot(monkeypa
 def test_main_save_command_writes_to_active_slot(monkeypatch, capsys, tmp_path):
     """The bare 'save' command persists to whichever profile/slot was chosen at the title screen."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "Hero", "basic", "ares",
@@ -541,7 +552,6 @@ def test_main_load_game_from_title_screen_restores_saved_player(monkeypatch, cap
     command) reconstructs the saved player and drops straight into the game loop without asking for a
     name or ancestry."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     from dungeon_crawler import save_system
     from dungeon_crawler.content import build_world
     dungeon, current_room, _ = build_world()
@@ -567,7 +577,6 @@ def test_main_load_game_with_no_saves_returns_to_title_screen(monkeypatch, capsy
     choose_slot() was used instead of choose_occupied_slot(), letting an empty slot reach
     save_system.load_game() and raise an uncaught FileNotFoundError - see CLAUDE.md)."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "2", "1",  # Load Game, profile 1 (no saves)
         "4",       # back at the title screen - Quit
@@ -583,7 +592,6 @@ def test_main_delete_save_removes_slot_after_confirmation(monkeypatch, capsys, t
     """The title screen's 'Delete Save' action removes the chosen slot once confirmed, then returns to
     the title screen rather than starting a game."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     from dungeon_crawler import save_system
     from dungeon_crawler.characters import Player
     from dungeon_crawler.world import Room, Map
@@ -608,7 +616,6 @@ def test_main_delete_save_removes_slot_after_confirmation(monkeypatch, capsys, t
 def test_main_autosaves_on_first_crossing_into_a_new_floor(monkeypatch, capsys, tmp_path):
     """Crossing into a floor not yet in player.visited_floors triggers an autosave and prints '(autosaved)'."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    monkeypatch.setattr("dungeon_crawler.dev_tools.DEV_MODE", False)
     responses = iter([
         "1", "1", "1",
         "developer mode",

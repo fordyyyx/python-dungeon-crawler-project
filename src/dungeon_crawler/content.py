@@ -519,6 +519,10 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     practice_chamber.connect("west", forge_of_prometheus)
 
     practice_chamber.add_enemy(create_practice_dummy())
+    library_of_athena.add_ally(create_athena())
+    armoury_of_ares.add_ally(create_ares())
+    hall_of_hermes.add_ally(create_hermes())
+    forge_of_prometheus.add_ally(create_prometheus())
 
     return library_of_athena, {
         room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus, trophy_room_of_zeus, practice_chamber)

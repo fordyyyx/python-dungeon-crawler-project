@@ -1,4 +1,4 @@
-"""The entire developer command toolkit - isolated from real gameplay logic. DEV_MODE gates all of it; toggled via
+"""The entire developer command toolkit - isolated from real gameplay logic. player.dev_mode gates all of it; toggled via
 the 'developer mode' command in main()."""
 
 from typing import Callable
@@ -12,8 +12,6 @@ from dungeon_crawler.content import create_training_dummy, create_skeleton_warri
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat
-
-DEV_MODE = False
 
 # Every new create_*() item/enemy/ally function in content.py needs a matching line in the relevant
 # registry below (mirrored across all three) - otherwise dev add/spawn can't find it. See CLAUDE.md.

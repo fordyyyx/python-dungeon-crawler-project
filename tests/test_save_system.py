@@ -22,6 +22,7 @@ def base_player_data(**overrides) -> dict:
         "ancestry_label": "Descendant of Zeus", "secondary_ancestry_label": "", "current_room": "Chamber",
         "visited_floors": [0, 1], "dodge_chance": 0.1, "ability_flags": {}, "skill_tree": {}, "skill_points": 0,
         "known_spells": [], "spell_cooldowns": {}, "active_effects": [], "inventory": [], "companion": None,
+        "dev_mode": False,
     }
     data.update(overrides)
     return data
@@ -82,6 +83,12 @@ def test_serialise_player_includes_dodge_chance():
     player.dodge_chance = 0.35
     data = serialise_player(player, Room("Chamber"))
     assert data["dodge_chance"] == 0.35
+
+def test_serialise_player_includes_dev_mode():
+    player = Player(name="Hero", hp=50)
+    player.dev_mode = True
+    data = serialise_player(player, Room("Chamber"))
+    assert data["dev_mode"] is True
 
 def test_serialise_player_includes_ability_flags():
     player = Player(name="Hero", hp=50)
@@ -204,6 +211,12 @@ def test_player_from_save_data_reconstructs_dodge_chance():
     dungeon.add_room(Room("Chamber"))
     player, current_room = player_from_save_data(base_player_data(dodge_chance=0.35), dungeon)
     assert player.dodge_chance == 0.35
+
+def test_player_from_save_data_reconstructs_dev_mode():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    player, current_room = player_from_save_data(base_player_data(dev_mode=True), dungeon)
+    assert player.dev_mode is True
 
 def test_player_from_save_data_reconstructs_ability_flags():
     dungeon = Map()
