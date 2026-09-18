@@ -7,8 +7,8 @@ from dungeon_crawler.items import Item
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone
-from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops
+from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm
+from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat
@@ -35,6 +35,7 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "test spellbook": create_test_spellbook,
     "test healing tonic": create_test_healing_tonic,
     "test venom vial": create_test_venom_vial,
+    "weathered helm": create_weathered_helm,
 }
 
 ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
@@ -45,6 +46,7 @@ ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
     "test boss": create_test_boss,
     "centaur": create_centaur,
     "cyclops": create_cyclops,
+    "shade": create_shade,
 }
 
 ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {

@@ -107,6 +107,19 @@ def create_cyclops() -> Enemy:
         gold_reward=15,
     )
 
+def create_shade() -> Enemy:
+    """Create the Shade enemy for Fields of Asphodel (floor 1) - drops the Weathered Helm, the game's first real slot="helmet" item."""
+    return Enemy(
+        name="Shade",
+        hp=7,
+        attack_damage=3,
+        armour=0,
+        loot=[create_weathered_helm()],
+        description="Barely more than mist given shape, it drifts toward you without any real malice - just habit, worn thin over centuries.",
+        experience_reward=4,
+        gold_reward=1,
+    )
+
 def create_bronze_xiphos() -> Weapon:
     """Create the Bronze Xiphos weapon."""
     return Weapon(
@@ -129,6 +142,15 @@ def create_aegis_fragment() -> Armour:
         name="Shield of Aegis (fragment)",
         defence=2,
         description="A shard of bronze etched with a single unblinking eye.",
+    )
+
+def create_weathered_helm() -> Armour:
+    """Create the Weathered Helm armour - a helmet-slot piece dropped by the Shade in Fields of Asphodel."""
+    return Armour(
+        name="Weathered Helm",
+        description="Bronze gone dull and pitted, but the shape still holds - whoever wore it last isn't wearing it now.",
+        defence=1,
+        slot="helmet",
     )
 
 def create_skeleton_bone() -> QuestItem:
@@ -522,10 +544,10 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     sunken_vault.connect("up", styx_crossing)
     styx_crossing.add_hidden_exit("down", sunken_vault)
 
-
     cave_entrance.add_ally(create_wounded_soldier())
     styx_crossing.add_ally(create_charon())
     sunken_vault.add_enemy(create_skeleton_warrior())
+    fields_of_asphodel.add_enemy(create_shade())
 
     return cave_entrance, {
         room.name: room for room in (cave_entrance, styx_crossing, fields_of_asphodel, sunken_vault)

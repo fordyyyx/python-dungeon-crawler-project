@@ -42,6 +42,11 @@ def test_find_item_by_name_returns_skeleton_bone_for_known_name():
     assert item is not None
     assert item.name == "Skeleton Bone"
 
+def test_find_item_by_name_returns_weathered_helm_for_known_name():
+    item = find_item_by_name("weathered helm")
+    assert item is not None
+    assert item.name == "Weathered Helm"
+
 def test_handle_dev_command_add_known_item_adds_to_inventory():
     player = Player(name="hero", hp=100)
     room = Room("A")
@@ -415,6 +420,11 @@ def test_find_enemy_by_name_returns_cyclops_for_known_name():
     enemy = find_enemy_by_name("cyclops")
     assert enemy is not None
     assert enemy.name == "Cyclops"
+
+def test_find_enemy_by_name_returns_shade_for_known_name():
+    enemy = find_enemy_by_name("shade")
+    assert enemy is not None
+    assert enemy.name == "Shade"
 
 def test_find_ally_by_name_returns_ally_for_known_name():
     ally = find_ally_by_name("chiron")

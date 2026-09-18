@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -47,6 +47,21 @@ def test_create_cyclops_drops_cyclops_eye():
     cyclops = create_cyclops()
     message = cyclops.on_death()
     assert "Cyclops' Eye" in message
+
+def test_create_shade_has_correct_stats():
+    shade = create_shade()
+    assert shade.name == "Shade"
+    assert shade.hp == 7
+    assert shade.attack_damage == 3
+    assert shade.armour == 0
+    assert len(shade.loot) == 1
+    assert shade.experience_reward == 4
+    assert shade.gold_reward == 1
+
+def test_create_shade_drops_weathered_helm():
+    shade = create_shade()
+    message = shade.on_death()
+    assert "Weathered Helm" in message
 
 def test_create_skeleton_warrior_has_correct_stats():
     skeleton_warrior = create_skeleton_warrior()
@@ -104,6 +119,16 @@ def test_create_aegis_fragment_has_correct_defence_and_description():
     assert shield.name == "Shield of Aegis (fragment)"
     assert shield.description == "A shard of bronze etched with a single unblinking eye."
     assert shield.defence == 2
+
+def test_create_weathered_helm_has_correct_defence_and_description():
+    helm = create_weathered_helm()
+    assert helm.name == "Weathered Helm"
+    assert helm.description == "Bronze gone dull and pitted, but the shape still holds - whoever wore it last isn't wearing it now."
+    assert helm.defence == 1
+
+def test_create_weathered_helm_occupies_the_helmet_slot():
+    helm = create_weathered_helm()
+    assert helm.slot == "helmet"
 
 def test_create_ambrosia_has_correct_heal_amount_and_description():
     potion = create_ambrosia()
@@ -993,6 +1018,11 @@ def test_build_floor_1_returns_rooms_dict_with_four_rooms():
 def test_build_floor_1_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_1()
     assert rooms["Cave Entrance"] is start
+
+def test_build_floor_1_fields_of_asphodel_has_shade_enemy():
+    start, rooms = build_floor_1()
+    enemy_names = [enemy.name for enemy in rooms["Fields of Asphodel"].enemies]
+    assert "Shade" in enemy_names
 
 def test_build_floor_2_returns_library_of_athena_as_start_room():
     start, rooms = build_floor_2()

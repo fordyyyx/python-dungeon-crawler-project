@@ -157,7 +157,7 @@ class Character:
 
     def tick_status_effects(self) -> list[str]:
         """Apply one tick of every active effect, removing any that expire after this tick. Stops the moment a tick kills this character
-        - sam 'stop once dead' precendent as resolve_combat_round() - appending on_death()'s message when that happens."""
+        - sam 'stop once dead' precedent as resolve_combat_round() - appending on_death()'s message when that happens."""
         messages = []
         for effect in list(self.active_effects):
             if not self.is_alive():
