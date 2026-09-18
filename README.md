@@ -29,7 +29,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Multi-stage boss fights — a defeated phase can transition seamlessly into the next, or first summon a wave of lesser foes that must all be cleared before the boss reveals what comes after them
 * A Practice Chamber (floor 2, by the Forge of Prometheus) with an infinitely-respawning, customisable dummy — freely test weapons/spells/potions with no mana cost or cooldowns while inside
 * A full save/load system — 3 profiles, 5 slots each, with a New Game / Load Game / Delete Save title screen, manual save/load commands mid-game, and autosave the first time you reach a new floor
-* Win/lose conditions
+* Win/lose conditions — dying offers a reload from your last save rather than always ending the game outright
 
 ## Design Highlights
 * **Abstract base class + inheritance** — `Character` -> `Player`/`Enemy`/`Companion`; `Item` -> `Weapon`/`Armour`/`Consumable` -> `Reviver`/`StatusEffectItem`/`SpellBook`/`QuestItem`
@@ -107,7 +107,7 @@ pytest --cov=src/dungeon_crawler
 * `combat.py` - combat resolution: team-vs-team turns, targeting, status-effect ticking, spellcasting, defeat handling, and fleeing
 * `exploration.py` - everything outside combat: picking up items, trading, recruiting/dismissing companions, repairing armour, examining, and the map
 * `character_creation.py` - ancestry selection and building the player character, plus the title screen and every save/load prompt
-* `save_system.py` - the save/load system: profile and slot management, JSON persistence for player state and per-room deltas
+* `save_system.py` - the save/load system: profile and slot management, JSON persistence for player state and a full per-room snapshot of the world
 * `dev_tools.py` - the developer command set (not part of the standard game)
 * `engine.py` - the game loop and top-level command routing
 

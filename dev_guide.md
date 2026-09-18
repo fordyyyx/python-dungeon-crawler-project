@@ -123,11 +123,11 @@ case-insensitively):
 `mentor's token`, `charon's coin`, `bronze xiphos`, `shield of aegis
 (fragment)`, `vial of ambrosia`, `bronze breastplate`, `small healing
 potion`, `cyclops eye`, `spear of ares`, `centaur's broken bow`, `skeleton
-bone`, `breastplate of athena`, `favour of hermes`, `test spellbook`, `test
-healing tonic`, `test venom vial`.
+bone`, `breastplate of athena`, `favour of hermes`, `weathered helm`, `test
+spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
-`minotaur`, `hades`, `centaur`, `cyclops`, `test boss` — a dev-only,
+`minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `test boss` — a dev-only,
 two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
 `next_phase_factory` end-to-end.
@@ -184,11 +184,15 @@ way to reach any of this outside the automated test suite.
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
 2, `is_forge=True`), Dodge, light/heavy attacks, the Practice Chamber's
-respawning dummy, the Minotaur/Centaur/Cyclops enemies (floors 3-4), and
-Hermes'/Athena's/Ares' now-completable trades — has real, reachable in-game
-content and needs no dev-tool workaround to try. Only Prometheus' trade is
-still unwritten content (no required items or reward, so it completes
-instantly for nothing) - see roadmap.md's "Populate all floors."
+respawning dummy, the Minotaur/Centaur/Cyclops/Shade enemies (floors 1, 3-4),
+Hermes'/Athena's/Ares' now-completable trades, and reloading from your last
+save on death instead of the game always just ending — has real, reachable
+in-game content and needs no dev-tool workaround to try. The Weathered Helm
+(Shade's drop, Fields of Asphodel) is also content's first real
+`slot="helmet"` item - see `CLAUDE.md`'s "Armour slots and durability." Only
+Prometheus' trade is still unwritten content (no required items or reward,
+so it completes instantly for nothing) - see roadmap.md's "Populate all
+floors."
 
 ## The Practice Chamber isn't a dev tool
 Unlike everything else in this file, the Practice Chamber (floor 2, next to

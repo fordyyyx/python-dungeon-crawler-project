@@ -159,6 +159,10 @@ something occurs to you mid-build.
   is worth revisiting for a visual port with much larger per-room state
   (positions, animation state, particle spawns) — a real delta/dirty-flag
   model becomes worth the complexity there in a way it isn't here.
+- Dying now prompts "Reload your last save?" rather than always ending the
+  run outright — a natural fit for a classic "Continue? Yes/No" game-over
+  screen (with a countdown timer, if the port wants to lean into that genre
+  convention) rather than a plain yes/no text prompt.
 
 ## Input
 - Controller support (stick for movement, buttons for actions) should be

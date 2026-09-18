@@ -21,7 +21,7 @@ Styx Crossing {Charon - Friendly}
 * down -> Sunken Vault
 * descend -> Library of Athena
 * ascend -> Cave Entrance
-Fields of Asphodel
+Fields of Asphodel {Shade - Enemy}
 * west -> Styx Crossing
 Sunken Vault {Skeleton Warrior - Enemy}
 * up -> Styx Crossing
@@ -170,10 +170,11 @@ Floor 8 (The Final Descent): Gate of Cerberus, Hall of Hades
 Floor 9 (Tartarus): Tartarus
 
 STATUS: Full shell built and playtested (all rooms reachable, correctly connected).
-Population (enemies/allies/items/trades) is COMPLETE for Floor 0 and mostly
-complete for Floor 1 (Wounded Soldier, Charon, one Skeleton Warrior that now
-also drops the Skeleton Bone needed for Hermes' trade below; Fields of
-Asphodel is empty). Floor 2's four god rooms (Library of Athena, Armoury of
+Population (enemies/allies/items/trades) is COMPLETE for Floor 0 and Floor 1
+(Wounded Soldier, Charon, a Skeleton Warrior that also drops the Skeleton
+Bone needed for Hermes' trade below, and a Shade in Fields of Asphodel
+dropping the Weathered Helm - the game's first real `slot="helmet"` item).
+Floor 2's four god rooms (Library of Athena, Armoury of
 Ares, Hall of Hermes, Forge of Prometheus) now hold their allies - the
 Athena/Ares/Hermes/Prometheus `create_*()` calls are wired into
 `build_floor_2()`. Three of the four gods' trades are now genuinely
