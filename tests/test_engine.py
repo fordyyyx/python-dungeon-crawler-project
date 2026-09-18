@@ -473,8 +473,9 @@ def test_main_dummy_set_routing_smoke_test(monkeypatch, capsys, tmp_path):
     assert "[Practice] atk set to 50." in captured.out
 
 def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_path):
-    """Scripted playthrough covering the tail end of main(): the while loop exits once the player dies,
-    and the game-over message prints afterwards."""
+    """Scripted playthrough covering the tail end of main(): the inner while loop exits once the player
+    dies, the reload prompt fires (an active profile/slot is always set by this point), and declining it
+    prints the game-over message and ends main() entirely."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
         "1", "1", "1",
@@ -485,6 +486,7 @@ def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_pa
         "dev set hp 1",
         "dev spawn skeleton warrior",
         "attack",
+        "no",  # decline "Reload your last save?"
     ])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
 
@@ -493,6 +495,55 @@ def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_pa
     captured = capsys.readouterr()
     assert "Dev has fallen. Game Over." in captured.out
     assert "Dev has died. Game over." not in captured.out
+    assert "You have died." in captured.out
+
+def test_main_player_death_accepting_reload_restores_the_save_and_continues_playing(monkeypatch, capsys, tmp_path):
+    """Accepting the 'Reload your last save?' prompt loads the active slot (saved at full HP before the
+    fatal fight) and drops back into the game loop instead of ending main() - the outer while loop runs a
+    second iteration rather than falling through to the 'You have died.' message."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "save",  # snapshot the player alive, at full HP, before the fight
+        "dev set hp 1",
+        "dev spawn skeleton warrior",
+        "attack",
+        "yes",  # accept "Reload your last save?"
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Dev has fallen. Game Over." in captured.out
+    assert "You have died." not in captured.out
+    assert captured.out.count("Not sure where to start? Try talking to whoever is in the room with you.") == 2
+
+def test_main_quit_after_death_reload_confirmation_is_not_conflated_with_dying_again(monkeypatch, capsys, tmp_path):
+    """Real bug found and fixed: the inner while loop used to exit for both 'quit' and actual death with
+    no way to tell them apart, so quitting normally (with an active save) falsely triggered the death
+    reload prompt. Now a plain 'quit' from a live player returns immediately, without ever printing the
+    death or reload-prompt text - regression test for that fix."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "Hero",
+        "basic",
+        "ares",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You have died" not in captured.out
+    assert "Reload your last save?" not in captured.out
 
 # ---- title screen: New Game / Load Game / Delete Save / Quit, plus save/load/autosave routing ----
 
