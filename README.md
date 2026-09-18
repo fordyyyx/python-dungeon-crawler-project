@@ -32,7 +32,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Win/lose conditions — dying offers a reload from your last save rather than always ending the game outright
 
 ## Design Highlights
-* **Abstract base class + inheritance** — `Character` -> `Player`/`Enemy`/`Companion`; `Item` -> `Weapon`/`Armour`/`Consumable` -> `Reviver`/`StatusEffectItem`/`SpellBook`/`QuestItem`
+* **Abstract base class + inheritance** — `Character` -> `Player`/`Enemy`/`Companion`; `Item` -> `Weapon`/`Armour`/`Consumable`/`QuestItem`, and `Consumable` -> `Reviver`/`StatusEffectItem`/`SpellBook`/`SkillPointReward`
 * **Composition over inheritance** — `Player` *has an* `Inventory` and a `SkillTree`, rather than inheriting either; `Ally` similarly holds its own `Inventory` for items it can give away
 * **Encapsulation** — private attributes with controlled access via methods/`@property`, e.g. `Room._items`, `Inventory._items`
 * **Polymorphism** — `on_death()` behaves differently per subclass; `use()`/`unequip()`/`would_fail()` behave differently per `Item` subclass; each `Skill` subclass applies its own effect via `apply()`
@@ -99,7 +99,7 @@ pytest --cov=src/dungeon_crawler
 
 ## Project structure
 * `characters.py` - `Character`, `Player`, `Enemy`, `Ally`, `Companion`, `Skill`, `SkillPath`, `SkillTree`
-* `items.py` - `Item`, `Weapon`, `Armour`, `Consumable`, `Reviver`, `StatusEffectItem`, `SpellBook`, `QuestItem`, `SkillPointReward`, `Inventory`
+* `items.py` - `Item`, `Weapon`, `Armour`, `Consumable`, `QuestItem`, `Inventory`, plus `Consumable`'s own subclasses `Reviver`, `StatusEffectItem`, `SpellBook`, `SkillPointReward`
 * `status_effects.py` - `StatusEffect` - the poison/flame/heal-over-time engine, ticked once per combat turn
 * `spells.py` - `Spell` - offensive/defensive/utility spellcasting
 * `world.py` - `Room`, `Map`
