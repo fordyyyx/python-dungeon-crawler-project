@@ -127,9 +127,10 @@ bone`, `breastplate of athena`, `favour of hermes`, `test spellbook`, `test
 healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
-`minotaur`, `hades`, `test boss` — a dev-only, two-phase boss (hp 1
-throughout) whose first phase is gated behind a two-add wave, exercising
-`next_wave_factories`/`wave_gate_factory`/`next_phase_factory` end-to-end.
+`minotaur`, `hades`, `centaur`, `cyclops`, `test boss` — a dev-only,
+two-phase boss (hp 1 throughout) whose first phase is gated behind a
+two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
+`next_phase_factory` end-to-end.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`.
@@ -179,25 +180,15 @@ way to reach any of this outside the automated test suite.
   unit test (see `test_characters.py`/`test_combat.py`), not a live
   `main()` run. `attack`/`attack light`/`attack heavy` need no such
   workaround — every enemy encounter reaches them fine.
-- **Floor 2's four god trades (Athena, Ares, Hermes, Prometheus) — allies are
-  real content now, and Hermes' trade is genuinely completable through
-  normal play.** His required item (`"Skeleton Bone"`) is dropped by the
-  Skeleton Warrior in Sunken Vault (floor 1) - kill it, carry the bone to
-  the Hall of Hermes, `trade` for the Favour of Hermes skill point. Athena's
-  and Ares' trades still aren't completable through normal play - their
-  required items (`Centaur's Broken Bow`, `Cyclops' Eye`) aren't dropped or
-  placed as loot anywhere, though both *are* in `ITEM_REGISTRY` - `dev add
-  centaur's broken bow`/`dev add cyclops eye` lets you complete either trade
-  for testing. Prometheus has no required items *or* reward, so trading with
-  him completes instantly for nothing regardless of dev tools - that's
-  unwritten content, not a placement gap. See roadmap.md's "Populate all
-  floors."
 
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
-2, `is_forge=True`), Dodge, light/heavy attacks, and the Practice Chamber's
-respawning dummy — has real, reachable in-game content and needs no dev-tool
-workaround to try.
+2, `is_forge=True`), Dodge, light/heavy attacks, the Practice Chamber's
+respawning dummy, the Minotaur/Centaur/Cyclops enemies (floors 3-4), and
+Hermes'/Athena's/Ares' now-completable trades — has real, reachable in-game
+content and needs no dev-tool workaround to try. Only Prometheus' trade is
+still unwritten content (no required items or reward, so it completes
+instantly for nothing) - see roadmap.md's "Populate all floors."
 
 ## The Practice Chamber isn't a dev tool
 Unlike everything else in this file, the Practice Chamber (floor 2, next to

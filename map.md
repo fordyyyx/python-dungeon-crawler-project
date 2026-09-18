@@ -176,16 +176,23 @@ also drops the Skeleton Bone needed for Hermes' trade below; Fields of
 Asphodel is empty). Floor 2's four god rooms (Library of Athena, Armoury of
 Ares, Hall of Hermes, Forge of Prometheus) now hold their allies - the
 Athena/Ares/Hermes/Prometheus `create_*()` calls are wired into
-`build_floor_2()`. Hermes' trade is genuinely completable through normal
-play (his required Skeleton Bone drops in Sunken Vault, floor 1). Athena's
-and Ares' trades still aren't - their required items (`Centaur's Broken
-Bow`, `Cyclops' Eye`) aren't dropped or placed as loot anywhere (though both
-are `dev add`-able for testing). Prometheus has no required items *or*
-reward, so his trade currently completes instantly for nothing - unwritten
-content, not a placement gap. Trophy Room of Zeus remains fully unpopulated
-- no Zeus content (ally or otherwise) has been written yet. The sixth
-floor-2 room, Practice Chamber, is real,
-populated content (a respawning practice dummy, `create_practice_dummy()`),
-same as before. Finishing Floor 2's population (Athena's and Ares' required
-items, Prometheus' trade, and Trophy Room of Zeus) and floors 3-9 (shell and
-population) are all deferred to the "Populate all floors" roadmap item.
+`build_floor_2()`. Three of the four gods' trades are now genuinely
+completable through normal play: Hermes' required Skeleton Bone drops in
+Sunken Vault (floor 1); Athena's required Centaur's Broken Bow now drops
+from the new Centaur enemy in Overgrown Forest (floor 3); Ares' required
+Cyclops' Eye now drops from the new Cyclops enemy in Cavern of the Cyclops
+(floor 4). Only Prometheus' trade remains incomplete - he has no required
+items *or* reward, so trading with him completes instantly for nothing;
+that's unwritten content, not a placement gap. Trophy Room of Zeus remains
+fully unpopulated - no Zeus content (ally or otherwise) has been written
+yet. The sixth floor-2 room, Practice Chamber, is real, populated content
+(a respawning practice dummy, `create_practice_dummy()`), same as before.
+
+Floors 3 and 4 have each gained their first real enemy content, placed as
+part of wiring up Athena's and Ares' trade items: the Minotaur is now in
+its own Labyrinth of the Minotaur (floor 4), alongside the new Centaur
+(Overgrown Forest, floor 3) and Cyclops (Cavern of the Cyclops, floor 4).
+Every other room on floors 3 and 4, and all of floors 5-9, remain
+unpopulated shells. Finishing Floor 2's population (Prometheus' trade and
+Trophy Room of Zeus) and floors 3-9's remaining population are all deferred
+to the "Populate all floors" roadmap item.

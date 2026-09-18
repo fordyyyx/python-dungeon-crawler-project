@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem
 
@@ -17,6 +17,36 @@ def test_create_minotaur_drops_bronze_xiphos():
     minotaur = create_minotaur()
     message = minotaur.on_death()
     assert "Bronze Xiphos" in message
+
+def test_create_centaur_has_correct_stats():
+    centaur = create_centaur()
+    assert centaur.name == "Centaur"
+    assert centaur.hp == 14
+    assert centaur.attack_damage == 5
+    assert centaur.armour == 1
+    assert len(centaur.loot) == 1
+    assert centaur.experience_reward == 10
+    assert centaur.gold_reward == 5
+
+def test_create_centaur_drops_centaurs_broken_bow():
+    centaur = create_centaur()
+    message = centaur.on_death()
+    assert "Centaur's Broken Bow" in message
+
+def test_create_cyclops_has_correct_stats():
+    cyclops = create_cyclops()
+    assert cyclops.name == "Cyclops"
+    assert cyclops.hp == 22
+    assert cyclops.attack_damage == 7
+    assert cyclops.armour == 1
+    assert len(cyclops.loot) == 1
+    assert cyclops.experience_reward == 25
+    assert cyclops.gold_reward == 15
+
+def test_create_cyclops_drops_cyclops_eye():
+    cyclops = create_cyclops()
+    message = cyclops.on_death()
+    assert "Cyclops' Eye" in message
 
 def test_create_skeleton_warrior_has_correct_stats():
     skeleton_warrior = create_skeleton_warrior()
@@ -1114,6 +1144,11 @@ def test_build_floor_3_overgrown_forest_connects_to_dim_corridor_via_north():
     start, rooms = build_floor_3()
     assert rooms["Overgrown Forest"].get_exit("north") is rooms["Dim Corridor"]
 
+def test_build_floor_3_overgrown_forest_has_centaur_enemy():
+    start, rooms = build_floor_3()
+    enemy_names = [enemy.name for enemy in rooms["Overgrown Forest"].enemies]
+    assert "Centaur" in enemy_names
+
 def test_build_floor_4_returns_labyrinth_of_the_minotaur_as_start_room():
     start, rooms = build_floor_4()
     assert start.name == "Labyrinth of the Minotaur"
@@ -1181,6 +1216,16 @@ def test_build_floor_4_maze_of_pillars_connects_to_lair_of_medusa_via_south():
 def test_build_floor_4_lair_of_medusa_connects_to_maze_of_pillars_via_north():
     start, rooms = build_floor_4()
     assert rooms["Lair of Medusa"].get_exit("north") is rooms["Maze of Pillars"]
+
+def test_build_floor_4_labyrinth_of_the_minotaur_has_minotaur_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Labyrinth of the Minotaur"].enemies]
+    assert "Minotaur" in enemy_names
+
+def test_build_floor_4_cavern_of_the_cyclops_has_cyclops_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Cavern of the Cyclops"].enemies]
+    assert "Cyclops" in enemy_names
 
 def test_build_floor_5_returns_shadow_of_army_camp_as_start_room():
     start, rooms = build_floor_5()

@@ -406,6 +406,16 @@ def test_find_enemy_by_name_returns_test_boss_for_known_name():
     assert enemy is not None
     assert enemy.name == "Test Boss"
 
+def test_find_enemy_by_name_returns_centaur_for_known_name():
+    enemy = find_enemy_by_name("centaur")
+    assert enemy is not None
+    assert enemy.name == "Centaur"
+
+def test_find_enemy_by_name_returns_cyclops_for_known_name():
+    enemy = find_enemy_by_name("cyclops")
+    assert enemy is not None
+    assert enemy.name == "Cyclops"
+
 def test_find_ally_by_name_returns_ally_for_known_name():
     ally = find_ally_by_name("chiron")
     assert ally is not None

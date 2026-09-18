@@ -56,7 +56,7 @@ def create_skeleton_warrior() -> Enemy:
         )
 
 def create_minotaur() -> Enemy:
-    """Create the Minotaur enemy; not yet placed in any floor."""
+    """Create the Minotaur enemy, placed in the Labyrinth of the Minotaur (floor 4) by build_floor_4()."""
     return Enemy(
         name="Minotaur",
         hp=25,
@@ -79,6 +79,32 @@ def create_hades() -> Enemy:
         description="He doesn't rise from the throne immediately — he doesn't need to.",
         experience_reward=80,
         gold_reward=55
+    )
+
+def create_centaur() -> Enemy:
+    """Create the Centaur enemy for Overgrown Forest (floor 3) - drops Centaur's Broken Bow, Athena's required trade item."""
+    return Enemy(
+        name="Centaur",
+        hp=14,
+        attack_damage=5,
+        armour=1,
+        loot=[create_centaurs_broken_bow()],
+        description="Half man, half horse, nothing like the patient tutor you met on floor 0 - this one draws its bow the moment it sees you.",
+        experience_reward=10,
+        gold_reward=5,
+    )
+
+def create_cyclops() -> Enemy:
+    """Create the Cyclops enemy for Cavern of the Cyclops (floor 4) - drops Cyclops' Eye, Ares' required trade item."""
+    return Enemy(
+        name="Cyclops",
+        hp=22,
+        attack_damage=7,
+        armour=1,
+        loot=[create_cyclops_eye()],
+        description="It ducks under the cavern's low roof, one vast eye finding you before you've fully stepped inside.",
+        experience_reward=25,
+        gold_reward=15,
     )
 
 def create_bronze_xiphos() -> Weapon:
@@ -314,7 +340,7 @@ def create_prometheus() -> Ally:
     )
 
 def create_cyclops_eye() -> QuestItem:
-    """Create the Cyclops' Eye quest item, the required trade item for Ares' reward; not yet placed in build_floor_2()."""
+    """Create the Cyclops' Eye quest item, the required trade item for Ares' reward - dropped by the Cyclops (floor 4, Cavern of the Cyclops)."""
     return QuestItem(
         name="Cyclops' Eye",
         description="Still faintly warm and unsettlingly heavy for its size - Ares will know exactly what this cost you."
@@ -329,7 +355,7 @@ def create_breastplate_of_athena() -> Armour:
     )
 
 def create_centaurs_broken_bow() -> QuestItem:
-    """Create the Centaur's Broken Bow quest item, the required trade item for Athena's reward; not yet placed in build_floor_2()."""
+    """Create the Centaur's Broken Bow quest item, the required trade item for Athena's reward - dropped by the Centaur (floor 3, Overgrown Forest)."""
     return QuestItem(
         name="Centaur's Broken Bow",
         description="Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off."
@@ -552,6 +578,8 @@ def build_floor_3() -> tuple[Room, dict[str, Room]]:
     dim_corridor.connect("south", overgrown_forest)
     overgrown_forest.connect("north", dim_corridor)
 
+    overgrown_forest.add_enemy(create_centaur())
+
     return bony_crypt, {
         room.name: room for room in (bony_crypt, cave_of_harpies, prayer_room, dim_corridor, overgrown_forest)
     }
@@ -581,6 +609,9 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
     maze_of_pillars.connect("west", sandy_expanse)
     maze_of_pillars.connect("south", lair_of_medusa)
     lair_of_medusa.connect("north", maze_of_pillars)
+
+    labyrinth_of_the_minotaur.add_enemy(create_minotaur())
+    cavern_of_the_cyclops.add_enemy(create_cyclops())
 
     return labyrinth_of_the_minotaur, {
         room.name: room for room in (labyrinth_of_the_minotaur, stony_lair, cavern_of_the_cyclops, mossy_grove, shadowy_corner, sandy_expanse, maze_of_pillars, lair_of_medusa)
