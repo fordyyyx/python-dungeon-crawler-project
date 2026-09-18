@@ -683,6 +683,10 @@ def test_quest_item_unequip_returns_cannot_be_unequipped_message():
     message = key.unequip(hero)
     assert message == "Bronze Key cannot be unequipped."
 
+def test_skill_point_reward_is_a_consumable():
+    reward = SkillPointReward(name="Ancient Blessing", description="")
+    assert isinstance(reward, Consumable)
+
 def test_skill_point_reward_defaults_to_one_point():
     reward = SkillPointReward(name="Ancient Blessing", description="")
     assert reward.points == 1
@@ -699,12 +703,12 @@ def test_skill_point_reward_use_returns_message():
     message = reward.use(player)
     assert message == "hero gains 2 skill point(s) from Ancient Blessing."
 
-def test_inventory_use_item_keeps_skill_point_reward_after_use():
+def test_inventory_use_item_removes_skill_point_reward_after_use():
     player = Player(name="hero", hp=100)
     reward = SkillPointReward(name="Ancient Blessing", description="", points=1)
     player.inventory.add(reward)
     player.inventory.use_item("Ancient Blessing", player)
-    assert player.inventory.items == [reward]
+    assert player.inventory.items == []
 
 def test_item_repr_includes_class_name_and_name(capsys):
     potion = Consumable(name="potion", heal_amount=3)

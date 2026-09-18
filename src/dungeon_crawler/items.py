@@ -1,4 +1,4 @@
-"""Item classes - Item and its subclasses (Weapon, Armour, Consumable, QuestItem, SkillPointReward) - plus Inventory, which holds and manages a character's items."""
+"""Item classes - Item and its subclasses (Weapon, Armour, Consumable (and its own subclasses Reviver, StatusEffectItem, SpellBook, SkillPointReward), QuestItem) - plus Inventory, which holds and manages a character's items."""
 
 from abc import ABC, abstractmethod
 from dungeon_crawler.status_effects import StatusEffect
@@ -158,8 +158,10 @@ class QuestItem(Item):
         """Quest items have no effect of their own when used."""
         return f"{self.name} doesn't do anything on its own - it is meant for someone else."
 
-class SkillPointReward(Item):
-    """An item that grants skill points on use."""
+class SkillPointReward(Consumable):
+    """An item that grants skill points on use. Inherits Consumable's auto-remove-after-use behaviour in Inventory.use_item() for free - consumed
+    every time, same pattern as Reviver/StatusEffectItem/SpellBook. Not just Favour of Hermes - this is a real bug fix at the class level,
+    so it applied to every SkillPointReward that exists of gets created."""
 
     def __init__(self, name: str, description: str, points: int = 1):
         """Store how many skill points this item grants."""
