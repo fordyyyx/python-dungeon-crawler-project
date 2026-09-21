@@ -1,6 +1,6 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_crypt_keeper, create_cyclops_eye, create_fanatic, create_harpy, create_harpy_fletched_bow, create_lurker, create_prayer_bolt, create_tome_of_old_prayers, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_fanatic, create_harpy, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_petrified_guardian, create_prayer_bolt, create_satyr, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
-from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook
+from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
 
 
 def test_create_minotaur_has_correct_stats():
@@ -175,6 +175,94 @@ def test_create_lurker_drops_small_healing_potion():
     lurker = create_lurker()
     message = lurker.on_death()
     assert "Small Healing Potion" in message
+
+def test_create_petrified_guardian_has_correct_stats():
+    guardian = create_petrified_guardian()
+    assert guardian.name == "Petrified Guardian"
+    assert guardian.hp == 18
+    assert guardian.attack_damage == 6
+    assert guardian.armour == 3
+    assert len(guardian.loot) == 1
+    assert guardian.experience_reward == 16
+    assert guardian.gold_reward == 9
+
+def test_create_petrified_guardian_drops_chipped_stone_aegis():
+    guardian = create_petrified_guardian()
+    message = guardian.on_death()
+    assert "Chipped Stone Aegis" in message
+
+def test_create_chipped_stone_aegis_has_correct_defence_and_defaults_to_body_slot():
+    aegis = create_chipped_stone_aegis()
+    assert isinstance(aegis, Armour)
+    assert aegis.name == "Chipped Stone Aegis"
+    assert aegis.defence == 3
+    assert aegis.slot == "body"
+
+def test_create_satyr_has_correct_stats():
+    satyr = create_satyr()
+    assert satyr.name == "Satyr"
+    assert satyr.hp == 15
+    assert satyr.attack_damage == 6
+    assert satyr.armour == 1
+    assert len(satyr.loot) == 1
+    assert satyr.experience_reward == 14
+    assert satyr.gold_reward == 8
+
+def test_create_satyr_drops_wineskin_of_dionysus():
+    satyr = create_satyr()
+    message = satyr.on_death()
+    assert "Wineskin of Dionysus" in message
+
+def test_create_wineskin_of_dionysus_applies_a_three_turn_regen():
+    wineskin = create_wineskin_of_dionysus()
+    assert isinstance(wineskin, StatusEffectItem)
+    assert wineskin.effect_name == "Regen"
+    assert wineskin.amount == 3
+    assert wineskin.duration == 3
+
+def test_create_wineskin_of_dionysus_use_applies_regen_to_the_user():
+    player = Player(name="hero", hp=100)
+    wineskin = create_wineskin_of_dionysus()
+    wineskin.use(player)
+    assert [effect.name for effect in player.active_effects] == ["Regen"]
+
+def test_create_wineskin_of_dionysus_is_a_free_action_mid_combat():
+    player = Player(name="hero", hp=100)
+    wineskin = create_wineskin_of_dionysus()
+    assert wineskin.ends_turn(player) is False
+
+def test_create_lamia_has_correct_stats():
+    lamia = create_lamia()
+    assert lamia.name == "Lamia"
+    assert lamia.hp == 20
+    assert lamia.attack_damage == 7
+    assert lamia.armour == 1
+    assert len(lamia.loot) == 1
+    assert lamia.experience_reward == 18
+    assert lamia.gold_reward == 10
+
+def test_create_lamia_has_lifesteal():
+    lamia = create_lamia()
+    assert lamia.has_lifesteal is True
+
+def test_create_lamia_attack_drains_hp_from_the_target():
+    lamia = create_lamia()
+    lamia.hp = 5
+    player = Player(name="hero", hp=100)
+    lamia.attack(player)
+    assert lamia.hp == 8  # 7 damage dealt (no armour), heals 7 // 2
+
+def test_create_lamia_drops_lamias_fang():
+    lamia = create_lamia()
+    message = lamia.on_death()
+    assert "Lamia's Fang" in message
+
+def test_create_lamias_fang_has_correct_damage_and_defaults_to_melee_slot():
+    fang = create_lamias_fang()
+    assert isinstance(fang, Weapon)
+    assert fang.name == "Lamia's Fang"
+    assert fang.damage == 5
+    assert fang.slot == "melee"
 
 def test_create_skeleton_warrior_has_correct_stats():
     skeleton_warrior = create_skeleton_warrior()
@@ -1384,6 +1472,21 @@ def test_build_floor_4_labyrinth_of_the_minotaur_has_minotaur_enemy():
     start, rooms = build_floor_4()
     enemy_names = [enemy.name for enemy in rooms["Labyrinth of the Minotaur"].enemies]
     assert "Minotaur" in enemy_names
+
+def test_build_floor_4_stony_lair_has_petrified_guardian_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Stony Lair"].enemies]
+    assert "Petrified Guardian" in enemy_names
+
+def test_build_floor_4_mossy_grove_has_satyr_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Mossy Grove"].enemies]
+    assert "Satyr" in enemy_names
+
+def test_build_floor_4_shadowy_corner_has_lamia_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Shadowy Corner"].enemies]
+    assert "Lamia" in enemy_names
 
 def test_build_floor_4_cavern_of_the_cyclops_has_cyclops_enemy():
     start, rooms = build_floor_4()

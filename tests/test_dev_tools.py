@@ -62,6 +62,21 @@ def test_find_item_by_name_returns_tome_of_old_prayers_for_known_name():
     assert item is not None
     assert item.name == "Tome of Old Prayers"
 
+def test_find_item_by_name_returns_chipped_stone_aegis_for_known_name():
+    item = find_item_by_name("chipped stone aegis")
+    assert item is not None
+    assert item.name == "Chipped Stone Aegis"
+
+def test_find_item_by_name_returns_wineskin_of_dionysus_for_known_name():
+    item = find_item_by_name("wineskin of dionysus")
+    assert item is not None
+    assert item.name == "Wineskin of Dionysus"
+
+def test_find_item_by_name_returns_lamias_fang_for_known_name():
+    item = find_item_by_name("lamia's fang")
+    assert item is not None
+    assert item.name == "Lamia's Fang"
+
 def test_handle_dev_command_add_known_item_adds_to_inventory():
     player = Player(name="hero", hp=100)
     room = Room("A")
@@ -460,6 +475,21 @@ def test_find_enemy_by_name_returns_lurker_for_known_name():
     enemy = find_enemy_by_name("lurker")
     assert enemy is not None
     assert enemy.name == "Lurker"
+
+def test_find_enemy_by_name_returns_petrified_guardian_for_known_name():
+    enemy = find_enemy_by_name("petrified guardian")
+    assert enemy is not None
+    assert enemy.name == "Petrified Guardian"
+
+def test_find_enemy_by_name_returns_satyr_for_known_name():
+    enemy = find_enemy_by_name("satyr")
+    assert enemy is not None
+    assert enemy.name == "Satyr"
+
+def test_find_enemy_by_name_returns_lamia_for_known_name():
+    enemy = find_enemy_by_name("lamia")
+    assert enemy is not None
+    assert enemy.name == "Lamia"
 
 def test_find_ally_by_name_returns_ally_for_known_name():
     ally = find_ally_by_name("chiron")

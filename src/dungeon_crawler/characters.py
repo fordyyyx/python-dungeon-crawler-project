@@ -53,6 +53,10 @@ class Character:
         """These ten flags are all secondary-ancestor abilities (see ANCESTRIES['secondary_effect'] in content.py) - same shape as 
         has_thorns/dodge_chance, but granted once at character creation, never by the skill tree. Deliberately zero overlap with the skill
         tree's four ability flags (has_double_strike, has_last_stand, has_thorns, dodge_chance) - see roadmap.md"""
+        self.has_lifesteal = False
+        """Heals the attacker for half of damage_dealt (capped at max_hp) on every successful hit - see Character.attack(). Set via Enemy's
+        Constructor (Lamia is the first use) or, later, a lifesteal weapon's use()/unequip() toggling it the same way equipping/unequipping
+        already works for other Character-level flags."""
 
     def attack(self, target: "Character", attack_type: str = "light") -> str:
         """Attack target once, then a second time at half damage if Double Strike is unlocked. attack_type picks which weapon slot (if any)
@@ -85,6 +89,13 @@ class Character:
         message = f"{self.name} attacks {target.name} for {damage_dealt} damage."
         if deflected > 0:
             message += f" ({deflected} deflected by armour)"
+
+        if self.has_lifesteal and damage_dealt > 0:
+            healed = min(damage_dealt // 2, self.max_hp - self.hp)
+            if healed > 0:
+                self.hp += healed
+                message += f"\n{self.name} drains {healed} HP from the wound."
+
         if death_message:
             message += f"\n{death_message}"
             return message
@@ -323,7 +334,7 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False):
         """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py
         aggression_weight/caution_weight/randomness_weight feed choose_enemy_action()'s utility scoring (combat.py) - a balanced
         default (1.0/1.0/0.3) suits most enemies; named/boss enemies should get bespoke values tied to their lore.
@@ -349,6 +360,7 @@ class Enemy(Character):
         self.brace_amount = brace_amount
         self.heal_amount = heal_amount
         self.respawns = respawns
+        self.has_lifesteal = has_lifesteal
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""

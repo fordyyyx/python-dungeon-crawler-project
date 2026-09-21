@@ -7,8 +7,8 @@ from dungeon_crawler.items import Item
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers
-from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker
+from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang
+from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker, create_petrified_guardian, create_satyr, create_lamia
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat
@@ -39,6 +39,9 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "vial of grave rot": create_vial_of_grave_rot,
     "harpy-fletched bow": create_harpy_fletched_bow,
     "tome of old prayers": create_tome_of_old_prayers,
+    "chipped stone aegis": create_chipped_stone_aegis,
+    "wineskin of dionysus": create_wineskin_of_dionysus,
+    "lamia's fang": create_lamias_fang,
 }
 
 ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
@@ -54,6 +57,9 @@ ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
     "harpy": create_harpy,
     "fanatic": create_fanatic,
     "lurker": create_lurker,
+    "petrified guardian": create_petrified_guardian,
+    "satyr": create_satyr,
+    "lamia": create_lamia,
 }
 
 ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {

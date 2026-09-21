@@ -512,6 +512,60 @@ def test_attack_with_bull_rush_against_damaged_target_adds_no_bonus_damage():
     attacker.attack(target)
     assert target.hp == 40  # 50 - 10, no bonus
 
+def test_attack_with_lifesteal_heals_attacker_for_half_of_damage_dealt():
+    attacker = Character(name="Lamia", hp=30, attack_damage=10)
+    attacker.has_lifesteal = True
+    attacker.hp = 10
+    target = Character(name="Hero", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert attacker.hp == 15  # 10 + (10 // 2)
+
+def test_attack_with_lifesteal_uses_damage_actually_dealt_after_armour():
+    attacker = Character(name="Lamia", hp=30, attack_damage=10)
+    attacker.has_lifesteal = True
+    attacker.hp = 10
+    target = Character(name="Hero", hp=100, attack_damage=0, armour=4)
+    attacker.attack(target)
+    assert attacker.hp == 13  # 6 damage dealt after armour, so 10 + 3
+
+def test_attack_with_lifesteal_does_not_heal_above_max_hp():
+    attacker = Character(name="Lamia", hp=30, attack_damage=10)
+    attacker.has_lifesteal = True
+    attacker.hp = 28
+    target = Character(name="Hero", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert attacker.hp == 30
+
+def test_attack_with_lifesteal_does_not_heal_when_no_damage_is_dealt():
+    attacker = Character(name="Lamia", hp=30, attack_damage=3)
+    attacker.has_lifesteal = True
+    attacker.hp = 10
+    target = Character(name="Hero", hp=100, attack_damage=0, armour=5)
+    attacker.attack(target)
+    assert attacker.hp == 10
+
+def test_attack_without_lifesteal_does_not_heal_attacker():
+    attacker = Character(name="Lamia", hp=30, attack_damage=10)
+    attacker.hp = 10
+    target = Character(name="Hero", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert attacker.hp == 10
+
+def test_attack_with_lifesteal_message_mentions_hp_drained():
+    attacker = Character(name="Lamia", hp=30, attack_damage=10)
+    attacker.has_lifesteal = True
+    attacker.hp = 10
+    target = Character(name="Hero", hp=100, attack_damage=0)
+    message = attacker.attack(target)
+    assert "drains 5 HP" in message
+
+def test_attack_with_lifesteal_at_full_hp_has_no_drain_message():
+    attacker = Character(name="Lamia", hp=30, attack_damage=10)
+    attacker.has_lifesteal = True
+    target = Character(name="Hero", hp=100, attack_damage=0)
+    message = attacker.attack(target)
+    assert "drains" not in message
+
 def test_attack_petrifying_gaze_forced_success_poisons_surviving_target(monkeypatch):
     monkeypatch.setattr("random.random", lambda: 0.1)  # below the 0.15 threshold
     attacker = Character(name="Hero", hp=30, attack_damage=5)
@@ -1163,6 +1217,10 @@ def test_character_initialises_with_has_bull_rush_false():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.has_bull_rush is False
 
+def test_character_initialises_with_has_lifesteal_false():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.has_lifesteal is False
+
 def test_character_initialises_with_has_iron_hide_false():
     character = Character(name="Hero", hp=30, attack_damage=5)
     assert character.has_iron_hide is False
@@ -1596,6 +1654,21 @@ def test_dodge_skill_apply_returns_message():
     skill = DodgeSkill(name="Nimble Grace", description="", chance=0.35)
     message = skill.apply(character)
     assert message == "Hero learns to slip aside from incoming blows."
+
+def test_enemy_initialises_with_has_lifesteal_false_by_default():
+    enemy = Enemy(name="Goblin", hp=10)
+    assert enemy.has_lifesteal is False
+
+def test_enemy_initialises_with_has_lifesteal():
+    enemy = Enemy(name="Lamia", hp=10, has_lifesteal=True)
+    assert enemy.has_lifesteal is True
+
+def test_enemy_with_lifesteal_heals_when_it_attacks():
+    enemy = Enemy(name="Lamia", hp=30, attack_damage=10, has_lifesteal=True)
+    enemy.hp = 10
+    target = Character(name="Hero", hp=100, attack_damage=0)
+    enemy.attack(target)
+    assert enemy.hp == 15
 
 def test_enemy_initialises_with_no_next_phase_factory_by_default():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
