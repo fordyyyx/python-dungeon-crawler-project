@@ -1,6 +1,6 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_cyclops_eye, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_crypt_keeper, create_cyclops_eye, create_fanatic, create_harpy, create_harpy_fletched_bow, create_lurker, create_prayer_bolt, create_tome_of_old_prayers, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
-from dungeon_crawler.items import QuestItem
+from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook
 
 
 def test_create_minotaur_has_correct_stats():
@@ -62,6 +62,119 @@ def test_create_shade_drops_weathered_helm():
     shade = create_shade()
     message = shade.on_death()
     assert "Weathered Helm" in message
+
+def test_create_crypt_keeper_has_correct_stats():
+    keeper = create_crypt_keeper()
+    assert keeper.name == "Crypt Keeper"
+    assert keeper.hp == 16
+    assert keeper.attack_damage == 6
+    assert keeper.armour == 1
+    assert len(keeper.loot) == 1
+    assert keeper.experience_reward == 12
+    assert keeper.gold_reward == 6
+
+def test_create_crypt_keeper_drops_vial_of_grave_rot():
+    keeper = create_crypt_keeper()
+    message = keeper.on_death()
+    assert "Vial of Grave Rot" in message
+
+def test_create_vial_of_grave_rot_has_correct_name_and_description():
+    vial = create_vial_of_grave_rot()
+    assert vial.name == "Vial of Grave Rot"
+    assert vial.description == "Thick, dark, and faintly luminous - whatever's in here hasn't been alive for a very long time."
+
+def test_create_vial_of_grave_rot_applies_a_three_turn_poison():
+    vial = create_vial_of_grave_rot()
+    assert vial.effect_name == "Poison"
+    assert vial.amount == -3
+    assert vial.duration == 3
+
+def test_create_vial_of_grave_rot_is_a_status_effect_item():
+    vial = create_vial_of_grave_rot()
+    assert isinstance(vial, StatusEffectItem)
+
+def test_create_harpy_has_correct_stats():
+    harpy = create_harpy()
+    assert harpy.name == "Harpy"
+    assert harpy.hp == 13
+    assert harpy.attack_damage == 7
+    assert harpy.armour == 0
+    assert len(harpy.loot) == 1
+    assert harpy.experience_reward == 11
+    assert harpy.gold_reward == 4
+
+def test_create_harpy_has_raised_aggression_weight():
+    harpy = create_harpy()
+    assert harpy.aggression_weight == 1.5
+
+def test_create_harpy_drops_harpy_fletched_bow():
+    harpy = create_harpy()
+    message = harpy.on_death()
+    assert "Harpy-fletched Bow" in message
+
+def test_create_harpy_fletched_bow_has_correct_stats():
+    bow = create_harpy_fletched_bow()
+    assert bow.name == "Harpy-fletched Bow"
+    assert bow.damage == 4
+
+def test_create_harpy_fletched_bow_occupies_the_ranged_slot():
+    bow = create_harpy_fletched_bow()
+    assert isinstance(bow, Weapon)
+    assert bow.slot == "ranged"
+
+def test_create_harpy_fletched_bow_equips_into_the_ranged_slot():
+    player = Player(name="hero", hp=100)
+    bow = create_harpy_fletched_bow()
+    bow.use(player)
+    assert player.equipped_ranged_weapon is bow
+    assert player.equipped_melee_weapon is None
+
+def test_create_fanatic_has_correct_stats():
+    fanatic = create_fanatic()
+    assert fanatic.name == "Fanatic"
+    assert fanatic.hp == 15
+    assert fanatic.attack_damage == 6
+    assert fanatic.armour == 0
+    assert len(fanatic.loot) == 1
+    assert fanatic.experience_reward == 13
+    assert fanatic.gold_reward == 7
+
+def test_create_fanatic_drops_tome_of_old_prayers():
+    fanatic = create_fanatic()
+    message = fanatic.on_death()
+    assert "Tome of Old Prayers" in message
+
+def test_create_prayer_bolt_has_correct_stats():
+    spell = create_prayer_bolt()
+    assert spell.name == "Prayer Bolt"
+    assert spell.mana_cost == 6
+    assert spell.damage == 8
+
+def test_create_tome_of_old_prayers_is_a_spell_book_teaching_prayer_bolt():
+    tome = create_tome_of_old_prayers()
+    assert isinstance(tome, SpellBook)
+    assert tome.spell.name == "Prayer Bolt"
+
+def test_create_tome_of_old_prayers_use_teaches_prayer_bolt():
+    player = Player(name="hero", hp=100)
+    tome = create_tome_of_old_prayers()
+    tome.use(player)
+    assert [spell.name for spell in player.known_spells] == ["Prayer Bolt"]
+
+def test_create_lurker_has_correct_stats():
+    lurker = create_lurker()
+    assert lurker.name == "Lurker"
+    assert lurker.hp == 17
+    assert lurker.attack_damage == 7
+    assert lurker.armour == 1
+    assert len(lurker.loot) == 1
+    assert lurker.experience_reward == 14
+    assert lurker.gold_reward == 8
+
+def test_create_lurker_drops_small_healing_potion():
+    lurker = create_lurker()
+    message = lurker.on_death()
+    assert "Small Healing Potion" in message
 
 def test_create_skeleton_warrior_has_correct_stats():
     skeleton_warrior = create_skeleton_warrior()
@@ -1173,6 +1286,26 @@ def test_build_floor_3_dim_corridor_connects_to_overgrown_forest_via_south():
 def test_build_floor_3_overgrown_forest_connects_to_dim_corridor_via_north():
     start, rooms = build_floor_3()
     assert rooms["Overgrown Forest"].get_exit("north") is rooms["Dim Corridor"]
+
+def test_build_floor_3_cave_of_harpies_has_harpy_enemy():
+    start, rooms = build_floor_3()
+    enemy_names = [enemy.name for enemy in rooms["Cave of Harpies"].enemies]
+    assert "Harpy" in enemy_names
+
+def test_build_floor_3_prayer_room_has_fanatic_enemy():
+    start, rooms = build_floor_3()
+    enemy_names = [enemy.name for enemy in rooms["Prayer Room"].enemies]
+    assert "Fanatic" in enemy_names
+
+def test_build_floor_3_dim_corridor_has_lurker_enemy():
+    start, rooms = build_floor_3()
+    enemy_names = [enemy.name for enemy in rooms["Dim Corridor"].enemies]
+    assert "Lurker" in enemy_names
+
+def test_build_floor_3_bony_crypt_has_crypt_keeper_enemy():
+    start, rooms = build_floor_3()
+    enemy_names = [enemy.name for enemy in rooms["Bony Crypt"].enemies]
+    assert "Crypt Keeper" in enemy_names
 
 def test_build_floor_3_overgrown_forest_has_centaur_enemy():
     start, rooms = build_floor_3()

@@ -103,7 +103,7 @@ pytest --cov=src/dungeon_crawler
 * `status_effects.py` - `StatusEffect` - the poison/flame/heal-over-time engine, ticked once per combat turn
 * `spells.py` - `Spell` - offensive/defensive/utility spellcasting
 * `world.py` - `Room`, `Map`
-* `content.py` - the actual game content: specific rooms, enemies, allies, and items, organized by floor, plus the ancestry options for character creation
+* `content/` - the actual game content: specific rooms, enemies, allies, and items, one module per floor, plus the ancestry options for character creation, dev-only test content, and `build_world()`
 * `combat.py` - combat resolution: team-vs-team turns, targeting, status-effect ticking, spellcasting, defeat handling, and fleeing
 * `exploration.py` - everything outside combat: picking up items, trading, recruiting/dismissing companions, repairing armour, examining, and the map
 * `character_creation.py` - ancestry selection and building the player character, plus the title screen and every save/load prompt

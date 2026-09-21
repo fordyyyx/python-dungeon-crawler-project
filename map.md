@@ -45,16 +45,16 @@ Forge of Prometheus {Prometheus - Friendly}
 Practice Chamber {Practice Enemy - Enemy} [NOTE: is_practice_chamber=True; the enemy has respawns=True and resets on defeat instead of being removed]
 * west -> Forge of Prometheus
 
-Bony Crypt {Skeleton Warrior - Enemy}
+Bony Crypt {Crypt Keeper - Enemy}
 * ascend -> Forge of Prometheus
 * south -> Cave of Harpies
-Cave of Harpies {Harpies - Enemy}
+Cave of Harpies {Harpy - Enemy}
 * north -> Bony Crypt
 * east -> Prayer Room
 * south -> Dim Corridor
-Prayer Room {Empousa - Enemy}
+Prayer Room {Fanatic - Enemy}
 * west -> Cave of Harpies
-Dim Corridor {Giant Scorpion - Enemy}
+Dim Corridor {Lurker - Enemy}
 * north -> Cave of Harpies
 * south -> Overgrown Forest
 Overgrown Forest {Centaur - Enemy}
@@ -193,7 +193,13 @@ Floors 3 and 4 have each gained their first real enemy content, placed as
 part of wiring up Athena's and Ares' trade items: the Minotaur is now in
 its own Labyrinth of the Minotaur (floor 4), alongside the new Centaur
 (Overgrown Forest, floor 3) and Cyclops (Cavern of the Cyclops, floor 4).
-Every other room on floors 3 and 4, and all of floors 5-9, remain
+Floor 3 is now fully populated with enemies: Bony Crypt holds a Crypt Keeper
+(drops the Vial of Grave Rot, the game's first real StatusEffectItem, an
+offensive poison), Cave of Harpies a Harpy (drops the Harpy-fletched Bow, the
+first real ranged weapon), Prayer Room a Fanatic (drops the Tome of Old
+Prayers, the first real SpellBook, teaching Prayer Bolt), Dim Corridor a
+Lurker (drops a Small Healing Potion), and Overgrown Forest the Centaur.
+Every other room on floor 4, and all of floors 5-9, remain
 unpopulated shells. Finishing Floor 2's population (Prometheus' trade and
 Trophy Room of Zeus) and floors 3-9's remaining population are all deferred
 to the "Populate all floors" roadmap item.

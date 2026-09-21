@@ -47,6 +47,21 @@ def test_find_item_by_name_returns_weathered_helm_for_known_name():
     assert item is not None
     assert item.name == "Weathered Helm"
 
+def test_find_item_by_name_returns_vial_of_grave_rot_for_known_name():
+    item = find_item_by_name("vial of grave rot")
+    assert item is not None
+    assert item.name == "Vial of Grave Rot"
+
+def test_find_item_by_name_returns_harpy_fletched_bow_for_known_name():
+    item = find_item_by_name("harpy-fletched bow")
+    assert item is not None
+    assert item.name == "Harpy-fletched Bow"
+
+def test_find_item_by_name_returns_tome_of_old_prayers_for_known_name():
+    item = find_item_by_name("tome of old prayers")
+    assert item is not None
+    assert item.name == "Tome of Old Prayers"
+
 def test_handle_dev_command_add_known_item_adds_to_inventory():
     player = Player(name="hero", hp=100)
     room = Room("A")
@@ -426,6 +441,26 @@ def test_find_enemy_by_name_returns_shade_for_known_name():
     assert enemy is not None
     assert enemy.name == "Shade"
 
+def test_find_enemy_by_name_returns_crypt_keeper_for_known_name():
+    enemy = find_enemy_by_name("crypt keeper")
+    assert enemy is not None
+    assert enemy.name == "Crypt Keeper"
+
+def test_find_enemy_by_name_returns_harpy_for_known_name():
+    enemy = find_enemy_by_name("harpy")
+    assert enemy is not None
+    assert enemy.name == "Harpy"
+
+def test_find_enemy_by_name_returns_fanatic_for_known_name():
+    enemy = find_enemy_by_name("fanatic")
+    assert enemy is not None
+    assert enemy.name == "Fanatic"
+
+def test_find_enemy_by_name_returns_lurker_for_known_name():
+    enemy = find_enemy_by_name("lurker")
+    assert enemy is not None
+    assert enemy.name == "Lurker"
+
 def test_find_ally_by_name_returns_ally_for_known_name():
     ally = find_ally_by_name("chiron")
     assert ally is not None
@@ -659,6 +694,11 @@ def test_find_spell_by_name_returns_spell_for_known_name():
     spell = find_spell_by_name("test bolt")
     assert spell is not None
     assert spell.name == "Test Bolt"
+
+def test_find_spell_by_name_returns_prayer_bolt_for_known_name():
+    spell = find_spell_by_name("prayer bolt")
+    assert spell is not None
+    assert spell.name == "Prayer Bolt"
 
 def test_find_spell_by_name_is_case_insensitive():
     spell = find_spell_by_name("TEST BOLT")

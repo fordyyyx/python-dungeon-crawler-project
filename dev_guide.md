@@ -92,9 +92,10 @@ content getting in the way.
 ### Spells
 - `dev grant spell <name>` — grants a known spell straight to your spellbook
   (`player.known_spells`), skipping the need for a `SpellBook` item.
-  - Example: `dev grant spell test bolt` — the only spell registered right
-    now (see below); mid-combat, `cast test bolt` deals 6 damage and applies
-    3 turns of poison in one go.
+  - Example: `dev grant spell test bolt` — mid-combat, `cast test bolt`
+    deals 6 damage and applies 3 turns of poison in one go.
+  - Example: `dev grant spell prayer bolt` — the real spell (see below);
+    `cast prayer bolt` deals 8 damage for 6 mana.
 
 ### Movement and world state
 - `dev teleport <room name>` — case-insensitive teleport to any room in the
@@ -123,12 +124,13 @@ case-insensitively):
 `mentor's token`, `charon's coin`, `bronze xiphos`, `shield of aegis
 (fragment)`, `vial of ambrosia`, `bronze breastplate`, `small healing
 potion`, `cyclops eye`, `spear of ares`, `centaur's broken bow`, `skeleton
-bone`, `breastplate of athena`, `favour of hermes`, `weathered helm`, `test
-spellbook`, `test healing tonic`, `test venom vial`.
+bone`, `breastplate of athena`, `favour of hermes`, `weathered helm`, `vial of
+grave rot`, `harpy-fletched bow`, `tome of old prayers`, `test spellbook`,
+`test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
-`minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `test boss` — a dev-only,
-two-phase boss (hp 1 throughout) whose first phase is gated behind a
+`minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
+`fanatic`, `lurker`, `test boss` — a dev-only, two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
 `next_phase_factory` end-to-end.
 
@@ -141,14 +143,16 @@ with all three AI actions live (non-zero attack, `heal_amount`, and
 immediately after spawning.
 
 **Spells** (`dev grant spell <name>`): `test bolt` — a dev-only combo spell
-(damage + poison in one cast).
+(damage + poison in one cast); `prayer bolt` — the real spell taught by the
+Tome of Old Prayers (8 damage, 6 mana).
 
 ## What can't be playtested through real game content yet
 
 Companions, Spells, and status-effect items all have their full engine
 built and unit-tested, and are now genuinely reachable in a live `main()`
-run through dev tooling (see the recipes above and below) — but none of the
-three exist as *real, narrative* content placed anywhere by `build_world()`:
+run through dev tooling (see the recipes above and below) — but Companions
+don't exist as *real, narrative* content placed anywhere by `build_world()`,
+and Spells and status-effect items only partly do:
 
 - **Companions.** No room in the actual world holds a recruitable
   `Companion` — `dev spawn test companion` (above) is the only way to reach
@@ -156,35 +160,36 @@ three exist as *real, narrative* content placed anywhere by `build_world()`:
   downed, `dismiss`, `Reviver`) works identically either way, since it's the
   same `Companion` class and the same `recruit_companion()`/combat AI either
   way.
-- **Spells.** `test bolt` (above) is the only registered `Spell`, and `test
-  spellbook` (`dev add`) is the only way to actually pick up a `SpellBook`
-  item — no real ally/loot grants one yet. Mana/`rest`/`wait` work fine on
-  their own regardless.
-- **Status-effect items.** `test healing tonic` and `test venom vial`
-  (`dev add`, above) are the only two `StatusEffectItem`s that exist, and
-  neither is real loot or a trade reward yet. `dev afflict` (above) remains
-  the more direct way to test status-effect ticking without needing either
-  item.
+- **Spells.** One real spell exists now: Prayer Bolt, taught by the Tome of
+  Old Prayers, which drops from the Fanatic in Prayer Room (floor 3) - no
+  workaround needed. It's the only real one, though: `test bolt`/`test
+  spellbook` remain the only way to reach a spell with a status-effect
+  component. Mana/`rest`/`wait` work fine on their own regardless.
+- **Status-effect items.** The offensive kind is real content now: the
+  Vial of Grave Rot (a 3-turn poison) drops from the Crypt Keeper in Bony
+  Crypt (floor 3) and needs no workaround. The heal-over-time kind isn't -
+  `test healing tonic` (`dev add`, above) is the only one that exists, and
+  it isn't real loot or a trade reward yet. `test venom vial` is now just a
+  dev-only duplicate of the real vial's effect. `dev afflict` (above)
+  remains the more direct way to test status-effect ticking without needing
+  any item.
 
-Real, narrative versions of all three are expected as part of "Populate all
+Real, narrative versions of the rest are expected as part of "Populate all
 floors" (`roadmap.md`) — until then, the `test ...` names above are the only
-way to reach any of this outside the automated test suite.
+way to reach Companions or heal-over-time items outside the automated test
+suite.
 
-- **Ranged attacks — currently unreachable through *any* means, not even dev
-  tools.** `attack ranged` requires an equipped ranged (`slot="ranged"`)
-  `Weapon`, but no such weapon exists anywhere — not in real game content,
-  and not as dev-test content either (unlike Companions/Spells/status-effect
-  items above, there's no `create_test_*()` ranged weapon and no
-  `ITEM_REGISTRY` entry for one). Until one is added, the only way to
-  exercise the `"ranged"` branch of `Character.attack()` at all is a direct
-  unit test (see `test_characters.py`/`test_combat.py`), not a live
-  `main()` run. `attack`/`attack light`/`attack heavy` need no such
-  workaround — every enemy encounter reaches them fine.
+- **Ranged attacks are reachable now.** The Harpy-fletched Bow (`slot="ranged"`,
+  4 damage) drops from the Harpy in Cave of Harpies (floor 3), or `dev add
+  harpy-fletched bow` skips the trip. Equip it with `use`, then `attack
+  ranged` works. It's the only ranged weapon, and there's no `create_test_*()`
+  one.
 
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
 2, `is_forge=True`), Dodge, light/heavy attacks, the Practice Chamber's
-respawning dummy, the Minotaur/Centaur/Cyclops/Shade enemies (floors 1, 3-4),
+respawning dummy, the Minotaur/Centaur/Cyclops/Shade/Crypt
+Keeper/Harpy/Fanatic/Lurker enemies (floors 1, 3-4),
 Hermes'/Athena's/Ares' now-completable trades, and reloading from your last
 save on death instead of the game always just ending — has real, reachable
 in-game content and needs no dev-tool workaround to try. The Weathered Helm
@@ -263,6 +268,14 @@ sibling is still alive, nothing else happens yet. The third `attack` kills the
 last add, triggering the deferred transition to Test Boss (Phase 2). The
 fourth `attack` kills Phase 2 for good, ending combat with its own gold/XP
 reward.
+
+**Try a ranged attack:**
+```
+dev add harpy-fletched bow
+use harpy-fletched bow
+dev spawn skeleton warrior
+attack ranged
+```
 
 **Try casting a spell:**
 ```
