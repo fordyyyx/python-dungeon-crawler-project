@@ -1670,6 +1670,14 @@ def test_enemy_with_lifesteal_heals_when_it_attacks():
     enemy.attack(target)
     assert enemy.hp == 15
 
+def test_enemy_initialises_with_has_petrifying_gaze_false_by_default():
+    enemy = Enemy(name="Goblin", hp=10)
+    assert enemy.has_petrifying_gaze is False
+
+def test_enemy_initialises_with_has_petrifying_gaze():
+    enemy = Enemy(name="Medusa (Awakened)", hp=10, has_petrifying_gaze=True)
+    assert enemy.has_petrifying_gaze is True
+
 def test_enemy_initialises_with_no_next_phase_factory_by_default():
     enemy = Enemy(name="Goblin", hp=15, attack_damage=4)
     assert enemy.next_phase_factory is None

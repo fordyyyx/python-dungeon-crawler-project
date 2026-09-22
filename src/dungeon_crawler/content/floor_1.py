@@ -38,6 +38,7 @@ def create_weathered_helm() -> Armour:
         description="Bronze gone dull and pitted, but the shape still holds - whoever wore it last isn't wearing it now.",
         defence=1,
         slot="helmet",
+        max_durability=5,
     )
 
 def create_skeleton_bone() -> QuestItem:
@@ -78,7 +79,8 @@ def create_bronze_breastplate() -> Armour:
     return Armour(
         name="Bronze Breastplate",
         defence=2,
-        description="Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just."
+        description="Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just.",
+        max_durability=8
     )
 
 def build_floor_1() -> tuple[Room, dict[str, Room]]:

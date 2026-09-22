@@ -292,3 +292,29 @@ def test_room_reveal_hidden_exits_does_not_affect_existing_normal_exits():
     a.reveal_hidden_exits()
     assert a.get_exit("north") is b
     assert a.get_exit("down") is c
+
+def test_room_initialises_with_no_fast_travel_locks():
+    room = Room("A")
+    assert room.fast_travel_locks == set()
+
+def test_room_lock_fast_travel_exit_adds_direction_to_locks():
+    room = Room("A")
+    room.lock_fast_travel_exit("prayer room")
+    assert "prayer room" in room.fast_travel_locks
+
+def test_room_lock_fast_travel_exit_does_not_affect_exits():
+    room = Room("A")
+    other = Room("B")
+    room.connect("prayer room", other)
+    room.lock_fast_travel_exit("prayer room")
+    assert room.get_exit("prayer room") is other
+
+def test_room_initialises_with_no_exit_activations():
+    room = Room("A")
+    assert room.exit_activations == {}
+
+def test_room_register_fast_travel_activation_records_pairing():
+    a = Room("A")
+    b = Room("B")
+    a.register_fast_travel_activation("forge", b, "prayer room")
+    assert a.exit_activations["forge"] == (b, "prayer room")

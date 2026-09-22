@@ -26,7 +26,7 @@ def create_crypt_keeper() -> Enemy:
         hp=16,
         attack_damage=6,
         armour=1,
-        loot=[create_vial_of_grave_rot()],
+        loot=[create_vial_of_grave_rot(), create_small_healing_potion()],
         description="Not a skeleton like the others - this one moves with purpose, tending to bones that were never meant to be disturbed.",
         experience_reward=12,
         gold_reward=6,
@@ -123,9 +123,16 @@ def build_floor_3() -> tuple[Room, dict[str, Room]]:
     """Low Dungeon - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, and Overgrown Forest."""
     bony_crypt = Room(name="Bony Crypt", description="Skeletal remains are stacked floor to ceiling in neat, deliberate rows — someone, once, cared enough to arrange them.")
     cave_of_harpies = Room(name="Cave of Harpies", description="Feathers and old bones litter a cave mouth that reeks of carrion; shrieks echo faintly from somewhere above.")
-    prayer_room = Room(name="Prayer Room", description="Faded murals of forgotten gods cover the walls, the air thick with old incense and older dread.")
+    prayer_room = Room(name="Prayer Room", description="Faded murals of forgotten gods cover the walls, the air thick with old incense and older dread. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.")
     dim_corridor = Room(name="Dim Corridor", description="A low, narrow passage where the torchlight barely reaches the far end.")
-    overgrown_forest = Room(name="Overgrown Forest", description="Twisted black trees crowd close overhead, roots breaking up through the stone floor as if the dungeon itself is being reclaimed.")
+    overgrown_forest = Room(name="Overgrown Forest", 
+                            description="Twisted black trees crowd close overhead, roots breaking up through the stone floor as if the dungeon itself is being reclaimed.", 
+                            examine_text=(
+                                        "Carved into a half-buried stone, worn but still legible: \"Stength alone does not survive what waits below. "
+                                        "Say 'learn <path>' - attack, defence, or abilities - to spend what you've earned. The labyrinth does not forgive " \
+                                        "those who go down unprepared.\""
+                                        ),
+    )
 
     bony_crypt.connect("south", cave_of_harpies)
     cave_of_harpies.connect("north", bony_crypt)

@@ -685,3 +685,93 @@ def test_main_autosaves_on_first_crossing_into_a_new_floor(monkeypatch, capsys, 
     assert "(autosaved)" in captured.out
     from dungeon_crawler import save_system
     assert save_system.slot_exists(1, 1) is True
+
+def test_main_moving_below_full_hp_grants_passive_regen(monkeypatch, capsys, tmp_path):
+    """Crossing into another room while below max_hp restores PASSIVE_REGEN_PER_MOVE HP and prints a message - the passive
+    regen introduced alongside the death-reload/save work, exploration-only (movement is never reachable mid-combat)."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "dev set hp 15",
+        "north",
+        "stats",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You catch your breath as you move on. (+1 HP)" in captured.out
+    assert "16 HP" in captured.out
+
+def test_main_moving_at_full_hp_does_not_print_passive_regen_message(monkeypatch, capsys, tmp_path):
+    """No regen message (or HP change) when the player is already at max_hp when they move."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "north",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You catch your breath" not in captured.out
+
+def test_main_forge_reciprocal_exit_blocked_until_activated_from_the_other_side(monkeypatch, capsys, tmp_path):
+    """The Forge of Prometheus's reciprocal fast-travel exits (back to Prayer Room/Stony Lair/Maze of Pillars)
+    stay locked until the corresponding one-way 'forge' exit has been used from that room first."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "dev teleport forge of prometheus",
+        "prayer room",
+        "look",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You haven't opened this shortcut yet - reach it from the other side first." in captured.out
+    assert "Three faint doorways" in captured.out.split("You haven't opened")[-1]
+
+def test_main_using_forge_shortcut_unlocks_the_reciprocal_exit(monkeypatch, capsys, tmp_path):
+    """Using Prayer Room's one-way 'forge' exit unlocks the Forge of Prometheus's reciprocal 'prayer room' exit,
+    which then works immediately."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "dev teleport prayer room",
+        "forge",
+        "prayer room",
+        "look",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "The path back opens behind you." in captured.out
+    assert "You haven't opened this shortcut yet" not in captured.out
+    assert "Faded murals" in captured.out.split("The path back opens behind you.")[-1]

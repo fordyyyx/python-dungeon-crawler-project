@@ -10,6 +10,7 @@ from dungeon_crawler.character_creation import choose_ancestry, choose_secondary
 from dungeon_crawler import save_system
 
 REST_MANA_AMOUNT = 10
+PASSIVE_REGEN_PER_MOVE = 1
 
 
 def print_room(room: Room, player: Player):
@@ -272,11 +273,21 @@ def main() -> None:
                 print(display_map(current_room, player))
 
             elif command in current_room.exits:
-                if is_exit_locked(current_room, command, player):
+                if command in current_room.fast_travel_locks:
+                    print("You haven't opened this shortcut yet - reach it from the other side first.")
+                elif is_exit_locked(current_room, command, player):
                     required = current_room.locked_exits[command]
                     print(f"That way is locked. You need the {required} first.")
                 else:
+                    if command in current_room.exit_activations:
+                        unlock_room, unlock_direction = current_room.exit_activations[command]
+                        if unlock_direction in unlock_room.fast_travel_locks:
+                            unlock_room.fast_travel_locks.discard(unlock_direction)
+                            print("The path back opens behind you.")
                     current_room = current_room.exits[command]
+                    if player.hp < player.max_hp:
+                        player.hp = min(player.max_hp, player.hp + PASSIVE_REGEN_PER_MOVE)
+                        print(f"You catch your breath as you move on. (+{PASSIVE_REGEN_PER_MOVE} HP)")
                     found_floor = find_floor_for_room(current_room, all_floors)
                     if found_floor is not None:
                         current_floor_rooms = all_floors[found_floor]

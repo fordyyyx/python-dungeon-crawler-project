@@ -47,6 +47,21 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     floor_8_rooms["Hall of Hades"].connect("descend", floor_9_rooms["Tartarus"])
     floor_9_rooms["Tartarus"].connect("ascend", floor_8_rooms["Hall of Hades"])
 
+    floor_3_rooms["Prayer Room"].connect("forge", floor_2_rooms["Forge of Prometheus"])
+    floor_2_rooms["Forge of Prometheus"].connect("prayer room", floor_3_rooms["Prayer Room"])
+    floor_2_rooms["Forge of Prometheus"].lock_fast_travel_exit("prayer room")
+    floor_3_rooms["Prayer Room"].register_fast_travel_activation("forge", floor_2_rooms["Forge of Prometheus"], "prayer room")
+
+    floor_4_rooms["Stony Lair"].connect("forge", floor_2_rooms["Forge of Prometheus"])
+    floor_2_rooms["Forge of Prometheus"].connect("stony lair", floor_4_rooms["Stony Lair"])
+    floor_2_rooms["Forge of Prometheus"].lock_fast_travel_exit("stony lair")
+    floor_4_rooms["Stony Lair"].register_fast_travel_activation("forge", floor_2_rooms["Forge of Prometheus"], "stony lair")
+
+    floor_4_rooms["Maze of Pillars"].connect("forge", floor_2_rooms["Forge of Prometheus"])
+    floor_2_rooms["Forge of Prometheus"].connect("maze of pillars", floor_4_rooms["Maze of Pillars"])
+    floor_2_rooms["Forge of Prometheus"].lock_fast_travel_exit("maze of pillars")
+    floor_4_rooms["Maze of Pillars"].register_fast_travel_activation("forge", floor_2_rooms["Forge of Prometheus"], "maze of pillars")
+
     all_floors = {
         "floor_0": floor_0_rooms,
         "floor_1": floor_1_rooms,

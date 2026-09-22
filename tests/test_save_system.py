@@ -409,6 +409,18 @@ def test_serialise_room_locked_exits_are_not_captured():
     assert data["unlocked_extras"] == []
     assert data["locked_exits_removed"] == []
 
+def test_serialise_room_includes_fast_travel_locks():
+    room = Room("Chamber")
+    room.lock_fast_travel_exit("prayer room")
+    room.lock_fast_travel_exit("stony lair")
+    data = serialise_room(room)
+    assert data["fast_travel_locks"] == ["prayer room", "stony lair"]
+
+def test_serialise_room_with_no_fast_travel_locks_returns_empty_list():
+    room = Room("Chamber")
+    data = serialise_room(room)
+    assert data["fast_travel_locks"] == []
+
 # ---- apply_room_data ----
 
 def test_apply_room_data_removes_enemy_not_in_save():
@@ -459,6 +471,20 @@ def test_apply_room_data_leaves_incomplete_trades_alone():
     data = {"enemies": [], "items": [], "allies_traded": []}
     apply_room_data(room, data)
     assert ally.trade_completed is False
+
+def test_apply_room_data_restores_fast_travel_locks():
+    room = Room("Chamber")
+    room.lock_fast_travel_exit("prayer room")
+    data = {"enemies": [], "items": [], "allies_traded": [], "fast_travel_locks": []}
+    apply_room_data(room, data)
+    assert room.fast_travel_locks == set()
+
+def test_apply_room_data_without_fast_travel_locks_key_leaves_existing_locks_unchanged():
+    room = Room("Chamber")
+    room.lock_fast_travel_exit("prayer room")
+    data = {"enemies": [], "items": [], "allies_traded": []}
+    apply_room_data(room, data)
+    assert room.fast_travel_locks == {"prayer room"}
 
 # ---- serialise_world / apply_world_data ----
 

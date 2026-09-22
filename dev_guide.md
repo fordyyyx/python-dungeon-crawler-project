@@ -125,14 +125,20 @@ case-insensitively):
 (fragment)`, `vial of ambrosia`, `bronze breastplate`, `small healing
 potion`, `cyclops eye`, `spear of ares`, `centaur's broken bow`, `skeleton
 bone`, `breastplate of athena`, `favour of hermes`, `weathered helm`, `vial of
-grave rot`, `harpy-fletched bow`, `tome of old prayers`, `test spellbook`,
-`test healing tonic`, `test venom vial`.
+grave rot`, `harpy-fletched bow`, `tome of old prayers`, `chipped stone
+aegis`, `wineskin of dionysus`, `lamia's fang`, `sun-scorched dagger`,
+`talos' bronze plating`, `serpent's kiss`, `test spellbook`, `test healing
+tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
-`fanatic`, `lurker`, `test boss` — a dev-only, two-phase boss (hp 1 throughout) whose first phase is gated behind a
+`fanatic`, `lurker`, `petrified guardian`, `satyr`, `lamia`, `ember wraith`,
+`talos`, `medusa`, `gorgon`, `medusa (awakened)`, `test boss` — a dev-only,
+two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
-`next_phase_factory` end-to-end.
+`next_phase_factory` end-to-end. `medusa`/`gorgon`/`medusa (awakened)` are
+the real equivalent now (floor 4, Lair of Medusa) - `test boss` stays
+useful for isolated testing without a full room/fight.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`.
@@ -165,19 +171,17 @@ and Spells and status-effect items only partly do:
   workaround needed. It's the only real one, though: `test bolt`/`test
   spellbook` remain the only way to reach a spell with a status-effect
   component. Mana/`rest`/`wait` work fine on their own regardless.
-- **Status-effect items.** The offensive kind is real content now: the
-  Vial of Grave Rot (a 3-turn poison) drops from the Crypt Keeper in Bony
-  Crypt (floor 3) and needs no workaround. The heal-over-time kind isn't -
-  `test healing tonic` (`dev add`, above) is the only one that exists, and
-  it isn't real loot or a trade reward yet. `test venom vial` is now just a
-  dev-only duplicate of the real vial's effect. `dev afflict` (above)
-  remains the more direct way to test status-effect ticking without needing
-  any item.
+- **Status-effect items.** Both kinds are real content now: the Vial of
+  Grave Rot (a 3-turn poison) drops from the Crypt Keeper in Bony Crypt
+  (floor 3), and the Wineskin of Dionysus (a 3-turn Regen) drops from the
+  Satyr in Mossy Grove (floor 4) - neither needs a workaround. `test
+  healing tonic`/`test venom vial` are now just dev-only duplicates of the
+  two real items' effects. `dev afflict` (above) remains the more direct
+  way to test status-effect ticking without needing any item.
 
 Real, narrative versions of the rest are expected as part of "Populate all
-floors" (`roadmap.md`) — until then, the `test ...` names above are the only
-way to reach Companions or heal-over-time items outside the automated test
-suite.
+floors" (`roadmap.md`) — until then, `dev spawn test companion` is the only
+way to reach a Companion outside the automated test suite.
 
 - **Ranged attacks are reachable now.** The Harpy-fletched Bow (`slot="ranged"`,
   4 damage) drops from the Harpy in Cave of Harpies (floor 3), or `dev add
@@ -188,16 +192,28 @@ suite.
 Everything else that's landed recently — the helmet/body armour split,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
 2, `is_forge=True`), Dodge, light/heavy attacks, the Practice Chamber's
-respawning dummy, the Minotaur/Centaur/Cyclops/Shade/Crypt
-Keeper/Harpy/Fanatic/Lurker enemies (floors 1, 3-4),
-Hermes'/Athena's/Ares' now-completable trades, and reloading from your last
-save on death instead of the game always just ending — has real, reachable
-in-game content and needs no dev-tool workaround to try. The Weathered Helm
-(Shade's drop, Fields of Asphodel) is also content's first real
-`slot="helmet"` item - see `CLAUDE.md`'s "Armour slots and durability." Only
-Prometheus' trade is still unwritten content (no required items or reward,
-so it completes instantly for nothing) - see roadmap.md's "Populate all
-floors."
+respawning dummy, every floor 1/3/4 enemy (Shade, Crypt Keeper, Harpy,
+Fanatic, Lurker, Petrified Guardian, Satyr, Lamia, Ember Wraith, Talos,
+Medusa), Hermes'/Athena's/Ares' now-completable trades, and reloading from
+your last save on death instead of the game always just ending — has real,
+reachable in-game content and needs no dev-tool workaround to try. The
+Weathered Helm (Shade's drop, Fields of Asphodel) is also content's first
+real `slot="helmet"` item, and Lamia is the first enemy with
+`Character.has_lifesteal` - see `CLAUDE.md`'s "Armour slots and durability"
+and "Canonical attribute names." Only Prometheus' trade is still unwritten
+content (no required items or reward, so it completes instantly for
+nothing) - see roadmap.md's "Populate all floors."
+
+Two more small things from the same playtesting pass: moving into a new
+room now restores 1 HP if you're below full (`"You catch your breath as
+you move on."`), and there are three new `forge` shortcut exits straight
+back to the Forge of Prometheus from Prayer Room (floor 3), Stony Lair, and
+Maze of Pillars (floor 4) - no dev command needed for either, both are
+reachable through normal play. The Forge also has three reciprocal exits
+back out to those same rooms (`prayer room`/`stony lair`/`maze of pillars`),
+each locked until you've used the one-way `forge` exit from that room at
+least once - see the recipe below, and `CLAUDE.md`'s "Fast-travel locks"
+for how the enforcement works.
 
 ## The Practice Chamber isn't a dev tool
 Unlike everything else in this file, the Practice Chamber (floor 2, next to
@@ -267,7 +283,26 @@ auto-updates to the first one. The second `attack` kills that add; since its
 sibling is still alive, nothing else happens yet. The third `attack` kills the
 last add, triggering the deferred transition to Test Boss (Phase 2). The
 fourth `attack` kills Phase 2 for good, ending combat with its own gold/XP
-reward.
+reward. Same chain, real stats and lore: `dev spawn medusa` (or just walk to
+the Lair of Medusa, floor 4) for the genuine fight - Medusa (Phase 1) falls
+to a wave of two Gorgons, then Medusa (Awakened) appears once both are dead.
+
+**Try the forge shortcut and its fast-travel lock:**
+```
+dev teleport forge of prometheus
+prayer room
+dev teleport prayer room
+forge
+prayer room
+```
+The first `prayer room` fails - `"You haven't opened this shortcut yet -
+reach it from the other side first."` - since the Forge's reciprocal exit
+starts locked (`Room.fast_travel_locks`). `dev teleport prayer room` then
+`forge` moves you from Prayer Room straight to the Forge - real content, no
+dev command needed for that part - and prints `"The path back opens behind
+you."`, unlocking the reciprocal exit (`Room.exit_activations`). The final
+`prayer room` now succeeds. Stony Lair and Maze of Pillars (floor 4) work
+the same way.
 
 **Try a ranged attack:**
 ```

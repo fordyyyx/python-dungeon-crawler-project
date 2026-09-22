@@ -52,7 +52,8 @@ def create_wooden_shield() -> Armour:
     return Armour(
         name="Wooden Shield",
         description="Warped and dry-rotted at the edges, but it'll turn aside a training blow well enough.",
-        defence=1
+        defence=1,
+        max_durability=6,
     )
 
 def create_mentor() -> Ally:

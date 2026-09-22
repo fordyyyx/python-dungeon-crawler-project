@@ -77,6 +77,21 @@ def test_find_item_by_name_returns_lamias_fang_for_known_name():
     assert item is not None
     assert item.name == "Lamia's Fang"
 
+def test_find_item_by_name_returns_sunscorched_dagger_for_known_name():
+    item = find_item_by_name("sun-scorched dagger")
+    assert item is not None
+    assert item.name == "Sun-scorched Dagger"
+
+def test_find_item_by_name_returns_talos_bronze_plating_for_known_name():
+    item = find_item_by_name("talos' bronze plating")
+    assert item is not None
+    assert item.name == "Talos' Bronze Plating"
+
+def test_find_item_by_name_returns_serpents_kiss_for_known_name():
+    item = find_item_by_name("serpent's kiss")
+    assert item is not None
+    assert item.name == "Serpent's Kiss"
+
 def test_handle_dev_command_add_known_item_adds_to_inventory():
     player = Player(name="hero", hp=100)
     room = Room("A")
@@ -490,6 +505,31 @@ def test_find_enemy_by_name_returns_lamia_for_known_name():
     enemy = find_enemy_by_name("lamia")
     assert enemy is not None
     assert enemy.name == "Lamia"
+
+def test_find_enemy_by_name_returns_ember_wraith_for_known_name():
+    enemy = find_enemy_by_name("ember wraith")
+    assert enemy is not None
+    assert enemy.name == "Ember Wraith"
+
+def test_find_enemy_by_name_returns_talos_for_known_name():
+    enemy = find_enemy_by_name("talos")
+    assert enemy is not None
+    assert enemy.name == "Talos"
+
+def test_find_enemy_by_name_returns_medusa_for_known_name():
+    enemy = find_enemy_by_name("medusa")
+    assert enemy is not None
+    assert enemy.name == "Medusa"
+
+def test_find_enemy_by_name_returns_gorgon_for_known_name():
+    enemy = find_enemy_by_name("gorgon")
+    assert enemy is not None
+    assert enemy.name == "Gorgon"
+
+def test_find_enemy_by_name_returns_medusa_awakened_for_known_name():
+    enemy = find_enemy_by_name("medusa (awakened)")
+    assert enemy is not None
+    assert enemy.name == "Medusa (Awakened)"
 
 def test_find_ally_by_name_returns_ally_for_known_name():
     ally = find_ally_by_name("chiron")

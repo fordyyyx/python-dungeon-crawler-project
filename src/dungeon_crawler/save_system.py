@@ -165,6 +165,7 @@ def serialise_room(room) -> dict:
         "unlocked_extras": [d for d in list(room.locked_exits) if False], 
         "locked_exits_removed": [],
         "allies_traded": [ally.name for ally in room.allies if getattr(ally, "trade_completed", False)],
+        "fast_travel_locks": sorted(room.fast_travel_locks),
     }
 
 def apply_room_data(room, data: dict) -> None:
@@ -192,6 +193,9 @@ def apply_room_data(room, data: dict) -> None:
     for ally in room.allies:
         if ally.name in data["allies_traded"]:
             ally.trade_completed = True
+
+    if "fast_travel_locks" in data:
+        room.fast_travel_locks = set(data["fast_travel_locks"])
 
 def serialise_world(world: Map) -> dict:
     """Snapshot every room in world."""

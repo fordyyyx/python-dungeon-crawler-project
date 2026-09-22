@@ -14,6 +14,13 @@ class Room:
         self.hidden_exits: dict[str, "Room"] = {}
         """Exits that dont appear in .exits (and therefore not in map/fullmap) until revealed via reveal_hidden_exits()."""
         self.locked_exits: dict[str, str] = {}
+        self.fast_travel_locks: set[str] = set()
+        """Directions on THIS room that can't be used yet - separate from locked_exits (item-gated); these are gated by having used the paired
+        exit from the other side at least once (see exit_activations, register_fast_travel_actication()). Unlike locked_exits, this genuinely
+        mutates during play, so it's part of save data - see save_system.py."""
+        self.exit_activations: dict[str, tuple["Room", str]] = {}
+        """direction (on this room) -> (room, direction) to unlock the moment THIS exit is successfully used. Set once at world-build time, never
+        mutated during play - same category as locked_exits, exits themselves: static, not saved."""
         self._items: list = []
         self._enemies: list = []
         self._allies: list = []
@@ -32,6 +39,14 @@ class Room:
     def lock_exit(self, direction: str, required_item_name: str) -> None:
         """Require required_item_name to pass through this exit - see is_exit_locked() in exploration.py, which checks this."""
         self.locked_exits[direction] = required_item_name
+
+    def lock_fast_travel_exit(self, direction: str) -> None:
+        """Mark 'direction' as locked until the paired exit elsewhere is used - see fast_travel_locks."""
+        self.fast_travel_locks.add(direction)
+
+    def register_fast_travel_activation(self, direction: str, unlocks_room: "Room", unlocks_direction: str) -> None:
+        """The moment 'direction' on THIS room is successfully used, unlock 'unlocks_direction' on 'unlocks_room'."""
+        self.exit_activations[direction] = (unlocks_room, unlocks_direction)
 
     def add_item(self, item):
         """Add item to this room."""

@@ -72,6 +72,7 @@ def create_breastplate_of_athena() -> Armour:
         name="Breastplate of Athena",
         description="Cool to the touch even in the deepest heat, etched with an owl that seems to watch whichever way danger comes from.",
         defence=4,
+        max_durability=15,
     )
 
 def create_spear_of_ares() -> Weapon:
@@ -95,7 +96,7 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     library_of_athena = Room(name="Library of Athena", description="Towering shelves of scrolls creak under their own weight; an owl watches from the rafters, unblinking.")
     armoury_of_ares = Room(name="Armoury of Ares", description="Racks of corroded bronze weapons line the walls, still faintly warm to the touch.", examine_text="One section of the far wall looks less like stone, and more like it's been built to resemble stone.", required_intellect=3)
     hall_of_hermes = Room(name="Hall of Hermes", description="A cluttered waypoint stacked with parcels and letters never delivered, sandals of every size hung along one wall.")
-    forge_of_prometheus = Room(name="Forge of Prometheus", description="The air shimmers with heat from a fire that never seems to go out, chained tools scattered across a worn anvil.", is_forge=True)
+    forge_of_prometheus = Room(name="Forge of Prometheus", description="The air shimmers with heat from a fire that never seems to go out, chained tools scattered across a worn anvil. Three faint doorways shimmer at the edges of the room, each one waiting to be opened from the other side.", is_forge=True)
     practice_chamber = Room(name="Practice Chamber", description="A sand-floored alcove beside the forge's heat, a single straw-and-rope dummy standing ready at its centre.", is_practice_chamber=True)
     trophy_room_of_zeus = Room(name="Trophy Room of Zeus", description="A narrow chamber lit by no visible flame, empty display alcoves lining every wall, patiently waiting to be filled.")
 

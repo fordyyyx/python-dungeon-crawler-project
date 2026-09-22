@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_fanatic, create_harpy, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_petrified_guardian, create_prayer_bolt, create_satyr, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
 
@@ -69,7 +69,7 @@ def test_create_crypt_keeper_has_correct_stats():
     assert keeper.hp == 16
     assert keeper.attack_damage == 6
     assert keeper.armour == 1
-    assert len(keeper.loot) == 1
+    assert len(keeper.loot) == 2
     assert keeper.experience_reward == 12
     assert keeper.gold_reward == 6
 
@@ -77,6 +77,11 @@ def test_create_crypt_keeper_drops_vial_of_grave_rot():
     keeper = create_crypt_keeper()
     message = keeper.on_death()
     assert "Vial of Grave Rot" in message
+
+def test_create_crypt_keeper_drops_small_healing_potion():
+    keeper = create_crypt_keeper()
+    message = keeper.on_death()
+    assert "Small Healing Potion" in message
 
 def test_create_vial_of_grave_rot_has_correct_name_and_description():
     vial = create_vial_of_grave_rot()
@@ -182,7 +187,7 @@ def test_create_petrified_guardian_has_correct_stats():
     assert guardian.hp == 18
     assert guardian.attack_damage == 6
     assert guardian.armour == 3
-    assert len(guardian.loot) == 1
+    assert len(guardian.loot) == 2
     assert guardian.experience_reward == 16
     assert guardian.gold_reward == 9
 
@@ -191,12 +196,21 @@ def test_create_petrified_guardian_drops_chipped_stone_aegis():
     message = guardian.on_death()
     assert "Chipped Stone Aegis" in message
 
+def test_create_petrified_guardian_drops_small_healing_potion():
+    guardian = create_petrified_guardian()
+    message = guardian.on_death()
+    assert "Small Healing Potion" in message
+
 def test_create_chipped_stone_aegis_has_correct_defence_and_defaults_to_body_slot():
     aegis = create_chipped_stone_aegis()
     assert isinstance(aegis, Armour)
     assert aegis.name == "Chipped Stone Aegis"
     assert aegis.defence == 3
     assert aegis.slot == "body"
+
+def test_create_chipped_stone_aegis_has_correct_max_durability():
+    aegis = create_chipped_stone_aegis()
+    assert aegis.max_durability == 10
 
 def test_create_satyr_has_correct_stats():
     satyr = create_satyr()
@@ -251,6 +265,119 @@ def test_create_lamia_attack_drains_hp_from_the_target():
     player = Player(name="hero", hp=100)
     lamia.attack(player)
     assert lamia.hp == 8  # 7 damage dealt (no armour), heals 7 // 2
+
+def test_create_ember_wraith_has_correct_stats():
+    wraith = create_ember_wraith()
+    assert wraith.name == "Ember Wraith"
+    assert wraith.hp == 19
+    assert wraith.attack_damage == 7
+    assert wraith.armour == 1
+    assert len(wraith.loot) == 1
+    assert wraith.experience_reward == 17
+    assert wraith.gold_reward == 9
+
+def test_create_ember_wraith_drops_sunscorched_dagger():
+    wraith = create_ember_wraith()
+    message = wraith.on_death()
+    assert "Sun-scorched Dagger" in message
+
+def test_create_sunscorched_dagger_has_correct_damage_and_defaults_to_melee_slot():
+    dagger = create_sunscorched_dagger()
+    assert isinstance(dagger, Weapon)
+    assert dagger.name == "Sun-scorched Dagger"
+    assert dagger.damage == 6
+    assert dagger.slot == "melee"
+
+def test_create_talos_has_correct_stats():
+    talos = create_talos()
+    assert talos.name == "Talos"
+    assert talos.hp == 30
+    assert talos.attack_damage == 9
+    assert talos.armour == 3
+    assert len(talos.loot) == 1
+    assert talos.experience_reward == 35
+    assert talos.gold_reward == 20
+
+def test_create_talos_drops_talos_bronze_plating():
+    talos = create_talos()
+    message = talos.on_death()
+    assert "Talos' Bronze Plating" in message
+
+def test_create_talos_bronze_plating_has_correct_defence_and_defaults_to_body_slot():
+    plating = create_talos_bronze_plating()
+    assert isinstance(plating, Armour)
+    assert plating.name == "Talos' Bronze Plating"
+    assert plating.defence == 5
+    assert plating.slot == "body"
+
+def test_create_talos_bronze_plating_has_correct_max_durability():
+    plating = create_talos_bronze_plating()
+    assert plating.max_durability == 18
+
+def test_create_medusa_has_correct_stats():
+    medusa = create_medusa()
+    assert medusa.name == "Medusa"
+    assert medusa.hp == 25
+    assert medusa.attack_damage == 6
+    assert medusa.armour == 2
+
+def test_create_medusa_has_two_gorgon_wave_add_factories():
+    medusa = create_medusa()
+    assert len(medusa.next_wave_factories) == 2
+    adds = [factory() for factory in medusa.next_wave_factories]
+    assert [add.name for add in adds] == ["Gorgon", "Gorgon"]
+
+def test_create_medusa_next_phase_factory_produces_medusa_awakened():
+    medusa = create_medusa()
+    awakened = medusa.next_phase_factory()
+    assert awakened.name == "Medusa (Awakened)"
+
+def test_create_gorgon_has_correct_stats():
+    gorgon = create_gorgon()
+    assert gorgon.name == "Gorgon"
+    assert gorgon.hp == 12
+    assert gorgon.attack_damage == 5
+    assert gorgon.armour == 1
+    assert len(gorgon.loot) == 1
+    assert gorgon.experience_reward == 8
+    assert gorgon.gold_reward == 4
+
+def test_create_gorgon_drops_small_healing_potion():
+    gorgon = create_gorgon()
+    message = gorgon.on_death()
+    assert "Small Healing Potion" in message
+
+def test_create_medusa_awakened_has_correct_stats():
+    awakened = create_medusa_awakened()
+    assert awakened.name == "Medusa (Awakened)"
+    assert awakened.hp == 35
+    assert awakened.attack_damage == 8
+    assert awakened.armour == 3
+    assert len(awakened.loot) == 1
+    assert awakened.experience_reward == 40
+    assert awakened.gold_reward == 25
+
+def test_create_medusa_awakened_has_petrifying_gaze():
+    awakened = create_medusa_awakened()
+    assert awakened.has_petrifying_gaze is True
+
+def test_create_medusa_awakened_has_correct_defensive_ai_stats():
+    awakened = create_medusa_awakened()
+    assert awakened.heal_amount == 2
+    assert awakened.brace_amount == 2
+    assert awakened.caution_weight == 1.2
+
+def test_create_medusa_awakened_drops_serpents_kiss():
+    awakened = create_medusa_awakened()
+    message = awakened.on_death()
+    assert "Serpent's Kiss" in message
+
+def test_create_serpents_kiss_has_correct_damage_and_defaults_to_melee_slot():
+    kiss = create_serpents_kiss()
+    assert isinstance(kiss, Weapon)
+    assert kiss.name == "Serpent's Kiss"
+    assert kiss.damage == 7
+    assert kiss.slot == "melee"
 
 def test_create_lamia_drops_lamias_fang():
     lamia = create_lamia()
@@ -330,6 +457,10 @@ def test_create_weathered_helm_has_correct_defence_and_description():
 def test_create_weathered_helm_occupies_the_helmet_slot():
     helm = create_weathered_helm()
     assert helm.slot == "helmet"
+
+def test_create_weathered_helm_has_correct_max_durability():
+    helm = create_weathered_helm()
+    assert helm.max_durability == 5
 
 def test_create_ambrosia_has_correct_heal_amount_and_description():
     potion = create_ambrosia()
@@ -419,6 +550,10 @@ def test_create_wooden_shield_has_correct_defence_and_description():
     assert shield.name == "Wooden Shield"
     assert shield.description == "Warped and dry-rotted at the edges, but it'll turn aside a training blow well enough."
     assert shield.defence == 1
+
+def test_create_wooden_shield_has_correct_max_durability():
+    shield = create_wooden_shield()
+    assert shield.max_durability == 6
 
 def test_create_mentor_has_correct_name_and_description():
     mentor = create_mentor()
@@ -676,6 +811,10 @@ def test_create_bronze_breastplate_has_correct_defence_and_description():
     assert breastplate.description == "Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just."
     assert breastplate.defence == 2
 
+def test_create_bronze_breastplate_has_correct_max_durability():
+    breastplate = create_bronze_breastplate()
+    assert breastplate.max_durability == 8
+
 def test_create_small_healing_potion_has_correct_heal_amount_and_description():
     potion = create_small_healing_potion()
     assert potion.name == "Small Healing Potion"
@@ -785,6 +924,10 @@ def test_create_breastplate_of_athena_has_correct_defence_and_description():
     assert breastplate.name == "Breastplate of Athena"
     assert breastplate.description == "Cool to the touch even in the deepest heat, etched with an owl that seems to watch whichever way danger comes from."
     assert breastplate.defence == 4
+
+def test_create_breastplate_of_athena_has_correct_max_durability():
+    breastplate = create_breastplate_of_athena()
+    assert breastplate.max_durability == 15
 
 def test_create_centaurs_broken_bow_has_correct_name_and_description():
     bow = create_centaurs_broken_bow()
@@ -1050,6 +1193,69 @@ def test_build_world_bony_crypt_connects_back_to_forge_of_prometheus_via_ascend(
     bony_crypt = dungeon.get_room("Bony Crypt")
     assert bony_crypt is not None
     assert bony_crypt.get_exit("ascend") is dungeon.get_room("Forge of Prometheus")
+
+def test_build_world_prayer_room_has_forge_shortcut_to_forge_of_prometheus():
+    dungeon, entrance, floors = build_world()
+    prayer_room = dungeon.get_room("Prayer Room")
+    assert prayer_room is not None
+    assert prayer_room.get_exit("forge") is dungeon.get_room("Forge of Prometheus")
+
+def test_build_world_stony_lair_has_forge_shortcut_to_forge_of_prometheus():
+    dungeon, entrance, floors = build_world()
+    stony_lair = dungeon.get_room("Stony Lair")
+    assert stony_lair is not None
+    assert stony_lair.get_exit("forge") is dungeon.get_room("Forge of Prometheus")
+
+def test_build_world_maze_of_pillars_has_forge_shortcut_to_forge_of_prometheus():
+    dungeon, entrance, floors = build_world()
+    maze_of_pillars = dungeon.get_room("Maze of Pillars")
+    assert maze_of_pillars is not None
+    assert maze_of_pillars.get_exit("forge") is dungeon.get_room("Forge of Prometheus")
+
+def test_build_world_forge_of_prometheus_has_reciprocal_exit_to_prayer_room():
+    dungeon, entrance, floors = build_world()
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert forge is not None
+    assert forge.get_exit("prayer room") is dungeon.get_room("Prayer Room")
+
+def test_build_world_forge_of_prometheus_has_reciprocal_exit_to_stony_lair():
+    dungeon, entrance, floors = build_world()
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert forge is not None
+    assert forge.get_exit("stony lair") is dungeon.get_room("Stony Lair")
+
+def test_build_world_forge_of_prometheus_has_reciprocal_exit_to_maze_of_pillars():
+    dungeon, entrance, floors = build_world()
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert forge is not None
+    assert forge.get_exit("maze of pillars") is dungeon.get_room("Maze of Pillars")
+
+def test_build_world_forge_of_prometheus_reciprocal_exits_start_fast_travel_locked():
+    dungeon, entrance, floors = build_world()
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert forge is not None
+    assert forge.fast_travel_locks == {"prayer room", "stony lair", "maze of pillars"}
+
+def test_build_world_prayer_room_forge_exit_registers_activation_for_forge_of_prometheus():
+    dungeon, entrance, floors = build_world()
+    prayer_room = dungeon.get_room("Prayer Room")
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert prayer_room is not None
+    assert prayer_room.exit_activations["forge"] == (forge, "prayer room")
+
+def test_build_world_stony_lair_forge_exit_registers_activation_for_forge_of_prometheus():
+    dungeon, entrance, floors = build_world()
+    stony_lair = dungeon.get_room("Stony Lair")
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert stony_lair is not None
+    assert stony_lair.exit_activations["forge"] == (forge, "stony lair")
+
+def test_build_world_maze_of_pillars_forge_exit_registers_activation_for_forge_of_prometheus():
+    dungeon, entrance, floors = build_world()
+    maze_of_pillars = dungeon.get_room("Maze of Pillars")
+    forge = dungeon.get_room("Forge of Prometheus")
+    assert maze_of_pillars is not None
+    assert maze_of_pillars.exit_activations["forge"] == (forge, "maze of pillars")
 
 def test_build_world_overgrown_forest_connects_to_labyrinth_via_descend():
     dungeon, entrance, floors = build_world()
@@ -1400,6 +1606,10 @@ def test_build_floor_3_overgrown_forest_has_centaur_enemy():
     enemy_names = [enemy.name for enemy in rooms["Overgrown Forest"].enemies]
     assert "Centaur" in enemy_names
 
+def test_build_floor_3_overgrown_forest_has_examine_text():
+    start, rooms = build_floor_3()
+    assert "learn <path>" in rooms["Overgrown Forest"].examine_text
+
 def test_build_floor_4_returns_labyrinth_of_the_minotaur_as_start_room():
     start, rooms = build_floor_4()
     assert start.name == "Labyrinth of the Minotaur"
@@ -1487,6 +1697,21 @@ def test_build_floor_4_shadowy_corner_has_lamia_enemy():
     start, rooms = build_floor_4()
     enemy_names = [enemy.name for enemy in rooms["Shadowy Corner"].enemies]
     assert "Lamia" in enemy_names
+
+def test_build_floor_4_sandy_expanse_has_ember_wraith_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Sandy Expanse"].enemies]
+    assert "Ember Wraith" in enemy_names
+
+def test_build_floor_4_maze_of_pillars_has_talos_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Maze of Pillars"].enemies]
+    assert "Talos" in enemy_names
+
+def test_build_floor_4_lair_of_medusa_has_medusa_enemy():
+    start, rooms = build_floor_4()
+    enemy_names = [enemy.name for enemy in rooms["Lair of Medusa"].enemies]
+    assert "Medusa" in enemy_names
 
 def test_build_floor_4_cavern_of_the_cyclops_has_cyclops_enemy():
     start, rooms = build_floor_4()

@@ -42,6 +42,9 @@ Forge of Prometheus {Prometheus - Friendly}
 * north -> Hall of Hermes
 * east -> Practice Chamber
 * descend -> Bony Crypt
+* prayer room -> Prayer Room [NOTE: reciprocal fast-travel shortcut, locked (Room.fast_travel_locks) until 'forge' is used from Prayer Room first, see CLAUDE.md's "Fast-travel locks"]
+* stony lair -> Stony Lair [NOTE: same fast-travel-lock mechanism as above, keyed to Stony Lair's own 'forge' exit]
+* maze of pillars -> Maze of Pillars [NOTE: same fast-travel-lock mechanism as above, keyed to Maze of Pillars' own 'forge' exit]
 Practice Chamber {Practice Enemy - Enemy} [NOTE: is_practice_chamber=True; the enemy has respawns=True and resets on defeat instead of being removed]
 * west -> Forge of Prometheus
 
@@ -54,6 +57,7 @@ Cave of Harpies {Harpy - Enemy}
 * south -> Dim Corridor
 Prayer Room {Fanatic - Enemy}
 * west -> Cave of Harpies
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 Dim Corridor {Lurker - Enemy}
 * north -> Cave of Harpies
 * south -> Overgrown Forest
@@ -68,20 +72,22 @@ Labyrinth of the Minotaur {Minotaur - Enemy}
 * south -> Mossy Grove
 Cavern of the Cyclops {Cyclops - Enemy}
 * west -> Labyrinth of the Minotaur
-Stony Lair {Gorgon - Enemy}
+Stony Lair {Petrified Guardian - Enemy}
 * east -> Labyrinth of the Minotaur
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 Mossy Grove {Satyr - Enemy}
 * north -> Labyrinth of the Minotaur
 * west -> Shadowy Corner
 * south -> Sandy Expanse
 Shadowy Corner {Lamia - Enemy}
 * east -> Mossy Grove
-Sandy Expanse {Chimera - Enemy}
+Sandy Expanse {Ember Wraith - Enemy}
 * north -> Mossy Grove
 * east -> Maze of Pillars
 Maze of Pillars {Talos - Enemy}
 * west -> Sandy Expanse
 * south -> Lair of Medusa
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 Lair of Medusa {Medusa - Enemy}
 * north -> Maze of Pillars
 * descend -> Shadow of Army Camp
@@ -199,7 +205,20 @@ offensive poison), Cave of Harpies a Harpy (drops the Harpy-fletched Bow, the
 first real ranged weapon), Prayer Room a Fanatic (drops the Tome of Old
 Prayers, the first real SpellBook, teaching Prayer Bolt), Dim Corridor a
 Lurker (drops a Small Healing Potion), and Overgrown Forest the Centaur.
-Every other room on floor 4, and all of floors 5-9, remain
-unpopulated shells. Finishing Floor 2's population (Prometheus' trade and
-Trophy Room of Zeus) and floors 3-9's remaining population are all deferred
-to the "Populate all floors" roadmap item.
+
+Floor 4 is now fully populated with enemies too: Stony Lair holds a
+Petrified Guardian (drops the Chipped Stone Aegis), Mossy Grove a Satyr
+(drops the Wineskin of Dionysus, the game's first real heal-over-time
+StatusEffectItem), Shadowy Corner a Lamia (the game's first enemy with
+Character.has_lifesteal, drops Lamia's Fang), Sandy Expanse an Ember Wraith
+(drops the Sun-scorched Dagger), Maze of Pillars a Talos (drops Talos'
+Bronze Plating, the best body armour in the game so far), and Lair of
+Medusa the floor's climactic fight: Medusa (Phase 1) falls to a wave of two
+Gorgons, then Medusa (Awakened) - the game's first real, named multi-stage
+boss, see `CLAUDE.md`'s "Multi-stage boss fights" - who drops Serpent's
+Kiss. Alongside the Minotaur and Cyclops, that's every room on floor 4
+holding a real enemy now.
+
+Every room on floors 5-9 remains an unpopulated shell. Finishing Floor 2's
+population (Prometheus' trade and Trophy Room of Zeus) and floors 5-9's
+population are all deferred to the "Populate all floors" roadmap item.

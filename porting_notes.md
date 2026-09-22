@@ -20,6 +20,9 @@ something occurs to you mid-build.
   see a number change.
 
 ## Combat
+- **Lifesteal (`Character.has_lifesteal`, first used by Lamia) wants a visible drain effect** - a beam or
+  particle trail flowing from the target to the attacker, timed with the attacker's HP bar ticking up, rather
+  than just a second line of combat text under the damage number.
 - **Multi-stage boss phase transitions and wave-gated adds are a natural fit for a cutscene beat or arena
   reveal** - the seamless "combat never unlocks" transition (`next_phase_factory`) that reads as a single
   printed line in text wants a proper beat in a visual version (a brief cinematic camera pull, a boss
@@ -94,6 +97,18 @@ something occurs to you mid-build.
   direction reference when the time comes, not throwing it away.
 - Multi-floor structure (descend/ascend) suggests a level-select or vertical
   progression map as an option, rather than only room-by-room navigation.
+- The new one-way `"forge"` shortcut exits (Prayer Room, Stony Lair, Maze of
+  Pillars back to the Forge of Prometheus) are a natural fit for a fast-travel
+  waypoint UI - a shimmering-doorway visual already exists in the text
+  description, ready-made as art direction. The intended two-way, unlock-on-
+  first-use version (`Room.fast_travel_locks`) maps onto the genre-standard
+  "discover a waypoint, then teleport freely between discovered ones" pattern
+  - worth building that gating properly for the port even though the current
+    text version doesn't enforce it yet (see CLAUDE.md).
+- A small HP tick on movement (`PASSIVE_REGEN_PER_MOVE`) wants its own subtle
+  cue distinct from a potion heal - a faint pulse on the HP bar as you cross
+  into a new room reads very differently from a burst heal effect, and that
+  distinction matters for the player understanding *why* their HP just moved.
 
 ## Items / Inventory
 - Equip slots are a natural fit for a paper-doll style UI — both weapons
