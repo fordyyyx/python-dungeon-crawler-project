@@ -3,7 +3,7 @@
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import QuestItem, Armour, StatusEffectItem, Weapon
 from dungeon_crawler.characters import Enemy
-from .common import create_bronze_xiphos, create_small_healing_potion
+from .common import create_small_healing_potion
 
 def create_minotaur() -> Enemy:
     """Create the Minotaur enemy, placed in the Labyrinth of the Minotaur (floor 4) by build_floor_4()."""
@@ -12,10 +12,20 @@ def create_minotaur() -> Enemy:
         hp=25,
         attack_damage=8,
         armour=2,
-        loot=[create_bronze_xiphos()],
+        loot=[create_labrys()],
         description="Massive and bull-headed, it turns toward you with a snort that shakes dust from the walls.",
         experience_reward=30,
-        gold_reward=18
+        gold_reward=18,
+        brace_amount=3,
+    )
+
+def create_labrys() -> Weapon:
+    """Create the Labrys - a double-headed Minoan axe, dropped by the Minotaur. The labyrinth is traditionally said to take its name from this
+    weapon."""
+    return Weapon(
+        name="Labrys",
+        description="Two crescent blades on a single haft, heavy enough that every swing feels like it's pulling you along with it.",
+        damage=5,
     )
 
 def create_cyclops() -> Enemy:

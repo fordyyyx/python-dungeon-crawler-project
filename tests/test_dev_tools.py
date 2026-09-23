@@ -92,6 +92,16 @@ def test_find_item_by_name_returns_serpents_kiss_for_known_name():
     assert item is not None
     assert item.name == "Serpent's Kiss"
 
+def test_find_item_by_name_returns_labrys_for_known_name():
+    item = find_item_by_name("labrys")
+    assert item is not None
+    assert item.name == "Labrys"
+
+def test_find_item_by_name_no_longer_finds_shield_of_aegis_fragment():
+    """Removed from ITEM_REGISTRY once nothing in real content dropped or placed it any more."""
+    item = find_item_by_name("shield of aegis (fragment)")
+    assert item is None
+
 def test_handle_dev_command_add_known_item_adds_to_inventory():
     player = Player(name="hero", hp=100)
     room = Room("A")

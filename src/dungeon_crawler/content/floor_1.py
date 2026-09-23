@@ -1,9 +1,9 @@
 """Floor 1 (The Underworld Gateway) - Cave Entrance, Styx Crossing, Fields of Asphodel, Sunken Vault."""
 
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour, QuestItem
+from dungeon_crawler.items import Armour, QuestItem, Weapon
 from dungeon_crawler.characters import Enemy, Ally
-from .common import create_bronze_xiphos, create_small_healing_potion
+from .common import create_small_healing_potion
 
 def create_skeleton_warrior() -> Enemy:
     """Create a skeleton warrior enemy"""
@@ -81,6 +81,14 @@ def create_bronze_breastplate() -> Armour:
         defence=2,
         description="Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just.",
         max_durability=8
+    )
+
+def create_bronze_xiphos() -> Weapon:
+    """Create the Bronze Xiphos weapon."""
+    return Weapon(
+        name="Bronze Xiphos",
+        description="A short, leaf-bladed sword - favoured by soldiers who valued speed over reach.",
+        damage=3,
     )
 
 def build_floor_1() -> tuple[Room, dict[str, Room]]:

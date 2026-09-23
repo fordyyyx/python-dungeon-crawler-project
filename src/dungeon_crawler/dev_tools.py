@@ -7,7 +7,7 @@ from dungeon_crawler.items import Item
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_aegis_fragment, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang, create_sunscorched_dagger, create_talos_bronze_plating, create_serpents_kiss
+from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang, create_sunscorched_dagger, create_talos_bronze_plating, create_serpents_kiss, create_labrys
 from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker, create_petrified_guardian, create_satyr, create_lamia, create_ember_wraith, create_talos, create_medusa, create_medusa_awakened, create_gorgon
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
@@ -22,7 +22,6 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "mentor's token": create_mentors_token,
     "charon's coin": create_charons_coin,
     "bronze xiphos": create_bronze_xiphos,
-    "shield of aegis (fragment)": create_aegis_fragment,
     "vial of ambrosia": create_ambrosia,
     "bronze breastplate": create_bronze_breastplate,
     "small healing potion": create_small_healing_potion,
@@ -45,6 +44,7 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "sun-scorched dagger": create_sunscorched_dagger,
     "talos' bronze plating": create_talos_bronze_plating,
     "serpent's kiss": create_serpents_kiss,
+    "labrys": create_labrys,
 }
 
 ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {

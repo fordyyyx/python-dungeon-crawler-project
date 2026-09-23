@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_aegis_fragment, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player
 from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
 
@@ -13,10 +13,22 @@ def test_create_minotaur_has_correct_stats():
     assert minotaur.experience_reward == 30
     assert minotaur.gold_reward == 18
 
-def test_create_minotaur_drops_bronze_xiphos():
+def test_create_minotaur_drops_labrys():
     minotaur = create_minotaur()
     message = minotaur.on_death()
-    assert "Bronze Xiphos" in message
+    assert "Labrys" in message
+
+def test_create_minotaur_has_correct_defensive_ai_stats():
+    minotaur = create_minotaur()
+    assert minotaur.brace_amount == 3
+    assert minotaur.heal_amount == 0
+
+def test_create_labrys_has_correct_damage_and_description():
+    labrys = create_labrys()
+    assert labrys.name == "Labrys"
+    assert labrys.description == "Two crescent blades on a single haft, heavy enough that every swing feels like it's pulling you along with it."
+    assert labrys.damage == 5
+    assert labrys.slot == "melee"
 
 def test_create_centaur_has_correct_stats():
     centaur = create_centaur()
@@ -441,12 +453,6 @@ def test_create_bronze_xiphos_has_correct_damage_and_description():
     assert sword.name == "Bronze Xiphos"
     assert sword.description == "A short, leaf-bladed sword - favoured by soldiers who valued speed over reach."
     assert sword.damage == 3
-
-def test_create_aegis_fragment_has_correct_defence_and_description():
-    shield = create_aegis_fragment()
-    assert shield.name == "Shield of Aegis (fragment)"
-    assert shield.description == "A shard of bronze etched with a single unblinking eye."
-    assert shield.defence == 2
 
 def test_create_weathered_helm_has_correct_defence_and_description():
     helm = create_weathered_helm()

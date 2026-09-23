@@ -335,6 +335,20 @@ def test_consumable_use_returns_heal_message():
     message = potion.use(hero)
     assert message == "hero uses potion, healing 3 HP."
 
+def test_consumable_use_message_reports_hp_actually_restored_when_capped():
+    hero = Character(name="hero", hp=30, attack_damage=10)
+    potion = Consumable(name="potion", heal_amount=10)
+    hero.hp = 28
+    message = potion.use(hero)
+    assert message == "hero uses potion, healing 2 HP."
+
+def test_consumable_use_at_full_hp_reports_zero_healing():
+    hero = Character(name="hero", hp=30, attack_damage=10)
+    potion = Consumable(name="potion", heal_amount=10)
+    message = potion.use(hero)
+    assert hero.hp == 30
+    assert message == "hero uses potion, healing 0 HP."
+
 def test_consumable_defaults_to_zero_heal_amount():
     consumable = Consumable(name="Empty Vial", description="")
     assert consumable.heal_amount == 0
@@ -411,6 +425,38 @@ def test_reviver_use_with_downed_companion_returns_revive_message():
     reviver = Reviver(name="Ambrosia", heal_amount=6)
     message = reviver.use(hero)
     assert message == "Imp is revived with 6 HP, thanks to Ambrosia."
+
+def test_reviver_ends_turn_returns_true_despite_positive_heal_amount():
+    """Overrides Consumable.ends_turn() - reviving is a significant combat action, not a free self-heal."""
+    hero = Player(name="hero", hp=100)
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    assert reviver.ends_turn(hero) is True
+
+def test_reviver_would_fail_returns_message_when_no_companion():
+    hero = Player(name="hero", hp=100)
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    assert reviver.would_fail(hero) == "Ambrosia has nothing to revive."
+
+def test_reviver_would_fail_returns_message_when_character_has_no_companion_attribute():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    assert reviver.would_fail(hero) == "Ambrosia has nothing to revive."
+
+def test_reviver_would_fail_returns_message_when_companion_is_alive():
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    hero.companion = Companion(name="Imp", hp=10, home_room=home)
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    assert reviver.would_fail(hero) == "Imp doesn't need reviving."
+
+def test_reviver_would_fail_returns_none_when_companion_is_downed():
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home)
+    companion.hp = 0
+    hero.companion = companion
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    assert reviver.would_fail(hero) is None
 
 def test_reviver_is_a_consumable():
     reviver = Reviver(name="Ambrosia", heal_amount=6)
@@ -733,6 +779,7 @@ def test_inventory_items_property_returns_copy():
 
 def test_inventory_use_item_removes_consumable_after_use():
     player = Player(name="hero", hp=100)
+    player.hp = 50 # below max, so Consumable.would_fail() doesn't block the heal
     potion = Consumable(name="potion", heal_amount=10)
     player.inventory.add(potion)
     assert player.inventory.items == [potion]
@@ -848,6 +895,7 @@ def test_inventory_repr_includes_item_names(capsys):
 
 def test_inventory_use_item_matches_item_name_case_insensitively():
     player = Player(name="hero", hp=100)
+    player.hp = 50 # below max, so Consumable.would_fail() doesn't block the heal
     potion = Consumable(name="Potion", heal_amount=10)
     player.inventory.add(potion)
     player.inventory.use_item("potion", player)
@@ -895,4 +943,134 @@ def test_inventory_remove_raises_error_when_item_not_in_inventory():
     except ValueError:
         pass
 
+def test_armour_use_with_helmet_slot_returns_equip_message():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    helm = Armour(name="Bronze Helm", description="", defence=2, slot="helmet")
+    message = helm.use(hero)
+    assert message == "hero equips Bronze Helm (helmet, +2 DEF)."
 
+def test_armour_unequip_clears_character_equipped_helmet():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    helm = Armour(name="Bronze Helm", description="", defence=2, slot="helmet")
+    helm.use(hero)
+    helm.unequip(hero)
+    assert hero.equipped_helmet is None
+
+def test_skill_point_reward_ends_turn_returns_true():
+    player = Player(name="hero", hp=100)
+    reward = SkillPointReward(name="Ancient Blessing", description="")
+    assert reward.ends_turn(player) is True
+
+def test_spell_book_ends_turn_returns_true():
+    player = Player(name="hero", hp=100)
+    spell = Spell(name="Firebolt", description="", mana_cost=5, damage=8)
+    book = SpellBook(name="Tome of Fire", description="", spell=spell)
+    assert book.ends_turn(player) is True
+
+
+def test_inventory_use_item_raises_would_fail_message_for_reviver_with_no_companion():
+    hero = Player(name="hero", hp=100)
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    hero.inventory.add(reviver)
+
+    try:
+        hero.inventory.use_item("Ambrosia", hero)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError as error:
+        assert str(error) == "Ambrosia has nothing to revive."
+
+def test_inventory_use_item_does_not_consume_reviver_that_would_fail():
+    """Before would_fail() was checked here, a Reviver used with no downed companion still reached use(),
+    returned its 'nothing to revive' message, and was then removed as a Consumable - wasted for nothing."""
+    hero = Player(name="hero", hp=100)
+    home = Room("Camp")
+    hero.companion = Companion(name="Imp", hp=10, home_room=home)
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    hero.inventory.add(reviver)
+
+    try:
+        hero.inventory.use_item("Ambrosia", hero)
+    except ValueError:
+        pass
+
+    assert reviver in hero.inventory.items
+
+def test_inventory_use_item_does_not_consume_offensive_status_effect_item_with_no_target():
+    hero = Player(name="hero", hp=100)
+    vial = StatusEffectItem(name="Venom Vial", description="", effect_name="Poison", amount=-3, duration=3)
+    hero.inventory.add(vial)
+
+    try:
+        hero.inventory.use_item("Venom Vial", hero)
+    except ValueError:
+        pass
+
+    assert vial in hero.inventory.items
+
+def test_consumable_would_fail_returns_message_at_full_hp():
+    hero = Player(name="hero", hp=100)
+    potion = Consumable(name="potion", heal_amount=10)
+    assert potion.would_fail(hero) == "hero is already at full health - potion would be wasted."
+
+def test_consumable_would_fail_returns_none_below_full_hp():
+    hero = Player(name="hero", hp=100)
+    hero.hp = 99
+    potion = Consumable(name="potion", heal_amount=10)
+    assert potion.would_fail(hero) is None
+
+def test_consumable_would_fail_returns_none_at_full_hp_when_heal_amount_is_zero():
+    hero = Player(name="hero", hp=100)
+    vial = Consumable(name="Empty Vial", description="")
+    assert vial.would_fail(hero) is None
+
+def test_skill_point_reward_would_fail_returns_none_at_full_hp():
+    """SkillPointReward inherits Consumable.would_fail() with heal_amount = 0 - the heal_amount > 0 guard
+    is what stops it being wrongly blocked at full health."""
+    hero = Player(name="hero", hp=100)
+    reward = SkillPointReward(name="Ancient Blessing", description="")
+    assert reward.would_fail(hero) is None
+
+def test_inventory_use_item_at_full_hp_raises_would_fail_message_for_healing_consumable():
+    hero = Player(name="hero", hp=100)
+    hero.inventory.add(Consumable(name="potion", heal_amount=10))
+
+    try:
+        hero.inventory.use_item("potion", hero)
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError as error:
+        assert str(error) == "hero is already at full health - potion would be wasted."
+
+def test_inventory_use_item_at_full_hp_does_not_consume_healing_consumable():
+    hero = Player(name="hero", hp=100)
+    potion = Consumable(name="potion", heal_amount=10)
+    hero.inventory.add(potion)
+
+    try:
+        hero.inventory.use_item("potion", hero)
+    except ValueError:
+        pass
+
+    assert potion in hero.inventory.items
+
+def test_inventory_use_item_at_full_hp_still_uses_skill_point_reward():
+    hero = Player(name="hero", hp=100)
+    reward = SkillPointReward(name="Ancient Blessing", description="")
+    hero.inventory.add(reward)
+
+    hero.inventory.use_item("Ancient Blessing", hero)
+
+    assert hero.skill_tree.skill_points == 1
+    assert reward not in hero.inventory.items
+
+def test_inventory_use_item_at_full_hp_still_applies_healing_status_effect_item():
+    """Deliberately not blocked like an instant-heal Consumable - drinking a regen tonic at full HP right
+    before a fight is a legitimate tactic, so StatusEffectItem.would_fail() has no full-HP check."""
+    player = Player(name="Hero", hp=20)
+    tonic = StatusEffectItem(name="Tonic of Regeneration", description="", effect_name="Regen", amount=3, duration=4)
+    player.inventory.add(tonic)
+
+    player.inventory.use_item("Tonic of Regeneration", player)
+
+    assert len(player.active_effects) == 1
+    assert player.active_effects[0].name == "Regen"
+    assert tonic not in player.inventory.items

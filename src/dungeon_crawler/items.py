@@ -127,18 +127,29 @@ class Consumable(Item):
         self.heal_amount = heal_amount
 
     def use(self, character) -> str:
-        """Heal character by heal_amount, capped at max_hp."""
-        character.hp = min(character.hp + self.heal_amount, character.max_hp)
-        return f"{character.name} uses {self.name}, healing {self.heal_amount} HP."
+        """Heal character by heal_amount, capped at max_hp - the message reports the HP actually restored, not heal_amount, so a potion used
+        near full health doesn't overstate what it did."""
+        healed = min(self.heal_amount, character.max_hp - character.hp)
+        character.hp += healed
+        return f"{character.name} uses {self.name}, healing {healed} HP."
 
     def ends_turn(self, character) -> bool:
         """A genuine heal (heal_amount > 0) is a free action; anything else (including in the base Consumable's default 0) still ends the turn."""
         return self.heal_amount <= 0
 
+    def would_fail(self, character) -> str | None:
+        """Block a genuine heal (heal_amount > 0) at full HP rather than wasting the item. The heal_amount > 0 guard matters: SkillPointReward
+        inherits this method and has heal_amount = 0, so it must never be blocked at full HP. Reviver, StatusEffectItem and SpellBook
+        all override would_fail() with their own rules, so this doesn't reach them."""
+        if self.heal_amount > 0 and character.hp >= character.max_hp:
+            return f"{character.name} is already at full health - {self.name} would be wasted."
+        return None
+
 class Reviver(Consumable):
     """A single-use item that revives character.companion (a downed Companion, hp == 0), restoring heal_amount HP capped at the companion's
     max_hp - unlike a normal Consumable, this targets the companion, not character itself. Inherits Consumable's auto-remove-after-use
-    behaviour in Inventory.use_item() for free."""
+    behaviour in Inventory.use_item() for free. Always ends the turn - overrides Consumable.ends_turn(), since bringing a downed companion back
+    is a significant combat action, not a quick self-heal, despite heal_amount always being positive."""
 
     def use(self, character) -> str:
         """Revive character.companion if one exists and is downed; otherwise explain why nothing happened, since 'no companion to revive' 
@@ -151,6 +162,18 @@ class Reviver(Consumable):
         companion.hp = min(self.heal_amount, companion.max_hp)
         return f"{companion.name} is revived with {companion.hp} HP, thanks to {self.name}."
 
+    def ends_turn(self, character) -> bool:
+        """Reviving always costs the turn - see class docstring."""
+        return True
+
+    def would_fail(self, character) -> str | None:
+        """Mirrors use()'s two no-op cases, so handle_combat_command() rejects them before the Reviver is consumed or a turn is spent."""
+        companion = getattr(character, "companion", None)
+        if companion is None:
+            return f"{self.name} has nothing to revive."
+        if companion.is_alive():
+            return f"{companion.name} doesn't need reviving."
+        return None
 class QuestItem(Item):
     """A story item that can't be dropped (see Inventory.drop_item()) and does nothing when used - it exists to be given or traded, not consumed."""
 
@@ -242,6 +265,9 @@ class Inventory:
         """Use the named item on character, removing it from the inventory afterwards if it's a Consumable. Raises ValueError if no item with that name is present."""
         for item in self._items:
             if item.name.lower() == item_name.lower():
+                failure = item.would_fail(character)
+                if failure is not None:
+                    raise ValueError(failure)
                 message = item.use(character)
                 if isinstance(item, Consumable):
                     self._items.remove(item)

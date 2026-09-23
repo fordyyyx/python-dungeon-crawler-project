@@ -11,19 +11,3 @@ def create_small_healing_potion() -> Consumable:
         heal_amount=5,
         description="A cloudy vial, more herb than magic - enough to steady a shaking hand, not much more."
     )
-
-def create_bronze_xiphos() -> Weapon:
-    """Create the Bronze Xiphos weapon."""
-    return Weapon(
-        name="Bronze Xiphos",
-        description="A short, leaf-bladed sword - favoured by soldiers who valued speed over reach.",
-        damage=3,
-    )
-
-def create_aegis_fragment() -> Armour:
-    """Create the Shield of Aegis (fragment) armour."""
-    return Armour(
-        name="Shield of Aegis (fragment)",
-        defence=2,
-        description="A shard of bronze etched with a single unblinking eye.",
-    )

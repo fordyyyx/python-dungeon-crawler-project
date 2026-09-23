@@ -1,9 +1,9 @@
 from dungeon_crawler.characters import Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, Consumable, StatusEffectItem
+from dungeon_crawler.items import Weapon, Consumable, StatusEffectItem, Reviver
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.combat import resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
+from dungeon_crawler.combat import resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -2617,3 +2617,193 @@ def test_handle_combat_command_target_sets_current_target():
 
     assert player.current_target is enemy
     assert message == "You focus on the Goblin."
+
+def test_tick_start_of_turn_if_needed_sets_turn_started():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    tick_start_of_turn_if_needed(player)
+    assert player.turn_started is True
+
+def test_tick_start_of_turn_if_needed_ticks_status_effects_on_first_call():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.apply_status_effect(StatusEffect("Poison", -3, 2))
+    messages = tick_start_of_turn_if_needed(player)
+    assert player.hp == 97
+    assert len(messages) == 1
+
+def test_tick_start_of_turn_if_needed_ticks_spell_cooldowns_on_first_call():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.spell_cooldowns["Firebolt"] = 3
+    tick_start_of_turn_if_needed(player)
+    assert player.spell_cooldowns["Firebolt"] == 2
+
+def test_tick_start_of_turn_if_needed_does_nothing_when_turn_already_started():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.apply_status_effect(StatusEffect("Poison", -3, 2))
+    player.spell_cooldowns["Firebolt"] = 3
+    player.turn_started = True
+
+    messages = tick_start_of_turn_if_needed(player)
+
+    assert messages == []
+    assert player.hp == 100
+    assert player.spell_cooldowns["Firebolt"] == 3
+
+def test_tick_start_of_turn_if_needed_does_not_tick_a_dead_player():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.hp = 0
+    effect = StatusEffect("Poison", -3, 2)
+    player.apply_status_effect(effect)
+
+    messages = tick_start_of_turn_if_needed(player)
+
+    assert messages == []
+    assert effect.duration == 2
+
+def test_resolve_companion_and_enemy_turns_resets_turn_started_when_player_dead():
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    player.hp = 0
+    player.turn_started = True
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+
+    resolve_companion_and_enemy_turns(player, [player], [enemy])
+
+    assert player.turn_started is False
+
+def test_choose_companion_action_picks_heal_when_it_dominates(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0, caution_weight=5.0, heal_amount=5)
+    companion.hp = 2 # heal = 5.0 * 0.8 missing * 0.5 value = 2.0
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0) # full HP, 0 kill potential -> attack scores 0
+
+    assert choose_companion_action(companion, [enemy]) == "heal"
+
+def test_resolve_combat_round_companion_defend_braces_and_reports_it(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0, caution_weight=5.0, brace_amount=2)
+    companion.hp = 5 # enemy could finish it off in one hit -> defend dominates
+    player.companion = companion
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert "Imp braces for incoming damage." in result
+
+def test_resolve_combat_round_companion_brace_reduces_the_enemy_hit_that_follows(monkeypatch):
+    """The companion's brace is set before the enemy acts in the same round - the Goblin targets the
+    low-HP Imp (higher kill potential than the Hero) and its 5 damage is cut to 3 by the brace."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0, caution_weight=5.0, brace_amount=2)
+    companion.hp = 5
+    player.companion = companion
+
+    resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert companion.hp == 2
+
+def test_resolve_combat_round_companion_heal_restores_hp_and_reports_it(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=100, attack_damage=1)
+    enemy = Enemy(name="Goblin", hp=100, attack_damage=0) # harmless, so the heal isn't undone by the enemy's turn
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0, caution_weight=5.0, heal_amount=5)
+    companion.hp = 2
+    player.companion = companion
+
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+
+    assert "Imp recovers 5 HP." in result
+    assert companion.hp == 7
+
+def test_handle_combat_command_use_reviver_on_downed_companion_ends_the_turn(monkeypatch):
+    """Reviver overrides Consumable.ends_turn() - despite a positive heal_amount, reviving is never a free action."""
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    home = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=0)
+    companion.hp = 0
+    player.companion = companion
+    player.inventory.add(Reviver(name="Ambrosia", heal_amount=6))
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
+    room = Room("Arena")
+
+    message = handle_combat_command("use ambrosia", player, enemy, [player], [enemy], room)
+
+    assert "Imp is revived with 6 HP, thanks to Ambrosia." in message
+    assert "Goblin attacks Hero for 5 damage." in message
+
+def test_handle_combat_command_use_reviver_with_living_companion_returns_would_fail_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    home = Room("Camp")
+    player.companion = Companion(name="Imp", hp=10, home_room=home)
+    player.inventory.add(Reviver(name="Ambrosia", heal_amount=6))
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("use ambrosia", player, enemy, [player, player.companion], [enemy], room)
+
+    assert message == "Imp doesn't need reviving."
+
+def test_handle_combat_command_use_reviver_that_would_fail_costs_nothing():
+    """would_fail() is checked before the tick and the use - no enemy turn, no consumed Reviver."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    reviver = Reviver(name="Ambrosia", heal_amount=6)
+    player.inventory.add(reviver)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("use ambrosia", player, enemy, [player], [enemy], room)
+
+    assert player.hp == 50
+    assert reviver in player.inventory.items
+
+def test_handle_combat_command_use_potion_at_full_hp_returns_would_fail_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.inventory.add(Consumable(name="Potion", heal_amount=10))
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("use potion", player, enemy, [player], [enemy], room)
+
+    assert message == "Hero is already at full health - Potion would be wasted."
+
+def test_handle_combat_command_use_potion_at_full_hp_does_not_consume_it():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    potion = Consumable(name="Potion", heal_amount=10)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    handle_combat_command("use potion", player, enemy, [player], [enemy], room)
+
+    assert potion in player.inventory.items
+
+def test_handle_combat_command_use_potion_at_full_hp_does_not_tick_status_effects():
+    """Blocked by would_fail() before tick_start_of_turn_if_needed() runs - the refused potion costs
+    no tick of the player's pre-existing effects."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.apply_status_effect(StatusEffect("Regen", 2, 5))
+    player.inventory.add(Consumable(name="Potion", heal_amount=10))
+    room = Room("Arena")
+
+    handle_combat_command("use potion", player, None, [player], [], room)
+
+    assert player.active_effects[0].duration == 5
+    assert player.turn_started is False
+
+def test_handle_combat_command_use_healing_status_effect_item_at_full_hp_is_allowed():
+    """Pre-buffing with a regen tonic at full HP is deliberately allowed, unlike an instant-heal potion."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    tonic = StatusEffectItem(name="Tonic", description="", effect_name="Regen", amount=3, duration=4)
+    player.inventory.add(tonic)
+    room = Room("Arena")
+
+    message = handle_combat_command("use tonic", player, None, [player], [], room)
+
+    assert "Hero is afflicted with Regen." in message
+    assert tonic not in player.inventory.items
