@@ -665,3 +665,21 @@ def test_player_from_save_data_defaults_auto_map_and_visited_rooms_for_older_sav
     player, current_room = player_from_save_data(base_player_data(), dungeon)
     assert player.auto_map is False
     assert player.visited_rooms == set()
+
+def test_serialise_player_includes_sorted_seen_hints():
+    player = Player(name="Hero", hp=50)
+    player.seen_hints = {"forge", "combat"}
+    data = serialise_player(player, Room("Chamber"))
+    assert data["seen_hints"] == ["combat", "forge"]
+
+def test_player_from_save_data_reconstructs_seen_hints():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    player, current_room = player_from_save_data(base_player_data(seen_hints=["combat", "forge"]), dungeon)
+    assert player.seen_hints == {"combat", "forge"}
+
+def test_player_from_save_data_defaults_seen_hints_for_older_saves():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    player, current_room = player_from_save_data(base_player_data(), dungeon)
+    assert player.seen_hints == set()

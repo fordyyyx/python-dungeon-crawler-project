@@ -841,16 +841,30 @@ def test_create_athena_reward_is_breastplate_of_athena():
     assert athena.reward is not None
     assert athena.reward.name == "Breastplate of Athena"
 
-def test_create_athena_talk_returns_default_message_when_player_missing_required_items():
+def test_create_athena_talk_without_the_bow_points_the_player_to_the_centaur():
     athena = create_athena()
     player = Player(name="hero", hp=100)
-    assert athena.talk(player) == "Athena has nothing to say."
+    message = athena.talk(player)
+    assert message == athena.hint
+    assert "centaur" in message
+    assert "bow" in message
 
-def test_create_athena_talk_returns_empty_string_when_player_has_required_items():
+def test_create_athena_has_hint_traded_and_post_trade_message():
+    athena = create_athena()
+    assert athena.hint_traded == "\"Wear it well. Hades is patient, and so are his halls - don't mistake either for weakness.\""
+    assert athena.post_trade_message == "\"The owl on it watches whichever side you forget to.\""
+
+def test_create_athena_talk_after_trade_returns_hint_traded():
+    athena = create_athena()
+    athena.trade_completed = True
+    assert athena.talk(Player(name="hero", hp=100)) == athena.hint_traded
+
+def test_create_athena_talk_with_the_bow_tells_the_player_to_trade():
     athena = create_athena()
     player = Player(name="hero", hp=100)
     player.inventory.add(QuestItem(name="Centaur's Broken Bow", description=""))
-    assert athena.talk(player) == ""
+    assert athena.talk(player) == athena.hint_complete
+    assert "'trade'" in athena.hint_complete
 
 def test_create_ares_has_correct_name_and_description():
     ares = create_ares()
@@ -866,16 +880,29 @@ def test_create_ares_reward_is_spear_of_ares():
     assert ares.reward is not None
     assert ares.reward.name == "Spear of Ares"
 
-def test_create_ares_talk_returns_default_message_when_player_missing_required_items():
+def test_create_ares_talk_without_the_eye_points_the_player_to_the_cyclops():
     ares = create_ares()
     player = Player(name="hero", hp=100)
-    assert ares.talk(player) == "Ares has nothing to say."
+    message = ares.talk(player)
+    assert message == ares.hint
+    assert "Cyclops" in message
+    assert "labyrinth" in message
 
-def test_create_ares_talk_returns_empty_string_when_player_has_required_items():
+def test_create_ares_has_hint_traded_and_post_trade_message():
+    ares = create_ares()
+    assert ares.hint_traded == "\"Don't hold it like a broom. Point, then push.\""
+    assert ares.post_trade_message == "\"Now go and use it on something that deserves it.\""
+
+def test_create_ares_talk_after_trade_returns_hint_traded():
+    ares = create_ares()
+    ares.trade_completed = True
+    assert ares.talk(Player(name="hero", hp=100)) == ares.hint_traded
+
+def test_create_ares_talk_with_the_eye_tells_the_player_to_trade():
     ares = create_ares()
     player = Player(name="hero", hp=100)
     player.inventory.add(QuestItem(name="Cyclops' Eye", description=""))
-    assert ares.talk(player) == ""
+    assert ares.talk(player) == "\"That's the eye. Say 'trade'.\""
 
 def test_create_hermes_has_correct_name_and_description():
     hermes = create_hermes()
@@ -891,16 +918,30 @@ def test_create_hermes_reward_is_hermes_favour():
     assert hermes.reward is not None
     assert hermes.reward.name == "Favour of Hermes"
 
-def test_create_hermes_talk_returns_default_message_when_player_missing_required_items():
+def test_create_hermes_talk_without_the_bone_points_the_player_to_the_hidden_vault():
+    """Hermes is the in-fiction hint for the Sunken Vault - the hidden exit off Styx Crossing, revealed by 'examine'."""
     hermes = create_hermes()
     player = Player(name="hero", hp=100)
-    assert hermes.talk(player) == "Hermes has nothing to say."
+    message = hermes.talk(player)
+    assert message == hermes.hint
+    assert "Styx Crossing" in message
+    assert "'examine'" in message
 
-def test_create_hermes_talk_returns_empty_string_when_player_has_required_items():
+def test_create_hermes_has_hint_traded_and_post_trade_message():
+    hermes = create_hermes()
+    assert hermes.hint_traded.startswith("\"Still here?")
+    assert hermes.post_trade_message == "\"A little something for your trouble. Use it wisely - or quickly, which is usually the same thing.\""
+
+def test_create_hermes_talk_after_trade_returns_hint_traded():
+    hermes = create_hermes()
+    hermes.trade_completed = True
+    assert hermes.talk(Player(name="hero", hp=100)) == hermes.hint_traded
+
+def test_create_hermes_talk_with_the_bone_tells_the_player_to_trade():
     hermes = create_hermes()
     player = Player(name="hero", hp=100)
     player.inventory.add(QuestItem(name="Skeleton Bone", description=""))
-    assert hermes.talk(player) == ""
+    assert hermes.talk(player) == "\"Oh, that's a good one. Say 'trade' - quickly, I've places to be.\""
 
 def test_create_prometheus_has_correct_name_and_description():
     prometheus = create_prometheus()
@@ -915,10 +956,12 @@ def test_create_prometheus_has_no_reward():
     prometheus = create_prometheus()
     assert prometheus.reward is None
 
-def test_create_prometheus_talk_returns_default_message():
+def test_create_prometheus_talk_mentions_the_forge():
     prometheus = create_prometheus()
     player = Player(name="hero", hp=100)
-    assert prometheus.talk(player) == "Prometheus has nothing to say."
+    message = prometheus.talk(player)
+    assert message == prometheus.hint
+    assert "forge" in message
 
 def test_create_cyclops_eye_has_correct_name_and_description():
     eye = create_cyclops_eye()

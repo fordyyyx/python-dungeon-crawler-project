@@ -234,6 +234,8 @@ class Player(Character):
         persisted through save/load like any other Player field."""
         self.auto_map = False
         """Whether print_room() lists the room's exits automatically on entry - toggled via 'toggle auto map', mirroring auto_talk."""
+        self.seen_hints: set[str] = set()
+        """Keys from hints.HINTS already shown in this save -see show_hint(). Saved, so a reload doesn't repeat hints."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -404,7 +406,7 @@ class Enemy(Character):
 class Ally():
     """A non-combat NPC that can be talked to and traded with, per its required_items/reward data - never branched on by name, see CLAUDE.md."""
 
-    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = ""):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str=""):
         """Set up an ally's dialogue and starting inventory."""
         self.name = name
         self.description = description
@@ -418,12 +420,13 @@ class Ally():
         self.trade_completed = False
         for item in self.items or []:
             self.inventory.add(item)
+        self.hint_traded = hint_traded
 
 
     def talk(self, player) -> str:
         """Return this ally's dialogue - the completed-trade line takes priority, then the completed-hint if the player already holds every required item, otherwise the regular hint."""
         if self.trade_completed:
-            return self.hint_complete or self.hint
+            return self.hint_traded or self.hint_complete or self.hint
         if self.required_items:
             player_item_names = [item.name for item in player.inventory.items]
             if all(name in player_item_names for name in self.required_items):

@@ -92,6 +92,7 @@ def serialise_player(player: Player, current_room) -> dict:
         "dev_mode": player.dev_mode,
         "auto_map": player.auto_map,
         "visited_rooms": sorted(player.visited_rooms),
+        "seen_hints": sorted(player.seen_hints),
     }
 
 def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
@@ -148,6 +149,7 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
     player.dev_mode = data["dev_mode"]
     player.auto_map = data.get("auto_map", False)
     player.visited_rooms = set(data.get("visited_rooms", []))
+    player.seen_hints = set(data.get("seen_hints", []))
 
     current_room = world.get_room(data["current_room"])
     if current_room is None:

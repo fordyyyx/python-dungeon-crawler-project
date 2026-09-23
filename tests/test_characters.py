@@ -1922,3 +1922,24 @@ def test_skill_tree_stat_skill_descriptions_state_their_bonus():
     defence = [skill.description for skill in skill_tree.paths["defence"].skills]
     assert all(desc.endswith(f"(+{bonus} ATK)") for desc, bonus in zip(attack, [2, 3, 4, 5, 6]))
     assert all(desc.endswith(f"(+{bonus} DEF)") for desc, bonus in zip(defence, [2, 3, 4, 5, 6]))
+
+def test_player_initialises_with_no_seen_hints():
+    player = Player(name="Hero", hp=20)
+    assert player.seen_hints == set()
+
+def test_ally_initialises_with_empty_hint_traded_by_default():
+    ally = Ally(name="Chiron")
+    assert ally.hint_traded == ""
+
+def test_ally_talk_returns_hint_traded_once_trade_completed():
+    player = Player(name="hero", hp=10)
+    ally = Ally(name="Athena", hint="Bring me the bow.", hint_complete="Say 'trade'.", hint_traded="Wear it well.", required_items=["Bow"])
+    ally.trade_completed = True
+    assert ally.talk(player) == "Wear it well."
+
+def test_ally_talk_prefers_hint_complete_over_hint_traded_before_the_trade():
+    """hint_traded is only for after the trade - holding the required items still gets the 'say trade' line."""
+    player = Player(name="hero", hp=10)
+    player.inventory.add(Weapon(name="Bow", description="", damage=1))
+    ally = Ally(name="Athena", hint="Bring me the bow.", hint_complete="Say 'trade'.", hint_traded="Wear it well.", required_items=["Bow"])
+    assert ally.talk(player) == "Say 'trade'."

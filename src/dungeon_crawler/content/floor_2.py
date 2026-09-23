@@ -24,8 +24,21 @@ def create_athena() -> Ally:
     return Ally(
         name="Athena",
         description="Calm, measured, and faintly amused — as if she already knows exactly how this ends.",
-        hint="",
-        hint_complete="",
+        hint=(
+            "She closes the scroll she's reading, unhurried. \"So Chiron sent another. Good. Listen carefully, because I will "
+            "only explain this once.\"\n\n"
+            "\"Hades has stopped judging the dead. The souls still arrive, but nothing is decided - they pile up in Asphodel, the "
+            "old monsters of the deeper levels wander wherever they please, and the river runs thick with the unsettled. It is the "
+            "oldest law beneath the earth, and he has simply set it aside.\"\n\n"
+            "\"We cannot go down and make him answer for it. An oath older than any of us keeps gods out of his halls - these "
+            "rooms are as far as we may reach. So we send you.\"\n\n"
+            "She taps the table. \"You'll need better than bronze where you're going. At the bottom of the next level there's a "
+            "forest, and in it a centaur who shoots at anything that moves. Bring me its bow, and I'll give you something worth "
+            "wearing.\""
+        ),
+        hint_complete="\"The centaur's bow. So you closed the distance - good. Say 'trade' and it's yours.\"",
+        hint_traded="\"Wear it well. Hades is patient, and so are his halls - don't mistake either for weakness.\"",
+        post_trade_message="\"The owl on it watches whichever side you forget to.\"",
         required_items = ["Centaur's Broken Bow"],
         items=[],
         reward=create_breastplate_of_athena()
@@ -36,8 +49,15 @@ def create_ares() -> Ally:
     return Ally(
         name="Ares",
         description="He barely looks up from sharpening a blade, though he's clearly aware of every move you make.",
-        hint="",
-        hint_complete="",
+        hint=(
+            "\"Athena's told you the story, I expect. She likes telling it.\" He tests the edge against his thumb. \"Here's the part "
+            "she leaves out: you'll have to kill things to get there, and most of them are bigger than you.\"\n\n"
+            "\"Two levels down, past the forest and into the labyrinth, there's a Cyclops. Bring me its eye, and I'll give you a "
+            "spear that doesn't bend.\""
+        ),
+        hint_complete="\"That's the eye. Say 'trade'.\"",
+        hint_traded="\"Don't hold it like a broom. Point, then push.\"",
+        post_trade_message="\"Now go and use it on something that deserves it.\"",
         required_items=["Cyclops' Eye"],
         items=[],
         reward=create_spear_of_ares()
@@ -48,8 +68,16 @@ def create_hermes() -> Ally:
     return Ally(
         name="Hermes",
         description="Never quite still, halfway through some errand even while talking to you.",
-        hint="",
-        hint_complete="",
+        hint=(
+            "\"Messages, messages - and not one of them delivered, because the dead aren't moving on to receive them.\" He glances "
+            "up, already halfway into another stack.\n\n"
+            "\"You want to help? There's a vault beneath the landing at Styx Crossing - sealed off, easy to miss. 'examine' the "
+            "stonework there and you'll find the way down. Bring me a bone from whatever's guarding it. Proof you've been somewhere "
+            "nobody's meant to go - I collect those.\""
+        ),
+        hint_complete="\"Oh, that's a good one. Say 'trade' - quickly, I've places to be.\"",
+        hint_traded="\"Still here? The dead won't judge themselves - which is rather the whole problem, isn't it?\"",
+        post_trade_message="\"A little something for your trouble. Use it wisely - or quickly, which is usually the same thing.\"",
         required_items=["Skeleton Bone"],
         reward=create_hermes_favour(),
         items=[]
@@ -60,7 +88,10 @@ def create_prometheus() -> Ally:
     return Ally(
         name="Prometheus",
         description="Chained but unbroken, watching you with the weary patience of someone who's paid dearly for helping before.",
-        hint="",
+        hint=(
+            "He doesn't look up from the fire. \"The forge is yours, if you need it. The rest of what I have to offer...\" A long "
+            "pause. \"Not yet.\""
+        ),
         hint_complete="",
         required_items=[],
         items=[]

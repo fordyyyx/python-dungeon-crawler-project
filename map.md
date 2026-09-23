@@ -188,8 +188,11 @@ completable through normal play: Hermes' required Skeleton Bone drops in
 Sunken Vault (floor 1); Athena's required Centaur's Broken Bow now drops
 from the new Centaur enemy in Overgrown Forest (floor 3); Ares' required
 Cyclops' Eye now drops from the new Cyclops enemy in Cavern of the Cyclops
-(floor 4). Only Prometheus' trade remains incomplete - he has no required
-items *or* reward, so trading with him completes instantly for nothing;
+(floor 4). All four gods now have real dialogue (Athena delivers the story
+premise, and Athena's, Ares' and Hermes' hints each point at their trade
+item's source). Only
+Prometheus' trade remains incomplete - he has no required items *or* reward,
+so `trade` just replies that he has nothing to trade and never completes;
 that's unwritten content, not a placement gap. Trophy Room of Zeus remains
 fully unpopulated - no Zeus content (ally or otherwise) has been written
 yet. The sixth floor-2 room, Practice Chamber, is real, populated content

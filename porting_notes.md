@@ -19,6 +19,13 @@ something occurs to you mid-build.
   text, etc.) — some players will still want to read what happened, not just
   see a number change.
 
+- The one-off hint system (`hints.py` - each mechanic explained once, the
+  first time it matters, then never again per save) maps directly onto a
+  non-blocking tutorial toast or tooltip. Keep the "once per save, never
+  repeated" rule, and the principle that the text lives in one table rather
+  than at each trigger site - that's what makes the hints easy to reword or
+  localise later.
+
 ## Combat
 - **Lifesteal (`Character.has_lifesteal`, first used by Lamia) wants a visible drain effect** - a beam or
   particle trail flowing from the target to the attacker, timed with the attacker's HP bar ticking up, rather

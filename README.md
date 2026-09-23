@@ -8,6 +8,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 ## Features
 * Character creation — name your hero, choose a primary ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs), then a second, different figure for a passive secondary gift — a distinct ability rather than more stats (heavy attacks that miss half as often, spells that never go on cooldown, a guaranteed clean escape, and more)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
+* One-off hints that explain a mechanic the first time it matters (your first fight, the forge, a guarded way forward, an unspent skill point) and then never repeat, even across saves
 * Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements — some passages are hidden entirely until you stop and `examine` your surroundings, and the way forward past a floor's toughest foes stays barred until you've defeated them
 * An Intellect stat, set by ancestry and grown through levelling, that unlocks additional flavour text and lore when examining — never anything required to progress
 * Turn-based, team-vs-team combat that locks you into an encounter — attack a chosen target, cast a spell, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
@@ -20,7 +21,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Armour durability that wears down as you take hits (shown in your inventory) and can be repaired for gold at the Forge of Prometheus — armour softens every blow, but never blocks one completely
 * Status effects — poison, flame, and heal-over-time tonics that tick each round, stacking by prolonging duration rather than piling up separate instances
 * Spellcasting — a learnable spellbook, a mana pool, and per-spell cooldowns; rest to recover mana between fights
-* Friendly NPCs with hints, conditional dialogue, and items to trade
+* Friendly NPCs with hints, conditional dialogue that changes before, during, and after a trade, and items to trade
 * A trading system that checks for both missing and still-equipped items
 * Quest items — untradeable, undroppable, and displayed separately from regular gear
 * A branching skill tree (Attack and Defence paths of five escalating tiers each, plus an Abilities path) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience, which also raises your max HP
@@ -107,6 +108,7 @@ pytest --cov=src/dungeon_crawler
 * `items.py` - `Item`, `Weapon`, `Armour`, `Consumable`, `QuestItem`, `Inventory`, plus `Consumable`'s own subclasses `Reviver`, `StatusEffectItem`, `SpellBook`, `SkillPointReward`
 * `status_effects.py` - `StatusEffect` - the poison/flame/heal-over-time engine, ticked once per combat turn
 * `spells.py` - `Spell` - offensive/defensive/utility spellcasting
+* `hints.py` - the text of every one-off contextual hint, and the logic that shows each one only once per save
 * `world.py` - `Room`, `Map`
 * `content/` - the actual game content: specific rooms, enemies, allies, and items, one module per floor, plus the ancestry options for character creation, dev-only test content, and `build_world()`
 * `combat.py` - combat resolution: team-vs-team turns, targeting, status-effect ticking, spellcasting, defeat handling, and fleeing

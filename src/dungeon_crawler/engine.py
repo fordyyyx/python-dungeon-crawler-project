@@ -8,6 +8,7 @@ from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
+from dungeon_crawler.hints import show_hint
 
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
@@ -41,6 +42,17 @@ def print_room(room: Room, player: Player):
 
     if player.auto_map:
         print("\nExits:\n" + display_local_exits(room, player))
+
+    room_hints = []
+    if any(enemy.is_alive() and not enemy.respawns for enemy in room.enemies):
+        room_hints.append(show_hint(player, "combat"))
+    if room.is_forge:
+        room_hints.append(show_hint(player, "forge"))
+    if room.is_practice_chamber:
+        room_hints.append(show_hint(player, "practice_chamber"))
+    for hint in room_hints:
+        if hint:
+            print(f"\n{hint}")
 
 
 def get_controls_text() -> str:
@@ -165,6 +177,10 @@ def main() -> None:
 
         quit_requested = False
         while player.is_alive():
+            if player.skill_tree.skill_points > 0:
+                skill_hint = show_hint(player, "skill_points")
+                if skill_hint:
+                    print(skill_hint)
             command = input("> ").strip().lower()
             print("\n\n")
 
@@ -306,18 +322,27 @@ def main() -> None:
                     print(f"That way is locked. You need the {required} first.")
                 elif guardian is not None:
                     print(f"{guardian.name} bars the way - you'll have to deal with it first.")
+                    guard_hint = show_hint(player, "guarded_exit")
+                    if guard_hint:
+                        print(guard_hint)
                 else:
                     if command in current_room.exit_activations:
                         unlock_room, unlock_direction = current_room.exit_activations[command]
                         if unlock_direction in unlock_room.fast_travel_locks:
                             unlock_room.fast_travel_locks.discard(unlock_direction)
                             print("The path back opens behind you.")
+                            shortcut_hint = show_hint(player, "forge_shortcut")
+                            if shortcut_hint:
+                                print(shortcut_hint)
                     current_room = current_room.exits[command]
                     player.visited_rooms.add(current_room.name)
                     regen_cap = int(player.max_hp * PASSIVE_REGEN_CAP_FRACTION)
                     if player.hp < regen_cap:
                         player.hp = min(player.max_hp, player.hp + PASSIVE_REGEN_PER_MOVE)
                         print(f"You catch your breath as you move on. (+{PASSIVE_REGEN_PER_MOVE} HP)")
+                        regen_hint = show_hint(player, "passive_regen")
+                        if regen_hint:
+                            print(regen_hint)
                     found_floor = find_floor_for_room(current_room, all_floors)
                     if found_floor is not None:
                         current_floor_rooms = all_floors[found_floor]
@@ -326,6 +351,9 @@ def main() -> None:
                             if active_profile is not None:
                                 save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
                                 print("(autosaved)")
+                                autosave_hint = show_hint(player, "autosave")
+                                if autosave_hint:
+                                    print(autosave_hint)
                     print_room(current_room, player)
 
             elif command == "look":

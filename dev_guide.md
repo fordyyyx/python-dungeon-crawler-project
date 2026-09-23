@@ -204,8 +204,10 @@ Weathered Helm (Shade's drop, Fields of Asphodel) is also content's first
 real `slot="helmet"` item, and Lamia is the first enemy with
 `Character.has_lifesteal` - see `CLAUDE.md`'s "Armour slots and durability"
 and "Canonical attribute names." Only Prometheus' trade is still unwritten
-content (no required items or reward, so it completes instantly for
-nothing) - see roadmap.md's "Populate all floors."
+content (no required items or reward, so `trade` just replies "Prometheus
+has nothing to trade." and never completes) - see roadmap.md's "Populate all
+floors." Athena, Ares, and Hermes all have real dialogue now, including a
+line for after their trade (`Ally.hint_traded`).
 
 Two more small things from the same playtesting pass: moving into a new
 room restores 1 HP while you're below three-quarters of max HP (`"You
@@ -232,6 +234,14 @@ neighbours. Walk into it (or out and back in) to register it. Level-ups now also
 nothing levels until the next real XP gain - so to trigger a genuine
 `level_up()`, set experience just below the threshold, then `dev spawn
 shade` and `dev kill` it (a dev kill grants the enemy's real XP).
+
+**One-off hints only ever show once per save.** `Player.seen_hints` is
+saved like any other field, so once you've seen e.g. the combat or forge
+hint in a save, it won't appear again there - even after a reload. There's
+no dev command to reset it (`dev set` only writes whole numbers, not sets),
+so to see a hint again, start a fresh New Game. The full hint text and
+every trigger are in `hints.py` and `CLAUDE.md`'s "One-off contextual
+hints".
 
 ## The Practice Chamber isn't a dev tool
 Unlike everything else in this file, the Practice Chamber (floor 2, next to

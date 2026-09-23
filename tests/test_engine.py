@@ -172,6 +172,56 @@ def test_get_controls_text_lists_auto_map_and_uncleared_commands():
     assert "toggle auto map - " in text
     assert "uncleared - " in text
 
+def test_print_room_with_living_enemy_shows_combat_hint_once(capsys):
+    room = Room("Fields of Asphodel", "Grey grass.")
+    room.add_enemy(Enemy(name="Shade", hp=7))
+    player = Player(name="Hero", hp=20)
+
+    print_room(room, player)
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert captured.out.count("[Hint] There's something here that wants a fight.") == 1
+    assert "combat" in player.seen_hints
+
+def test_print_room_with_only_a_respawning_enemy_shows_no_combat_hint(capsys):
+    room = Room("Practice Chamber", "Straw everywhere.")
+    room.add_enemy(Enemy(name="Practice Enemy", hp=20, respawns=True))
+    player = Player(name="Hero", hp=20)
+    print_room(room, player)
+    assert "combat" not in player.seen_hints
+
+def test_print_room_with_only_a_dead_enemy_shows_no_combat_hint(capsys):
+    room = Room("Fields of Asphodel", "Grey grass.")
+    shade = Enemy(name="Shade", hp=7)
+    shade.hp = 0
+    room.add_enemy(shade)
+    player = Player(name="Hero", hp=20)
+    print_room(room, player)
+    assert "combat" not in player.seen_hints
+
+def test_print_room_in_a_forge_shows_forge_hint(capsys):
+    room = Room("Forge of Prometheus", "Hot.", is_forge=True)
+    player = Player(name="Hero", hp=20)
+    print_room(room, player)
+    captured = capsys.readouterr()
+    assert "[Hint] This is the forge." in captured.out
+
+def test_print_room_in_the_practice_chamber_shows_practice_hint(capsys):
+    room = Room("Practice Chamber", "Straw everywhere.", is_practice_chamber=True)
+    player = Player(name="Hero", hp=20)
+    print_room(room, player)
+    captured = capsys.readouterr()
+    assert "[Hint] The dummy here never stays down" in captured.out
+
+def test_print_room_does_not_repeat_a_hint_already_seen(capsys):
+    room = Room("Forge of Prometheus", "Hot.", is_forge=True)
+    player = Player(name="Hero", hp=20)
+    player.seen_hints.add("forge")
+    print_room(room, player)
+    captured = capsys.readouterr()
+    assert "[Hint]" not in captured.out
+
 def test_get_controls_text_lists_movement_and_combat_commands():
     text = get_controls_text()
 
@@ -982,3 +1032,52 @@ def test_main_toggle_auto_map_lists_exits_on_entering_the_next_room(monkeypatch,
     after_move = captured.out.split("Auto-map is now on.")[-1]
     assert "Exits:" in after_move
     assert "east -> Fields of Asphodel" in after_move
+
+def test_main_guarded_exit_hint_shows_once_however_many_times_the_exit_is_blocked(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport labyrinth of the minotaur",
+        "south",
+        "south",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert captured.out.count("Minotaur bars the way") == 2
+    assert captured.out.count("[Hint] Some ways forward are guarded") == 1
+
+def test_main_skill_point_hint_shows_once_when_a_point_is_available(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev set skillpoints 1",
+        "look",
+        "look",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert captured.out.count("[Hint] You have a skill point to spend.") == 1
+
+def test_main_opening_a_forge_shortcut_shows_the_shortcut_hint(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport prayer room",
+        "forge",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    after_unlock = captured.out.split("The path back opens behind you.")[-1]
+    assert "[Hint] You've opened a shortcut to the Forge of Prometheus." in after_unlock
