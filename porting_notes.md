@@ -110,15 +110,24 @@ something occurs to you mid-build.
   cue distinct from a potion heal - a faint pulse on the HP bar as you cross
   into a new room reads very differently from a burst heal effect, and that
   distinction matters for the player understanding *why* their HP just moved. It
-  only ever regenerates up to half HP, so the pulse should visibly stop at a
-  marked halfway line on the bar - otherwise players will wonder why walking
-  stopped healing them.
+  only ever regenerates up to three-quarters of max HP, so the pulse should
+  visibly stop at a marked line on the bar - otherwise players will wonder why
+  walking stopped healing them.
 - Guarded exits (`Room.guarded_exits` - a floor's key fights bar the way
   forward until defeated) are a natural fit for the boss physically standing
   in the doorway, or a sealed-door visual that breaks open on the kill -
   rather than the text version's refusal message on a failed move. Worth
   marking guarded exits on the map screen too; the text version doesn't show
   them until you try one.
+- The `uncleared` command (which rooms you've visited still hold enemies,
+  items, an open trade, or a hidden passage - plus unexplored rooms one step
+  away) is really a map overlay waiting to happen - a marker or glow on
+  unfinished rooms, and a "?" on undiscovered doorways, rather than a typed
+  report. Keep its spoiler-safety: only rooms the player has seen, or can see
+  the doorway to, get marked, and a hidden passage is hinted at, never
+  pointed to. `toggle auto
+  map` similarly becomes an always-on minimap, which most visual versions
+  would simply have by default.
 
 ## Items / Inventory
 - Equip slots are a natural fit for a paper-doll style UI — both weapons
@@ -127,6 +136,12 @@ something occurs to you mid-build.
   than two; within each slot, "equipping replaces, doesn't stack" already
   matches how visual equip slots typically work, so no logic change needed,
   just a UI showing it.
+- Armour durability (now shown in the text inventory as `3/5 durability`) is a
+  natural fit for a small wear bar on each paper-doll slot, changing colour as
+  it nears breaking - the text version only shows it when you open the
+  inventory, but a player should be able to see gear about to break mid-fight.
+- `take all` is the text version's "loot all" button - a single prompt over a
+  pile of drops (or an ally's offered gifts) rather than one click per item.
 - Quest items being visually separated (already true in the text inventory)
   suggests a distinct visual "key items" pouch/tab in a graphical inventory
   screen.

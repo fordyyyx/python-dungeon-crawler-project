@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import HP_PER_LEVEL, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem
 from dungeon_crawler.world import Room
 from dungeon_crawler.status_effects import StatusEffect
@@ -671,7 +671,7 @@ def test_gain_experience_at_threshold_levels_up():
 def test_gain_experience_at_threshold_returns_combined_message():
     player = Player(name="Hero", hp=10)
     message = player.gain_experience(50)
-    assert message == "Hero gains 50 experience.\nHero reaches level 2! A skill point is available."
+    assert message == "Hero gains 50 experience.\nHero reaches level 2! +2 max HP, and a skill point is available."
 
 def test_gain_experience_over_threshold_carries_remainder_forward():
     player = Player(name="Hero", hp=10)
@@ -707,7 +707,7 @@ def test_level_up_scales_experience_threshold():
 def test_level_up_returns_level_up_message():
     player = Player(name="Hero", hp=10)
     message = player.level_up()
-    assert message == "Hero reaches level 2! A skill point is available."
+    assert message == "Hero reaches level 2! +2 max HP, and a skill point is available."
 
 def test_level_up_increases_intellect():
     player = Player(name="Hero", hp=10)
@@ -1864,3 +1864,61 @@ def test_enemy_initialises_with_respawns_false_by_default():
 def test_enemy_initialises_with_respawns_true():
     enemy = Enemy(name="Practice Enemy", hp=15, attack_damage=4, respawns=True)
     assert enemy.respawns is True
+
+def test_level_up_increases_max_hp_by_hp_per_level():
+    player = Player(name="Hero", hp=20)
+    player.level_up()
+    assert player.max_hp == 20 + HP_PER_LEVEL
+
+def test_level_up_raises_current_hp_by_the_same_amount_rather_than_fully_healing():
+    """Levelling up mid-fight must not hand out a free full restore - current HP only rises by HP_PER_LEVEL."""
+    player = Player(name="Hero", hp=20)
+    player.hp = 5
+    player.level_up()
+    assert player.hp == 5 + HP_PER_LEVEL
+
+def test_player_initialises_with_no_visited_rooms():
+    player = Player(name="Hero", hp=20)
+    assert player.visited_rooms == set()
+
+def test_player_initialises_with_auto_map_false():
+    player = Player(name="Hero", hp=20)
+    assert player.auto_map is False
+
+def test_get_inventory_display_shows_armour_durability():
+    player = Player(name="hero", hp=100)
+    helm = Armour(name="Weathered Helm", description="", defence=1, slot="helmet", max_durability=5)
+    helm.durability = 3
+    player.inventory.add(helm)
+    assert player.get_inventory_display() == "Weathered Helm - 3/5 durability"
+
+def test_get_inventory_display_marks_equipped_armour_before_its_durability():
+    player = Player(name="hero", hp=100)
+    plate = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
+    player.inventory.add(plate)
+    plate.use(player)
+    assert player.get_inventory_display() == "Bronze Breastplate (equipped) - 8/8 durability"
+
+def test_get_inventory_display_lists_same_named_armour_pieces_separately():
+    """Two pieces can differ in durability, so armour is never grouped into a 'x2' line the way weapons are."""
+    player = Player(name="hero", hp=100)
+    worn = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
+    worn.durability = 2
+    fresh = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
+    player.inventory.add(worn)
+    player.inventory.add(fresh)
+    assert player.get_inventory_display() == "Bronze Breastplate - 2/8 durability\nBronze Breastplate - 8/8 durability"
+
+def test_get_inventory_display_keeps_weapons_and_armour_in_inventory_order():
+    player = Player(name="hero", hp=100)
+    player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    player.inventory.add(Armour(name="Wooden Shield", description="", defence=1, max_durability=6))
+    player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    assert player.get_inventory_display() == "Bronze Xiphos x2\nWooden Shield - 6/6 durability"
+
+def test_skill_tree_stat_skill_descriptions_state_their_bonus():
+    skill_tree = SkillTree()
+    attack = [skill.description for skill in skill_tree.paths["attack"].skills]
+    defence = [skill.description for skill in skill_tree.paths["defence"].skills]
+    assert all(desc.endswith(f"(+{bonus} ATK)") for desc, bonus in zip(attack, [2, 3, 4, 5, 6]))
+    assert all(desc.endswith(f"(+{bonus} DEF)") for desc, bonus in zip(defence, [2, 3, 4, 5, 6]))

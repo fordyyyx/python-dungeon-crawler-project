@@ -144,6 +144,34 @@ def test_print_room_with_no_companions_does_not_print_recruit_message(capsys):
     captured = capsys.readouterr()
     assert "could be recruited" not in captured.out
 
+def test_print_room_with_auto_map_on_lists_exits(capsys):
+    room = Room("Styx Crossing", "Black water.")
+    room.connect("east", Room("Fields of Asphodel"))
+    player = Player(name="Hero", hp=20)
+    player.auto_map = True
+    print_room(room, player)
+    captured = capsys.readouterr()
+    assert "Exits:\neast -> Fields of Asphodel" in captured.out
+
+def test_print_room_with_auto_map_off_does_not_list_exits(capsys):
+    room = Room("Styx Crossing", "Black water.")
+    room.connect("east", Room("Fields of Asphodel"))
+    player = Player(name="Hero", hp=20)
+    print_room(room, player)
+    captured = capsys.readouterr()
+    assert "Exits:" not in captured.out
+
+def test_get_controls_text_lists_new_take_all_and_equip_commands():
+    text = get_controls_text()
+    assert "take all - " in text
+    assert "take all from <ally> - " in text
+    assert "use <item> / equip <item> - " in text
+
+def test_get_controls_text_lists_auto_map_and_uncleared_commands():
+    text = get_controls_text()
+    assert "toggle auto map - " in text
+    assert "uncleared - " in text
+
 def test_get_controls_text_lists_movement_and_combat_commands():
     text = get_controls_text()
 
@@ -895,3 +923,62 @@ def test_main_take_mid_combat_picks_up_loot_dropped_by_a_defeated_enemy(monkeypa
     assert "You can't do that mid-combat" not in before_take
     # 'look' is refused only while combat is still locked - proving the take above happened mid-fight
     assert "You can't do that mid-combat" in after_take
+
+def test_main_take_all_from_ally_then_equip_gears_up_from_the_wounded_soldier(monkeypatch, capsys, tmp_path):
+    """Smoke test: 'take all from <ally>' collects every gift in one command, and 'equip' then equips one of them."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_1",
+        "take all from wounded soldier",
+        "equip bronze xiphos",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Wounded Soldier gives you: Bronze Xiphos, Bronze Breastplate, Small Healing Potion." in captured.out
+    assert "Dev equips Bronze Xiphos (melee, +3 DMG)." in captured.out
+
+def test_main_uncleared_reports_only_visited_rooms_with_something_left(monkeypatch, capsys, tmp_path):
+    """Walk past the Shade in Fields of Asphodel without fighting it - 'uncleared' then reports it, hints at Styx
+    Crossing's hidden exit without naming the direction, and lists the Library of Athena (one open step below Styx
+    Crossing) as undiscovered - while the hidden Sunken Vault is never named."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_1",
+        "descend",
+        "east",
+        "west",
+        "uncleared",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    report = captured.out.split("Floor 1:")[-1]
+    assert "    Fields of Asphodel - enemies remain" in report
+    assert "    Styx Crossing - something here is worth a closer look" in report
+    assert "Floor 2:\n    Library of Athena - undiscovered" in report
+    assert "Sunken Vault" not in report
+
+def test_main_toggle_auto_map_lists_exits_on_entering_the_next_room(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_1",
+        "toggle auto map",
+        "descend",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Auto-map is now on." in captured.out
+    after_move = captured.out.split("Auto-map is now on.")[-1]
+    assert "Exits:" in after_move
+    assert "east -> Fields of Asphodel" in after_move

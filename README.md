@@ -13,16 +13,17 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Turn-based, team-vs-team combat that locks you into an encounter — attack a chosen target, cast a spell, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
 * Multiple enemies at once, each deciding for itself whether to attack, defend, or heal via a utility-based AI (with a little randomness baked in, so it doesn't always play perfectly) — target a specific enemy by name, disambiguating with a number when more than one shares it
 * Recruitable companions who fight alongside you with the same AI-driven decision-making as enemies — a downed companion isn't gone for good, and can be revived or simply dismissed home to recover
-* An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time
+* An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time — and an auto-map setting that lists each room's exits the same way
+* An `uncleared` command that remembers every room you've visited and lists the ones you haven't finished with yet, plus any new rooms one step away that you haven't explored — without ever spoiling anything further out
 * Item pickup, inventory, use, and unequip — both weapons and armour occupy two independent slots each (melee/ranged for weapons, helmet/body for armour) so a piece in each slot can be worn at once, only swapping within the same slot
 * Attack variety — light, heavy (bigger hit, a chance to miss entirely), and ranged (requires an equipped ranged weapon) attacks, chosen per turn
-* Armour durability that wears down as you take hits and can be repaired for gold at the Forge of Prometheus — armour softens every blow, but never blocks one completely
+* Armour durability that wears down as you take hits (shown in your inventory) and can be repaired for gold at the Forge of Prometheus — armour softens every blow, but never blocks one completely
 * Status effects — poison, flame, and heal-over-time tonics that tick each round, stacking by prolonging duration rather than piling up separate instances
 * Spellcasting — a learnable spellbook, a mana pool, and per-spell cooldowns; rest to recover mana between fights
 * Friendly NPCs with hints, conditional dialogue, and items to trade
 * A trading system that checks for both missing and still-equipped items
 * Quest items — untradeable, undroppable, and displayed separately from regular gear
-* A branching skill tree (Attack and Defence paths of five escalating tiers each, plus an Abilities path) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience
+* A branching skill tree (Attack and Defence paths of five escalating tiers each, plus an Abilities path) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience, which also raises your max HP
 * Gold, earned from defeating enemies, tracked separately from your core stats
 * Special combat abilities — Double Strike, Thorns, Last Stand, and Dodge
 * Enemies with loot drops
@@ -71,17 +72,21 @@ pytest --cov=src/dungeon_crawler
 * `north` / `east` / `south` / `west` / `descend` / etc. - move in that direction
 * `map` - show the exits available from your current room
 * `fullmap` / `world` - show every reachable room on the current floor
+* `toggle auto map` - list the exits automatically every time you enter a room
+* `uncleared` - list the rooms you've visited that aren't cleared yet (enemies, items left behind, an unfinished trade, or a hidden passage worth a closer look), plus reachable rooms you haven't discovered yet
 * `talk` - talk to an ally in the room
 * `toggle auto talk` - allies speak automatically on room entry, without needing `talk` each time
 * `attack` / `attack light` / `attack heavy` / `attack ranged` - attack an enemy in the room; this locks you into combat until every enemy is defeated or you flee. Heavy hits harder but can miss entirely; ranged requires an equipped ranged weapon
 * `target <name>` - set your attack target, persisting across rounds; if two or more enemies share a name, add a number (e.g. `target harpies 2`)
 * `cast <spell>` - cast a known spell (mid-combat only); costs mana and may set the spell on a one-turn cooldown
 * `flee` - disengage from combat (mid-combat only)
-* `take <item>` - pick up an item from the room
-* `use <item>` - use or equip an item from your inventory (mid-combat, a genuine heal is a free action that doesn't use your turn; anything else — an offensive item, a non-healing use — still uses your turn, and the enemy still acts)
+* `take <item>` - pick up an item from the room (also works mid-combat, without using your turn)
+* `take all` - pick up everything in the room at once (also works mid-combat, without using your turn)
+* `use <item>` / `equip <item>` - use or equip an item from your inventory; `equip` only ever equips gear, so it can't accidentally drink a potion (mid-combat, a genuine heal is a free action that doesn't use your turn; anything else — an offensive item, a non-healing use — still uses your turn, and the enemy still acts)
 * `unequip <item>` - unequip an item
 * `drop <item>` - drop an item into the room (quest items can't be dropped)
 * `take <item> from <ally>` - take an item from an ally's inventory
+* `take all from <ally>` - take everything an ally is holding at once
 * `trade` - trade required items with an ally for their reward
 * `recruit <name>` - recruit a companion who joins your team in combat (requires specific items)
 * `dismiss` - release your current companion, who returns home

@@ -2,7 +2,7 @@
 examining surroundings, and map/movement helpers."""
 
 from dungeon_crawler.characters import Player, Ally, Companion, Enemy
-from dungeon_crawler.items import Armour
+from dungeon_crawler.items import Armour, Weapon
 from dungeon_crawler.world import Room
 
 REPAIR_COST_PER_POINT = 2
@@ -15,6 +15,26 @@ def pick_up(room: Room, item_name: str, player: Player) -> str:
             room.remove_item(item)
             return f"You take the {item.name}. {item.description}"
     return "That's not here."
+
+def take_all(room: Room, player: Player) -> str:
+    """Move every item in room into player's inventory, summarised on one line rather than one description per item."""
+    items = room.items
+    if not items:
+        return "There's nothing here to take."
+    for item in items:
+        room.remove_item(item)
+        player.inventory.add(item)
+    return f"You take: {', '.join(item.name for item in items)}."
+
+def take_all_from_ally(ally: Ally, player: Player) -> str:
+    """Move every item ally is holding into player's inventory."""
+    items = list(ally.inventory.items)
+    if not items:
+        return f"{ally.name} has nothing left to give."
+    for item in items:
+        ally.inventory.remove(item)
+        player.inventory.add(item)
+    return f"{ally.name} gives you: {', '.join(item.name for item in items)}."
 
 def trade_with_ally(ally: Ally, player: Player):
     """Exchange player's required_items for ally's reward, if the player has every item and none of them are currently equipped.
@@ -212,3 +232,78 @@ def repair_item(item_name: str, player: Player, room: Room) -> str:
     if was_broken:
         player.armour += item.defence
     return f"{item.name} is fully repaired for {cost} gold."
+
+def check_equippable(item_name: str, player: Player) -> str | None:
+    """An error message if item_name isn't held, isn't a Weapon/Armour, or is already equipped - otherwise None. Checked before equipping so
+    'equip' can never drink a potion, and never spends a combat turn re-equipping something already equipped."""
+    item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
+    if item is None:
+        return f"No item named '{item_name}' in inventory."
+    if not isinstance(item, (Weapon, Armour)):
+        return f"You can't equip the {item.name}."
+    if item.equipped:
+        return f"{item.name} is already equipped."
+    return None
+
+def has_unfinished_trade(ally: Ally) -> bool:
+    """Whether ally offers a genuine trade (has required items AND a reward) that hasn't yet been completed. Allies like Prometheus (no reward)
+    or Mentor (no required items) never count - they have nothing to trade in the first place."""
+    return bool(ally.required_items) and ally.reward is not None and not ally.trade_completed
+
+def get_uncleared_reasons(room: Room) -> list[str]:
+    """Why room isn't finished yet - an empty list means it's cleared. A hidden exit is reported vaguely, without naming a direction, so the
+    command hints that a room is worth examining rather than spoiling what's there."""
+    reasons = []
+    if any(enemy.is_alive() and not enemy.respawns for enemy in room.enemies):
+        reasons.append("enemies remain")
+    if room.items:
+        reasons.append("items left behind")
+    if any(has_unfinished_trade(ally) for ally in room.allies):
+        reasons.append("an unfinished trade")
+    if room.hidden_exits:
+        reasons.append("something here is worth a closer look")
+    return reasons
+
+def get_undiscovered_rooms(all_floors: dict[str, dict[str, Room]], player: Player) -> set[str]:
+    """Names of unvisited rooms the player could walk into right now - one step through a usable exit from a room they've already visited.
+    An exit counts as usable if it isn't item-locked, guarded, or a sealed Forge shortcut, and only revealed exits are in room.exits, so a hidden
+    one is never followed. Limited to one step on purpose: an adjacent room's name is already shown by the map's exit list, so this reveals
+    nothing new, whereas following exits further would name rooms the player has never seen."""
+    rooms_by_name = {room.name: room for rooms in all_floors.values() for room in rooms.values()}
+    undiscovered : set[str] = set()
+    for name in player.visited_rooms:
+        room = rooms_by_name.get(name)
+        if room is None:
+            continue
+        for direction, target in room.exits.items():
+            if target.name in player.visited_rooms:
+                continue
+            if direction in room.fast_travel_locks:
+                continue
+            if is_exit_locked(room, direction, player):
+                continue
+            if get_exit_guardian(room, direction) is not None:
+                continue
+            undiscovered.add(target.name)
+    return undiscovered
+
+def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) -> str:
+    """List every visited room that isn't cleared yet, plus every undiscovered room within one step of a visited one (see
+    get_undiscovered_rooms()), grouped by floor."""
+    undiscovered = get_undiscovered_rooms(all_floors, player)
+    lines = []
+    for floor_key, rooms in all_floors.items():
+        floor_lines = []
+        for room in rooms.values():
+            if room.name in player.visited_rooms:
+                reasons = get_uncleared_reasons(room)
+            elif room.name in undiscovered:
+                reasons = ["undiscovered"]
+            else:
+                continue
+            if reasons:
+                floor_lines.append(f"    {room.name} - {', '.join(reasons)}")
+        if floor_lines:
+            lines.append(f"{floor_key.replace('_', ' ').title()}:")
+            lines.extend(floor_lines)
+    return "\n".join(lines) if lines else "Every room you've visited has been cleared."

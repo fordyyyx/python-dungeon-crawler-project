@@ -90,6 +90,8 @@ def serialise_player(player: Player, current_room) -> dict:
             if player.companion is not None else None
         ),
         "dev_mode": player.dev_mode,
+        "auto_map": player.auto_map,
+        "visited_rooms": sorted(player.visited_rooms),
     }
 
 def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
@@ -144,6 +146,8 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
             player.companion = companion
 
     player.dev_mode = data["dev_mode"]
+    player.auto_map = data.get("auto_map", False)
+    player.visited_rooms = set(data.get("visited_rooms", []))
 
     current_room = world.get_room(data["current_room"])
     if current_room is None:

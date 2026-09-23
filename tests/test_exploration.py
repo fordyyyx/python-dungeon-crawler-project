@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian
+from dungeon_crawler.items import Armour, QuestItem, Weapon, Consumable
+from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -840,3 +840,339 @@ def test_get_exit_guardian_ignores_respawning_enemies():
     room.guard_exit("west")
     room.add_enemy(Enemy(name="Practice Enemy", hp=20, respawns=True))
     assert get_exit_guardian(room, "west") is None
+
+def test_take_all_moves_every_room_item_into_inventory():
+    room = Room("Vault")
+    player = Player(name="Hero", hp=20)
+    potion = Consumable(name="Small Healing Potion", heal_amount=5)
+    bone = QuestItem(name="Skeleton Bone", description="")
+    room.add_item(potion)
+    room.add_item(bone)
+
+    take_all(room, player)
+
+    assert potion in player.inventory.items
+    assert bone in player.inventory.items
+    assert room.items == []
+
+def test_take_all_returns_one_line_summary():
+    room = Room("Vault")
+    player = Player(name="Hero", hp=20)
+    room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
+    room.add_item(QuestItem(name="Skeleton Bone", description=""))
+
+    message = take_all(room, player)
+
+    assert message == "You take: Small Healing Potion, Skeleton Bone."
+
+def test_take_all_in_empty_room_returns_nothing_to_take_message():
+    room = Room("Vault")
+    player = Player(name="Hero", hp=20)
+    assert take_all(room, player) == "There's nothing here to take."
+
+def test_take_all_from_ally_moves_every_item_into_inventory():
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    potion = Consumable(name="Small Healing Potion", heal_amount=5)
+    ally = Ally(name="Wounded Soldier", items=[sword, potion])
+    player = Player(name="Hero", hp=20)
+
+    take_all_from_ally(ally, player)
+
+    assert sword in player.inventory.items
+    assert potion in player.inventory.items
+    assert ally.inventory.items == []
+
+def test_take_all_from_ally_returns_one_line_summary():
+    ally = Ally(name="Wounded Soldier", items=[Weapon(name="Bronze Xiphos", description="", damage=3)])
+    player = Player(name="Hero", hp=20)
+    assert take_all_from_ally(ally, player) == "Wounded Soldier gives you: Bronze Xiphos."
+
+def test_take_all_from_ally_with_nothing_left_returns_message():
+    ally = Ally(name="Wounded Soldier")
+    player = Player(name="Hero", hp=20)
+    assert take_all_from_ally(ally, player) == "Wounded Soldier has nothing left to give."
+
+def test_check_equippable_returns_none_for_unequipped_weapon():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(Weapon(name="Labrys", description="", damage=5))
+    assert check_equippable("labrys", player) is None
+
+def test_check_equippable_returns_none_for_unequipped_armour():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(Armour(name="Weathered Helm", description="", defence=1, slot="helmet"))
+    assert check_equippable("Weathered Helm", player) is None
+
+def test_check_equippable_returns_error_for_missing_item():
+    player = Player(name="Hero", hp=20)
+    assert check_equippable("Labrys", player) == "No item named 'Labrys' in inventory."
+
+def test_check_equippable_returns_error_for_non_equippable_item():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(Consumable(name="Small Healing Potion", heal_amount=5))
+    assert check_equippable("small healing potion", player) == "You can't equip the Small Healing Potion."
+
+def test_check_equippable_returns_error_for_already_equipped_item():
+    player = Player(name="Hero", hp=20)
+    labrys = Weapon(name="Labrys", description="", damage=5)
+    player.inventory.add(labrys)
+    labrys.use(player)
+    assert check_equippable("labrys", player) == "Labrys is already equipped."
+
+def test_get_uncleared_reasons_returns_empty_list_for_cleared_room():
+    room = Room("Grove")
+    assert get_uncleared_reasons(room) == []
+
+def test_get_uncleared_reasons_reports_living_enemies():
+    room = Room("Grove")
+    room.add_enemy(Enemy(name="Satyr", hp=15))
+    assert get_uncleared_reasons(room) == ["enemies remain"]
+
+def test_get_uncleared_reasons_ignores_dead_and_respawning_enemies():
+    room = Room("Practice Chamber")
+    dead = Enemy(name="Satyr", hp=15)
+    dead.hp = 0
+    room.add_enemy(dead)
+    room.add_enemy(Enemy(name="Practice Enemy", hp=20, respawns=True))
+    assert get_uncleared_reasons(room) == []
+
+def test_get_uncleared_reasons_hints_at_hidden_exit_without_naming_direction():
+    room = Room("Styx Crossing")
+    room.add_hidden_exit("down", Room("Sunken Vault"))
+    reasons = get_uncleared_reasons(room)
+    assert reasons == ["something here is worth a closer look"]
+    assert "down" not in reasons[0]
+
+def test_get_uncleared_rooms_lists_only_visited_uncleared_rooms_grouped_by_floor():
+    grove = Room("Mossy Grove")
+    grove.add_enemy(Enemy(name="Satyr", hp=15))
+    unvisited = Room("Sandy Expanse")
+    unvisited.add_enemy(Enemy(name="Ember Wraith", hp=19))
+    cleared = Room("Stony Lair")
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Mossy Grove", "Stony Lair"}
+    floors = {"floor_4": {"Mossy Grove": grove, "Sandy Expanse": unvisited, "Stony Lair": cleared}}
+
+    result = get_uncleared_rooms(floors, player)
+
+    assert result == "Floor 4:\n    Mossy Grove - enemies remain"
+
+def test_get_uncleared_rooms_never_reveals_unvisited_rooms():
+    unvisited = Room("Sandy Expanse")
+    unvisited.add_enemy(Enemy(name="Ember Wraith", hp=19))
+    player = Player(name="Hero", hp=20)
+    floors = {"floor_4": {"Sandy Expanse": unvisited}}
+
+    result = get_uncleared_rooms(floors, player)
+
+    assert "Sandy Expanse" not in result
+
+def test_get_uncleared_rooms_with_everything_cleared_returns_all_clear_message():
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Stony Lair"}
+    floors = {"floor_4": {"Stony Lair": Room("Stony Lair")}}
+    assert get_uncleared_rooms(floors, player) == "Every room you've visited has been cleared."
+
+def test_get_uncleared_rooms_joins_multiple_reasons_for_one_room():
+    room = Room("Styx Crossing")
+    room.add_enemy(Enemy(name="Shade", hp=7))
+    room.add_hidden_exit("down", Room("Sunken Vault"))
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+    floors = {"floor_1": {"Styx Crossing": room}}
+
+    result = get_uncleared_rooms(floors, player)
+
+    assert result == "Floor 1:\n    Styx Crossing - enemies remain, something here is worth a closer look"
+
+# ---- has_unfinished_trade ----
+
+def test_has_unfinished_trade_is_true_for_an_open_trade():
+    ally = Ally(name="Hermes", required_items=["Skeleton Bone"], reward=QuestItem(name="Favour", description=""))
+    assert has_unfinished_trade(ally) is True
+
+def test_has_unfinished_trade_is_false_once_the_trade_is_completed():
+    ally = Ally(name="Hermes", required_items=["Skeleton Bone"], reward=QuestItem(name="Favour", description=""))
+    ally.trade_completed = True
+    assert has_unfinished_trade(ally) is False
+
+def test_has_unfinished_trade_is_false_for_an_ally_with_no_required_items():
+    """e.g. the Mentor - hands out an item, but has nothing to trade for."""
+    ally = Ally(name="Mentor", reward=QuestItem(name="Mentor's Token", description=""))
+    assert has_unfinished_trade(ally) is False
+
+def test_has_unfinished_trade_is_false_for_an_ally_with_no_reward():
+    """e.g. Prometheus - no reward, so nothing to trade."""
+    ally = Ally(name="Prometheus", required_items=["Ember"])
+    assert has_unfinished_trade(ally) is False
+
+# ---- get_uncleared_reasons: items and trades ----
+
+def test_get_uncleared_reasons_reports_items_left_behind():
+    room = Room("Sunken Vault")
+    room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
+    assert get_uncleared_reasons(room) == ["items left behind"]
+
+def test_get_uncleared_reasons_reports_an_unfinished_trade():
+    room = Room("Hall of Hermes")
+    room.add_ally(Ally(name="Hermes", required_items=["Skeleton Bone"], reward=QuestItem(name="Favour", description="")))
+    assert get_uncleared_reasons(room) == ["an unfinished trade"]
+
+def test_get_uncleared_reasons_does_not_report_a_completed_trade():
+    room = Room("Hall of Hermes")
+    ally = Ally(name="Hermes", required_items=["Skeleton Bone"], reward=QuestItem(name="Favour", description=""))
+    ally.trade_completed = True
+    room.add_ally(ally)
+    assert get_uncleared_reasons(room) == []
+
+def test_get_uncleared_reasons_does_not_report_an_ally_with_nothing_to_trade():
+    room = Room("Forge of Prometheus")
+    room.add_ally(Ally(name="Prometheus"))
+    assert get_uncleared_reasons(room) == []
+
+def test_get_uncleared_reasons_lists_every_reason_in_order():
+    room = Room("Busy Room")
+    room.add_enemy(Enemy(name="Shade", hp=7))
+    room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
+    room.add_ally(Ally(name="Hermes", required_items=["Skeleton Bone"], reward=QuestItem(name="Favour", description="")))
+    room.add_hidden_exit("down", Room("Vault"))
+    assert get_uncleared_reasons(room) == ["enemies remain", "items left behind", "an unfinished trade", "something here is worth a closer look"]
+
+# ---- get_undiscovered_rooms ----
+
+def _one_floor(*rooms):
+    return {"floor_1": {room.name: room for room in rooms}}
+
+def test_get_undiscovered_rooms_includes_unvisited_room_through_an_open_exit():
+    styx = Room("Styx Crossing")
+    fields = Room("Fields of Asphodel")
+    styx.connect("east", fields)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+    assert get_undiscovered_rooms(_one_floor(styx, fields), player) == {"Fields of Asphodel"}
+
+def test_get_undiscovered_rooms_excludes_already_visited_rooms():
+    styx = Room("Styx Crossing")
+    fields = Room("Fields of Asphodel")
+    styx.connect("east", fields)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing", "Fields of Asphodel"}
+    assert get_undiscovered_rooms(_one_floor(styx, fields), player) == set()
+
+def test_get_undiscovered_rooms_only_looks_one_step_from_a_visited_room():
+    """Following exits further would name rooms the player has never seen or been shown."""
+    a, b, c = Room("A"), Room("B"), Room("C")
+    a.connect("east", b)
+    b.connect("east", c)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"A"}
+    assert get_undiscovered_rooms(_one_floor(a, b, c), player) == {"B"}
+
+def test_get_undiscovered_rooms_skips_an_item_locked_exit_without_the_item():
+    chamber = Room("Chamber of Chiron")
+    east = Room("Chamber of Chiron (East)")
+    chamber.connect("east", east)
+    chamber.lock_exit("east", "Wooden Sword")
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Chamber of Chiron"}
+    assert get_undiscovered_rooms(_one_floor(chamber, east), player) == set()
+
+def test_get_undiscovered_rooms_follows_an_item_locked_exit_once_the_item_is_held():
+    chamber = Room("Chamber of Chiron")
+    east = Room("Chamber of Chiron (East)")
+    chamber.connect("east", east)
+    chamber.lock_exit("east", "Wooden Sword")
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(Weapon(name="Wooden Sword", description="", damage=1))
+    player.visited_rooms = {"Chamber of Chiron"}
+    assert get_undiscovered_rooms(_one_floor(chamber, east), player) == {"Chamber of Chiron (East)"}
+
+def test_get_undiscovered_rooms_skips_an_exit_guarded_by_a_living_enemy():
+    labyrinth = Room("Labyrinth of the Minotaur")
+    grove = Room("Mossy Grove")
+    labyrinth.connect("south", grove)
+    labyrinth.guard_exit("south")
+    labyrinth.add_enemy(Enemy(name="Minotaur", hp=25))
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Labyrinth of the Minotaur"}
+    assert get_undiscovered_rooms(_one_floor(labyrinth, grove), player) == set()
+
+def test_get_undiscovered_rooms_follows_a_guarded_exit_once_its_guardian_is_dead():
+    labyrinth = Room("Labyrinth of the Minotaur")
+    grove = Room("Mossy Grove")
+    labyrinth.connect("south", grove)
+    labyrinth.guard_exit("south")
+    minotaur = Enemy(name="Minotaur", hp=25)
+    minotaur.hp = 0
+    labyrinth.add_enemy(minotaur)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Labyrinth of the Minotaur"}
+    assert get_undiscovered_rooms(_one_floor(labyrinth, grove), player) == {"Mossy Grove"}
+
+def test_get_undiscovered_rooms_skips_a_fast_travel_locked_exit():
+    forge = Room("Forge of Prometheus")
+    prayer = Room("Prayer Room")
+    forge.connect("prayer room", prayer)
+    forge.lock_fast_travel_exit("prayer room")
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Forge of Prometheus"}
+    assert get_undiscovered_rooms(_one_floor(forge, prayer), player) == set()
+
+def test_get_undiscovered_rooms_never_follows_a_hidden_exit():
+    styx = Room("Styx Crossing")
+    vault = Room("Sunken Vault")
+    styx.add_hidden_exit("down", vault)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+    assert get_undiscovered_rooms(_one_floor(styx, vault), player) == set()
+
+def test_get_undiscovered_rooms_follows_a_hidden_exit_once_revealed():
+    styx = Room("Styx Crossing")
+    vault = Room("Sunken Vault")
+    styx.add_hidden_exit("down", vault)
+    styx.reveal_hidden_exits()
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+    assert get_undiscovered_rooms(_one_floor(styx, vault), player) == {"Sunken Vault"}
+
+def test_get_undiscovered_rooms_ignores_a_visited_room_not_in_any_floor():
+    """e.g. the dev test room - not part of all_floors, so it's skipped rather than raising."""
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Dev Test Room"}
+    assert get_undiscovered_rooms(_one_floor(Room("A")), player) == set()
+
+# ---- get_uncleared_rooms: undiscovered entries ----
+
+def test_get_uncleared_rooms_lists_an_undiscovered_neighbour():
+    styx = Room("Styx Crossing")
+    fields = Room("Fields of Asphodel")
+    styx.connect("east", fields)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+
+    result = get_uncleared_rooms(_one_floor(styx, fields), player)
+
+    assert result == "Floor 1:\n    Fields of Asphodel - undiscovered"
+
+def test_get_uncleared_rooms_groups_an_undiscovered_room_under_its_own_floor():
+    styx = Room("Styx Crossing")
+    library = Room("Library of Athena")
+    styx.connect("descend", library)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+    floors = {"floor_1": {"Styx Crossing": styx}, "floor_2": {"Library of Athena": library}}
+
+    result = get_uncleared_rooms(floors, player)
+
+    assert result == "Floor 2:\n    Library of Athena - undiscovered"
+
+def test_get_uncleared_rooms_lists_visited_and_undiscovered_rooms_together_in_floor_order():
+    styx = Room("Styx Crossing")
+    styx.add_enemy(Enemy(name="Shade", hp=7))
+    fields = Room("Fields of Asphodel")
+    styx.connect("east", fields)
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+
+    result = get_uncleared_rooms(_one_floor(styx, fields), player)
+
+    assert result == "Floor 1:\n    Styx Crossing - enemies remain\n    Fields of Asphodel - undiscovered"

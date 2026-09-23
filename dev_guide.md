@@ -208,9 +208,9 @@ content (no required items or reward, so it completes instantly for
 nothing) - see roadmap.md's "Populate all floors."
 
 Two more small things from the same playtesting pass: moving into a new
-room restores 1 HP while you're below half HP (`"You catch your breath as
-you move on."` - capped at half by a later balance pass, so pacing can't
-heal you to full), and there are three new `forge` shortcut exits straight
+room restores 1 HP while you're below three-quarters of max HP (`"You
+catch your breath as you move on."` - capped by a later balance pass, so
+pacing can't heal you to full), and there are three new `forge` shortcut exits straight
 back to the Forge of Prometheus from Prayer Room (floor 3), Stony Lair, and
 Maze of Pillars (floor 4) - no dev command needed for either, both are
 reachable through normal play. The Forge also has three reciprocal exits
@@ -218,6 +218,20 @@ back out to those same rooms (`prayer room`/`stony lair`/`maze of pillars`),
 each locked until you've used the one-way `forge` exit from that room at
 least once - see the recipe below, and `CLAUDE.md`'s "Fast-travel locks"
 for how the enforcement works.
+
+A few newer player commands are also all real, non-dev, and reachable with
+no workaround: `take all`/`take all from <ally>`, `equip <item>`, `toggle
+auto map`, and `uncleared`. One dev-relevant quirk when testing `uncleared`:
+it works from `Player.visited_rooms` (plus each visited room's open
+neighbours, reported as "undiscovered"), which is updated by normal movement
+(and the starting room) but **not** by `dev teleport` - a room you only ever
+teleported into never shows up in the report, and neither do its
+neighbours. Walk into it (or out and back in) to register it. Level-ups now also raise max HP by
+`HP_PER_LEVEL` (2), so `dev set level` is not the same as a real level-up
+(it only changes the number). `dev set experience` is a plain write too -
+nothing levels until the next real XP gain - so to trigger a genuine
+`level_up()`, set experience just below the threshold, then `dev spawn
+shade` and `dev kill` it (a dev kill grants the enemy's real XP).
 
 ## The Practice Chamber isn't a dev tool
 Unlike everything else in this file, the Practice Chamber (floor 2, next to

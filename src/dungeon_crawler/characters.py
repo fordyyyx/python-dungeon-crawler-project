@@ -11,6 +11,7 @@ HEAVY_ATTACK_MULTIPLIER: float = 1.75
 HEAVY_ATTACK_MISS_CHANCE: float = 0.4
 RECKLESS_HEAVY_ATTACK_MISS_CHANCE: float = HEAVY_ATTACK_MISS_CHANCE / 2
 MINIMUM_DAMAGE: int = 1
+HP_PER_LEVEL: int = 2
 
 class Character:
     """Shared base for anything that can fight - HP, attack, armour, and the ability flags (Double Strike, Thorns, Last Stand) that Skills can turn on."""
@@ -224,10 +225,15 @@ class Player(Character):
         """Which floors this run has reached, keyed by build_world()'s floor names (e.g. 'floor_0') - populated by main()'s
         autosave on first crossing into a new floor, checked via find_floor_for_room() so re-crossing an already-visited
         floor boundary doesn't re-trigger it."""
+        self.visited_rooms: set[str] = set()
+        """Names of every room this run has entered - used by the 'uncleared' command, which only reports rooms the player has actually seen,
+        so it never reveals the map."""
         self.dev_mode = False
         """Whether developer commands are available for this save - moved off a dev_tools.py module global (see CLAUDE.md's note on why)
         so it's per-save state , not per process. Set once via the 'developer mode' name-trick or the mid-game 'developer mode' toggle,
         persisted through save/load like any other Player field."""
+        self.auto_map = False
+        """Whether print_room() lists the room's exits automatically on entry - toggled via 'toggle auto map', mirroring auto_talk."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -262,7 +268,8 @@ class Player(Character):
         return dedent(stat_string).strip()
 
     def get_inventory_display(self) -> str:
-        """Format inventory contents for display - regular items grouped with counts, quest items and gold listed separately."""
+        """Format inventory contents for display, in inventory order - regular items grouped with counts, except Armour, which is listed one
+        piece per line with its durability (two same-named pieces can differ in wear); quest items and gold listed separately."""
         if not self.inventory.items and self.gold == 0:
             return "Your inventory is empty."
 
@@ -271,18 +278,27 @@ class Player(Character):
 
         counts: dict[str, int] = {}
         for item in regular_items:
-            counts[item.name] = counts.get(item.name, 0) + 1
+            if not isinstance(item, Armour):
+                counts[item.name] = counts.get(item.name, 0) + 1
 
         equipped_names = {
-            item.name for item in regular_items if item.equipped
+            item.name for item in regular_items if item.equipped and not isinstance(item, Armour)
         }
 
         lines =[]
-        for name, count in counts.items():
-            line = f"{name} x{count}" if count > 1 else name
-            if name in equipped_names:
-                line += " (equipped)"
-            lines.append(line)
+        listed: set[str] = set()
+        for item in regular_items:
+            if isinstance(item, Armour):
+                line = item.name + (" (equipped)" if item.equipped else "")
+                line += f" - {item.durability}/{item.max_durability} durability"
+                lines.append(line)
+            elif item.name not in listed:
+                listed.add(item.name)
+                count = counts[item.name]
+                line = f"{item.name} x{count}" if count > 1 else item.name
+                if item.name in equipped_names:
+                    line += " (equipped)"
+                lines.append(line)
 
         if quest_items:
             quest_names = ", ".join(item.name for item in quest_items)
@@ -314,13 +330,16 @@ class Player(Character):
         return message
 
     def level_up(self) -> str:
-        """Raise level, roll the XP threshold forward, grant one skill point."""
+        """Raise level, roll the XP threshold forward, grant one skill point, +1 intellect, and +HP_PER_LEVEL max HP. Current HP rises by the same
+        amount rather than fully healing, so levelling up mid-fight doesn't hand out a free full restore."""
         self.level += 1
         self.experience -= self.experience_to_next_level
         self.skill_tree.skill_points += 1
         self.experience_to_next_level = int(self.experience_to_next_level * 1.5)
         self.intellect += 1
-        return f"{self.name} reaches level {self.level}! A skill point is available."
+        self.max_hp += HP_PER_LEVEL
+        self.hp += HP_PER_LEVEL
+        return f"{self.name} reaches level {self.level}! +{HP_PER_LEVEL} max HP, and a skill point is available."
 
     def tick_spell_cooldowns(self) -> None:
         """Decrement every active spell cooldown by one turn, dropping any that reach 0. Call once per player turn, same insertion
@@ -519,18 +538,18 @@ class SkillTree:
         self.skill_points = 0
         self.paths: dict[str, SkillPath] = {
             "attack": SkillPath("Attack", [
-                AttackBoostSkill("Iron Grip", "Steadier strikes.", bonus=2),
-                AttackBoostSkill("Honed Instinct", "Every swing finds its mark a little easier.", bonus=3),
-                AttackBoostSkill("Warrior's Fury", "A hero's strength awakens.", bonus=4),
-                AttackBoostSkill("Spartan Discipline", "Years of drilling, spent in a single moment.", bonus=5),
-                AttackBoostSkill("Blessing of Ares", "The war god lends his might.", bonus=6),
+                AttackBoostSkill("Iron Grip", "Steadier strikes. (+2 ATK)", bonus=2),
+                AttackBoostSkill("Honed Instinct", "Every swing finds its mark a little easier. (+3 ATK)", bonus=3),
+                AttackBoostSkill("Warrior's Fury", "A hero's strength awakens. (+4 ATK)", bonus=4),
+                AttackBoostSkill("Spartan Discipline", "Years of drilling, spent in a single moment. (+5 ATK)", bonus=5),
+                AttackBoostSkill("Blessing of Ares", "The war god lends his might. (+6 ATK)", bonus=6),
             ]),
             "defence": SkillPath("Defence", [
-                DefenceBoostSkill("Hardened Skin", "Blows land softer.", bonus=2),
-                DefenceBoostSkill("Steady Stance", "Harder to knock off your feet.", bonus=3),
-                DefenceBoostSkill("Aegis Ward", "A sliver of divine protection.", bonus=4),
-                DefenceBoostSkill("Tempered Bronze", "Hammered, heated, and hammered again.", bonus=5),
-                DefenceBoostSkill("Bronze Resolve", "Nearly unbreakable.", bonus=6),
+                DefenceBoostSkill("Hardened Skin", "Blows land softer. (+2 DEF)", bonus=2),
+                DefenceBoostSkill("Steady Stance", "Harder to knock off your feet. (+3 DEF)", bonus=3),
+                DefenceBoostSkill("Aegis Ward", "A sliver of divine protection. (+4 DEF)", bonus=4),
+                DefenceBoostSkill("Tempered Bronze", "Hammered, heated, and hammered again. (+5 DEF)", bonus=5),
+                DefenceBoostSkill("Bronze Resolve", "Nearly unbreakable. (+6 DEF)", bonus=6),
             ]),
             "abilities": SkillPath("Abilities", [
                 DoubleStrikeSkill("Twin Strike", "A second blow follows the first, fast and true."),

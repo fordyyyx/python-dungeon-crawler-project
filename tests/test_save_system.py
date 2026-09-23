@@ -633,3 +633,35 @@ def test_delete_profile_removes_every_slot(monkeypatch, tmp_path):
     assert result is True
     assert slot_exists(1, 1) is False
     assert slot_exists(1, 2) is False
+
+def test_serialise_player_includes_auto_map():
+    player = Player(name="Hero", hp=50)
+    player.auto_map = True
+    data = serialise_player(player, Room("Chamber"))
+    assert data["auto_map"] is True
+
+def test_serialise_player_includes_sorted_visited_rooms():
+    player = Player(name="Hero", hp=50)
+    player.visited_rooms = {"Styx Crossing", "Cave Entrance"}
+    data = serialise_player(player, Room("Chamber"))
+    assert data["visited_rooms"] == ["Cave Entrance", "Styx Crossing"]
+
+def test_player_from_save_data_reconstructs_auto_map():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    player, current_room = player_from_save_data(base_player_data(auto_map=True), dungeon)
+    assert player.auto_map is True
+
+def test_player_from_save_data_reconstructs_visited_rooms():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    player, current_room = player_from_save_data(base_player_data(visited_rooms=["Cave Entrance", "Chamber"]), dungeon)
+    assert player.visited_rooms == {"Cave Entrance", "Chamber"}
+
+def test_player_from_save_data_defaults_auto_map_and_visited_rooms_for_older_saves():
+    """Saves written before these fields existed have neither key - loading must not crash, and falls back to the defaults."""
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    player, current_room = player_from_save_data(base_player_data(), dungeon)
+    assert player.auto_map is False
+    assert player.visited_rooms == set()

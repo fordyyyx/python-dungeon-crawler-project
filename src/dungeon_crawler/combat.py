@@ -9,7 +9,7 @@ import random
 
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.exploration import pick_up
+from dungeon_crawler.exploration import pick_up, check_equippable, take_all
 from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
@@ -261,7 +261,8 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
     A phase with next_wave_factories spawns those adds instead of firing its own next_phase_factory immediately - the deferred factory
     travels with each add via wave_gate_factory. Whenever a wave_gate_factory-tagged enemy dies, checks room.enemies fresh for any surviving 
     sibling sharing that same factory; only once none remain does the next phase actually appear - correct regardless of kill order, including
-    a bystander killed by Thorns, same as the existing multi-enemy-team defeat handling already relies on."""
+    a bystander killed by Thorns, same as the existing multi-enemy-team defeat handling already relies on. Whenever a wave or a new phase spawns,
+    the message also includes the newcomers' descriptions - each distinct add name once, so a pair of identical adds gets one line."""
     if enemy.next_wave_factories is not None:
         room.remove_enemy(enemy)
         adds = [factory() for factory in enemy.next_wave_factories]
@@ -270,7 +271,13 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
             room.add_enemy(add)
         player.in_combat = True
         player.current_target = adds[0]
-        return f"{enemy.name} falls, but conjures {len(adds)} lesser foes to bar your path!"
+        message = f"{enemy.name} falls, but conjures {len(adds)} lesser foes to bar your path!"
+        described: set[str] = set()
+        for add in adds:
+            if add.description and add.name not in described:
+                described.add(add.name)
+                message += f"\n{add.name}: {add.description}"
+        return message
 
     if enemy.next_phase_factory is not None:
         next_phase = enemy.next_phase_factory()
@@ -280,7 +287,10 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         # current_target just moves to the new phase, no need for the player to re-attack
         player.in_combat = True
         player.current_target = next_phase
-        return f"{enemy.name} falls, but something rises to take its place - {next_phase.name}."
+        message = f"{enemy.name} falls, but something rises to take its place - {next_phase.name}."
+        if next_phase.description:
+            message += f"\n{next_phase.description}"
+        return message
 
     if enemy.respawns:
         enemy.hp = enemy.max_hp
@@ -313,6 +323,8 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
             player.in_combat = True
             player.current_target = next_phase
             messages.append(f"The last of them falls - something greater emerges: {next_phase.name}.")
+            if next_phase.description:
+                messages.append(next_phase.description)
 
     return "\n".join(messages)
 
@@ -445,6 +457,13 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         player.turn_started = False
         return result
 
+    if command.startswith("equip "):
+        item_name = command.removeprefix("equip ").strip()
+        error = check_equippable(item_name, player)
+        if error is not None:
+            return error
+        command = f"use {item_name}"
+
     if command.startswith("use "):
         item_name = command.removeprefix("use ").strip()
         item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
@@ -489,6 +508,9 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
 
     if command == "inventory":
         return player.get_inventory_display()
+
+    if command == "take all":
+        return take_all(room, player)
 
     if command.startswith("take ") and " from " not in command:
         item_name = command.removeprefix("take ").strip()

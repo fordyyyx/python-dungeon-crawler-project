@@ -34,8 +34,8 @@ def test_choose_ancestry_prints_each_ancestry_option(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda prompt="": "basic")
     choose_ancestry()
     captured = capsys.readouterr()
-    assert "basic - No lineage (ATK 4 / DEF 1 / HP 20)" in captured.out
-    assert "odysseus - Descendant of Odysseus (ATK 3 / DEF 1 / HP 20)" in captured.out
+    assert "basic - No lineage (ATK 4 / DEF 1 / HP 20 / INT 2)" in captured.out
+    assert "odysseus - Descendant of Odysseus (ATK 3 / DEF 1 / HP 20 / INT 4)" in captured.out
 
 def test_choose_secondary_ancestry_returns_chosen_key_when_valid(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda prompt="": "ares")
@@ -223,6 +223,13 @@ def test_choose_slot_prints_summary_for_occupied_slot(monkeypatch, tmp_path, cap
     captured = capsys.readouterr()
     assert "2. Hero - LVL 1  - Chamber" in captured.out
 
+def test_choose_slot_prints_which_slot_prompt(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("builtins.input", lambda prompt="": "1")
+    choose_slot(1)
+    captured = capsys.readouterr()
+    assert "Which slot?" in captured.out
+
 # ---- choose_occupied_slot ----
 
 def test_choose_occupied_slot_returns_none_when_profile_has_no_saves(monkeypatch, tmp_path):
@@ -287,3 +294,14 @@ def test_confirm_prints_error_message_for_unrecognised_answer(monkeypatch, capsy
     confirm("Overwrite?")
     captured = capsys.readouterr()
     assert "Please answer yes or no." in captured.out
+
+def test_choose_occupied_slot_prints_which_slot_prompt(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    save_system.save_game(1, 2, Player(name="Hero", hp=50), room, dungeon)
+    monkeypatch.setattr("builtins.input", lambda prompt="": "2")
+    choose_occupied_slot(1)
+    captured = capsys.readouterr()
+    assert "which slot?" in captured.out.lower()

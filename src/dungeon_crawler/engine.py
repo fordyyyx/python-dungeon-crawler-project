@@ -5,7 +5,7 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
-from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian
+from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
 
@@ -16,7 +16,7 @@ PASSIVE_REGEN_CAP_FRACTION = 0.75
 
 def print_room(room: Room, player: Player):
     """Display a room's name, description, contents, and occupants on entry.
-    Ally dialogue fires automatically here if player.auto_talk is enabled."""
+    Ally dialogue fires automatically here if player.auto_talk is enabled, and the room's exits are listed if player.auto_map is."""
     print(f"{room.name}: {room.description}")
 
     if room.items:
@@ -39,6 +39,9 @@ def print_room(room: Room, player: Player):
         companion = room.companions[0]
         print(f"{companion.name} could be recruited here. {companion.description}")
 
+    if player.auto_map:
+        print("\nExits:\n" + display_local_exits(room, player))
+
 
 def get_controls_text() -> str:
     """Return the full player-facing command list, unchanged regardless of whether the player is currently
@@ -50,6 +53,8 @@ def get_controls_text() -> str:
         "north / east / south / west / descend / ascend - move in that direction\n"
         "map - show the exits available from your current room\n"
         "fullmap / world - show every reachable room on the current floor\n"
+        "toggle auto map - map displays automatically on room entry\n"
+        "uncleared - display visited rooms that are not yet cleared and reachable rooms not yet discovered\n"
         "talk - talk to an ally in the room\n"
         "toggle auto talk - allies speak automatically on room entry\n"
         "attack / attack light / attack heavy / attack ranged - attack an enemy in the room (locks you into combat); heavy hits harder but can miss, ranged needs an equipped ranged weapon\n"
@@ -57,10 +62,12 @@ def get_controls_text() -> str:
         "cast <spell> - cast a known spell (mid-combat only); costs mana and may set a one-turn cooldown\n"
         "flee - disengages from combat (mid-combat only)\n"
         "take <item> - pick up an item from the room\n"
-        "use <item> - use or equip an item from your inventory\n"
+        "take all - pick up all items from the room\n"
+        "use <item> / equip <item> - use or equip an item from your inventory\n"
         "unequip <item> - unequip an item\n"
         "drop <item> - drop an item into the room (quest items can't be dropped)\n"
         "take <item> from <ally> - take an item from an ally's inventory\n"
+        "take all from <ally> - take all items from an ally's inventory\n"
         "trade - trade required items with an ally for their reward\n"
         "recruit <name> - recruit a companion who joins your team in combat (requires specific items)\n"
         "repair <item> - repair an item to full durability (requires gold)\n"
@@ -152,6 +159,7 @@ def main() -> None:
         starting_floor = find_floor_for_room(current_room, all_floors)
         if starting_floor is not None:
             player.visited_floors.add(starting_floor)
+            player.visited_rooms.add(current_room.name)
         print_room(current_room, player)
         print("\nNot sure where to start? Try talking to whoever is in the room with you.")
 
@@ -263,6 +271,22 @@ def main() -> None:
                 status = "on" if player.auto_talk else "off"
                 print(f"Auto-talk is now {status}.")
 
+            elif command == "toggle auto map":
+                player.auto_map = not player.auto_map
+                status = "on" if player.auto_map else "off"
+                print(f"Auto-map is now {status}.")
+
+            elif command == "take all":
+                print(take_all(current_room, player))
+
+            elif command.startswith("take all from "):
+                ally_name = command.removeprefix("take all from ").strip()
+                ally = next((a for a in current_room.allies if a.name.lower() == ally_name.lower()), None)
+                if ally is not None:
+                    print(take_all_from_ally(ally, player))
+                else:
+                    print("There is no one here by that name.")
+
             elif command.startswith("take ") and " from " not in command:
                 item_name = command.removeprefix("take ").strip()
                 print(pick_up(current_room, item_name, player))
@@ -289,6 +313,7 @@ def main() -> None:
                             unlock_room.fast_travel_locks.discard(unlock_direction)
                             print("The path back opens behind you.")
                     current_room = current_room.exits[command]
+                    player.visited_rooms.add(current_room.name)
                     regen_cap = int(player.max_hp * PASSIVE_REGEN_CAP_FRACTION)
                     if player.hp < regen_cap:
                         player.hp = min(player.max_hp, player.hp + PASSIVE_REGEN_PER_MOVE)
@@ -305,6 +330,9 @@ def main() -> None:
 
             elif command == "look":
                 print_room(current_room, player)
+
+            elif command == "uncleared":
+                print(get_uncleared_rooms(all_floors, player))
 
             elif command == "attack":
                 if current_room.enemies:
@@ -324,6 +352,14 @@ def main() -> None:
                     print(player.inventory.use_item(item_name, player))
                 except ValueError as e:
                     print(e)
+
+            elif command.startswith("equip "):
+                item_name = command.removeprefix("equip ").strip()
+                error = check_equippable(item_name, player)
+                if error is not None:
+                    print(error)
+                else:
+                    print(player.inventory.use_item(item_name, player))
 
             elif command.startswith("unequip "):
                 item_name = command.removeprefix("unequip ").strip()

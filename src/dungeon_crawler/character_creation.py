@@ -8,7 +8,7 @@ def choose_ancestry() -> str:
     """Prompt the player to pick an ancestry, looping until a valid key is entered. Returns the ancestry's dict key (e.g. 'athena'), not its display label."""
     print("\nBefore your descent begins, tell me - whose blood runs in you?\n")
     for key, data in ANCESTRIES.items():
-        print(f"    {key} - {data['label']} (ATK {data['attack']} / DEF {data['armour']} / HP {data['hp']})")
+        print(f"    {key} - {data['label']} (ATK {data['attack']} / DEF {data['armour']} / HP {data['hp']} / INT {data['intellect']})")
 
     while True:
         choice = input("\n> ").strip().lower()
@@ -82,6 +82,7 @@ def choose_slot(profile_num: int) -> int:
     for slot_num in range(1, save_system.SAVE_SLOTS_PER_PROFILE + 1):
         summary = save_system.slot_summary(profile_num, slot_num)
         print(f"    {slot_num}. {summary if summary else 'empty'}")
+    print("\nWhich slot?")
     while True:
         choice = input("> ").strip()
         if choice.isdigit() and 1 <= int(choice) <= save_system.SAVE_SLOTS_PER_PROFILE:
@@ -97,6 +98,7 @@ def choose_occupied_slot(profile_num: int) -> int | None:
     print(f"\nProfile {profile_num}:")
     for slot_num in occupied:
         print(f"    {slot_num}. {save_system.slot_summary(profile_num, slot_num)}")
+    print("\nWhich slot?")
     while True:
         choice = input("> ").strip()
         if choice.isdigit() and int(choice) in occupied:

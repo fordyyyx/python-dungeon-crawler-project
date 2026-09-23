@@ -1,6 +1,6 @@
 from dungeon_crawler.characters import Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, Consumable, StatusEffectItem, Reviver
+from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.combat import resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
@@ -2890,3 +2890,126 @@ def test_handle_combat_command_take_picks_up_loot_from_an_enemy_defeated_earlier
     handle_combat_command("take small healing potion", player, second, [player], room.enemies, room)
 
     assert potion in player.inventory.items
+
+def test_handle_enemy_defeat_wave_message_describes_each_distinct_add_once():
+    """Two same-named adds (e.g. Medusa's pair of Gorgons) share one description line, not two."""
+    room = Room("Lair")
+    add_factory = lambda: Enemy(name="Gorgon", hp=12, attack_damage=5, description="Snake-haired and hissing.")
+    enemy = Enemy(name="Medusa", hp=0, attack_damage=6, next_wave_factories=[add_factory, add_factory])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert message == "Medusa falls, but conjures 2 lesser foes to bar your path!\nGorgon: Snake-haired and hissing."
+
+def test_handle_enemy_defeat_wave_message_describes_differently_named_adds_separately():
+    room = Room("Crypt")
+    factory_a = lambda: Enemy(name="Skeleton", hp=10, attack_damage=3, description="Rattling bones.")
+    factory_b = lambda: Enemy(name="Ghoul", hp=10, attack_damage=3, description="Hungry and grey.")
+    enemy = Enemy(name="Necromancer", hp=0, attack_damage=15, next_wave_factories=[factory_a, factory_b])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert "\nSkeleton: Rattling bones." in message
+    assert "\nGhoul: Hungry and grey." in message
+
+def test_handle_enemy_defeat_phase_transition_message_includes_next_phase_description():
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=80, attack_damage=25, description="The shadows around him boil.")
+    enemy = Enemy(name="Hades", hp=0, attack_damage=20, next_phase_factory=lambda: next_phase)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, enemy, player)
+
+    assert message == "Hades falls, but something rises to take its place - Hades (Enraged).\nThe shadows around him boil."
+
+def test_handle_enemy_defeat_wave_gate_transition_message_includes_next_phase_description():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20, description="Its eyes open at last.")
+    last_add = Enemy(name="Skeleton", hp=0, attack_damage=3, wave_gate_factory=lambda: next_phase)
+    room.add_enemy(last_add)
+    player = Player(name="Hero", hp=50)
+
+    message = handle_enemy_defeat(room, last_add, player)
+
+    assert "The last of them falls - something greater emerges: Necromancer (Awakened).\nIts eyes open at last." in message
+
+def test_handle_combat_command_equip_equips_a_weapon_and_ends_the_turn(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    sword = Weapon(name="Bronze Xiphos", description="", damage=3)
+    player.inventory.add(sword)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
+    room = Room("Arena")
+
+    message = handle_combat_command("equip bronze xiphos", player, enemy, [player], [enemy], room)
+
+    assert player.equipped_melee_weapon is sword
+    assert "Goblin attacks Hero for 5 damage." in message
+
+def test_handle_combat_command_equip_refuses_a_non_equippable_item_without_using_it():
+    """'equip' can never drink a potion - it's refused before reaching the 'use' branch, costing no turn."""
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.hp = 20
+    potion = Consumable(name="Small Healing Potion", heal_amount=5)
+    player.inventory.add(potion)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("equip small healing potion", player, enemy, [player], [enemy], room)
+
+    assert message == "You can't equip the Small Healing Potion."
+    assert potion in player.inventory.items
+    assert player.hp == 20
+
+def test_handle_combat_command_equip_already_equipped_item_costs_no_turn():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    plate = Armour(name="Bronze Breastplate", description="", defence=2)
+    player.inventory.add(plate)
+    plate.use(player)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("equip bronze breastplate", player, enemy, [player], [enemy], room)
+
+    assert message == "Bronze Breastplate is already equipped."
+    assert player.hp == 50
+
+def test_handle_combat_command_equip_missing_item_returns_error():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("equip labrys", player, enemy, [player], [enemy], room)
+
+    assert message == "No item named 'labrys' in inventory."
+
+def test_handle_combat_command_take_all_picks_up_every_item_in_the_room():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+    potion = Consumable(name="Small Healing Potion", heal_amount=5)
+    bow = Weapon(name="Harpy-fletched Bow", description="", damage=4, slot="ranged")
+    room.add_item(potion)
+    room.add_item(bow)
+
+    message = handle_combat_command("take all", player, enemy, [player], [enemy], room)
+
+    assert potion in player.inventory.items
+    assert bow in player.inventory.items
+    assert message == "You take: Small Healing Potion, Harpy-fletched Bow."
+
+def test_handle_combat_command_take_all_is_a_free_action_with_no_enemy_turn():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+    room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
+
+    handle_combat_command("take all", player, enemy, [player], [enemy], room)
+
+    assert player.hp == 50
+    assert player.turn_started is False

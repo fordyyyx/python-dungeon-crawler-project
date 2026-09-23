@@ -16,7 +16,7 @@ class Room:
         self.locked_exits: dict[str, str] = {}
         self.fast_travel_locks: set[str] = set()
         """Directions on THIS room that can't be used yet - separate from locked_exits (item-gated); these are gated by having used the paired
-        exit from the other side at least once (see exit_activations, register_fast_travel_actication()). Unlike locked_exits, this genuinely
+        exit from the other side at least once (see exit_activations, register_fast_travel_activation()). Unlike locked_exits, this genuinely
         mutates during play, so it's part of save data - see save_system.py."""
         self.exit_activations: dict[str, tuple["Room", str]] = {}
         """direction (on this room) -> (room, direction) to unlock the moment THIS exit is successfully used. Set once at world-build time, never
