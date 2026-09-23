@@ -11,7 +11,7 @@ from dungeon_crawler import save_system
 
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
-PASSIVE_REGEN_CAP_FRACTION = 0.5
+PASSIVE_REGEN_CAP_FRACTION = 0.75
 
 
 def print_room(room: Room, player: Player):

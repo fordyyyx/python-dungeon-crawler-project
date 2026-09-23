@@ -710,7 +710,7 @@ def test_main_moving_below_regen_cap_grants_passive_regen(monkeypatch, capsys, t
     assert "6 HP" in captured.out
 
 def test_main_moving_above_regen_cap_but_below_full_hp_grants_no_regen(monkeypatch, capsys, tmp_path):
-    """Regen is capped at half of max_hp (10 for a 20 HP basic player) - pacing between rooms can no longer heal to full."""
+    """Regen is capped at PASSIVE_REGEN_CAP_FRACTION of max_hp (15 for a 20 HP basic player) - pacing between rooms can no longer heal to full."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
         "1", "1", "1",
@@ -718,7 +718,7 @@ def test_main_moving_above_regen_cap_but_below_full_hp_grants_no_regen(monkeypat
         "basic",
         "ares",
         "floor_0",
-        "dev set hp 15",
+        "dev set hp 17",
         "north",
         "stats",
         "quit",
@@ -729,10 +729,10 @@ def test_main_moving_above_regen_cap_but_below_full_hp_grants_no_regen(monkeypat
 
     captured = capsys.readouterr()
     assert "You catch your breath" not in captured.out
-    assert "15 HP" in captured.out
+    assert "17 HP" in captured.out
 
 def test_main_passive_regen_stops_once_hp_reaches_the_cap(monkeypatch, capsys, tmp_path):
-    """From 9 HP, the first move regenerates to 10 (the cap for a 20 HP player); the second move grants nothing more."""
+    """From 14 HP, the first move regenerates to 15 (the cap for a 20 HP player); the second move grants nothing more."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
         "1", "1", "1",
@@ -740,7 +740,7 @@ def test_main_passive_regen_stops_once_hp_reaches_the_cap(monkeypatch, capsys, t
         "basic",
         "ares",
         "floor_0",
-        "dev set hp 9",
+        "dev set hp 14",
         "north",
         "south",
         "stats",
@@ -752,7 +752,7 @@ def test_main_passive_regen_stops_once_hp_reaches_the_cap(monkeypatch, capsys, t
 
     captured = capsys.readouterr()
     assert captured.out.count("You catch your breath as you move on.") == 1
-    assert "10 HP" in captured.out
+    assert "15 HP" in captured.out
 
 def test_main_moving_at_full_hp_does_not_print_passive_regen_message(monkeypatch, capsys, tmp_path):
     """No regen message (or HP change) when the player is already at max_hp when they move."""
@@ -870,3 +870,28 @@ def test_main_guarded_exit_does_not_block_unguarded_exits_in_the_same_room(monke
     captured = capsys.readouterr()
     assert "bars the way" not in captured.out
     assert "Stony Lair:" in captured.out
+
+def test_main_take_mid_combat_picks_up_loot_dropped_by_a_defeated_enemy(monkeypatch, capsys, tmp_path):
+    """Loot drops onto the room floor; with a second enemy still alive, combat stays locked - 'take' must still
+    work so a multi-enemy fight's drops (e.g. the Gorgons' potions during the Medusa chain) are usable mid-fight."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport dev test room",
+        "dev spawn training dummy",
+        "dev spawn training dummy",
+        "attack",
+        "attack",
+        "take dummy head",
+        "look",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    before_take, after_take = captured.out.split("You take the Dummy Head.")
+    assert "You can't do that mid-combat" not in before_take
+    # 'look' is refused only while combat is still locked - proving the take above happened mid-fight
+    assert "You can't do that mid-combat" in after_take

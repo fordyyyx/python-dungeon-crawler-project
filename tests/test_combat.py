@@ -1737,7 +1737,7 @@ def test_handle_combat_command_unrecognised_command_returns_error_message():
 
     message = handle_combat_command("dance", player, enemy, [player], [enemy], room)
 
-    assert message == "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'."
+    assert message == "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'take <item>', 'stats', 'skills', or 'inventory'."
 
 def test_resolve_attack_and_check_defeat_reduces_enemy_hp():
     player = Player(name="Hero", hp=50, attack_damage=10)
@@ -2807,3 +2807,86 @@ def test_handle_combat_command_use_healing_status_effect_item_at_full_hp_is_allo
 
     assert "Hero is afflicted with Regen." in message
     assert tonic not in player.inventory.items
+
+def test_handle_combat_command_take_moves_item_from_room_to_inventory():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+    potion = Consumable(name="Small Healing Potion", heal_amount=5)
+    room.add_item(potion)
+
+    handle_combat_command("take small healing potion", player, enemy, [player], [enemy], room)
+
+    assert potion in player.inventory.items
+    assert potion not in room.items
+
+def test_handle_combat_command_take_returns_pick_up_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+    room.add_item(Consumable(name="Small Healing Potion", description="A cloudy vial.", heal_amount=5))
+
+    message = handle_combat_command("take small healing potion", player, enemy, [player], [enemy], room)
+
+    assert message == "You take the Small Healing Potion. A cloudy vial."
+
+def test_handle_combat_command_take_is_a_free_action_with_no_enemy_turn():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+    room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
+
+    message = handle_combat_command("take small healing potion", player, enemy, [player], [enemy], room)
+
+    assert player.hp == 50
+    assert "Goblin attacks" not in message
+
+def test_handle_combat_command_take_does_not_tick_status_effects():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    effect = StatusEffect("Poison", -3, 4)
+    player.apply_status_effect(effect)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+    room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
+
+    handle_combat_command("take small healing potion", player, enemy, [player], [enemy], room)
+
+    assert effect.duration == 4
+    assert player.turn_started is False
+
+def test_handle_combat_command_take_missing_item_returns_not_here_message():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("take small healing potion", player, enemy, [player], [enemy], room)
+
+    assert message == "That's not here."
+
+def test_handle_combat_command_take_from_ally_is_still_refused_mid_combat():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room = Room("Arena")
+
+    message = handle_combat_command("take potion from wounded soldier", player, enemy, [player], [enemy], room)
+
+    assert message.startswith("You can't do that mid-combat.")
+
+def test_handle_combat_command_take_picks_up_loot_from_an_enemy_defeated_earlier_in_the_same_fight():
+    """The Gorgons' potions during the Medusa chain: one add's loot lands on the floor while the rest of the
+    fight is still going, and must be usable before the fight ends."""
+    player = Player(name="Hero", hp=50, attack_damage=100)
+    potion = Consumable(name="Small Healing Potion", heal_amount=5)
+    first = Enemy(name="Gorgon", hp=12, attack_damage=0, loot=[potion])
+    second = Enemy(name="Gorgon", hp=12, attack_damage=0)
+    room = Room("Lair")
+    room.add_enemy(first)
+    room.add_enemy(second)
+    player.in_combat = True
+    player.current_target = first
+    resolve_attack_and_check_defeat(player, first, [player], room.enemies, room)
+    assert player.in_combat is True
+
+    handle_combat_command("take small healing potion", player, second, [player], room.enemies, room)
+
+    assert potion in player.inventory.items

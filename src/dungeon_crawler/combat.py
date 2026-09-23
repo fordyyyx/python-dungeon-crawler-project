@@ -9,6 +9,7 @@ import random
 
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
+from dungeon_crawler.exploration import pick_up
 from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
@@ -489,4 +490,8 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
     if command == "inventory":
         return player.get_inventory_display()
 
-    return "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'stats', 'skills', or 'inventory'." 
+    if command.startswith("take ") and " from " not in command:
+        item_name = command.removeprefix("take ").strip()
+        return pick_up(room, item_name, player)
+
+    return "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'take <item>', 'stats', 'skills', or 'inventory'." 
