@@ -13,8 +13,8 @@ from dungeon_crawler.content import create_chiron, create_mentor, create_wounded
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat
 
-# Every new create_*() item/enemy/ally function in content.py needs a matching line in the relevant
-# registry below (mirrored across all three) - otherwise dev add/spawn can't find it. See CLAUDE.md.
+# Every new create_*() item/enemy/ally/companion/spell function in the content/ package needs a matching line in the relevant
+# registry below (all five follow the same shape) - otherwise dev add/spawn/grant spell can't find it. See CLAUDE.md.
 ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "wooden sword": create_wooden_sword,
     "wooden shield": create_wooden_shield,

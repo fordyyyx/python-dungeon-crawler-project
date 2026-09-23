@@ -1081,3 +1081,75 @@ def test_main_opening_a_forge_shortcut_shows_the_shortcut_hint(monkeypatch, caps
     captured = capsys.readouterr()
     after_unlock = captured.out.split("The path back opens behind you.")[-1]
     assert "[Hint] You've opened a shortcut to the Forge of Prometheus." in after_unlock
+
+def test_main_killing_the_last_enemy_with_a_spell_ends_combat(monkeypatch, capsys, tmp_path):
+    """Smoke test for the cast-branch defeat fix: a spell kill must end combat, so an exploration-only command
+    like 'look' works straight afterwards instead of being refused as mid-combat."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport dev test room",
+        "dev spawn training dummy",
+        "dev grant spell prayer bolt",
+        "attack",
+        "cast prayer bolt",
+        "look",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    after_cast = captured.out.split("Prayer Bolt")[-1]
+    assert "You can't do that mid-combat" not in after_cast
+    assert "You see: Dummy Head" in after_cast
+
+def test_main_fleeing_mid_boss_wave_then_saving_and_reloading_keeps_the_wave_and_the_guard(monkeypatch, capsys, tmp_path):
+    """Smoke test for the save/load fix: fell Medusa's first phase (spawning the Gorgons), flee, save, reload - the Gorgons must
+    still be there guarding 'descend', rather than the Lair reloading empty and letting the boss be skipped."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport lair of medusa",
+        "dev set hp 100",
+        "dev set attack_damage 100",
+        "attack",
+        "flee",
+        "save",
+        "load 1 1",
+        "yes",
+        "descend",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "conjures 2 lesser foes" in captured.out
+    after_reload = captured.out.split("conjures 2 lesser foes")[-1]
+    assert "Gorgon bars the way - you'll have to deal with it first." in after_reload
+
+def test_main_mid_game_load_rebuilds_the_world_instead_of_patching_the_live_one(monkeypatch, capsys, tmp_path):
+    """Regression: 'load <profile> <slot>' used to patch the already-played world rather than a fresh build_world(), so state the
+    save never had leaked through - here, a hidden exit revealed after saving stayed revealed after loading."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_1",
+        "descend",
+        "save",
+        "examine",
+        "load 1 1",
+        "yes",
+        "down",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    after_reload = captured.out.split("Loading will discard")[-1]
+    assert "Nothing happens." in after_reload
+    assert "Sunken Vault:" not in after_reload

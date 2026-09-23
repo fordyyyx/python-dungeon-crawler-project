@@ -37,7 +37,7 @@ def _candidate_attack_score(attacker: Character, candidate: Character) -> float:
     """Base (pre-randomness) attractiveness of attacker attacking candidate specifically - kill_potential + (1 - candidate's own hp_ratio).
     Shared by _best_attack_score() (a deterministic max, judging whether attacking is worthwhile at all) and choose_enemy_target()
     (the same formula per candidate, with independent noise added, used to actually pick who gets hit). attacker is typed generically
-    (not Enemy) since Companion's own AI will reuse this exact formula once built."""
+    (not Enemy) since Companion's AI reuses this exact formula - see choose_companion_target()."""
     target_hp_ratio = candidate.hp / candidate.max_hp
     potential_damage = max(0, attacker.attack_damage - candidate.armour)
     kill_potential = min(1.0, potential_damage / candidate.hp) if candidate.hp > 0 else 0.0
@@ -46,7 +46,7 @@ def _candidate_attack_score(attacker: Character, candidate: Character) -> float:
 def _best_attack_score(attacker: Character, player_team: Sequence[Character]) -> float:
     """The best-case attack score available against any living member of player_team (deterministic, no randomness) - used only to
     judge whether attacking is worthwhile at all; see choose_enemy_target() for the separate, independently-noisy choice of who
-    specifically gets hit. Filters to is_alive() first - player_team can go stale mid round if a companion is downed ny an earlier
+    specifically gets hit. Filters to is_alive() first - player_team can go stale mid round if a companion is downed by an earlier
     enemy's turn, and a dead candidate must never be scored as attack worthy."""
     living_team = [c for c in player_team if c.is_alive()]
     if not living_team:
@@ -83,7 +83,7 @@ def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict
     available target in player_team (see _best_attack_score()) - not necessarily who ends up actually attacked, since choose_enemy_target()
     makes that choice independently once 'attack' has already won. 'defend' reacts to the greatest threat posed by any member of player_team
     (see _greatest_threat_to_self()), and is excluded when brace_amount == 0 (a no-op brace, mirrors heal's exclusion pattern below).
-    'heal' only joins when eenmy.heal_amount > 0 - both are excluded entirely rather than scored at zero, per CLAUDE.md's "Enemy AI
+    'heal' only joins when enemy.heal_amount > 0 - both are excluded entirely rather than scored at zero, per CLAUDE.md's "Enemy AI
     and team combat" section."""
     self_missing_hp_ratio = 1 - (enemy.hp / enemy.max_hp)
 
@@ -188,25 +188,10 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
 
 def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room, attack_type: str = "light") -> str:
     """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly."""
-    enemies_before = [enemy for enemy in enemy_team if enemy.is_alive()]
     result = resolve_combat_round(player, target, player_team, enemy_team, attack_type)
-
-    newly_defeated = [enemy for enemy in enemies_before if not enemy.is_alive()]
-    for enemy in newly_defeated:
-        # default to ending combat - handle_enemy_defeat() overrides this back to True (with a new
-        # current_target) if the enemy has a next_phase_factory, i.e. a boss phase transition
-        player.in_combat = False
-        player.current_target = None
-        defeat_extras = handle_enemy_defeat(room, enemy, player)
-        if defeat_extras:
-            result += f"\n{defeat_extras}"
-
-    still_relevant_enemies = [e for e in room.enemies if not e.respawns]
-    if newly_defeated and any(enemy.is_alive() for enemy in still_relevant_enemies):
-        player.in_combat = True
-        if player.current_target is None:
-            player.current_target = next(e for e in still_relevant_enemies if e.is_alive())
-
+    defeat_messages = resolve_pending_defeats(player, room)
+    if defeat_messages:
+        result += f"\n{defeat_messages}"
     return result
 
 def resolve_companion_and_enemy_turns(player: Player, player_team: list[Character], enemy_team: list[Enemy]) -> str:
@@ -259,9 +244,10 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
 def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
     """Remove the defeated enemy, drop loot (or trigger a phase transition), and grant XP/gold. Assembles one combined message, does not print.
     A phase with next_wave_factories spawns those adds instead of firing its own next_phase_factory immediately - the deferred factory
-    travels with each add via wave_gate_factory. Whenever a wave_gate_factory-tagged enemy dies, checks room.enemies fresh for any surviving 
-    sibling sharing that same factory; only once none remain does the next phase actually appear - correct regardless of kill order, including
-    a bystander killed by Thorns, same as the existing multi-enemy-team defeat handling already relies on. Whenever a wave or a new phase spawns,
+    travels with each add via wave_gate_factory. Whenever a wave_gate_factory-tagged enemy dies, checks room.enemies fresh for any remaining
+    sibling sharing that same factory - alive or dead, since a dead sibling still in the room hasn't been processed yet and its own defeat
+    will trigger the spawn (see resolve_pending_defeats()). Only once none remain does the next phase actually appear - correct regardless of
+    kill order, and exactly once even when a whole wave dies in the same round (e.g. one add to an attack, another to Thorns). Whenever a wave or a new phase spawns,
     the message also includes the newcomers' descriptions - each distinct add name once, so a pair of identical adds gets one line."""
     if enemy.next_wave_factories is not None:
         room.remove_enemy(enemy)
@@ -314,10 +300,10 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         messages.append(player.gain_experience(enemy.experience_reward))
 
     if enemy.wave_gate_factory is not None:
-        siblings_alive = any(
-            e.is_alive() for e in room.enemies if getattr(e, "wave_gate_factory", None) is enemy.wave_gate_factory
+        siblings_remaining = any(
+            e for e in room.enemies if getattr(e, "wave_gate_factory", None) is enemy.wave_gate_factory
         )
-        if not siblings_alive:
+        if not siblings_remaining:
             next_phase = enemy.wave_gate_factory()
             room.add_enemy(next_phase)
             player.in_combat = True
@@ -328,8 +314,35 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
 
     return "\n".join(messages)
 
+def resolve_pending_defeats(player: Player, room: Room) -> str:
+    """Process every enemy in room that has died but hasn't been handled yet, then work out whether combat continues. Needs no before/after
+    snapshot: handle_enemy_defeat() always removes a dead enemy or (respawns=True) resets it to full HP, so any enemy still in room.enemies
+    at 0 HP is by definition unprocessed. That makes this correct whatever did the killing - an attack, a spell, a companion, Thorns - and
+    it also cleans up enemies left stuck at 0 HP by the old cast-branch bug.
+    
+    Afterwards: combat continues only if a living, non-respawning enemy remains. The current target is kept if it's still alive (including
+    a boss phase handle_enemy_defeat() just targeted), otherwise it moves to the first survivor, or clears if none remain."""
+    defeated = [enemy for enemy in room.enemies if not enemy.is_alive()]
+    if not defeated:
+        return ""
+
+    messages = []
+    for enemy in defeated:
+        extras = handle_enemy_defeat(room, enemy, player)
+        if extras:
+            messages.append(extras)
+
+    survivors = [enemy for enemy in room.enemies if enemy.is_alive() and not enemy.respawns]
+    player.in_combat = bool(survivors)
+    if not player.in_combat:
+        player.current_target = None
+    elif player.current_target is None or not player.current_target.is_alive():
+        player.current_target = survivors[0]
+
+    return "\n".join(messages)
+
 def flee_combat(player: Player, enemy_team: list[Enemy]) -> str:
-    """Attempt to disengage from combat. Always succeeds, but every still=living enemy in enemy_team independently rolls its own
+    """Attempt to disengage from combat. Always succeeds, but every still-living enemy in enemy_team independently rolls its own
     chance of landing a free hit as the player disengages, scaled by that enemy's own HP%. has_swift_feet bypasses every enemy's
     free-hit roll entirely - a clean escape, guaranteed - but still marks every living enemy as has_been_fled_from, same as a normal escape."""
     if player.has_swift_feet:
@@ -448,6 +461,9 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
             result += f"\n{tail}"
 
         result += f"\n{format_hp_line(player_team, enemy_team)}"
+        defeat_messages = resolve_pending_defeats(player, room)
+        if defeat_messages:
+            result += f"\n{defeat_messages}"
         return result
 
     if command == "flee":
@@ -491,6 +507,9 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
             player.turn_started = False
 
         result += f"\n{format_hp_line(player_team, enemy_team)}"
+        defeat_messages = resolve_pending_defeats(player, room)
+        if defeat_messages:
+            result += f"\n{defeat_messages}"
         return result
 
     if command == "stats":

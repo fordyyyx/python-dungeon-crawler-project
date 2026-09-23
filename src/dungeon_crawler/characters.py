@@ -37,7 +37,7 @@ class Character:
         action (see combat.py's choose_enemy_action()/_score_candidate_actions()). Lives on Character, not Enemy, since take_damage() (the 
         only thing that reads it) doesn't know which subclass self is."""
         self.dodge_chance = 0.0
-        """Chance (0.0-1.0) to avoid an incoming attack entirely. set by DodgeSkill. Lives on Character, not Player, same precedent
+        """Chance (0.0-1.0) to avoid an incoming attack entirely. Set by DodgeSkill. Lives on Character, not Player, same precedent
         as has_thorns/brace_amount - Enemy/Companion could plausibly use it too later."""
         self.active_effects: list[StatusEffect] = []
         self.turn_started = False
@@ -230,12 +230,12 @@ class Player(Character):
         so it never reveals the map."""
         self.dev_mode = False
         """Whether developer commands are available for this save - moved off a dev_tools.py module global (see CLAUDE.md's note on why)
-        so it's per-save state , not per process. Set once via the 'developer mode' name-trick or the mid-game 'developer mode' toggle,
+        so it's per-save state, not per process. Set once via the 'developer mode' name-trick or the mid-game 'developer mode' toggle,
         persisted through save/load like any other Player field."""
         self.auto_map = False
         """Whether print_room() lists the room's exits automatically on entry - toggled via 'toggle auto map', mirroring auto_talk."""
         self.seen_hints: set[str] = set()
-        """Keys from hints.HINTS already shown in this save -see show_hint(). Saved, so a reload doesn't repeat hints."""
+        """Keys from hints.HINTS already shown in this save - see show_hint(). Saved, so a reload doesn't repeat hints."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""

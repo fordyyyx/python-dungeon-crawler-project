@@ -3,7 +3,7 @@ from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.combat import resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
+from dungeon_crawler.combat import resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -607,19 +607,35 @@ def test_handle_enemy_defeat_with_wave_gate_factory_and_last_sibling_spawns_next
 
     assert next_phase in room.enemies
 
-def test_handle_enemy_defeat_with_wave_gate_factory_ignores_already_dead_siblings():
-    """A sibling that's already dead but still lingering in room.enemies must not count as 'alive' and
-    block the transition - only is_alive() siblings count."""
+def test_handle_enemy_defeat_with_wave_gate_factory_waits_for_an_unprocessed_dead_sibling():
+    """A dead sibling still in room.enemies hasn't been through handle_enemy_defeat() yet (resolve_pending_defeats()
+    processes every 0-HP enemy in turn) - so it still counts as remaining, and it's that sibling's own defeat
+    that spawns the next phase, not this one."""
     room = Room("Crypt")
     next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
     gate = lambda: next_phase
     dying_add = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=gate)
-    already_dead_sibling = Enemy(name="Skeleton B", hp=0, attack_damage=3, wave_gate_factory=gate)
+    unprocessed_sibling = Enemy(name="Skeleton B", hp=0, attack_damage=3, wave_gate_factory=gate)
     room.add_enemy(dying_add)
-    room.add_enemy(already_dead_sibling)
+    room.add_enemy(unprocessed_sibling)
     player = Player(name="Hero", hp=50)
 
     handle_enemy_defeat(room, dying_add, player)
+
+    assert next_phase not in room.enemies
+
+def test_handle_enemy_defeat_processing_the_last_dead_sibling_spawns_the_next_phase():
+    room = Room("Crypt")
+    next_phase = Enemy(name="Necromancer (Awakened)", hp=40, attack_damage=20)
+    gate = lambda: next_phase
+    first = Enemy(name="Skeleton A", hp=0, attack_damage=3, wave_gate_factory=gate)
+    second = Enemy(name="Skeleton B", hp=0, attack_damage=3, wave_gate_factory=gate)
+    room.add_enemy(first)
+    room.add_enemy(second)
+    player = Player(name="Hero", hp=50)
+    handle_enemy_defeat(room, first, player)
+
+    handle_enemy_defeat(room, second, player)
 
     assert next_phase in room.enemies
 
@@ -3013,3 +3029,155 @@ def test_handle_combat_command_take_all_is_a_free_action_with_no_enemy_turn():
 
     assert player.hp == 50
     assert player.turn_started is False
+
+# ---- resolve_pending_defeats ----
+
+def test_resolve_pending_defeats_returns_empty_string_when_nothing_has_died():
+    player = Player(name="Hero", hp=50)
+    room = Room("Arena")
+    room.add_enemy(Enemy(name="Goblin", hp=20))
+    assert resolve_pending_defeats(player, room) == ""
+
+def test_resolve_pending_defeats_removes_a_dead_enemy_and_grants_its_rewards():
+    player = Player(name="Hero", hp=50)
+    room = Room("Arena")
+    goblin = Enemy(name="Goblin", hp=20, experience_reward=10, gold_reward=4)
+    goblin.hp = 0
+    room.add_enemy(goblin)
+
+    message = resolve_pending_defeats(player, room)
+
+    assert goblin not in room.enemies
+    assert player.gold == 4
+    assert player.experience == 10
+    assert "Hero picked up 4 gold." in message
+
+def test_resolve_pending_defeats_ends_combat_when_no_enemy_survives():
+    player = Player(name="Hero", hp=50)
+    room = Room("Arena")
+    goblin = Enemy(name="Goblin", hp=20)
+    goblin.hp = 0
+    room.add_enemy(goblin)
+    player.in_combat = True
+    player.current_target = goblin
+
+    resolve_pending_defeats(player, room)
+
+    assert player.in_combat is False
+    assert player.current_target is None
+
+def test_resolve_pending_defeats_keeps_combat_going_and_retargets_a_survivor():
+    player = Player(name="Hero", hp=50)
+    room = Room("Arena")
+    dead = Enemy(name="Goblin", hp=20)
+    dead.hp = 0
+    survivor = Enemy(name="Harpy", hp=13)
+    room.add_enemy(dead)
+    room.add_enemy(survivor)
+    player.in_combat = True
+    player.current_target = dead
+
+    resolve_pending_defeats(player, room)
+
+    assert player.in_combat is True
+    assert player.current_target is survivor
+
+def test_resolve_pending_defeats_keeps_a_still_living_current_target():
+    player = Player(name="Hero", hp=50)
+    room = Room("Arena")
+    dead = Enemy(name="Goblin", hp=20)
+    dead.hp = 0
+    first_survivor = Enemy(name="Harpy", hp=13)
+    chosen_target = Enemy(name="Lurker", hp=17)
+    for enemy in (dead, first_survivor, chosen_target):
+        room.add_enemy(enemy)
+    player.in_combat = True
+    player.current_target = chosen_target
+
+    resolve_pending_defeats(player, room)
+
+    assert player.current_target is chosen_target
+
+def test_resolve_pending_defeats_ends_combat_when_only_a_respawning_enemy_remains():
+    """The practice dummy resets instead of dying, but must never keep combat locked on its own."""
+    player = Player(name="Hero", hp=50)
+    room = Room("Practice Chamber")
+    dummy = Enemy(name="Practice Enemy", hp=20, respawns=True)
+    dummy.hp = 0
+    room.add_enemy(dummy)
+    player.in_combat = True
+    player.current_target = dummy
+
+    resolve_pending_defeats(player, room)
+
+    assert dummy.hp == 20
+    assert player.in_combat is False
+
+def test_resolve_pending_defeats_targets_the_next_phase_of_a_boss():
+    player = Player(name="Hero", hp=50)
+    room = Room("Throne Room")
+    next_phase = Enemy(name="Hades (Enraged)", hp=80)
+    boss = Enemy(name="Hades", hp=60, next_phase_factory=lambda: next_phase)
+    boss.hp = 0
+    room.add_enemy(boss)
+    player.in_combat = True
+    player.current_target = boss
+
+    resolve_pending_defeats(player, room)
+
+    assert player.in_combat is True
+    assert player.current_target is next_phase
+
+def test_resolve_pending_defeats_spawns_the_next_phase_exactly_once_when_a_whole_wave_dies_together():
+    """Two adds killed in the same round (e.g. one by the attack, one by Thorns) are processed one after the
+    other - the phase transition must fire once, on the second, not twice or not at all."""
+    player = Player(name="Hero", hp=50)
+    room = Room("Lair")
+    spawned = []
+    def gate():
+        phase = Enemy(name="Medusa (Awakened)", hp=35)
+        spawned.append(phase)
+        return phase
+    for name in ("Gorgon A", "Gorgon B"):
+        add = Enemy(name=name, hp=12, wave_gate_factory=gate)
+        add.hp = 0
+        room.add_enemy(add)
+
+    resolve_pending_defeats(player, room)
+
+    assert len(spawned) == 1
+    assert spawned[0] in room.enemies
+
+def test_handle_combat_command_cast_that_kills_the_target_removes_it_and_ends_combat():
+    """Regression for the old cast-branch bug: a spell kill used to leave the enemy in the room at 0 HP,
+    with no loot/XP and combat never ending."""
+    player = Player(name="Hero", hp=50, attack_damage=1)
+    player.mana = 20
+    player.known_spells.append(Spell(name="Firebolt", description="", mana_cost=5, damage=50))
+    goblin = Enemy(name="Goblin", hp=10, experience_reward=6)
+    room = Room("Arena")
+    room.add_enemy(goblin)
+    player.in_combat = True
+    player.current_target = goblin
+
+    handle_combat_command("cast firebolt", player, goblin, [player], room.enemies, room)
+
+    assert goblin not in room.enemies
+    assert player.experience == 6
+    assert player.in_combat is False
+
+def test_handle_combat_command_offensive_item_whose_poison_kills_the_enemy_resolves_the_defeat():
+    """The poison lands on use and ticks on the enemy's own turn in the same round - that death must be
+    processed too, not left at 0 HP."""
+    player = Player(name="Hero", hp=50, attack_damage=1)
+    goblin = Enemy(name="Goblin", hp=3)
+    room = Room("Arena")
+    room.add_enemy(goblin)
+    player.in_combat = True
+    player.current_target = goblin
+    player.inventory.add(StatusEffectItem(name="Venom Vial", description="", effect_name="Poison", amount=-3, duration=3))
+
+    handle_combat_command("use venom vial", player, goblin, [player], room.enemies, room)
+
+    assert goblin not in room.enemies
+    assert player.in_combat is False

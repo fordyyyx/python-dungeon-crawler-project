@@ -218,6 +218,8 @@ def main() -> None:
                     if not save_system.slot_exists(profile_num, slot_num):
                         print(f"There's no save in profile {profile_num}, slot {slot_num}.")
                     elif confirm("Loading will discard any unsaved progress since your last save. Continue?"):
+                        # load_game() patches a *fresh* world - reusing the live one would keep state the save never had
+                        dungeon, _, all_floors = build_world()
                         player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
                         active_profile, active_slot = profile_num, slot_num
                         print_room(current_room, player)

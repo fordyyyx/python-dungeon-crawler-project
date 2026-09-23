@@ -1,8 +1,8 @@
-"""Save/load system - profile and slot management, JSON persistence for Player state and per-room deltas. See roadmap.md's
+"""Save/load system - profile and slot management, JSON persistence for Player state and a full per-room snapshot of the world. See roadmap.md's
 Save/load system item for the full design.
 
-Scope note: this module owns serialisation/deserialisation and file I/O only. The title screen, main()'s save/load/autosave
-commands, and the active-slot session stats are deliberately not built here - see roadmap.md.
+Scope note: this module owns serialisation/deserialisation and file I/O only. The title screen and every save/load prompt live in
+character_creation.py; main()'s save/load/autosave commands and the active-slot session state live in engine.py.
 
 Every room currently gets a full snapshot, not just changed ones - the "only serialise changed rooms" optimisation from roadmap.md
 needs real change-tracking (a Room.touched flag or similar) to do properly, which is out of scope for this pass. JSON size for a text-game map
@@ -15,7 +15,7 @@ from dungeon_crawler.characters import Player
 from dungeon_crawler.world import Map, Room
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.items import Armour
-from dungeon_crawler.dev_tools import find_item_by_name, find_spell_by_name, find_companion_by_name
+from dungeon_crawler.dev_tools import find_item_by_name, find_spell_by_name, find_companion_by_name, find_enemy_by_name, ENEMY_REGISTRY
 
 PROFILE_LIMIT = 3
 SAVE_SLOTS_PER_PROFILE = 5
@@ -57,7 +57,7 @@ def slot_summary(profile_num: int, slot_num: int) -> str | None:
 
 
 def serialise_player(player: Player, current_room) -> dict:
-    """Snapshot Player's full state - not a delta, since there's only ever once Player and no baseline to diff against."""
+    """Snapshot Player's full state - not a delta, since there's only ever one Player and no baseline to diff against."""
     return {
         "name": player.name,
         "hp": player.hp,
@@ -162,9 +162,17 @@ def serialise_room(room) -> dict:
     """Full snapshot of one room's current state - see module docstring re: why every room is snapshotted not just changed ones.
     locked_exits is deliberately never serialised - it's static, set once at world-build time and only ever mutated by dev unlock/dev
     unlock all (out of scope for a production save). is_exit_locked() checks the player's current inventory live, every time, not a 
-    persisted flag - so a fresh build_world() always reproduces identical locked_exits."""
+    persisted flag - so a fresh build_world() always reproduces identical locked_exits. A wave add's wave_gate_factory can't be saved
+    as a function, so it's stored as the name of the phase it would spawn, and re-linked through ENEMY_REGISTRY by apply_room_data()."""
     return {
-        "enemies": [{"name": e.name, "hp": e.hp, "has_been_fled_from": e.has_been_fled_from} for e in room.enemies if e.is_alive()],
+        "enemies": [
+            {
+            "name": e.name, 
+            "hp": e.hp, 
+            "has_been_fled_from": e.has_been_fled_from,
+            "wave_gate": e.wave_gate_factory().name if e.wave_gate_factory is not None else None
+            } 
+            for e in room.enemies if e.is_alive()],
         "items": [
             {"name": item.name, "durability": getattr(item, "durability", None)} for item in room.items
         ],
@@ -175,16 +183,32 @@ def serialise_room(room) -> dict:
     }
 
 def apply_room_data(room, data: dict) -> None:
-    """Patch a freshly-built room to match its saved deltas: remove enemies not listed, restore HP/fled-status on survivors replace
-    the item list, mark completed trades."""
-    saved_enemies = {e["name"]: e for e in data["enemies"]}
-    for enemy in list(room.enemies):
-        saved = saved_enemies.get(enemy.name)
-        if saved is None:
-            room.remove_enemy(enemy)
+    """Patch a freshly-built room to match its saved snapshot: restore the room's living enemies, replace the item list, mark completed
+    trades, and restore fast_travel_locks (when the save has them).
+
+    Enemies: each saved enemy first claims an unclaimed same-named enemy already in the fresh room (in order, so two same-named enemies
+    each get their own saved HP), keeping the exact instance build_world() made - which matters for enemies ENEMY_REGISTRY doesn't know,
+    like the Practice Chamber's dummy. A saved enemy the fresh room doesn't have (a wave add or a later boss phase spawned mid-fight) is
+    rebuilt from ENEMY_REGISTRY instead, and silently skipped if the registry doesn't know it either. Fresh enemies nobody claimed were
+    defeated before the save, so they're removed. A saved wave_gate is re-linked to its ENEMY_REGISTRY factory - one shared function
+    object, so reloaded siblings still pass handle_enemy_defeat()'s identity check."""
+    unclaimed = list(room.enemies)
+    for enemy_data in data["enemies"]:
+        enemy = next((e for e in unclaimed if e.name == enemy_data["name"]), None)
+        if enemy is not None:
+            unclaimed.remove(enemy)
         else:
-            enemy.hp = saved["hp"]
-            enemy.has_been_fled_from = saved["has_been_fled_from"]
+            enemy = find_enemy_by_name(enemy_data["name"])
+            if enemy is None:
+                continue
+            room.add_enemy(enemy)
+        enemy.hp = enemy_data["hp"]
+        enemy.has_been_fled_from = enemy_data["has_been_fled_from"]
+        gate_name = enemy_data.get("wave_gate")
+        if gate_name is not None:
+            enemy.wave_gate_factory = ENEMY_REGISTRY.get(gate_name.lower())
+    for enemy in unclaimed:
+        room.remove_enemy(enemy)
 
     for item in list(room.items):
         room.remove_item(item)

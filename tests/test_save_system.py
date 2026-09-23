@@ -2,6 +2,9 @@ import os
 
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
+from dungeon_crawler.dev_tools import ENEMY_REGISTRY
+from dungeon_crawler.content import build_world, create_gorgon, create_medusa_awakened
+from dungeon_crawler.combat import handle_enemy_defeat, resolve_pending_defeats
 from dungeon_crawler.items import Weapon, Armour
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
@@ -351,7 +354,7 @@ def test_serialise_room_includes_living_enemies():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=3)
     room.add_enemy(enemy)
     data = serialise_room(room)
-    assert data["enemies"] == [{"name": "Goblin", "hp": 10, "has_been_fled_from": False}]
+    assert data["enemies"] == [{"name": "Goblin", "hp": 10, "has_been_fled_from": False, "wave_gate": None}]
 
 def test_serialise_room_excludes_dead_enemies():
     room = Room("Chamber")
@@ -683,3 +686,118 @@ def test_player_from_save_data_defaults_seen_hints_for_older_saves():
     dungeon.add_room(Room("Chamber"))
     player, current_room = player_from_save_data(base_player_data(), dungeon)
     assert player.seen_hints == set()
+
+# ---- enemies spawned mid-fight survive a save/load ----
+
+def test_serialise_room_records_a_wave_adds_gate_by_the_next_phases_name():
+    room = Room("Lair of Medusa")
+    gorgon = create_gorgon()
+    gorgon.wave_gate_factory = create_medusa_awakened
+    room.add_enemy(gorgon)
+    data = serialise_room(room)
+    assert data["enemies"][0]["wave_gate"] == "Medusa (Awakened)"
+
+def test_apply_room_data_rebuilds_a_saved_enemy_the_fresh_room_does_not_have():
+    """A wave add or later boss phase isn't part of a freshly built room - it's rebuilt from ENEMY_REGISTRY."""
+    room = Room("Lair of Medusa")
+    data = {"enemies": [{"name": "Gorgon", "hp": 4, "has_been_fled_from": True}], "items": [], "allies_traded": []}
+
+    apply_room_data(room, data)
+
+    assert len(room.enemies) == 1
+    gorgon = room.enemies[0]
+    assert gorgon.name == "Gorgon"
+    assert gorgon.hp == 4
+    assert gorgon.has_been_fled_from is True
+
+def test_apply_room_data_skips_a_saved_enemy_nobody_can_rebuild():
+    """Not in the fresh room and not in ENEMY_REGISTRY (e.g. the dev test boss's lambda-built adds) - skipped, not a crash."""
+    room = Room("Arena")
+    data = {"enemies": [{"name": "Test Add", "hp": 1, "has_been_fled_from": False}], "items": [], "allies_traded": []}
+    apply_room_data(room, data)
+    assert room.enemies == []
+
+def test_apply_room_data_keeps_the_fresh_rooms_own_instance_for_an_unregistered_enemy():
+    """The Practice Chamber's dummy isn't in ENEMY_REGISTRY - claiming the fresh room's instance is what keeps it across a reload."""
+    room = Room("Practice Chamber")
+    dummy = Enemy(name="Practice Enemy", hp=20, respawns=True)
+    room.add_enemy(dummy)
+    data = {"enemies": [{"name": "Practice Enemy", "hp": 20, "has_been_fled_from": False}], "items": [], "allies_traded": []}
+
+    apply_room_data(room, data)
+
+    assert room.enemies == [dummy]
+
+def test_apply_room_data_gives_same_named_enemies_their_own_saved_hp():
+    """Enemies are matched by name in order, not by name alone - two Gorgons no longer collide on reload."""
+    room = Room("Lair of Medusa")
+    first = create_gorgon()
+    second = create_gorgon()
+    room.add_enemy(first)
+    room.add_enemy(second)
+    data = {"enemies": [{"name": "Gorgon", "hp": 4, "has_been_fled_from": False},
+                        {"name": "Gorgon", "hp": 9, "has_been_fled_from": False}], "items": [], "allies_traded": []}
+
+    apply_room_data(room, data)
+
+    assert first.hp == 4
+    assert second.hp == 9
+
+def test_apply_room_data_removes_only_the_fresh_enemies_nobody_claimed():
+    room = Room("Lair of Medusa")
+    kept = create_gorgon()
+    defeated = create_gorgon()
+    room.add_enemy(kept)
+    room.add_enemy(defeated)
+    data = {"enemies": [{"name": "Gorgon", "hp": 6, "has_been_fled_from": False}], "items": [], "allies_traded": []}
+
+    apply_room_data(room, data)
+
+    assert room.enemies == [kept]
+
+def test_apply_room_data_relinks_a_wave_gate_to_its_registry_factory():
+    room = Room("Lair of Medusa")
+    data = {"enemies": [{"name": "Gorgon", "hp": 12, "has_been_fled_from": False, "wave_gate": "Medusa (Awakened)"}],
+            "items": [], "allies_traded": []}
+
+    apply_room_data(room, data)
+
+    assert room.enemies[0].wave_gate_factory is ENEMY_REGISTRY["medusa (awakened)"]
+
+def test_apply_room_data_reloaded_wave_siblings_share_one_gate_factory():
+    """handle_enemy_defeat() groups siblings by factory identity (is, not ==) - reloaded adds must still count as one wave."""
+    room = Room("Lair of Medusa")
+    entry = {"name": "Gorgon", "hp": 12, "has_been_fled_from": False, "wave_gate": "Medusa (Awakened)"}
+    apply_room_data(room, {"enemies": [dict(entry), dict(entry)], "items": [], "allies_traded": []})
+    first, second = room.enemies
+    assert first.wave_gate_factory is second.wave_gate_factory
+
+def test_apply_room_data_without_wave_gate_key_leaves_no_gate_for_older_saves():
+    room = Room("Arena")
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    apply_room_data(room, {"enemies": [{"name": "Goblin", "hp": 10, "has_been_fled_from": False}], "items": [], "allies_traded": []})
+    assert room.enemies[0].wave_gate_factory is None
+
+def test_world_round_trip_mid_medusa_wave_keeps_the_gorgons_the_guard_and_the_next_phase():
+    """Regression: saving after fleeing partway through the Medusa chain used to reload the Lair empty - the Gorgons, Medusa (Awakened),
+    Serpent's Kiss and the guard on 'descend' were all lost, letting the player skip the boss entirely."""
+    dungeon, _, _ = build_world()
+    lair = dungeon.get_room("Lair of Medusa")
+    assert lair is not None
+    player = Player(name="Hero", hp=50)
+    medusa = lair.enemies[0]
+    medusa.hp = 0
+    handle_enemy_defeat(lair, medusa, player)  # Phase 1 falls, two Gorgons spawn
+    lair.enemies[0].hp = 4
+
+    fresh, _, _ = build_world()
+    apply_world_data(fresh, serialise_world(dungeon))
+    reloaded = fresh.get_room("Lair of Medusa")
+    assert reloaded is not None
+
+    assert [(e.name, e.hp) for e in reloaded.enemies] == [("Gorgon", 4), ("Gorgon", 12)]
+    assert "descend" in reloaded.guarded_exits
+    for gorgon in reloaded.enemies:
+        gorgon.hp = 0
+    resolve_pending_defeats(player, reloaded)
+    assert [e.name for e in reloaded.enemies] == ["Medusa (Awakened)"]
