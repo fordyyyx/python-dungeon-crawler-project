@@ -1,7 +1,7 @@
-from dungeon_crawler.characters import Player, Ally, Companion
+from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
-from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine
+from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -793,3 +793,50 @@ def test_handle_examine_with_sufficient_intellect_reveals_hidden_exits():
     player.intellect = 3
     handle_examine(room, player)
     assert room.get_exit("down") is vault
+
+def test_get_exit_guardian_returns_none_when_exit_is_not_guarded():
+    room = Room("Labyrinth")
+    room.connect("south", Room("Grove"))
+    room.add_enemy(Enemy(name="Minotaur", hp=25))
+    assert get_exit_guardian(room, "south") is None
+
+def test_get_exit_guardian_returns_living_enemy_on_guarded_exit():
+    room = Room("Labyrinth")
+    room.connect("south", Room("Grove"))
+    room.guard_exit("south")
+    minotaur = Enemy(name="Minotaur", hp=25)
+    room.add_enemy(minotaur)
+    assert get_exit_guardian(room, "south") is minotaur
+
+def test_get_exit_guardian_returns_none_when_guarded_room_has_no_enemies():
+    room = Room("Labyrinth")
+    room.connect("south", Room("Grove"))
+    room.guard_exit("south")
+    assert get_exit_guardian(room, "south") is None
+
+def test_get_exit_guardian_ignores_dead_enemies():
+    room = Room("Labyrinth")
+    room.connect("south", Room("Grove"))
+    room.guard_exit("south")
+    minotaur = Enemy(name="Minotaur", hp=25)
+    minotaur.hp = 0
+    room.add_enemy(minotaur)
+    assert get_exit_guardian(room, "south") is None
+
+def test_get_exit_guardian_skips_a_dead_enemy_to_find_a_living_one():
+    room = Room("Lair")
+    room.connect("descend", Room("Camp"))
+    room.guard_exit("descend")
+    dead_gorgon = Enemy(name="Gorgon", hp=12)
+    dead_gorgon.hp = 0
+    living_gorgon = Enemy(name="Gorgon", hp=12)
+    room.add_enemy(dead_gorgon)
+    room.add_enemy(living_gorgon)
+    assert get_exit_guardian(room, "descend") is living_gorgon
+
+def test_get_exit_guardian_ignores_respawning_enemies():
+    room = Room("Practice Chamber")
+    room.connect("west", Room("Forge"))
+    room.guard_exit("west")
+    room.add_enemy(Enemy(name="Practice Enemy", hp=20, respawns=True))
+    assert get_exit_guardian(room, "west") is None

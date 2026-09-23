@@ -318,3 +318,21 @@ def test_room_register_fast_travel_activation_records_pairing():
     b = Room("B")
     a.register_fast_travel_activation("forge", b, "prayer room")
     assert a.exit_activations["forge"] == (b, "prayer room")
+
+def test_room_initialises_with_no_guarded_exits():
+    room = Room("A")
+    assert room.guarded_exits == set()
+
+def test_room_guard_exit_adds_direction_to_guarded_exits():
+    room = Room("A")
+    other = Room("B")
+    room.connect("south", other)
+    room.guard_exit("south")
+    assert "south" in room.guarded_exits
+
+def test_room_guard_exit_does_not_remove_the_exit():
+    room = Room("A")
+    other = Room("B")
+    room.connect("south", other)
+    room.guard_exit("south")
+    assert room.get_exit("south") is other

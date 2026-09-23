@@ -27,10 +27,34 @@ def test_take_damage_applies_armour_reduction():
     character.take_damage(5)
     assert character.hp == 28
 
-def test_take_damage_with_armour_exceeding_damage_deals_no_damage():
+def test_take_damage_with_armour_exceeding_damage_still_deals_minimum_damage():
     character = Character(name="Hero", hp=30, attack_damage=5, armour=10)
     character.take_damage(4)
+    assert character.hp == 29
+
+def test_take_damage_of_zero_deals_no_damage_despite_minimum_damage():
+    """MINIMUM_DAMAGE only applies when amount > 0 - a 0-attack enemy (e.g. the Training Dummy) stays harmless."""
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    damage_dealt, message = character.take_damage(0)
+    assert damage_dealt == 0
     assert character.hp == 30
+
+def test_take_damage_with_ignore_armour_skips_armour_reduction():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=5)
+    damage_dealt, message = character.take_damage(10, ignore_armour=True)
+    assert damage_dealt == 10
+
+def test_take_damage_with_ignore_armour_still_applies_pending_damage_reduction():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=5)
+    character.pending_damage_reduction = 4
+    damage_dealt, message = character.take_damage(10, ignore_armour=True)
+    assert damage_dealt == 6
+
+def test_take_damage_with_ignore_armour_still_applies_iron_hide():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=5)
+    character.has_iron_hide = True
+    damage_dealt, message = character.take_damage(10, ignore_armour=True)
+    assert damage_dealt == 9
 
 def test_take_damage_with_iron_hide_reduces_damage_by_one():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -38,11 +62,11 @@ def test_take_damage_with_iron_hide_reduces_damage_by_one():
     damage_dealt, message = character.take_damage(10)
     assert damage_dealt == 9
 
-def test_take_damage_with_iron_hide_does_not_go_below_zero():
+def test_take_damage_with_iron_hide_still_deals_minimum_damage():
     character = Character(name="Hero", hp=30, attack_damage=5, armour=10)
     character.has_iron_hide = True
-    damage_dealt, message = character.take_damage(4)  # already fully blocked by armour
-    assert damage_dealt == 0
+    damage_dealt, message = character.take_damage(4)  # fully blocked by armour, then iron hide - minimum damage still applies
+    assert damage_dealt == 1
 
 def test_take_damage_kills_character():
     character = Character(name="Hero", hp=10, attack_damage=5)
@@ -130,12 +154,13 @@ def test_take_damage_with_thorns_does_nothing_without_attacker():
     damage_dealt, message = target.take_damage(10)
     assert message == ""
 
-def test_take_damage_with_thorns_does_not_trigger_when_damage_fully_blocked_by_armour():
+def test_take_damage_with_thorns_triggers_on_a_minimum_damage_hit():
+    """Armour can no longer fully block a landed hit, so thorns always has at least 1 damage to reflect."""
     target = Character(name="Goblin", hp=30, attack_damage=5, armour=10)
     target.has_thorns = True
     attacker = Character(name="Hero", hp=50, attack_damage=10)
     target.take_damage(4, attacker=attacker)
-    assert attacker.hp == 50
+    assert attacker.hp == 49
 
 def test_take_damage_with_thorns_counter_damage_cannot_go_below_zero():
     attacker = Character(name="Hero", hp=1, attack_damage=10)
@@ -300,11 +325,11 @@ def test_take_damage_with_pending_damage_reduction_does_not_carry_over_to_next_h
     character.take_damage(10) # full damage this time: 24 - 10 = 14
     assert character.hp == 14
 
-def test_take_damage_with_pending_damage_reduction_exceeding_damage_deals_no_damage():
+def test_take_damage_with_pending_damage_reduction_exceeding_damage_still_deals_minimum_damage():
     character = Character(name="Hero", hp=30, attack_damage=5)
     character.pending_damage_reduction = 20
     character.take_damage(10)
-    assert character.hp == 30
+    assert character.hp == 29
 
 def test_take_damage_with_pending_damage_reduction_is_still_consumed_when_it_fully_blocks_the_hit():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -318,13 +343,13 @@ def test_take_damage_with_pending_damage_reduction_applies_before_armour():
     damage_dealt, message = character.take_damage(10)
     assert damage_dealt == 3 # 10 - 4 brace = 6, then - 3 armour = 3
 
-def test_take_damage_with_pending_damage_reduction_fully_blocking_prevents_thorns():
+def test_take_damage_with_pending_damage_reduction_exceeding_damage_still_triggers_thorns():
     character = Character(name="Hero", hp=30, attack_damage=5)
     character.has_thorns = True
     character.pending_damage_reduction = 20
     attacker = Character(name="Goblin", hp=10, attack_damage=5)
     character.take_damage(10, attacker=attacker)
-    assert attacker.hp == 10 # no damage got through, so no counter-strike
+    assert attacker.hp == 9 # the minimum 1 damage got through, so thorns reflects its minimum 1
 
 def test_character_initialises_with_no_active_effects():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -438,11 +463,11 @@ def test_attack_message_shows_armour_reduced_damage():
     message = attacker.attack(target)
     assert message == "Hero attacks Goblin for 6 damage. (4 deflected by armour)"
 
-def test_attack_message_shows_full_deflection_when_armour_blocks_all_damage():
+def test_attack_message_shows_minimum_damage_when_armour_exceeds_attack():
     attacker = Character(name="Hero", hp=30, attack_damage=5)
     target = Character(name="Goblin", hp=20, attack_damage=5, armour=10)
     message = attacker.attack(target)
-    assert message == "Hero attacks Goblin for 0 damage. (5 deflected by armour)"
+    assert message == "Hero attacks Goblin for 1 damage. (4 deflected by armour)"
 
 def test_attack_with_double_strike_deals_second_hit():
     attacker = Character(name="Hero", hp=30, attack_damage=10)
@@ -1297,13 +1322,55 @@ def test_attack_heavy_forced_miss_returns_miss_message(monkeypatch):
     message = attacker.attack(target, attack_type="heavy")
     assert message == "Hero swings a heavy blow at Goblin - but misses!"
 
-def test_attack_heavy_with_reckless_strength_never_misses(monkeypatch):
-    monkeypatch.setattr("random.random", lambda: 0.0)  # would normally guarantee a miss
+def test_attack_heavy_roll_below_miss_chance_misses(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.35)  # below HEAVY_ATTACK_MISS_CHANCE (0.4)
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert message == "Hero swings a heavy blow at Goblin - but misses!"
+
+def test_attack_heavy_with_reckless_strength_hits_on_a_roll_that_would_normally_miss(monkeypatch):
+    """Reckless Strength halves the miss chance (RECKLESS_HEAVY_ATTACK_MISS_CHANCE, 0.2) - a 0.3 roll misses
+    for everyone else but lands for a Reckless attacker."""
+    monkeypatch.setattr("random.random", lambda: 0.3)
     attacker = Character(name="Hero", hp=30, attack_damage=10)
     attacker.has_reckless_strength = True
     target = Character(name="Goblin", hp=100, attack_damage=5)
     message = attacker.attack(target, attack_type="heavy")
     assert message == "Hero attacks Goblin for 18 damage."
+
+def test_attack_heavy_with_reckless_strength_can_still_miss(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)  # below even the halved miss chance
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_reckless_strength = True
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert message == "Hero swings a heavy blow at Goblin - but misses!"
+
+def test_attack_heavy_with_bull_rush_adds_bonus_after_the_multiplier(monkeypatch):
+    """Bull Rush's +3 is added to the incoming hit after the heavy multiplier, so it isn't scaled by it."""
+    monkeypatch.setattr("random.random", lambda: 0.9)  # avoids the heavy miss roll
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_bull_rush = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    attacker.attack(target, attack_type="heavy")
+    assert target.hp == 79  # 100 - (round(10 * 1.75) + 3)
+
+def test_attack_with_bull_rush_does_not_boost_double_strike_second_hit():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_bull_rush = True
+    attacker.has_double_strike = True
+    target = Character(name="Goblin", hp=100, attack_damage=0)
+    attacker.attack(target)
+    assert target.hp == 82  # 100 - (10 + 3) - (10 // 2)
+
+def test_attack_with_double_strike_second_hit_ignores_armour():
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    attacker.has_double_strike = True
+    target = Character(name="Goblin", hp=100, attack_damage=5, armour=4)
+    message = attacker.attack(target)
+    assert target.hp == 89  # 100 - (10 - 4) - (10 // 2), armour skipped on the second hit
+    assert "Hero strikes again for 5 damage." in message
 
 def test_attack_heavy_forced_hit_returns_message_naming_attacker_and_target(monkeypatch):
     monkeypatch.setattr("random.random", lambda: 0.9)
@@ -1408,10 +1475,9 @@ def test_display_skills_shows_next_skill_for_each_path():
 
 def test_display_skills_shows_fully_unlocked_when_path_exhausted():
     player = Player(name="Hero", hp=50, attack_damage=10)
-    player.skill_tree.skill_points = 3
-    player.skill_tree.invest("attack", player)
-    player.skill_tree.invest("attack", player)
-    player.skill_tree.invest("attack", player)
+    player.skill_tree.skill_points = 5
+    for _ in range(5):
+        player.skill_tree.invest("attack", player)
     result = player.get_skills_display()
     assert "Attack: fully unlocked" in result
 
@@ -1612,6 +1678,32 @@ def test_thorns_skill_apply_sets_has_thorns_flag():
     skill = ThornsSkill(name="Retribution", description="")
     skill.apply(character)
     assert character.has_thorns is True
+
+def test_skill_tree_attack_path_has_five_skills_with_rising_bonuses():
+    skill_tree = SkillTree()
+    bonuses = [skill.bonus for skill in skill_tree.paths["attack"].skills]
+    assert bonuses == [2, 3, 4, 5, 6]
+
+def test_skill_tree_defence_path_has_five_skills_with_rising_bonuses():
+    skill_tree = SkillTree()
+    bonuses = [skill.bonus for skill in skill_tree.paths["defence"].skills]
+    assert bonuses == [2, 3, 4, 5, 6]
+
+def test_skill_tree_fully_investing_attack_path_adds_twenty_attack():
+    skill_tree = SkillTree()
+    skill_tree.skill_points = 5
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    for _ in range(5):
+        skill_tree.invest("attack", character)
+    assert character.attack_damage == 30
+
+def test_skill_tree_fully_investing_defence_path_adds_twenty_armour():
+    skill_tree = SkillTree()
+    skill_tree.skill_points = 5
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    for _ in range(5):
+        skill_tree.invest("defence", character)
+    assert character.armour == 20
 
 def test_skill_tree_has_abilities_path_with_four_skills():
     skill_tree = SkillTree()

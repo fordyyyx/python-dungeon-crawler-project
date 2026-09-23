@@ -10,7 +10,7 @@ def create_skeleton_warrior() -> Enemy:
     return Enemy(
         name="Skeleton Warrior", 
         hp=8,
-        attack_damage=3,
+        attack_damage=4,
         armour=0,
         loot=[create_small_healing_potion(), create_skeleton_bone()],
         description="Bones held together by little more than old habit, still gripping a rusted blade with mechanical resolve.",
@@ -23,7 +23,7 @@ def create_shade() -> Enemy:
     return Enemy(
         name="Shade",
         hp=7,
-        attack_damage=3,
+        attack_damage=4,
         armour=0,
         loot=[create_weathered_helm()],
         description="Barely more than mist given shape, it drifts toward you without any real malice - just habit, worn thin over centuries.",

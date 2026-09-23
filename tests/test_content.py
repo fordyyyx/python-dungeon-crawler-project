@@ -64,7 +64,7 @@ def test_create_shade_has_correct_stats():
     shade = create_shade()
     assert shade.name == "Shade"
     assert shade.hp == 7
-    assert shade.attack_damage == 3
+    assert shade.attack_damage == 4
     assert shade.armour == 0
     assert len(shade.loot) == 1
     assert shade.experience_reward == 4
@@ -407,7 +407,7 @@ def test_create_skeleton_warrior_has_correct_stats():
     skeleton_warrior = create_skeleton_warrior()
     assert skeleton_warrior.name == "Skeleton Warrior"
     assert skeleton_warrior.hp == 8
-    assert skeleton_warrior.attack_damage == 3
+    assert skeleton_warrior.attack_damage == 4
     assert skeleton_warrior.armour == 0
     assert len(skeleton_warrior.loot) == 2
     assert skeleton_warrior.experience_reward == 5
@@ -651,7 +651,7 @@ def test_ancestries_only_odysseus_grants_bonus_skill_point():
 def test_ancestries_basic_has_correct_stats():
     basic = ANCESTRIES["basic"]
     assert basic["label"] == "No lineage"
-    assert basic["attack"] == 3
+    assert basic["attack"] == 4
     assert basic["armour"] == 1
     assert basic["hp"] == 20
     assert basic["intellect"] == 2
@@ -667,7 +667,7 @@ def test_ancestries_ares_has_correct_stats():
 def test_ancestries_athena_has_correct_stats():
     athena = ANCESTRIES["athena"]
     assert athena["label"] == "Descendant of Athena"
-    assert athena["attack"] == 4
+    assert athena["attack"] == 3
     assert athena["armour"] == 3
     assert athena["hp"] == 20
     assert athena["intellect"] == 5
@@ -677,15 +677,15 @@ def test_ancestries_hermes_has_correct_stats():
     assert hermes["label"] == "Descendant of Hermes"
     assert hermes["attack"] == 4
     assert hermes["armour"] == 1
-    assert hermes["hp"] == 22
+    assert hermes["hp"] == 20
     assert hermes["intellect"] == 3
 
 def test_ancestries_poseidon_has_correct_stats():
     poseidon = ANCESTRIES["poseidon"]
     assert poseidon["label"] == "Descendant of Poseidon"
     assert poseidon["attack"] == 2
-    assert poseidon["armour"] == 5
-    assert poseidon["hp"] == 19
+    assert poseidon["armour"] == 3
+    assert poseidon["hp"] == 23
     assert poseidon["intellect"] == 2
 
 def test_ancestries_achilles_has_correct_stats():
@@ -709,15 +709,15 @@ def test_ancestries_atalanta_has_correct_stats():
     assert atalanta["label"] == "Descendant of Atalanta"
     assert atalanta["attack"] == 5
     assert atalanta["armour"] == 1
-    assert atalanta["hp"] == 20
+    assert atalanta["hp"] == 18
     assert atalanta["intellect"] == 2
 
 def test_ancestries_medusa_has_correct_stats():
     medusa = ANCESTRIES["medusa"]
     assert medusa["label"] == "Descendant of Medusa"
     assert medusa["attack"] == 2
-    assert medusa["armour"] == 4
-    assert medusa["hp"] == 19
+    assert medusa["armour"] == 3
+    assert medusa["hp"] == 21
     assert medusa["intellect"] == 3
 
 def test_ancestries_minotaur_has_correct_stats():
@@ -731,9 +731,9 @@ def test_ancestries_minotaur_has_correct_stats():
 def test_ancestries_cyclops_has_correct_stats():
     cyclops = ANCESTRIES["cyclops"]
     assert cyclops["label"] == "Descendant of a Cyclops"
-    assert cyclops["attack"] == 3
-    assert cyclops["armour"] == 0
-    assert cyclops["hp"] == 25
+    assert cyclops["attack"] == 4
+    assert cyclops["armour"] == 1
+    assert cyclops["hp"] == 23
     assert cyclops["intellect"] == 0
 
 def test_ancestries_basic_has_no_secondary_effect():
@@ -746,7 +746,7 @@ def test_ancestries_ares_secondary_effect_grants_reckless_strength():
     player = Player(name="hero", hp=100)
     ares["secondary_effect"](player)
     assert player.has_reckless_strength is True
-    assert ares["secondary_ability_label"] == "Reckless Strength - heavy attacks never miss"
+    assert ares["secondary_ability_label"] == "Reckless Strength - heavy attack miss chance halves"
 
 def test_ancestries_athena_secondary_effect_grants_measured_casting():
     athena = ANCESTRIES["athena"]
@@ -2004,3 +2004,28 @@ def test_create_test_boss_next_phase_factory_produces_phase_two():
     assert phase_two.attack_damage == 1
     assert phase_two.experience_reward == 5
     assert phase_two.gold_reward == 5
+
+def test_build_floor_4_labyrinth_of_the_minotaur_guards_south_exit():
+    start, rooms = build_floor_4()
+    assert "south" in rooms["Labyrinth of the Minotaur"].guarded_exits
+
+def test_build_floor_4_labyrinth_of_the_minotaur_only_guards_south_exit():
+    """West (Stony Lair), east (Cyclops) and ascend stay open - the player can still retreat or explore the side rooms first."""
+    start, rooms = build_floor_4()
+    assert rooms["Labyrinth of the Minotaur"].guarded_exits == {"south"}
+
+def test_build_floor_4_maze_of_pillars_guards_south_exit_to_lair_of_medusa():
+    start, rooms = build_floor_4()
+    assert rooms["Maze of Pillars"].guarded_exits == {"south"}
+
+def test_build_world_overgrown_forest_guards_descend_exit():
+    dungeon, entrance, floors = build_world()
+    overgrown_forest = dungeon.get_room("Overgrown Forest")
+    assert overgrown_forest is not None
+    assert overgrown_forest.guarded_exits == {"descend"}
+
+def test_build_world_lair_of_medusa_guards_descend_exit():
+    dungeon, entrance, floors = build_world()
+    lair = dungeon.get_room("Lair of Medusa")
+    assert lair is not None
+    assert lair.guarded_exits == {"descend"}

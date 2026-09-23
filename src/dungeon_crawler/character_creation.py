@@ -19,7 +19,7 @@ def choose_ancestry() -> str:
 def choose_secondary_ancestry(primary_key: str) -> str:
     """Prompt for a secondary ancestro, granting a passive ability rather than stats. Can't match primary_key - 'basic' is the natural
     'skip entirely' option, since it has no secondary_effect."""
-    print("\nAnd whose gift, beyond blood, do you also carry>\n")
+    print("\nAnd whose gift, beyond blood, do you also carry?\n")
     for key, data in ANCESTRIES.items():
         if key == primary_key:
             continue

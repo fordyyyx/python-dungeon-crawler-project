@@ -256,6 +256,9 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
     maze_of_pillars.add_enemy(create_talos())
     lair_of_medusa.add_enemy(create_medusa())
 
+    labyrinth_of_the_minotaur.guard_exit("south")
+    maze_of_pillars.guard_exit("south")
+
     return labyrinth_of_the_minotaur, {
         room.name: room for room in (labyrinth_of_the_minotaur, stony_lair, cavern_of_the_cyclops, mossy_grove, shadowy_corner, sandy_expanse, maze_of_pillars, lair_of_medusa)
     }

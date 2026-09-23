@@ -109,7 +109,8 @@ content getting in the way.
   `attack`, `defence`, or `abilities` (refunded automatically if the path
   name is invalid, so it never costs you a point on a typo). Repeat four
   times on `abilities` to reach Dodge (Double Strike → Thorns → Last Stand →
-  Dodge, in that order).
+  Dodge, in that order). `attack` and `defence` each have five tiers
+  (+2/+3/+4/+5/+6), so it takes five on either to max it.
 
 ### Misc
 - `dev help` — prints a short in-game summary of the command set (terser
@@ -121,14 +122,13 @@ These are the only names `dev add`/`dev spawn` currently recognise (matched
 case-insensitively):
 
 **Items** (`dev add <name>`): `wooden sword`, `wooden shield`, `dummy head`,
-`mentor's token`, `charon's coin`, `bronze xiphos`, `shield of aegis
-(fragment)`, `vial of ambrosia`, `bronze breastplate`, `small healing
-potion`, `cyclops eye`, `spear of ares`, `centaur's broken bow`, `skeleton
-bone`, `breastplate of athena`, `favour of hermes`, `weathered helm`, `vial of
-grave rot`, `harpy-fletched bow`, `tome of old prayers`, `chipped stone
-aegis`, `wineskin of dionysus`, `lamia's fang`, `sun-scorched dagger`,
-`talos' bronze plating`, `serpent's kiss`, `test spellbook`, `test healing
-tonic`, `test venom vial`.
+`mentor's token`, `charon's coin`, `bronze xiphos`, `vial of ambrosia`,
+`bronze breastplate`, `small healing potion`, `cyclops eye`, `spear of ares`,
+`centaur's broken bow`, `skeleton bone`, `breastplate of athena`, `favour of
+hermes`, `weathered helm`, `vial of grave rot`, `harpy-fletched bow`, `tome of
+old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
+`sun-scorched dagger`, `talos' bronze plating`, `serpent's kiss`, `labrys`,
+`test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
@@ -194,9 +194,12 @@ durability degrading in combat, repairing at the Forge of Prometheus (floor
 2, `is_forge=True`), Dodge, light/heavy attacks, the Practice Chamber's
 respawning dummy, every floor 1/3/4 enemy (Shade, Crypt Keeper, Harpy,
 Fanatic, Lurker, Petrified Guardian, Satyr, Lamia, Ember Wraith, Talos,
-Medusa), Hermes'/Athena's/Ares' now-completable trades, and reloading from
-your last save on death instead of the game always just ending — has real,
-reachable in-game content and needs no dev-tool workaround to try. The
+Medusa), Hermes'/Athena's/Ares' now-completable trades, reloading from
+your last save on death instead of the game always just ending, guarded
+exits (the Minotaur, Talos, the Centaur and the Medusa chain each bar the
+way forward until defeated), and the minimum-damage rule (every landed hit
+deals at least 1) — has real, reachable in-game content and needs no
+dev-tool workaround to try. The
 Weathered Helm (Shade's drop, Fields of Asphodel) is also content's first
 real `slot="helmet"` item, and Lamia is the first enemy with
 `Character.has_lifesteal` - see `CLAUDE.md`'s "Armour slots and durability"
@@ -205,8 +208,9 @@ content (no required items or reward, so it completes instantly for
 nothing) - see roadmap.md's "Populate all floors."
 
 Two more small things from the same playtesting pass: moving into a new
-room now restores 1 HP if you're below full (`"You catch your breath as
-you move on."`), and there are three new `forge` shortcut exits straight
+room restores 1 HP while you're below half HP (`"You catch your breath as
+you move on."` - capped at half by a later balance pass, so pacing can't
+heal you to full), and there are three new `forge` shortcut exits straight
 back to the Forge of Prometheus from Prayer Room (floor 3), Stony Lair, and
 Maze of Pillars (floor 4) - no dev command needed for either, both are
 reachable through normal play. The Forge also has three reciprocal exits
@@ -303,6 +307,21 @@ dev command needed for that part - and prints `"The path back opens behind
 you."`, unlocking the reciprocal exit (`Room.exit_activations`). The final
 `prayer room` now succeeds. Stony Lair and Maze of Pillars (floor 4) work
 the same way.
+
+**Try a guarded exit:**
+```
+dev teleport labyrinth of the minotaur
+south
+dev clear room
+south
+```
+The first `south` fails - `"Minotaur bars the way - you'll have to deal with it
+first."` - since the Labyrinth's `south` exit is guarded (`Room.guarded_exits`)
+while he lives. `west`/`east`/`ascend` stay open throughout. `dev clear room`
+empties the room with no loot; use `dev kill` instead if you want his Labrys
+drop and XP. Either way, the second `south` walks straight into Mossy Grove.
+Maze of Pillars (`south`, Talos), Overgrown Forest (`descend`, the Centaur) and
+Lair of Medusa (`descend`, the whole Medusa chain) work the same way.
 
 **Try a ranged attack:**
 ```

@@ -34,7 +34,7 @@ def test_choose_ancestry_prints_each_ancestry_option(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda prompt="": "basic")
     choose_ancestry()
     captured = capsys.readouterr()
-    assert "basic - No lineage (ATK 3 / DEF 1 / HP 20)" in captured.out
+    assert "basic - No lineage (ATK 4 / DEF 1 / HP 20)" in captured.out
     assert "odysseus - Descendant of Odysseus (ATK 3 / DEF 1 / HP 20)" in captured.out
 
 def test_choose_secondary_ancestry_returns_chosen_key_when_valid(monkeypatch):
@@ -83,7 +83,7 @@ def test_choose_secondary_ancestry_prints_each_non_primary_ancestry_option(monke
     monkeypatch.setattr("builtins.input", lambda prompt="": "ares")
     choose_secondary_ancestry("basic")
     captured = capsys.readouterr()
-    assert "ares - Reckless Strength - heavy attacks never miss" in captured.out
+    assert "ares - Reckless Strength - heavy attack miss chance halves" in captured.out
     assert "cyclops - Iron Hide - reduces every hit taken by 1" in captured.out
 
 def test_create_player_sets_name():
@@ -93,7 +93,7 @@ def test_create_player_sets_name():
 def test_create_player_sets_stats_from_ancestry():
     player = create_player("Hero", "basic", "basic")
     assert player.hp == 20
-    assert player.attack_damage == 3
+    assert player.attack_damage == 4
     assert player.armour == 1
 
 def test_create_player_sets_ancestry_label():
@@ -118,7 +118,7 @@ def test_create_player_with_different_secondary_key_applies_secondary_effect():
 
 def test_create_player_with_different_secondary_key_sets_secondary_ancestry_label():
     player = create_player("Hero", "basic", "ares")
-    assert player.secondary_ancestry_label == "Reckless Strength - heavy attacks never miss"
+    assert player.secondary_ancestry_label == "Reckless Strength - heavy attack miss chance halves"
 
 def test_create_player_with_basic_secondary_key_applies_no_effect():
     player = create_player("Hero", "athena", "basic")

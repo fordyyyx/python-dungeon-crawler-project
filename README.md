@@ -6,9 +6,9 @@ This game follows a hero (you) on the descent into the Underworld, facing monste
 It is built purely in Python to demonstrate my skills in object-oriented programming, as well as brush up on things I hadn't used for a while.
 
 ## Features
-* Character creation — name your hero, choose a primary ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs), then a second, different figure for a passive secondary gift — a distinct ability rather than more stats (heavy attacks that never miss, spells that never go on cooldown, a guaranteed clean escape, and more)
+* Character creation — name your hero, choose a primary ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs), then a second, different figure for a passive secondary gift — a distinct ability rather than more stats (heavy attacks that miss half as often, spells that never go on cooldown, a guaranteed clean escape, and more)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
-* Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements — some passages are hidden entirely until you stop and `examine` your surroundings
+* Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements — some passages are hidden entirely until you stop and `examine` your surroundings, and the way forward past a floor's toughest foes stays barred until you've defeated them
 * An Intellect stat, set by ancestry and grown through levelling, that unlocks additional flavour text and lore when examining — never anything required to progress
 * Turn-based, team-vs-team combat that locks you into an encounter — attack a chosen target, cast a spell, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
 * Multiple enemies at once, each deciding for itself whether to attack, defend, or heal via a utility-based AI (with a little randomness baked in, so it doesn't always play perfectly) — target a specific enemy by name, disambiguating with a number when more than one shares it
@@ -16,13 +16,13 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time
 * Item pickup, inventory, use, and unequip — both weapons and armour occupy two independent slots each (melee/ranged for weapons, helmet/body for armour) so a piece in each slot can be worn at once, only swapping within the same slot
 * Attack variety — light, heavy (bigger hit, a chance to miss entirely), and ranged (requires an equipped ranged weapon) attacks, chosen per turn
-* Armour durability that wears down as you take hits and can be repaired for gold at the Forge of Prometheus
+* Armour durability that wears down as you take hits and can be repaired for gold at the Forge of Prometheus — armour softens every blow, but never blocks one completely
 * Status effects — poison, flame, and heal-over-time tonics that tick each round, stacking by prolonging duration rather than piling up separate instances
 * Spellcasting — a learnable spellbook, a mana pool, and per-spell cooldowns; rest to recover mana between fights
 * Friendly NPCs with hints, conditional dialogue, and items to trade
 * A trading system that checks for both missing and still-equipped items
 * Quest items — untradeable, undroppable, and displayed separately from regular gear
-* A branching skill tree (Attack, Defence, and Abilities paths) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience
+* A branching skill tree (Attack and Defence paths of five escalating tiers each, plus an Abilities path) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience
 * Gold, earned from defeating enemies, tracked separately from your core stats
 * Special combat abilities — Double Strike, Thorns, Last Stand, and Dodge
 * Enemies with loot drops
@@ -112,7 +112,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, and the first two dungeon floors fully populated with enemies. Planned additions include further floors drawing on the Iliad and Odyssey, with more named multi-stage bosses among them.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, and floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair. Planned additions include further floors drawing on the Iliad and Odyssey, with more named multi-stage bosses among them.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

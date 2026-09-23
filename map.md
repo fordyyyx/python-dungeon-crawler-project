@@ -63,13 +63,13 @@ Dim Corridor {Lurker - Enemy}
 * south -> Overgrown Forest
 Overgrown Forest {Centaur - Enemy}
 * north -> Dim Corridor
-* descend -> Labyrinth of the Minotaur
+* descend -> Labyrinth of the Minotaur [NOTE: guarded (Room.guarded_exits) - blocked while the Centaur lives, see CLAUDE.md's "Guarded exits"]
 
 Labyrinth of the Minotaur {Minotaur - Enemy}
 * ascend -> Overgrown Forest
 * east -> Cavern of the Cyclops
 * west -> Stony Lair
-* south -> Mossy Grove
+* south -> Mossy Grove [NOTE: guarded - blocked while the Minotaur lives; west/east/ascend stay open]
 Cavern of the Cyclops {Cyclops - Enemy}
 * west -> Labyrinth of the Minotaur
 Stony Lair {Petrified Guardian - Enemy}
@@ -86,11 +86,11 @@ Sandy Expanse {Ember Wraith - Enemy}
 * east -> Maze of Pillars
 Maze of Pillars {Talos - Enemy}
 * west -> Sandy Expanse
-* south -> Lair of Medusa
+* south -> Lair of Medusa [NOTE: guarded - blocked while Talos lives]
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 Lair of Medusa {Medusa - Enemy}
 * north -> Maze of Pillars
-* descend -> Shadow of Army Camp
+* descend -> Shadow of Army Camp [NOTE: guarded - blocked until the whole Medusa chain (Phase 1, both Gorgons, Awakened) is defeated]
 
 Shadow of Army Camp {Shade of Achilles - Friendly}
 * ascend -> Lair of Medusa
@@ -217,7 +217,14 @@ Medusa the floor's climactic fight: Medusa (Phase 1) falls to a wave of two
 Gorgons, then Medusa (Awakened) - the game's first real, named multi-stage
 boss, see `CLAUDE.md`'s "Multi-stage boss fights" - who drops Serpent's
 Kiss. Alongside the Minotaur and Cyclops, that's every room on floor 4
-holding a real enemy now.
+holding a real enemy now. The Minotaur drops the Labrys (a +5 double-headed
+axe), replacing the Bronze Xiphos he used to share with the Wounded Soldier.
+
+Four critical-path exits are now guarded (`Room.guarded_exits`) and can't be
+used while their room's enemy lives: Overgrown Forest's `descend` (Centaur),
+Labyrinth of the Minotaur's `south` (Minotaur), Maze of Pillars' `south`
+(Talos), and Lair of Medusa's `descend` (the whole Medusa chain). Every other
+fight on floors 0-4 is still optional to walk past.
 
 Every room on floors 5-9 remains an unpopulated shell. Finishing Floor 2's
 population (Prometheus' trade and Trophy Room of Zeus) and floors 5-9's

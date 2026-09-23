@@ -21,6 +21,10 @@ class Room:
         self.exit_activations: dict[str, tuple["Room", str]] = {}
         """direction (on this room) -> (room, direction) to unlock the moment THIS exit is successfully used. Set once at world-build time, never
         mutated during play - same category as locked_exits, exits themselves: static, not saved."""
+        self.guarded_exits: set[str] = set()
+        """Directions that can't be used while any living, non-respawning enemy remains in this room - see get_exit_guardian() (exploration.py).
+        Static like locked_exits (set at world-build time, never mutated during play), so not saved; the live 'is it still guarded' state
+        comes from room.enemies, which already is."""
         self._items: list = []
         self._enemies: list = []
         self._allies: list = []
@@ -47,6 +51,10 @@ class Room:
     def register_fast_travel_activation(self, direction: str, unlocks_room: "Room", unlocks_direction: str) -> None:
         """The moment 'direction' on THIS room is successfully used, unlock 'unlocks_direction' on 'unlocks_room'."""
         self.exit_activations[direction] = (unlocks_room, unlocks_direction)
+
+    def guard_exit(self, direction: str) -> None:
+        """Block 'direction' until every living, non-respawning enemy in this room is defeated."""
+        self.guarded_exits.add(direction)
 
     def add_item(self, item):
         """Add item to this room."""

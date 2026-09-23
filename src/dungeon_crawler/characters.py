@@ -7,8 +7,10 @@ from dungeon_crawler.world import Room
 from textwrap import dedent
 import random
 
-HEAVY_ATTACK_MULTIPLIER = 1.75
-HEAVY_ATTACK_MISS_CHANCE = 0.3
+HEAVY_ATTACK_MULTIPLIER: float = 1.75
+HEAVY_ATTACK_MISS_CHANCE: float = 0.4
+RECKLESS_HEAVY_ATTACK_MISS_CHANCE: float = HEAVY_ATTACK_MISS_CHANCE / 2
+MINIMUM_DAMAGE: int = 1
 
 class Character:
     """Shared base for anything that can fight - HP, attack, armour, and the ability flags (Double Strike, Thorns, Last Stand) that Skills can turn on."""
@@ -50,7 +52,7 @@ class Character:
         self.has_petrifying_gaze = False
         self.has_bull_rush = False
         self.has_iron_hide = False
-        """These ten flags are all secondary-ancestor abilities (see ANCESTRIES['secondary_effect'] in content.py) - same shape as 
+        """These ten flags are all secondary-ancestor abilities (see ANCESTRIES['secondary_effect'] in content/ancestries.py) - same shape as
         has_thorns/dodge_chance, but granted once at character creation, never by the skill tree. Deliberately zero overlap with the skill
         tree's four ability flags (has_double_strike, has_last_stand, has_thorns, dodge_chance) - see roadmap.md"""
         self.has_lifesteal = False
@@ -61,27 +63,30 @@ class Character:
     def attack(self, target: "Character", attack_type: str = "light") -> str:
         """Attack target once, then a second time at half damage if Double Strike is unlocked. attack_type picks which weapon slot (if any)
         contributes damage: "light" and "ranged" draw from equipped_melee_weapon/equipped_ranged_weapon respectively, with identical maths
-        otherwise (guaranteed hit, no multiplier); "heavy" always draws from equipped_melee_weapon, multiplies the total by 
+        otherwise (guaranteed hit, no multiplier); "heavy" always draws from equipped_melee_weapon, multiplies the total by
         HEAVY_ATTACK_MULTIPLIER, but has a HEAVY_ATTACK_MISS_CHANCE chance to miss entirely (0 damage, turn still spent). Enemy/Companion
         always call this with the default "light" and never equip weapons, so their behaviour is unchanged. has_berserking adds +2 to base_damage
-        at or below half HP; has_bull_rush adds +3 against a target still at full HP; has_reckless_strength removes the heavy attack miss chance
-        entirely; has_petrifying_gaze gives a 15% chance to also poison a target that survives the hit. All four apply to base_damage before the
-        heavy multiplier, same as weapon_bonus does."""
+        at or below half HP, before the heavy multiplier (same as weapon_bonus); has_reckless_strength halves the heavy miss chance
+        (RECKLESS_HEAVY_ATTACK_MISS_CHANCE); has_bull_rush adds a flat +3 to the first hit against a target still at full HP, after the heavy
+        multiplier so it's never scaled by it; has_petrifying_gaze gives a 15% chance to also poison a target that survives the hit. Double
+        Strike's second hit is base_damage // 2 - untouched by the heavy multiplier or Bull Rush - and ignores the target's armour."""
         weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
         weapon_bonus = weapon.damage if weapon is not None else 0
         base_damage = self.attack_damage + weapon_bonus
 
         if self.has_berserking and self.hp <= self.max_hp / 2:
             base_damage += 2
-        if self.has_bull_rush and target.hp == target.max_hp:
-            base_damage += 3
 
         if attack_type == "heavy":
-            if not self.has_reckless_strength and random.random() < HEAVY_ATTACK_MISS_CHANCE:
+            miss_chance = RECKLESS_HEAVY_ATTACK_MISS_CHANCE if self.has_reckless_strength else HEAVY_ATTACK_MISS_CHANCE
+            if random.random() < miss_chance:
                 return f"{self.name} swings a heavy blow at {target.name} - but misses!"
             incoming = round(base_damage * HEAVY_ATTACK_MULTIPLIER)
         else:
             incoming = base_damage
+
+        if self.has_bull_rush and target.hp == target.max_hp:
+            incoming += 3
 
         damage_dealt, death_message = target.take_damage(incoming, attacker=self)
         deflected = incoming - damage_dealt
@@ -104,8 +109,8 @@ class Character:
             message += f"\n{target.apply_status_effect(StatusEffect('Poison', -3, 3))}"
 
         if getattr(self, "has_double_strike", False):
-            # second strike deals half damage, based on the same weapon-inclusive total as the first hit
-            second_damage, second_death = target.take_damage(base_damage // 2, attacker=self)
+            # second strike deals half of base_damage (weapon- and Berserking-inclusive, but before the heavy multiplier/Bull Rush), ignoring armour
+            second_damage, second_death = target.take_damage(base_damage // 2, attacker=self, ignore_armour=True)
             message += f"\n{self.name} strikes again for {second_damage} damage."
             if second_death:
                 message += f"\n{second_death}"
@@ -113,18 +118,23 @@ class Character:
         return message
 
 
-    def take_damage(self, amount: int, attacker: "Character | None" = None) -> tuple[int, str]:
+    def take_damage(self, amount: int, attacker: "Character | None" = None, ignore_armour: bool = False) -> tuple[int, str]:
         """Apply any pending Defend/Brace reduction, then armour-reduced damage, handling Last Stand and Thorns along the way. Returns
         (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report. pending_damage_reduction
-        is consumed (reset to 0) here regardless of whether it changed anything, since a brace only ever protects against the next hit taken."""
+        is consumed (reset to 0) here regardless of whether it changed anything, since a brace only ever protects against the next hit taken.
+        ignore_armour skips the armour subtraction (used by Double Strike's second hit). Any hit with amount > 0 that isn't dodged deals at
+        least MINIMUM_DAMAGE, however much brace/armour/Iron Hide would otherwise absorb - a 0-damage attacker still deals 0."""
         if random.random() < self.dodge_chance:
             return 0, f"{self.name} dodges the attack!"
 
         braced_amount = max(0, amount - self.pending_damage_reduction)
         self.pending_damage_reduction = 0
-        reduced = max(0, braced_amount - self.armour)
+        armour_applied = 0 if ignore_armour else self.armour
+        reduced = max(0, braced_amount - armour_applied)
         if self.has_iron_hide:
             reduced = max(0, reduced - 1)
+        if amount > 0:
+            reduced = max(MINIMUM_DAMAGE, reduced)
 
         for piece in (self.equipped_helmet, self.equipped_body):
             if piece is not None and piece.durability > 0:
@@ -168,7 +178,7 @@ class Character:
 
     def tick_status_effects(self) -> list[str]:
         """Apply one tick of every active effect, removing any that expire after this tick. Stops the moment a tick kills this character
-        - sam 'stop once dead' precedent as resolve_combat_round() - appending on_death()'s message when that happens."""
+        - same 'stop once dead' precedent as resolve_combat_round() - appending on_death()'s message when that happens."""
         messages = []
         for effect in list(self.active_effects):
             if not self.is_alive():
@@ -510,12 +520,16 @@ class SkillTree:
         self.paths: dict[str, SkillPath] = {
             "attack": SkillPath("Attack", [
                 AttackBoostSkill("Iron Grip", "Steadier strikes.", bonus=2),
+                AttackBoostSkill("Honed Instinct", "Every swing finds its mark a little easier.", bonus=3),
                 AttackBoostSkill("Warrior's Fury", "A hero's strength awakens.", bonus=4),
+                AttackBoostSkill("Spartan Discipline", "Years of drilling, spent in a single moment.", bonus=5),
                 AttackBoostSkill("Blessing of Ares", "The war god lends his might.", bonus=6),
             ]),
             "defence": SkillPath("Defence", [
                 DefenceBoostSkill("Hardened Skin", "Blows land softer.", bonus=2),
+                DefenceBoostSkill("Steady Stance", "Harder to knock off your feet.", bonus=3),
                 DefenceBoostSkill("Aegis Ward", "A sliver of divine protection.", bonus=4),
+                DefenceBoostSkill("Tempered Bronze", "Hammered, heated, and hammered again.", bonus=5),
                 DefenceBoostSkill("Bronze Resolve", "Nearly unbreakable.", bonus=6),
             ]),
             "abilities": SkillPath("Abilities", [

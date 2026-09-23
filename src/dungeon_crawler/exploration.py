@@ -1,7 +1,7 @@
 """Room and item interactions - everything outside of combat: picking up and dropping items, trading with allies,
 examining surroundings, and map/movement helpers."""
 
-from dungeon_crawler.characters import Player, Ally, Companion
+from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.items import Armour
 from dungeon_crawler.world import Room
 
@@ -104,14 +104,25 @@ def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     required_item_name = room.locked_exits[direction]
     return required_item_name not in [item.name for item in player.inventory.items]
 
+def get_exit_guardian(room: Room, direction: str) -> Enemy | None:
+    """The first living, non-respawning enemy blocking 'direction', or None if the exit isn't guarded or nobody's left to guard it."""
+    if direction not in room.guarded_exits:
+        return None
+    return next((e for e in room.enemies if e.is_alive() and not e.respawns), None)
+
 def display_local_exits(room: Room, player: Player) -> str:
     """Format only the current room's own exits - shows 'Locked Door' in place of the destination name for any exit the player can't yet use."""
     if not room.exits:
         return "There are no exits from this room."
     lines = []
     for direction, target in room.exits.items():
+        guardian = get_exit_guardian(room, direction)
         if is_exit_locked(room, direction, player):
             lines.append(f"{direction} -> Locked Door")
+        elif guardian is not None:
+            lines.append(f"{direction} -> {target.name} (guarded by {guardian.name})")
+        elif direction in room.fast_travel_locks:
+                    lines.append(f"{direction} -> Sealed Shortcut")
         else:
             lines.append(f"{direction} -> {target.name}")
     return "\n".join(lines)
@@ -131,8 +142,13 @@ def display_map(current_room: Room, player: Player) -> str:
 
         unlocked_targets = []
         for direction, target in room.exits.items():
+            guardian = get_exit_guardian(room, direction)
             if is_exit_locked(room, direction, player):
                 lines.append(f"  {direction} -> Locked Door")
+            elif guardian is not None:
+                lines.append(f"  {direction} -> {target.name} (guarded by {guardian.name})")
+            elif direction in room.fast_travel_locks:
+                lines.append(f"{direction} -> Sealed Shortcut")
             else:
                 lines.append(f"  {direction} -> {target.name}")
                 unlocked_targets.append(target)

@@ -100,15 +100,25 @@ something occurs to you mid-build.
 - The new one-way `"forge"` shortcut exits (Prayer Room, Stony Lair, Maze of
   Pillars back to the Forge of Prometheus) are a natural fit for a fast-travel
   waypoint UI - a shimmering-doorway visual already exists in the text
-  description, ready-made as art direction. The intended two-way, unlock-on-
-  first-use version (`Room.fast_travel_locks`) maps onto the genre-standard
-  "discover a waypoint, then teleport freely between discovered ones" pattern
-  - worth building that gating properly for the port even though the current
-    text version doesn't enforce it yet (see CLAUDE.md).
+  description, ready-made as art direction. The two-way, unlock-on-first-use
+  version (`Room.fast_travel_locks`, now enforced in the text version too)
+  maps directly onto the genre-standard "discover a waypoint, then teleport
+  freely between discovered ones" pattern - a visual version could show
+  still-locked return paths greyed out on the waypoint list rather than only
+  refusing them on a failed attempt.
 - A small HP tick on movement (`PASSIVE_REGEN_PER_MOVE`) wants its own subtle
   cue distinct from a potion heal - a faint pulse on the HP bar as you cross
   into a new room reads very differently from a burst heal effect, and that
-  distinction matters for the player understanding *why* their HP just moved.
+  distinction matters for the player understanding *why* their HP just moved. It
+  only ever regenerates up to half HP, so the pulse should visibly stop at a
+  marked halfway line on the bar - otherwise players will wonder why walking
+  stopped healing them.
+- Guarded exits (`Room.guarded_exits` - a floor's key fights bar the way
+  forward until defeated) are a natural fit for the boss physically standing
+  in the doorway, or a sealed-door visual that breaks open on the kill -
+  rather than the text version's refusal message on a failed move. Worth
+  marking guarded exits on the map screen too; the text version doesn't show
+  them until you try one.
 
 ## Items / Inventory
 - Equip slots are a natural fit for a paper-doll style UI — both weapons

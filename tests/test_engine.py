@@ -686,9 +686,31 @@ def test_main_autosaves_on_first_crossing_into_a_new_floor(monkeypatch, capsys, 
     from dungeon_crawler import save_system
     assert save_system.slot_exists(1, 1) is True
 
-def test_main_moving_below_full_hp_grants_passive_regen(monkeypatch, capsys, tmp_path):
-    """Crossing into another room while below max_hp restores PASSIVE_REGEN_PER_MOVE HP and prints a message - the passive
-    regen introduced alongside the death-reload/save work, exploration-only (movement is never reachable mid-combat)."""
+def test_main_moving_below_regen_cap_grants_passive_regen(monkeypatch, capsys, tmp_path):
+    """Crossing into another room while below PASSIVE_REGEN_CAP_FRACTION of max_hp restores PASSIVE_REGEN_PER_MOVE HP and
+    prints a message - exploration-only (movement is never reachable mid-combat)."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "dev set hp 5",
+        "north",
+        "stats",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You catch your breath as you move on. (+1 HP)" in captured.out
+    assert "6 HP" in captured.out
+
+def test_main_moving_above_regen_cap_but_below_full_hp_grants_no_regen(monkeypatch, capsys, tmp_path):
+    """Regen is capped at half of max_hp (10 for a 20 HP basic player) - pacing between rooms can no longer heal to full."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
         "1", "1", "1",
@@ -706,8 +728,31 @@ def test_main_moving_below_full_hp_grants_passive_regen(monkeypatch, capsys, tmp
     main()
 
     captured = capsys.readouterr()
-    assert "You catch your breath as you move on. (+1 HP)" in captured.out
-    assert "16 HP" in captured.out
+    assert "You catch your breath" not in captured.out
+    assert "15 HP" in captured.out
+
+def test_main_passive_regen_stops_once_hp_reaches_the_cap(monkeypatch, capsys, tmp_path):
+    """From 9 HP, the first move regenerates to 10 (the cap for a 20 HP player); the second move grants nothing more."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1",
+        "developer mode",
+        "basic",
+        "ares",
+        "floor_0",
+        "dev set hp 9",
+        "north",
+        "south",
+        "stats",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert captured.out.count("You catch your breath as you move on.") == 1
+    assert "10 HP" in captured.out
 
 def test_main_moving_at_full_hp_does_not_print_passive_regen_message(monkeypatch, capsys, tmp_path):
     """No regen message (or HP change) when the player is already at max_hp when they move."""
@@ -775,3 +820,53 @@ def test_main_using_forge_shortcut_unlocks_the_reciprocal_exit(monkeypatch, caps
     assert "The path back opens behind you." in captured.out
     assert "You haven't opened this shortcut yet" not in captured.out
     assert "Faded murals" in captured.out.split("The path back opens behind you.")[-1]
+def test_main_guarded_exit_blocks_movement_while_the_guardian_lives(monkeypatch, capsys, tmp_path):
+    """The Labyrinth of the Minotaur's south exit is guarded - walking past a living Minotaur is refused."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport labyrinth of the minotaur",
+        "south",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Minotaur bars the way - you'll have to deal with it first." in captured.out
+    assert "Mossy Grove:" not in captured.out
+
+def test_main_guarded_exit_opens_once_the_room_is_cleared(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport labyrinth of the minotaur",
+        "dev clear room",
+        "south",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "bars the way" not in captured.out
+    assert "Mossy Grove:" in captured.out
+
+def test_main_guarded_exit_does_not_block_unguarded_exits_in_the_same_room(monkeypatch, capsys, tmp_path):
+    """Only south is guarded - the player can still reach Stony Lair to the west with the Minotaur alive."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport labyrinth of the minotaur",
+        "west",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "bars the way" not in captured.out
+    assert "Stony Lair:" in captured.out

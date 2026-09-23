@@ -5,12 +5,13 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
-from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item
+from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
 
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
+PASSIVE_REGEN_CAP_FRACTION = 0.5
 
 
 def print_room(room: Room, player: Player):
@@ -273,11 +274,14 @@ def main() -> None:
                 print(display_map(current_room, player))
 
             elif command in current_room.exits:
+                guardian = get_exit_guardian(current_room, command)
                 if command in current_room.fast_travel_locks:
                     print("You haven't opened this shortcut yet - reach it from the other side first.")
                 elif is_exit_locked(current_room, command, player):
                     required = current_room.locked_exits[command]
                     print(f"That way is locked. You need the {required} first.")
+                elif guardian is not None:
+                    print(f"{guardian.name} bars the way - you'll have to deal with it first.")
                 else:
                     if command in current_room.exit_activations:
                         unlock_room, unlock_direction = current_room.exit_activations[command]
@@ -285,7 +289,8 @@ def main() -> None:
                             unlock_room.fast_travel_locks.discard(unlock_direction)
                             print("The path back opens behind you.")
                     current_room = current_room.exits[command]
-                    if player.hp < player.max_hp:
+                    regen_cap = int(player.max_hp * PASSIVE_REGEN_CAP_FRACTION)
+                    if player.hp < regen_cap:
                         player.hp = min(player.max_hp, player.hp + PASSIVE_REGEN_PER_MOVE)
                         print(f"You catch your breath as you move on. (+{PASSIVE_REGEN_PER_MOVE} HP)")
                     found_floor = find_floor_for_room(current_room, all_floors)
