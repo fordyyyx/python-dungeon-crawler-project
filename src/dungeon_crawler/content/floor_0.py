@@ -44,7 +44,8 @@ def create_wooden_sword() -> Weapon:
     return Weapon(
         name="Wooden Sword",
         description="Blunt, splintered, and entirely harmless to anyone but a straw dummy — exactly as intended.",
-        damage=1
+        damage=1,
+        weapon_class="blade",
     )
 
 def create_wooden_shield() -> Armour:
@@ -53,6 +54,8 @@ def create_wooden_shield() -> Armour:
         name="Wooden Shield",
         description="Warped and dry-rotted at the edges, but it'll turn aside a training blow well enough.",
         defence=1,
+        slot="shield",
+        weight="light",
         max_durability=6,
     )
 

@@ -103,6 +103,7 @@ def create_breastplate_of_athena() -> Armour:
         name="Breastplate of Athena",
         description="Cool to the touch even in the deepest heat, etched with an owl that seems to watch whichever way danger comes from.",
         defence=4,
+        weight="light",
         max_durability=15,
     )
 
@@ -112,6 +113,8 @@ def create_spear_of_ares() -> Weapon:
         name="Spear of Ares",
         damage=6,
         description="Bronze-tipped and perfectly balanced - it feels less like you're holding a weapon, and more like it's holding you steady",
+        weapon_class="piercing",
+        armour_pierce=2,
     )
 
 def create_hermes_favour() -> SkillPointReward:

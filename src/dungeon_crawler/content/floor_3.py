@@ -10,8 +10,8 @@ def create_centaur() -> Enemy:
     """Create the Centaur enemy for Overgrown Forest (floor 3) - drops Centaur's Broken Bow, Athena's required trade item."""
     return Enemy(
         name="Centaur",
-        hp=14,
-        attack_damage=5,
+        hp=18,
+        attack_damage=6,
         armour=1,
         loot=[create_centaurs_broken_bow()],
         description="Half man, half horse, nothing like the patient tutor you met on floor 0 - this one draws its bow the moment it sees you.",
@@ -99,6 +99,7 @@ def create_harpy_fletched_bow() -> Weapon:
         description="Strung tight and fletched with feathers still faintly warm - whoever made this didn't have to look far for materials.",
         damage=4,
         slot="ranged",
+        weapon_class="ranged",
     )
 
 def create_vial_of_grave_rot() -> StatusEffectItem:

@@ -174,11 +174,12 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
     """One full round: player attacks target, then their companion (if any, and still alive) takes its own turn via
     choose_companion_action(), then every enemy in enemy_team still alive takes its own turn via choose_enemy_action() -
     attack (with real target selection once either side has more than one living member), defend, or heal throughout.
+    enemy_team is passed to the player's attack as 'others', so a heavy cleave swing can carry on into a second enemy.
     Stops rolling further turns the moment the player is dead."""
     messages = tick_start_of_turn_if_needed(player)
 
     if player.is_alive():
-        messages.append(player.attack(target, attack_type))
+        messages.append(player.attack(target, attack_type, others=enemy_team))
 
     tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
     if tail:

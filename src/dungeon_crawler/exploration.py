@@ -210,7 +210,7 @@ def handle_examine(room: Room, player: Player) -> str:
 def repair_item(item_name: str, player: Player, room: Room) -> str:
     """Restore a named Armour item to full durability, if room is the Forge and player can afford it. Cost scaled with how much
     durability is missing (REPAIR_COST_PER_POINT gold per point) - a lightly-worn piece costs less to fix than a fully broken one.
-    Re-adds the item's defence bonus to player.armour if it had dropped to 0 (broken)."""
+    A repaired piece's defence counts again automatically, since Character.armour is calculated from worn, unbroken pieces."""
     if not room.is_forge:
         return "There's nowhere to repair armour here."
 
@@ -227,10 +227,7 @@ def repair_item(item_name: str, player: Player, room: Room) -> str:
         return f"Repairing {item.name} costs {cost} gold - you only have {player.gold}."
 
     player.gold -= cost
-    was_broken = item.durability == 0
     item.durability = item.max_durability
-    if was_broken:
-        player.armour += item.defence
     return f"{item.name} is fully repaired for {cost} gold."
 
 def check_equippable(item_name: str, player: Player) -> str | None:

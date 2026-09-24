@@ -562,16 +562,14 @@ def test_repair_item_matches_name_case_insensitively():
     assert message == "Shield is fully repaired for 6 gold."
 
 def test_repair_item_when_broken_restores_defence_to_player_armour():
-    """was_broken (durability == 0) re-adds the item's defence bonus, mirroring the amount take_damage()
-    would already have backed out of player.armour when the piece originally broke."""
+    """A broken piece's defence stops counting; repairing it makes it count again - Character.armour is calculated from worn, unbroken pieces."""
     room = Room("Forge", is_forge=True)
     player = Player(name="hero", hp=100)
     player.gold = 100
     armour = Armour(name="Shield", description="", defence=3, max_durability=5)
     player.inventory.add(armour)
-    armour.use(player) # player.armour = 3
+    armour.use(player)
     armour.durability = 0
-    player.armour = 0 # simulate the backed-out state take_damage() would have left
 
     repair_item("shield", player, room)
 
@@ -1176,3 +1174,16 @@ def test_get_uncleared_rooms_lists_visited_and_undiscovered_rooms_together_in_fl
     result = get_uncleared_rooms(_one_floor(styx, fields), player)
 
     assert result == "Floor 1:\n    Styx Crossing - enemies remain\n    Fields of Asphodel - undiscovered"
+
+def test_repair_item_on_an_unequipped_broken_piece_does_not_change_armour():
+    """Regression: repairing a broken piece used to add its defence to player.armour even when it wasn't being worn."""
+    room = Room("Forge", is_forge=True)
+    player = Player(name="hero", hp=100, armour=1)
+    player.gold = 100
+    armour = Armour(name="Shield", description="", defence=3, max_durability=5)
+    armour.durability = 0
+    player.inventory.add(armour)
+
+    repair_item("shield", player, room)
+
+    assert player.armour == 1

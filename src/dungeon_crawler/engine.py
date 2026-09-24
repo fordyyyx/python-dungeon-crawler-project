@@ -28,7 +28,7 @@ def print_room(room: Room, player: Player):
         if enemy.has_been_fled_from:
             print(f"The {enemy.name} is still here - it hasn't forgotten you either.")
         else:
-            print(f"A {enemy.name} blocks your path! {enemy.description}")
+            print(f"A {enemy.name} blocks your path! {enemy.description} [Armour {enemy.armour}]")
 
     if room.allies:
         ally = room.allies[0]
@@ -328,6 +328,7 @@ def main() -> None:
                     if guard_hint:
                         print(guard_hint)
                 else:
+                    current_room.unlock_exit(command)
                     if command in current_room.exit_activations:
                         unlock_room, unlock_direction = current_room.exit_activations[command]
                         if unlock_direction in unlock_room.fast_travel_locks:

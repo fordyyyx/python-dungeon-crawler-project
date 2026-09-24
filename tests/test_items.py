@@ -1,5 +1,6 @@
 from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
+from dungeon_crawler.content import create_chipped_stone_aegis, create_labrys
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
 
@@ -1074,3 +1075,156 @@ def test_inventory_use_item_at_full_hp_still_applies_healing_status_effect_item(
     assert len(player.active_effects) == 1
     assert player.active_effects[0].name == "Regen"
     assert tonic not in player.inventory.items
+
+def test_weapon_initialises_with_blade_class_and_no_signature_properties():
+    sword = Weapon(name="Sword", description="", damage=3)
+    assert sword.weapon_class == "blade"
+    assert sword.armour_pierce == 0
+    assert sword.lifesteal is False
+    assert sword.poison_chance == 0.0
+    assert sword.cleave is False
+
+def test_weapon_with_unknown_class_raises_value_error():
+    try:
+        Weapon(name="Club", description="", damage=3, weapon_class="blunt")
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_weapon_heavy_class_is_two_handed():
+    axe = Weapon(name="Axe", description="", damage=5, weapon_class="heavy")
+    assert axe.two_handed is True
+
+def test_weapon_blade_class_is_not_two_handed():
+    sword = Weapon(name="Sword", description="", damage=3, weapon_class="blade")
+    assert sword.two_handed is False
+
+def test_weapon_details_lists_class_and_damage():
+    sword = Weapon(name="Sword", description="", damage=3)
+    assert sword.details() == "blade, 3 DMG"
+
+def test_weapon_details_lists_two_handed_and_cleave():
+    axe = Weapon(name="Axe", description="", damage=7, weapon_class="heavy", cleave=True)
+    assert axe.details() == "heavy, two-handed, cleave, 7 DMG"
+
+def test_weapon_details_lists_pierce_and_lifesteal():
+    fang = Weapon(name="Fang", description="", damage=4, weapon_class="piercing", armour_pierce=2, lifesteal=True)
+    assert fang.details() == "piercing, pierces 2, lifesteal, 4 DMG"
+
+def test_weapon_details_lists_poison_chance_as_a_percentage():
+    kiss = Weapon(name="Kiss", description="", damage=6, poison_chance=0.15)
+    assert kiss.details() == "blade, 15% poison, 6 DMG"
+
+def test_non_equipment_item_details_are_empty():
+    potion = Consumable(name="Potion", heal_amount=5)
+    assert potion.details() == ""
+
+def test_armour_initialises_with_light_weight_by_default():
+    plate = Armour(name="Plate", description="", defence=2)
+    assert plate.weight == "light"
+
+def test_armour_with_unknown_slot_raises_value_error():
+    try:
+        Armour(name="Boots", description="", defence=1, slot="feet")
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_armour_with_unknown_weight_raises_value_error():
+    try:
+        Armour(name="Plate", description="", defence=2, weight="enormous")
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_armour_details_lists_slot_weight_defence_and_durability():
+    plate = Armour(name="Plate", description="", defence=6, weight="heavy", max_durability=18)
+    plate.durability = 12
+    assert plate.details() == "body, heavy, 6 DEF, 12/18 durability"
+
+def test_armour_use_with_shield_slot_sets_character_equipped_shield():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    shield = Armour(name="Shield", description="", defence=1, slot="shield")
+    shield.use(character)
+    assert character.equipped_shield is shield
+
+def test_armour_use_shield_helmet_and_body_can_all_be_worn_together():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    helm = Armour(name="Helm", description="", defence=1, slot="helmet")
+    plate = Armour(name="Plate", description="", defence=2)
+    shield = Armour(name="Shield", description="", defence=3, slot="shield")
+    for piece in (helm, plate, shield):
+        piece.use(character)
+    assert character.armour == 6
+
+def test_two_handed_weapon_use_unequips_a_worn_shield():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    shield = Armour(name="Shield", description="", defence=1, slot="shield")
+    shield.use(character)
+    axe = Weapon(name="Axe", description="", damage=7, weapon_class="heavy")
+    message = axe.use(character)
+    assert shield.equipped is False
+    assert character.equipped_shield is None
+    assert "Hero unequips Shield (-1 DEF)" in message
+
+def test_one_handed_weapon_use_keeps_a_worn_shield():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    shield = Armour(name="Shield", description="", defence=1, slot="shield")
+    shield.use(character)
+    Weapon(name="Sword", description="", damage=3).use(character)
+    assert character.equipped_shield is shield
+
+def test_shield_use_unequips_a_two_handed_weapon():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    axe = Weapon(name="Axe", description="", damage=7, weapon_class="heavy")
+    axe.use(character)
+    shield = Armour(name="Shield", description="", defence=1, slot="shield")
+    message = shield.use(character)
+    assert axe.equipped is False
+    assert character.equipped_melee_weapon is None
+    assert "Hero unequips Axe (-7 DMG)" in message
+
+def test_shield_use_keeps_a_one_handed_weapon():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    sword = Weapon(name="Sword", description="", damage=3)
+    sword.use(character)
+    Armour(name="Shield", description="", defence=1, slot="shield").use(character)
+    assert character.equipped_melee_weapon is sword
+
+def test_body_armour_use_keeps_a_two_handed_weapon():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    axe = Weapon(name="Axe", description="", damage=7, weapon_class="heavy")
+    axe.use(character)
+    Armour(name="Plate", description="", defence=2).use(character)
+    assert character.equipped_melee_weapon is axe
+
+def test_armour_unequip_of_a_broken_piece_does_not_lower_armour():
+    """Regression: a broken piece's defence has already stopped counting, so unequipping it used to take it off a second time."""
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=1)
+    plate = Armour(name="Plate", description="", defence=2)
+    plate.use(character)
+    plate.durability = 1
+    character.take_damage(5)  # this hit breaks it
+    plate.unequip(character)
+    assert character.armour == 1
+
+def test_armour_use_of_a_broken_piece_adds_no_defence():
+    """Regression: equipping a broken piece used to add its defence back in, even though it was still broken."""
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=1)
+    plate = Armour(name="Plate", description="", defence=2)
+    plate.durability = 0
+    plate.use(character)
+    assert character.armour == 1
+
+def test_equipping_the_labrys_over_a_broken_aegis_leaves_armour_unchanged():
+    """Regression: the two-handed rule pushed a broken shield off and took its defence away a second time (armour went to -2)."""
+    player = Player(name="Hero", hp=50, armour=1)
+    aegis = create_chipped_stone_aegis()
+    labrys = create_labrys()
+    player.inventory.add(aegis)
+    player.inventory.add(labrys)
+    aegis.use(player)
+    aegis.durability = 1
+    player.take_damage(5)
+    labrys.use(player)
+    assert player.armour == 1

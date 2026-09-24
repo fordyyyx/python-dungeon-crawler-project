@@ -891,9 +891,9 @@ def test_handle_dev_afflict_reapplication_prolongs_duration():
 def test_handle_dev_set_durability_with_invalid_slot_returns_message():
     player = Player(name="hero", hp=100)
 
-    message = handle_dev_set_durability("shield", "5", player)
+    message = handle_dev_set_durability("boots", "5", player)
 
-    assert message == "[DEV] Unknown slot 'shield' - use 'helmet' or 'body'."
+    assert message == "[DEV] Unknown slot 'boots' - use 'helmet', 'body' or 'shield'."
 
 def test_handle_dev_set_durability_with_no_armour_equipped_returns_message():
     player = Player(name="hero", hp=100)
@@ -1004,7 +1004,7 @@ def test_handle_dev_command_set_durability_with_missing_value_returns_usage_mess
 
     message, new_room = handle_dev_command("set durability body", player, room, dungeon)
 
-    assert message == "[DEV] Usage: dev set durability <helmet|body> <value>"
+    assert message == "[DEV] Usage: dev set durability <helmet|body|shield> <value>"
 
 def test_handle_dev_command_afflict_dispatches_correctly():
     player = Player(name="hero", hp=100)
@@ -1088,3 +1088,45 @@ def test_handle_dev_command_grant_spell_already_known_returns_message():
     message, new_room = handle_dev_command("grant spell test bolt", player, room, dungeon)
 
     assert message == "[DEV] Test Bolt is already known."
+
+def test_find_enemy_by_name_finds_the_practice_enemy_by_its_own_name():
+    enemy = find_enemy_by_name("Practice Enemy")
+    assert enemy is not None
+    assert enemy.respawns is True
+
+def test_handle_dev_set_durability_works_on_shield_slot():
+    player = Player(name="hero", hp=100)
+    shield = Armour(name="Aegis", description="", defence=3, slot="shield", max_durability=10)
+    shield.use(player)
+
+    handle_dev_set_durability("shield", "2", player)
+
+    assert shield.durability == 2
+
+def test_handle_dev_set_durability_breaking_a_shield_removes_its_defence():
+    player = Player(name="hero", hp=100, armour=1)
+    shield = Armour(name="Aegis", description="", defence=3, slot="shield", max_durability=10)
+    shield.use(player)
+
+    handle_dev_set_durability("shield", "0", player)
+
+    assert player.armour == 1
+
+def test_handle_dev_set_durability_with_no_shield_equipped_returns_message():
+    player = Player(name="hero", hp=100)
+
+    message = handle_dev_set_durability("shield", "5", player)
+
+    assert message == "[DEV] No armour equipped in the shield slot."
+
+def test_handle_dev_command_set_durability_dispatches_the_shield_slot():
+    player = Player(name="hero", hp=100)
+    shield = Armour(name="Aegis", description="", defence=3, slot="shield", max_durability=10)
+    shield.use(player)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, new_room = handle_dev_command("set durability shield 4", player, room, dungeon)
+
+    assert shield.durability == 4
+    assert message == "[DEV] Aegis durability set to 4/10."

@@ -1,9 +1,9 @@
 Chamber of Chiron {Chiron - Friendly}
 * north -> Chamber of Chiron (North)
-* east -> Chamber of Chiron (East)
-* south -> Chamber of Chiron (South)
-* west -> Chamber of Chiron (West)
-* descend -> Cave Entrance
+* east -> Chamber of Chiron (East) [NOTE: locked - needs the Wooden Sword; unlocks for good once walked through, see CLAUDE.md's "Locked exits open for good"]
+* south -> Chamber of Chiron (South) [NOTE: locked - needs the Wooden Shield; same permanent unlock]
+* west -> Chamber of Chiron (West) [NOTE: locked - needs the Dummy Head; same permanent unlock]
+* descend -> Cave Entrance [NOTE: locked - needs Charon's Coin, Chiron's trade reward; one-way by design]
 Chamber of Chiron (North)
 * south -> Chamber of Chiron
 Chamber of Chiron (East)
@@ -210,18 +210,18 @@ Prayers, the first real SpellBook, teaching Prayer Bolt), Dim Corridor a
 Lurker (drops a Small Healing Potion), and Overgrown Forest the Centaur.
 
 Floor 4 is now fully populated with enemies too: Stony Lair holds a
-Petrified Guardian (drops the Chipped Stone Aegis), Mossy Grove a Satyr
+Petrified Guardian (drops the Chipped Stone Aegis, a heavy shield), Mossy Grove a Satyr
 (drops the Wineskin of Dionysus, the game's first real heal-over-time
 StatusEffectItem), Shadowy Corner a Lamia (the game's first enemy with
-Character.has_lifesteal, drops Lamia's Fang), Sandy Expanse an Ember Wraith
+Character.has_lifesteal, drops Lamia's Fang, a piercing lifesteal weapon), Sandy Expanse an Ember Wraith
 (drops the Sun-scorched Dagger), Maze of Pillars a Talos (drops Talos'
 Bronze Plating, the best body armour in the game so far), and Lair of
 Medusa the floor's climactic fight: Medusa (Phase 1) falls to a wave of two
 Gorgons, then Medusa (Awakened) - the game's first real, named multi-stage
 boss, see `CLAUDE.md`'s "Multi-stage boss fights" - who drops Serpent's
-Kiss. Alongside the Minotaur and Cyclops, that's every room on floor 4
-holding a real enemy now. The Minotaur drops the Labrys (a +5 double-headed
-axe), replacing the Bronze Xiphos he used to share with the Wounded Soldier.
+Kiss, a poisoned blade. Alongside the Minotaur and Cyclops, that's every room on floor 4
+holding a real enemy now. The Minotaur drops the Labrys (a 7-damage, two-handed
+heavy axe with cleave), replacing the Bronze Xiphos he used to share with the Wounded Soldier.
 
 Four critical-path exits are now guarded (`Room.guarded_exits`) and can't be
 used while their room's enemy lives: Overgrown Forest's `descend` (Centaur),

@@ -4,6 +4,10 @@ from abc import ABC, abstractmethod
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 
+WEAPON_CLASSES = ("blade", "heavy", "piercing", "ranged")
+ARMOUR_SLOTS = ("helmet", "body", "shield")
+ARMOUR_WEIGHTS = ("light", "medium", "heavy")
+
 class Item(ABC):
     """Base class for anything that can sit in an Inventory; subclasses implement use() for what actually happens when it's used."""
 
@@ -34,22 +38,58 @@ class Item(ABC):
         """Whether using this item consumes the player's turn (triggering the enemy's turn) or is a free action. Default True;
         Consumable and StatusEffectItem override this for genuinely healing effects."""
         return True
+
+    def details(self) -> str:
+        """A short stat summary for the inventory display (e.g. 'blade, 3 DMG'). Empty by default; Weapon and Armour override it."""
+        return ""
     
 class Weapon(Item):
-    """An equippable item that deals extra damage while equipped, in one of two slots ('melee' or 'ranged') - both can be equipped at once,
-    mirroring Armour's helmet/body split. A weapon's damage is NOT added into Character.attack_damage - it's read directly off whichever
-    slot matches the attack type chosen in combat (see Character.attack()), so a melee and a ranged weapon worn together never stack
-    their damage on the same hit."""
+    """An equippable item that deals extra damage while equipped, in one of two slots ('melee' or 'ranged'). A weapon's damage is NOT added into 
+    Character.attack_damage - it's read directly off whichever slot matches the attack type at the moment of attacking (see Character.attack()), 
+    so a melee and a ranged weapon worn together never stack.
+    
+    weapon_class decides how it fights: 'blade' lowers the heavy-attack miss chance, 'heavy' raises the heavy-attack multiplier but is two-handed
+    (can't be used with a shield), 'piercing' ignores armour_pierce points of the target's armour, and 'ranged' is for the ranged slot. lifesteal,
+    poison_chance, and cleave are signature properties for unique boss drops. All of these are read from the equipped weapon during attack() -
+    never copied onto the character as ability flags, so unequipping can never wipe an ability granted by something else (e.g. an ancestry)."""
 
-    def __init__(self, name: str, description: str, damage: int, slot: str = "melee"):
-        """Store the damage bonus this weapon grants when equipped, and which slot it occupies."""
+    def __init__(self, name: str, description: str, damage: int, slot: str = "melee", weapon_class: str = "blade", armour_pierce: int = 0, lifesteal: bool = False, poison_chance: float = 0.0, cleave: bool = False):
+        """Store the weapon's damage, slot, class, and any signature properties. Raises ValueError for an unknown weapon_class."""
         super().__init__(name, description)
+        if weapon_class not in WEAPON_CLASSES:
+            raise ValueError(f"Unknown weapon_class '{weapon_class}' - must be one of {WEAPON_CLASSES}.")
         self.damage = damage
         self.slot = slot
+        self.weapon_class = weapon_class
+        self.armour_pierce = armour_pierce
+        self.lifesteal = lifesteal
+        self.poison_chance = poison_chance
+        self.cleave = cleave
+
+    @property
+    def two_handed(self) -> bool:
+        """Heavy weapons are two-handed - equipping one unequips any shield, and vice-versa."""
+        return self.weapon_class == "heavy"
+
+    def details(self) -> str:
+        """Class, handedness, piercing, signature properties, then damage - e.g. 'heavy, two-handed, cleave, 7 DMG'."""
+        parts = [self.weapon_class]
+        if self.two_handed:
+            parts.append("two-handed")
+        if self.armour_pierce:
+            parts.append(f"pierces {self.armour_pierce}")
+        if self.lifesteal:
+            parts.append("lifesteal")
+        if self.poison_chance:
+            parts.append(f"{round(self.poison_chance * 100)}% poison")
+        if self.cleave:
+            parts.append("cleave")
+        parts.append(f"{self.damage} DMG")
+        return ", ".join(parts)
 
     def use(self, character) -> str:
-        """Equip this weapon into its slot, unequipping whatever currently occupies that same slot first - per slot, not global, so a melee
-        and a ranged weapon can be equipped simultaneously; only same-slot items are ever swapped."""
+        """Equip this weapon into its slot, unequipping whatever currently occupies that same slot first. A two-handed weapon also unequips any
+        shield, matching how every other slot swaps rather than refusing."""
         if self.equipped:
             return f"{self.name} already equipped."
 
@@ -58,6 +98,10 @@ class Weapon(Item):
         current = getattr(character, slot_attr)
         if current is not None:
             messages.append(current.unequip(character))
+
+        shield = getattr(character, "equipped_shield", None)
+        if self.two_handed and shield is not None:
+            messages.append(shield.unequip(character))
 
         self.equipped = True
         setattr(character, slot_attr, self)
@@ -75,23 +119,35 @@ class Weapon(Item):
         return f"{character.name} unequips {self.name} (-{self.damage} DMG)"
 
 class Armour(Item):
-    """An equippable item that raises armour while equipped, in one of two slots ('helmet' or 'body') - both can be equipped at once, unlike
-    Weapon's single slot. armour itself stays a plain accumulator on Character (see DefenceBoostSkill) - each slot just adds/subtracts
-    its own defence into that same number, same pattern Weapon already uses for attack_damage."""
+    """An equippable item that raises armour while equipped, in one of three slots ('helmet', 'body', or shield) - all three can be worn at once.
+    A worn, unbroken piece's defence counts towards Character.armour, which is calculated fresh from base_armour plus worn gear - equipping
+    and unequipping never add to or subtract from a running total.
+    
+    weight ('light', 'medium', or 'heavy') adds a miss chance to every attack the wearer makes - see Character.get_miss_chance(). A shield can't
+    be used with a two-handed weapon: equipping one unequips the other, whichever way around."""
 
-    def __init__(self, name: str, description: str, defence: int, slot: str = "body", max_durability: int = 10):
-        """Store the armour bonus this item grants when equipped, and which slot it occupies."""
+    def __init__(self, name: str, description: str, defence: int, slot: str = "body", max_durability: int = 10, weight: str = "light"):
+        """Store the armour bonus, slot, durability, and weight. Raises ValueError for an unknown slot or weight."""
         super().__init__(name, description)
+        if slot not in ARMOUR_SLOTS:
+            raise ValueError(f"Unknown armour slot '{slot}' - must be one of {ARMOUR_SLOTS}.")
+        if weight not in ARMOUR_WEIGHTS:
+            raise ValueError(f"Unknown armour weight '{weight}' - must be one of {ARMOUR_WEIGHTS}.")
         self.defence = defence
         self.slot = slot
+        self.weight = weight
         self.max_durability = max_durability
         self.durability = max_durability
-        """Starts full. Reaches 0 via Character.take_damage() (see there) - the item stays equipped but its defence bonus is backed out 
-        of Character.armour until repaired at the Forge (see repair_item(), exploration.py)."""
+        """Starts full. Reaches 0 via Character.take_damage() (see there) - the item stays equipped but its defence stops counting towards
+        Character.armour until repaired at the Forge (see repair_item(), exploration.py)."""
+
+    def details(self) -> str:
+        """Slot, weight, defence, and durability - e.g. 'body, heavy, 6 DEF, 18/18 durability'."""
+        return f"{self.slot}, {self.weight}, {self.defence} DEF, {self.durability}/{self.max_durability} durability"
 
     def use(self, character) -> str:
-        """Equip this armour into its slot, unequipping whatever currently occupies that same slot first - per slot, not global,
-        so a helmet and a body piece can be equipped simultaneously; only same-slot items are ever swapped."""
+        """Equip this armour into its slot, unequipping whatever currently occupies that same slot first. Equipping a shield also unequips a
+        two-handed weapon."""
         if self.equipped:
             return f"{self.name} already equipped"
 
@@ -101,17 +157,19 @@ class Armour(Item):
         if current is not None:
             messages.append(current.unequip(character))
 
-        character.armour += self.defence
+        weapon = getattr(character, "equipped_melee_weapon", None)
+        if self.slot == "shield" and weapon is not None and weapon.two_handed:
+            messages.append(weapon.unequip(character))
+
         self.equipped = True
         setattr(character, slot_attr, self)
         messages.append(f"{character.name} equips {self.name} ({self.slot}, +{self.defence} DEF).")
         return "\n".join(messages)
 
     def unequip(self, character) -> str:
-        """Remove this armour's defence bonus and clear it from its slot."""
+        """Clear this armour from its slot - its defence stops counting towards Character.armour."""
         if not self.equipped:
             return f"{self.name} is not equipped."
-        character.armour -= self.defence
         self.equipped = False
         slot_attr = f"equipped_{self.slot}"
         if getattr(character, slot_attr) is self:

@@ -3,12 +3,12 @@ the 'developer mode' command in main()."""
 
 from typing import Callable
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
-from dungeon_crawler.items import Item
+from dungeon_crawler.items import Item, ARMOUR_SLOTS
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang, create_sunscorched_dagger, create_talos_bronze_plating, create_serpents_kiss, create_labrys
-from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker, create_petrified_guardian, create_satyr, create_lamia, create_ember_wraith, create_talos, create_medusa, create_medusa_awakened, create_gorgon
+from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker, create_petrified_guardian, create_satyr, create_lamia, create_ember_wraith, create_talos, create_medusa, create_medusa_awakened, create_gorgon, create_practice_dummy
 from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat
@@ -53,6 +53,7 @@ ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
     "minotaur": create_minotaur,
     "hades": create_hades,
     "test boss": create_test_boss,
+    "practice enemy": create_practice_dummy,
     "centaur": create_centaur,
     "cyclops": create_cyclops,
     "shade": create_shade,
@@ -248,13 +249,17 @@ def handle_dev_afflict(target_name: str, effect_name: str, amount_str: str, dura
     effect = StatusEffect(effect_name, amount, duration)
     return "[DEV] " + target.apply_status_effect(effect)
 
+def _armour_slot_list() -> str:
+    """ARMOUR_SLOTS formatted for a message, e.g. "'helmet', 'body' or 'shield'"."""
+    quoted = [f"'{slot}'" for slot in ARMOUR_SLOTS]
+    return ", ".join(quoted[:-1]) + f" or {quoted[-1]}"
+
 def handle_dev_set_durability(slot: str, value_str: str, player: Player) -> str:
-    """Directly set an equipped Armour piece's durability, adjusting player.armour if this crosses the broken/fixed threshold - mirrors
-    take_damage()'s and repair_item()'s own bookkeeping exactly, so a dev-set durability behaves identically to durability lost or
-    restored through normal play."""
+    """Directly set an equipped Armour piece's durability, clamped to 0 - max_durability. Nothing else needs adjusting: Character.armour is
+    calculated from worn, unbroken pieces, so a dev-set durability behaves identically to durability lost or restored through normal play."""
     slot = slot.strip().lower()
-    if slot not in ("helmet", "body"):
-        return f"[DEV] Unknown slot '{slot}' - use 'helmet' or 'body'."
+    if slot not in ARMOUR_SLOTS:
+        return f"[DEV] Unknown slot '{slot}' - use {_armour_slot_list()}."
 
     item = getattr(player, f"equipped_{slot}")
     if item is None:
@@ -265,16 +270,7 @@ def handle_dev_set_durability(slot: str, value_str: str, player: Player) -> str:
     except ValueError:
         return f"[DEV] Invalid value '{value_str.strip()}'."
 
-    value = max(0, min(value, item.max_durability))
-    was_broken = item.durability == 0
-    item.durability = value
-    now_broken = item.durability == 0
-
-    if was_broken and not now_broken:
-        player.armour += item.defence
-    elif now_broken and not was_broken:
-        player.armour -= item.defence
-
+    item.durability = max(0, min(value, item.max_durability))
     return f"[DEV] {item.name} durability set to {item.durability}/{item.max_durability}."
 
 def _apply_stat(character, attr_name: str, value: int, prefix: str, display_name: str):
@@ -300,7 +296,7 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
     if command.startswith("set durability "):
         parts = command.removeprefix("set durability ").split(" ", 1)
         if len(parts) != 2:
-            return "[DEV] Usage: dev set durability <helmet|body> <value>", None
+            return f"[DEV] Usage: dev set durability <{'|'.join(ARMOUR_SLOTS)}> <value>", None
         return handle_dev_set_durability(parts[0], parts[1], player), None
 
     if command.startswith("set "):
@@ -387,7 +383,8 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
 
     if command == "unlock all":
         cleared = list(room.locked_exits.keys())
-        room.locked_exits.clear()
+        for e in cleared:
+            room.unlock_exit(e)
         if not cleared:
             return "[DEV] No locked exits in this room.", None
         return f"[DEV] Unlocked: {', '.join(cleared)}.", None
@@ -395,7 +392,7 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
     if command.startswith("unlock "):
         direction = command.removeprefix("unlock ").strip()
         if direction in room.locked_exits:
-            del room.locked_exits[direction]
+            room.unlock_exit(direction)
             return f"[DEV] Unlocked exit: {direction}.", None
         return f"[DEV] {direction} is not a locked exit here.", None
 

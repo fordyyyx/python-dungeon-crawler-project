@@ -41,14 +41,16 @@ content getting in the way.
   attribute by name (`hp`, `attack_damage`, `armour`, `gold`, `experience`,
   `level`, `intellect`, `mana`, `max_mana`, etc.), plus shorthand aliases
   `atk` → `attack_damage`, `def` → `armour`, `hp` → `hp`, `maxhp` → `max_hp`.
+  `def`/`armour` sets the *total* armour, worn gear included - the difference
+  goes into `base_armour`, so unequipping gear afterwards drops it back down.
   `skillpoints` is special-cased (it lives on `player.skill_tree`, not
   directly on `player`). Setting `hp` above `max_hp` raises `max_hp` to
   match, and setting `max_hp` below the current `hp` clamps `hp` down.
-- `dev set durability <helmet|body> <value>` — directly sets the durability
-  of whatever `Armour` is equipped in that slot (clamped to
-  `0..max_durability`), correctly adjusting `player.armour` if this crosses
-  the broken/repaired threshold. Returns an error if nothing is equipped
-  there.
+- `dev set durability <helmet|body|shield> <value>` — directly sets the
+  durability of whatever `Armour` is equipped in that slot (clamped to
+  `0..max_durability`); `player.armour` follows automatically, since it's
+  calculated from worn, unbroken pieces. Returns an error if nothing is
+  equipped there, or if the slot isn't one of the three.
 - **Limitation**: `dev set` always parses the value as a whole number
   (`int(...)`) — it **cannot** set float-valued stats (`dodge_chance`,
   `aggression_weight`, `caution_weight`, `randomness_weight`) or non-numeric
@@ -103,6 +105,8 @@ content getting in the way.
   arrival.
 - `dev unlock <direction>` — removes one locked exit from the current room.
 - `dev unlock all` — removes every locked exit from the current room.
+  Both go through `Room.unlock_exit()`, the same permanent unlock as walking
+  through a locked door normally, so they're saved like any other.
 
 ### Skills
 - `dev learn <path>` — grants a free skill point and immediately spends it on
@@ -133,7 +137,8 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
 `fanatic`, `lurker`, `petrified guardian`, `satyr`, `lamia`, `ember wraith`,
-`talos`, `medusa`, `gorgon`, `medusa (awakened)`, `test boss` — a dev-only,
+`talos`, `medusa`, `gorgon`, `medusa (awakened)`, `practice enemy` (the
+Practice Chamber's respawning dummy), `test boss` — a dev-only,
 two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
 `next_phase_factory` end-to-end. `medusa`/`gorgon`/`medusa (awakened)` are
@@ -189,7 +194,9 @@ way to reach a Companion outside the automated test suite.
   ranged` works. It's the only ranged weapon, and there's no `create_test_*()`
   one.
 
-Everything else that's landed recently — the helmet/body armour split,
+Everything else that's landed recently — the helmet/body/shield armour
+slots, weapon classes (blade, two-handed heavy, piercing, ranged), armour
+weight and the miss chances it adds, doors that stay open once opened,
 durability degrading in combat, repairing at the Forge of Prometheus (floor
 2, `is_forge=True`), Dodge, light/heavy attacks, the Practice Chamber's
 respawning dummy, every floor 1/3/4 enemy (Shade, Crypt Keeper, Harpy,
@@ -201,8 +208,8 @@ way forward until defeated), and the minimum-damage rule (every landed hit
 deals at least 1) — has real, reachable in-game content and needs no
 dev-tool workaround to try. The
 Weathered Helm (Shade's drop, Fields of Asphodel) is also content's first
-real `slot="helmet"` item, and Lamia is the first enemy with
-`Character.has_lifesteal` - see `CLAUDE.md`'s "Armour slots and durability"
+real `slot="helmet"` item, Lamia is the first enemy with
+`Character.has_lifesteal`, and her Fang is the first lifesteal weapon - see `CLAUDE.md`'s "Armour slots and durability"
 and "Canonical attribute names." Only Prometheus' trade is still unwritten
 content (no required items or reward, so `trade` just replies "Prometheus
 has nothing to trade." and never completes) - see roadmap.md's "Populate all
@@ -273,6 +280,22 @@ dev teleport forge of prometheus
 dev set gold 100
 repair bronze breastplate
 ```
+
+**Try weapon classes - cleave, and the two-handed/shield swap:**
+```
+dev add labrys
+dev add chipped stone aegis
+use chipped stone aegis
+use labrys
+stats
+dev spawn gorgon
+dev spawn gorgon
+attack heavy
+```
+Equipping the Labrys unequips the Aegis (a two-handed weapon and a shield
+push each other off), and `stats` shows the miss chances before and after.
+A landed `attack heavy` cleaves into the second Gorgon for half the swing.
+`use chipped stone aegis` again unequips the Labrys.
 
 **Try Dodge:**
 ```

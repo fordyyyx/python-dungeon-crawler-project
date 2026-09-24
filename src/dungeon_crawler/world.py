@@ -14,16 +14,18 @@ class Room:
         self.hidden_exits: dict[str, "Room"] = {}
         """Exits that dont appear in .exits (and therefore not in map/fullmap) until revealed via reveal_hidden_exits()."""
         self.locked_exits: dict[str, str] = {}
+        """direction -> the item needed to pass through it (see is_exit_locked(), exploration.py). The lock is removed for good via
+        unlock_exit() the first time the player walks through, so it mutates during play and is part of save data - see save_system.py."""
         self.fast_travel_locks: set[str] = set()
         """Directions on THIS room that can't be used yet - separate from locked_exits (item-gated); these are gated by having used the paired
-        exit from the other side at least once (see exit_activations, register_fast_travel_activation()). Unlike locked_exits, this genuinely
-        mutates during play, so it's part of save data - see save_system.py."""
+        exit from the other side at least once (see exit_activations, register_fast_travel_activation()). Like locked_exits, this mutates
+        during play, so it's part of save data - see save_system.py."""
         self.exit_activations: dict[str, tuple["Room", str]] = {}
         """direction (on this room) -> (room, direction) to unlock the moment THIS exit is successfully used. Set once at world-build time, never
-        mutated during play - same category as locked_exits, exits themselves: static, not saved."""
+        mutated during play - same category as the exits themselves: static, not saved."""
         self.guarded_exits: set[str] = set()
         """Directions that can't be used while any living, non-respawning enemy remains in this room - see get_exit_guardian() (exploration.py).
-        Static like locked_exits (set at world-build time, never mutated during play), so not saved; the live 'is it still guarded' state
+        Static (set at world-build time, never mutated during play), so not saved; the live 'is it still guarded' state
         comes from room.enemies, which already is."""
         self._items: list = []
         self._enemies: list = []
@@ -43,6 +45,11 @@ class Room:
     def lock_exit(self, direction: str, required_item_name: str) -> None:
         """Require required_item_name to pass through this exit - see is_exit_locked() in exploration.py, which checks this."""
         self.locked_exits[direction] = required_item_name
+
+    def unlock_exit(self, direction: str) -> None:
+        """Permanently remove the item lock on 'direction' - called when the player first walks through it, so a door never re-locks just
+        because its key item was later dropped (dropping a key behind its own door used to softlock the game). No-op if the exit isn't locked."""
+        self.locked_exits.pop(direction, None)
 
     def lock_fast_travel_exit(self, direction: str) -> None:
         """Mark 'direction' as locked until the paired exit elsewhere is used - see fast_travel_locks."""

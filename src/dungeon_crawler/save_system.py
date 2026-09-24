@@ -26,12 +26,12 @@ ABILITY_FLAG_NAMES = [
     "has_unyielding_tide", "has_berserking", "has_silver_tongue", "can_ranged_without_weapon", "has_petrifying_gaze", "has_bull_rush",
     "has_iron_hide",
 ]
-"""The 13 boolean ability flags (4 skill-tree + 9 secondary-ancestry... actually 10, see characters.py) that need saving directly by name
-- dodge_chance is numeric, handled as its own field instead."""
+"""The 13 boolean ability flags (3 skill-tree + 10 secondary-ancestry, see characters.py) that need saving directly by name - the fourth
+skill-tree ability, dodge_chance, is numeric, handled as its own field instead."""
 
 
 def slot_path(profile_num: int, slot_num: int) -> str:
-    """Path to a given profile/slots's save file e.g. saves/profile_1/slot_3.json, Does not create anything - see ensure_profile_dir()."""
+    """Path to a given profile/slot's save file e.g. saves/profile_1/slot_3.json, Does not create anything - see ensure_profile_dir()."""
     return os.path.join(SAVES_DIR, f"profile_{profile_num}", f"slot_{slot_num}.json")
 
 def ensure_profile_dir(profile_num: int) -> str:
@@ -47,7 +47,7 @@ def slot_exists(profile_num: int, slot_num : int) -> bool:
 
 def slot_summary(profile_num: int, slot_num: int) -> str | None:
     """A one-line summary of profile_num/slot_num's save (name, level, ancestry, current room) for a slot-picker UI to show at a glance,
-    or None is the slot is empty. Reads the raw JSON directly - does not reconstruct a Player."""
+    or None if the slot is empty. Reads the raw JSON directly - does not reconstruct a Player."""
     if not slot_exists(profile_num, slot_num):
         return None
     with open(slot_path(profile_num, slot_num), "r") as f:
@@ -63,7 +63,7 @@ def serialise_player(player: Player, current_room) -> dict:
         "hp": player.hp,
         "max_hp": player.max_hp,
         "attack_damage": player.attack_damage,
-        "armour": player.armour,
+        "base_armour": player.base_armour,
         "intellect": player.intellect,
         "level": player.level,
         "experience": player.experience,
@@ -96,16 +96,18 @@ def serialise_player(player: Player, current_room) -> dict:
     }
 
 def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
-    """Reconstruct a Player from a save's 'player' section - bypasses ancestry selection entirely since every stat is already knwon.
-    Items/spells/companion are rebuilt via their registries (dev_tools.py, per this module's registry convention - anythin that needs
-    to survive a save must be registered there."""
+    """Reconstruct a Player from a save's 'player' section - bypasses ancestry selection entirely since every stat is already known.
+    Items/spells/companion are rebuilt via their registries (dev_tools.py, per this module's registry convention - anything that needs
+    to survive a save must be registered there)."""
     player = Player(
         name=data["name"],
         hp=data["hp"],
         attack_damage=data["attack_damage"],
-        armour=data["armour"],
+        armour=0,
         ancestry_label=data["ancestry_label"],
     )
+    if "base_armour" in data:
+        player.base_armour = data["base_armour"]
     player.max_hp = data["max_hp"]
     player.intellect = data["intellect"]
     player.level = data["level"]
@@ -139,6 +141,11 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
         if item_data["equipped"]:
             item.use(player)
 
+    if "base_armour" not in data:
+        # an older save stored total armour, worn pieces included - set it only now the gear is back on, so the armour setter can take
+        # the worn pieces' defence back out and leave just the base
+        player.armour = data["armour"]
+
     if data["companion"] is not None:
         companion = find_companion_by_name(data["companion"]["name"])
         if companion is not None:
@@ -160,9 +167,9 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
 
 def serialise_room(room) -> dict:
     """Full snapshot of one room's current state - see module docstring re: why every room is snapshotted not just changed ones.
-    locked_exits is deliberately never serialised - it's static, set once at world-build time and only ever mutated by dev unlock/dev
-    unlock all (out of scope for a production save). is_exit_locked() checks the player's current inventory live, every time, not a 
-    persisted flag - so a fresh build_world() always reproduces identical locked_exits. A wave add's wave_gate_factory can't be saved
+    locked_exits is saved as the directions still locked: walking through a locked exit unlocks it for good (Room.unlock_exit()), so a
+    fresh build_world() alone would re-lock doors the player has already opened. unlocked_extras/locked_exits_removed are older,
+    always-empty placeholders, kept only so existing saves keep the same shape. A wave add's wave_gate_factory can't be saved
     as a function, so it's stored as the name of the phase it would spawn, and re-linked through ENEMY_REGISTRY by apply_room_data()."""
     return {
         "enemies": [
@@ -180,15 +187,17 @@ def serialise_room(room) -> dict:
         "locked_exits_removed": [],
         "allies_traded": [ally.name for ally in room.allies if getattr(ally, "trade_completed", False)],
         "fast_travel_locks": sorted(room.fast_travel_locks),
+        "locked_exits": sorted(room.locked_exits),
     }
 
 def apply_room_data(room, data: dict) -> None:
     """Patch a freshly-built room to match its saved snapshot: restore the room's living enemies, replace the item list, mark completed
-    trades, and restore fast_travel_locks (when the save has them).
+    trades, restore fast_travel_locks, and unlock any locked exit the save no longer lists as locked (the last two only when the save has
+    them - an older save without "locked_exits" leaves every lock build_world() made in place).
 
     Enemies: each saved enemy first claims an unclaimed same-named enemy already in the fresh room (in order, so two same-named enemies
-    each get their own saved HP), keeping the exact instance build_world() made - which matters for enemies ENEMY_REGISTRY doesn't know,
-    like the Practice Chamber's dummy. A saved enemy the fresh room doesn't have (a wave add or a later boss phase spawned mid-fight) is
+    each get their own saved HP), keeping the exact instance build_world() made - which matters for any enemy ENEMY_REGISTRY doesn't
+    know. A saved enemy the fresh room doesn't have (a wave add or a later boss phase spawned mid-fight) is
     rebuilt from ENEMY_REGISTRY instead, and silently skipped if the registry doesn't know it either. Fresh enemies nobody claimed were
     defeated before the save, so they're removed. A saved wave_gate is re-linked to its ENEMY_REGISTRY factory - one shared function
     object, so reloaded siblings still pass handle_enemy_defeat()'s identity check."""
@@ -226,6 +235,12 @@ def apply_room_data(room, data: dict) -> None:
 
     if "fast_travel_locks" in data:
         room.fast_travel_locks = set(data["fast_travel_locks"])
+
+    if "locked_exits" in data:
+        still_locked = set(data["locked_exits"])
+        for direction in list(room.locked_exits):
+            if direction not in still_locked:
+                room.unlock_exit(direction)
 
 def serialise_world(world: Map) -> dict:
     """Snapshot every room in world."""

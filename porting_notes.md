@@ -98,7 +98,11 @@ something occurs to you mid-build.
   (stopping at locked exits) could drive what's actually drawn/revealed.
 - Locked exits are a natural fit for a visible "locked door" sprite/icon
   rather than text saying "Locked Door" — could show *what's* required on
-  hover, rather than only on a failed attempt.
+  hover, rather than only on a failed attempt. A door stays open once it's
+  been walked through, so a one-time unlock animation fits too.
+- Enemy armour is now shown on room entry (`[Armour N]`) so piercing weapons
+  can be judged before a fight - a visual version wants an armour pip or
+  shield icon on each enemy's health bar instead.
 - Each room's description (currently flavour text) is what art direction/
   background art would replace or accompany — worth keeping the text as art
   direction reference when the time comes, not throwing it away.
@@ -137,12 +141,19 @@ something occurs to you mid-build.
   would simply have by default.
 
 ## Items / Inventory
-- Equip slots are a natural fit for a paper-doll style UI — both weapons
-  (melee/ranged) and armour (helmet/body) now occupy two independent slots
-  each, so a paper doll would show four simultaneous equip points rather
-  than two; within each slot, "equipping replaces, doesn't stack" already
+- Equip slots are a natural fit for a paper-doll style UI — weapons
+  (melee/ranged) and armour (helmet/body/shield) now occupy five independent
+  slots, so a paper doll would show five simultaneous equip points. The one
+  cross-slot rule - a two-handed weapon and a shield push each other off -
+  reads best as the shield slot greying out while a two-handed weapon is
+  held, rather than a line of text after the swap has already happened; within each slot, "equipping replaces, doesn't stack" already
   matches how visual equip slots typically work, so no logic change needed,
   just a UI showing it.
+- Armour weight adds a miss chance to every attack, which a text `stats` line
+  only shows after the fact - an equip-comparison tooltip showing the miss
+  chance change before committing ("+5% miss") would make the trade-off
+  legible at the moment the choice is made. Weapon classes (blade, heavy,
+  piercing, ranged) likewise want a class icon on each weapon.
 - Armour durability (now shown in the text inventory as `3/5 durability`) is a
   natural fit for a small wear bar on each paper-doll slot, changing colour as
   it nears breaking - the text version only shows it when you open the

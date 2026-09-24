@@ -5,11 +5,17 @@ from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
 from textwrap import dedent
+from typing import Sequence
 import random
 
 HEAVY_ATTACK_MULTIPLIER: float = 1.75
+HEAVY_WEAPON_MULTIPLIER: float = 2.0
 HEAVY_ATTACK_MISS_CHANCE: float = 0.4
-RECKLESS_HEAVY_ATTACK_MISS_CHANCE: float = HEAVY_ATTACK_MISS_CHANCE / 2
+BLADE_HEAVY_MISS_MODIFIER: float = -0.1
+ARMOUR_WEIGHT_MISS_PENALTY: dict[str, float] = {"light": 0.0, "medium": 0.05, "heavy": 0.10}
+MAX_MISS_CHANCE: float = 0.95
+WEAPON_POISON_AMOUNT: int = -3
+WEAPON_POISON_DURATION: int = 3
 MINIMUM_DAMAGE: int = 1
 HP_PER_LEVEL: int = 2
 
@@ -21,12 +27,15 @@ class Character:
         self.name = name
         self.hp = hp
         self.attack_damage = attack_damage
-        self.armour = armour
+        self.base_armour = armour
+        """Armour that doesn't come from worn gear - an enemy's natural armour, ancestry, Defence skills, dev/dummy set. Worn pieces are never added
+        into this; see the armour property."""
         self.max_hp = hp
         self.equipped_melee_weapon: "Weapon | None" = None
         self.equipped_ranged_weapon: "Weapon | None" = None
         self.equipped_helmet: "Armour | None" = None
         self.equipped_body: "Armour | None" = None
+        self.equipped_shield: "Armour | None" = None
         self.has_double_strike = False
         self.has_last_stand = False
         self.has_thorns = False
@@ -58,45 +67,98 @@ class Character:
         tree's four ability flags (has_double_strike, has_last_stand, has_thorns, dodge_chance) - see roadmap.md"""
         self.has_lifesteal = False
         """Heals the attacker for half of damage_dealt (capped at max_hp) on every successful hit - see Character.attack(). Set via Enemy's
-        Constructor (Lamia is the first use) or, later, a lifesteal weapon's use()/unequip() toggling it the same way equipping/unequipping
-        already works for other Character-level flags."""
+        constructor (Lamia is the first use). A lifesteal weapon (Weapon.lifesteal) never touches this flag - attack() reads the weapon directly,
+        so unequipping it can't wipe a flag granted by something else."""
 
-    def attack(self, target: "Character", attack_type: str = "light") -> str:
-        """Attack target once, then a second time at half damage if Double Strike is unlocked. attack_type picks which weapon slot (if any)
-        contributes damage: "light" and "ranged" draw from equipped_melee_weapon/equipped_ranged_weapon respectively, with identical maths
-        otherwise (guaranteed hit, no multiplier); "heavy" always draws from equipped_melee_weapon, multiplies the total by
-        HEAVY_ATTACK_MULTIPLIER, but has a HEAVY_ATTACK_MISS_CHANCE chance to miss entirely (0 damage, turn still spent). Enemy/Companion
-        always call this with the default "light" and never equip weapons, so their behaviour is unchanged. has_berserking adds +2 to base_damage
-        at or below half HP, before the heavy multiplier (same as weapon_bonus); has_reckless_strength halves the heavy miss chance
-        (RECKLESS_HEAVY_ATTACK_MISS_CHANCE); has_bull_rush adds a flat +3 to the first hit against a target still at full HP, after the heavy
-        multiplier so it's never scaled by it; has_petrifying_gaze gives a 15% chance to also poison a target that survives the hit. Double
-        Strike's second hit is base_damage // 2 - untouched by the heavy multiplier or Bull Rush - and ignores the target's armour."""
+    def equipment_defence(self) -> int:
+        """Total defence from worn armour pieces (helmet, body, and shield). A broken piece (durability 0) contributes nothing, unless Unyielding
+        Tide keeps its defence working."""
+        pieces = (self.equipped_helmet, self.equipped_body, self.equipped_shield)
+        return sum(
+            piece.defence for piece in pieces
+            if piece is not None and (piece.durability > 0 or self.has_unyielding_tide)
+        )
+
+    @property
+    def armour(self) -> int:
+        """Total armour - base_armour plus the defence of every worn, unbroken piece. Calculated fresh every time rather than kept as a running
+        total, so equipping, unequipping, breaking, repairing, and loading can never disagree about it."""
+        return self.base_armour + self.equipment_defence()
+
+    @armour.setter
+    def armour(self, value: int) -> None:
+        """Setting total armour adjusts base_armour so the total comes out at value. That keeps 'armour += bonus' (DefenceBoostSkill) and 'dev set
+        def' / 'dummy set def' working unchanged - both change the base, never a worn piece."""
+        self.base_armour = value - self.equipment_defence()
+
+    def armour_weight_penalty(self) -> float:
+        """The total miss chance added by the weight of every equipped armour piece (helmet, body, and shield). Broken pieces still count -
+        they're still being worn."""
+        pieces = (self.equipped_helmet, self.equipped_body, self.equipped_shield)
+        return sum(ARMOUR_WEIGHT_MISS_PENALTY[piece.weight] for piece in pieces if piece is not None)
+
+    def get_miss_chance(self, attack_type: str) -> float:
+        """The chance an attack of this type misses. Light and ranged attacks only miss through armour weight. Heavy attacks start at
+        HEAVY_ATTACK_MISS_CHANCE, are made more reliable by a blade (BLADE_HEAVY_MISS_MODIFIER), add the armour weight penalty, and are then halved
+        by Reckless Strength. Always clamped to 0 - MAX_MISS_CHANCE. Spells never call this - armour weight doesn't affect them."""
+        chance = self.armour_weight_penalty()
+        if attack_type == "heavy":
+            chance += HEAVY_ATTACK_MISS_CHANCE
+            weapon = self.equipped_melee_weapon
+            if weapon is not None and weapon.weapon_class == "blade":
+                chance += BLADE_HEAVY_MISS_MODIFIER
+            if self.has_reckless_strength:
+                chance /= 2
+        return min(MAX_MISS_CHANCE, max(0.0, chance))
+
+    def attack(self, target: "Character", attack_type: str = "light", others: "Sequence[Character] | None" = None) -> str:
+        """Attack target once, then apply any follow-ups. attack_type picks the weapon slot: 'light' and 'heavy' use equipped_melee_weapon, 'ranged'
+        uses equipped_ranged_weapon.
+        
+        Miss: rolled first, against get_miss_chance(attack_type). A light/ranged attack only rolls at all if armour weight gives it a chance to miss,
+        so an unarmoured attacker never makes a random roll for it.
+        Damage: attack_damage + weapon damage, +2 with Berserking at or below half HP. Heavy attacks multiply that by HEAVY_ATTACK_MULTIPLIER, or 
+        HEAVY_WEAPON_MULTIPLIER with a heavy-class weapon. Bull Rush adds a flat +3 after multiplier against a full HP target. The weapon's 
+        armour_pierce is ignored from the target's armour.
+        Follow-ups, in order: lifesteal (Character.has_lifesteal or the weapon's) heals half the damage dealt; cleave (a heavy weapon's signature,
+        heavy attacks only) hits the first other living, non-respawning combatant in 'others' for half the swing's damage, whether or not the target
+        died. Then, only if the target survived: Petrifying Gaze (15%) and the weapon's own poison_chance each roll separately to poison it, and
+        Double Strike hits again for base_damage // 2, ignoring armour.
+        
+        Enemy/Companion always calls this with the default ('light', no 'others') and never equip weapons or armour, so they never miss and never cleave."""
         weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
+
+        miss_chance = self.get_miss_chance(attack_type)
+        if miss_chance > 0 and random.random() < miss_chance:
+            if attack_type == "heavy":
+                return f"{self.name} swings a heavy blow at {target.name} - but misses!"
+            return f"{self.name} attacks {target.name} - but misses!"
+
         weapon_bonus = weapon.damage if weapon is not None else 0
         base_damage = self.attack_damage + weapon_bonus
-
         if self.has_berserking and self.hp <= self.max_hp / 2:
             base_damage += 2
 
         if attack_type == "heavy":
-            miss_chance = RECKLESS_HEAVY_ATTACK_MISS_CHANCE if self.has_reckless_strength else HEAVY_ATTACK_MISS_CHANCE
-            if random.random() < miss_chance:
-                return f"{self.name} swings a heavy blow at {target.name} - but misses!"
-            incoming = round(base_damage * HEAVY_ATTACK_MULTIPLIER)
+            multiplier = HEAVY_WEAPON_MULTIPLIER if weapon is not None and weapon.weapon_class == "heavy" else  HEAVY_ATTACK_MULTIPLIER
+            swing_damage = round(base_damage * multiplier)
         else:
-            incoming = base_damage
+            swing_damage = base_damage
 
+        incoming = swing_damage
         if self.has_bull_rush and target.hp == target.max_hp:
             incoming += 3
 
-        damage_dealt, death_message = target.take_damage(incoming, attacker=self)
+        armour_pierce = weapon.armour_pierce if weapon is not None else 0
+        damage_dealt, death_message = target.take_damage(incoming, attacker=self, armour_pierce=armour_pierce)
         deflected = incoming - damage_dealt
 
         message = f"{self.name} attacks {target.name} for {damage_dealt} damage."
         if deflected > 0:
             message += f" ({deflected} deflected by armour)"
 
-        if self.has_lifesteal and damage_dealt > 0:
+        has_lifesteal = self.has_lifesteal or (weapon is not None and weapon.lifesteal)
+        if has_lifesteal and damage_dealt > 0:
             healed = min(damage_dealt // 2, self.max_hp - self.hp)
             if healed > 0:
                 self.hp += healed
@@ -104,10 +166,18 @@ class Character:
 
         if death_message:
             message += f"\n{death_message}"
+
+        if attack_type == "heavy" and weapon is not None and weapon.cleave:
+            message += self._cleave(target, swing_damage // 2, armour_pierce, others)
+
+        if not target.is_alive():
             return message
 
         if self.has_petrifying_gaze and random.random() < 0.15:
             message += f"\n{target.apply_status_effect(StatusEffect('Poison', -3, 3))}"
+
+        if weapon is not None and weapon.poison_chance > 0 and random.random() < weapon.poison_chance:
+            message += f"\n{target.apply_status_effect(StatusEffect('Poison', WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION))}"
 
         if getattr(self, "has_double_strike", False):
             # second strike deals half of base_damage (weapon- and Berserking-inclusive, but before the heavy multiplier/Bull Rush), ignoring armour
@@ -118,30 +188,43 @@ class Character:
 
         return message
 
+    def _cleave(self, primary: "Character", damage: int, armour_pierce: int, others: "Sequence[Character] | None") -> str:
+        """Hit the first other living, non-respawning combatant in others (if any) for damage. Returns the message lines to append, or '' if there
+        was nobody else to hit. Any defeat this causes is processed afterwards by resolve_pending_defeats() (combat.py), like any other."""
+        second = next(
+            (c for c in (others or []) if c is not primary and c.is_alive() and not getattr(c, "respawns", False)),
+            None,
+        )
+        if second is None:
+            return ""
+        second_damage, second_death = second.take_damage(damage, attacker=self, armour_pierce=armour_pierce)
+        message = f"\nThe swing carries on into {second.name} for {second_damage} damage."
+        if second_death:
+            message += f"\n{second_death}"
+        return message
 
-    def take_damage(self, amount: int, attacker: "Character | None" = None, ignore_armour: bool = False) -> tuple[int, str]:
+    def take_damage(self, amount: int, attacker: "Character | None" = None, ignore_armour: bool = False, armour_pierce: int = 0) -> tuple[int, str]:
         """Apply any pending Defend/Brace reduction, then armour-reduced damage, handling Last Stand and Thorns along the way. Returns
         (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report. pending_damage_reduction
         is consumed (reset to 0) here regardless of whether it changed anything, since a brace only ever protects against the next hit taken.
-        ignore_armour skips the armour subtraction (used by Double Strike's second hit). Any hit with amount > 0 that isn't dodged deals at
+        ignore_armour skips the armour subtraction (used by Double Strike's second hit); armour_pierce lowers the armour applied, never below 0
+        (a piercing weapon). Every worn piece loses 1 durability per hit that isn't dodged. Any hit with amount > 0 that isn't dodged deals at
         least MINIMUM_DAMAGE, however much brace/armour/Iron Hide would otherwise absorb - a 0-damage attacker still deals 0."""
         if random.random() < self.dodge_chance:
             return 0, f"{self.name} dodges the attack!"
 
         braced_amount = max(0, amount - self.pending_damage_reduction)
         self.pending_damage_reduction = 0
-        armour_applied = 0 if ignore_armour else self.armour
+        armour_applied = 0 if ignore_armour else max(0, self.armour - armour_pierce)
         reduced = max(0, braced_amount - armour_applied)
         if self.has_iron_hide:
             reduced = max(0, reduced - 1)
         if amount > 0:
             reduced = max(MINIMUM_DAMAGE, reduced)
 
-        for piece in (self.equipped_helmet, self.equipped_body):
+        for piece in (self.equipped_helmet, self.equipped_body, self.equipped_shield):
             if piece is not None and piece.durability > 0:
                 piece.durability -= 1
-                if piece.durability == 0 and not self.has_unyielding_tide:
-                    self.armour -= piece.defence
 
         would_be_lethal = (self.hp - reduced) <= 0
 
@@ -258,20 +341,24 @@ class Player(Character):
                 unlocked_lines.append(f"  - {skill.name}")
         unlocked_section = "\nUnlocked Skills:\n" + "\n".join(unlocked_lines) if unlocked_lines else ""
 
+        light_miss, heavy_miss, ranged_miss = (round(self.get_miss_chance(t) * 100) for t in ("light", "heavy", "ranged"))
+
         stat_string = f"""
         {self.name} ({heritage}):
         LVL {self.level} --- {self.experience} XP
         {self.hp} HP
         {self.attack_damage} ATK{weapon_summary}
         {self.armour} DEF
+        Miss chance: {light_miss}% light / {heavy_miss}% heavy / {ranged_miss}% ranged
         {self.intellect} INT{secondary_line}
         {unlocked_section}
         """
         return dedent(stat_string).strip()
 
     def get_inventory_display(self) -> str:
-        """Format inventory contents for display, in inventory order - regular items grouped with counts, except Armour, which is listed one
-        piece per line with its durability (two same-named pieces can differ in wear); quest items and gold listed separately."""
+        """Format inventory contents for display, in inventory order - regular items grouped with counts and their details() (e.g. 'blade,
+        3 DMG'), except Armour, which is listed one piece per line with its details() including durability (two same-named pieces can differ
+        in wear); quest items and gold listed separately."""
         if not self.inventory.items and self.gold == 0:
             return "Your inventory is empty."
 
@@ -291,8 +378,7 @@ class Player(Character):
         listed: set[str] = set()
         for item in regular_items:
             if isinstance(item, Armour):
-                line = item.name + (" (equipped)" if item.equipped else "")
-                line += f" - {item.durability}/{item.max_durability} durability"
+                line = item.name + (" (equipped)" if item.equipped else "") + f" - {item.details()}"
                 lines.append(line)
             elif item.name not in listed:
                 listed.add(item.name)
@@ -300,6 +386,9 @@ class Player(Character):
                 line = f"{item.name} x{count}" if count > 1 else item.name
                 if item.name in equipped_names:
                     line += " (equipped)"
+                details = item.details()
+                if details:
+                    line += f" - {details}"
                 lines.append(line)
 
         if quest_items:

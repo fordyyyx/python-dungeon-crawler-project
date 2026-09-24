@@ -3181,3 +3181,20 @@ def test_handle_combat_command_offensive_item_whose_poison_kills_the_enemy_resol
 
     assert goblin not in room.enemies
     assert player.in_combat is False
+
+def test_resolve_attack_and_check_defeat_processes_an_enemy_killed_by_cleave(monkeypatch):
+    """A heavy cleave swing that kills a second enemy is processed like any other defeat - removed, rewards granted."""
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    room = Room("Hall")
+    player = Player(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Axe", description="", damage=6, weapon_class="heavy", cleave=True).use(player)
+    target = Enemy(name="Goblin", hp=100, attack_damage=1)
+    second = Enemy(name="Orc", hp=5, attack_damage=1, experience_reward=7)
+    room.add_enemy(target)
+    room.add_enemy(second)
+    player.in_combat = True
+    player.current_target = target
+    resolve_attack_and_check_defeat(player, target, player.team, room.enemies, room, "heavy")
+    assert second not in room.enemies
+    assert player.experience == 7
+    assert player.current_target is target

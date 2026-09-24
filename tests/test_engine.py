@@ -1153,3 +1153,52 @@ def test_main_mid_game_load_rebuilds_the_world_instead_of_patching_the_live_one(
     after_reload = captured.out.split("Loading will discard")[-1]
     assert "Nothing happens." in after_reload
     assert "Sunken Vault:" not in after_reload
+
+def test_print_room_shows_each_enemy_armour(capsys):
+    room = Room("Armoury")
+    room.add_enemy(Enemy(name="Goblin", hp=10, armour=3, description="A snarling goblin."))
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "A Goblin blocks your path! A snarling goblin. [Armour 3]" in captured.out
+
+def test_main_dropping_a_key_behind_its_own_door_does_not_lock_you_out(monkeypatch, capsys, tmp_path):
+    """Regression: walking through a locked exit now unlocks it for good. Dropping the Wooden Sword inside the east room used to
+    relock the door with the only sword behind it - Chiron's trade needs the sword, so floor 0 could never be left."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "Hero", "basic", "ares",
+        "north", "take wooden sword", "south",
+        "east", "drop wooden sword", "west",
+        "east", "take wooden sword",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "That way is locked" not in captured.out
+    assert "You take the Wooden Sword." in captured.out.split("You drop the Wooden Sword")[-1]
+
+def test_main_an_opened_door_stays_open_after_saving_and_loading(monkeypatch, capsys, tmp_path):
+    """The permanent unlock is saved: after a reload, the east door still opens without the sword."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "Hero", "basic", "ares",
+        "north", "take wooden sword", "south",
+        "east", "west", "drop wooden sword",
+        "save", "load 1 1", "yes",
+        "east",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    after_reload = captured.out.split("Loading will discard")[-1]
+    assert "That way is locked" not in after_reload
+    assert "Chamber of Chiron (East):" in after_reload

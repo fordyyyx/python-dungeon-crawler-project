@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import HP_PER_LEVEL, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import HP_PER_LEVEL, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem
 from dungeon_crawler.world import Room
 from dungeon_crawler.status_effects import StatusEffect
@@ -1330,7 +1330,7 @@ def test_attack_heavy_roll_below_miss_chance_misses(monkeypatch):
     assert message == "Hero swings a heavy blow at Goblin - but misses!"
 
 def test_attack_heavy_with_reckless_strength_hits_on_a_roll_that_would_normally_miss(monkeypatch):
-    """Reckless Strength halves the miss chance (RECKLESS_HEAVY_ATTACK_MISS_CHANCE, 0.2) - a 0.3 roll misses
+    """Reckless Strength halves the heavy miss chance (0.4 -> 0.2 unarmed, see get_miss_chance()) - a 0.3 roll misses
     for everyone else but lands for a Reckless attacker."""
     monkeypatch.setattr("random.random", lambda: 0.3)
     attacker = Character(name="Hero", hp=30, attack_damage=10)
@@ -1398,26 +1398,26 @@ def test_get_inventory_display_lists_single_item():
     player = Player(name="hero", hp=100)
     sword = Weapon(name="Bronze Xiphos", description="", damage=3)
     player.inventory.add(sword)
-    assert player.get_inventory_display() == "Bronze Xiphos"
+    assert player.get_inventory_display() == "Bronze Xiphos - blade, 3 DMG"
 
 def test_get_inventory_display_shows_count_for_duplicate_items():
     player = Player(name="hero", hp=100)
     player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
     player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
-    assert player.get_inventory_display() == "Bronze Xiphos x2"
+    assert player.get_inventory_display() == "Bronze Xiphos x2 - blade, 3 DMG"
 
 def test_get_inventory_display_lists_multiple_items_on_separate_lines():
     player = Player(name="hero", hp=100)
     player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
     player.inventory.add(Weapon(name="Shield", description="", damage=1))
-    assert player.get_inventory_display() == "Bronze Xiphos\nShield"
+    assert player.get_inventory_display() == "Bronze Xiphos - blade, 3 DMG\nShield - blade, 1 DMG"
 
 def test_get_inventory_display_marks_equipped_item():
     player = Player(name="hero", hp=100)
     sword = Weapon(name="Bronze Xiphos", description="", damage=3)
     player.inventory.add(sword)
     sword.use(player)
-    assert player.get_inventory_display() == "Bronze Xiphos (equipped)"
+    assert player.get_inventory_display() == "Bronze Xiphos (equipped) - blade, 3 DMG"
 
 def test_get_inventory_display_marks_duplicate_group_equipped_if_any_instance_equipped():
     player = Player(name="hero", hp=100)
@@ -1426,13 +1426,13 @@ def test_get_inventory_display_marks_duplicate_group_equipped_if_any_instance_eq
     player.inventory.add(equipped_sword)
     player.inventory.add(spare_sword)
     equipped_sword.use(player)
-    assert player.get_inventory_display() == "Bronze Xiphos x2 (equipped)"
+    assert player.get_inventory_display() == "Bronze Xiphos x2 (equipped) - blade, 3 DMG"
 
 def test_get_inventory_display_lists_quest_item_in_separate_section():
     player = Player(name="hero", hp=100)
     player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
     player.inventory.add(QuestItem(name="Dummy Head", description=""))
-    assert player.get_inventory_display() == "Bronze Xiphos\n\nQuest Items: Dummy Head"
+    assert player.get_inventory_display() == "Bronze Xiphos - blade, 3 DMG\n\nQuest Items: Dummy Head"
 
 def test_get_inventory_display_with_only_quest_items():
     player = Player(name="hero", hp=100)
@@ -1459,7 +1459,7 @@ def test_get_inventory_display_appends_gold_line_after_items():
     player = Player(name="hero", hp=100)
     player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
     player.gold = 5
-    assert player.get_inventory_display() == "Bronze Xiphos\n\nGold: 5"
+    assert player.get_inventory_display() == "Bronze Xiphos - blade, 3 DMG\n\nGold: 5"
 
 def test_player_initialises_with_skill_tree():
     player = Player(name="hero", hp=100)
@@ -1890,14 +1890,14 @@ def test_get_inventory_display_shows_armour_durability():
     helm = Armour(name="Weathered Helm", description="", defence=1, slot="helmet", max_durability=5)
     helm.durability = 3
     player.inventory.add(helm)
-    assert player.get_inventory_display() == "Weathered Helm - 3/5 durability"
+    assert player.get_inventory_display() == "Weathered Helm - helmet, light, 1 DEF, 3/5 durability"
 
 def test_get_inventory_display_marks_equipped_armour_before_its_durability():
     player = Player(name="hero", hp=100)
     plate = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
     player.inventory.add(plate)
     plate.use(player)
-    assert player.get_inventory_display() == "Bronze Breastplate (equipped) - 8/8 durability"
+    assert player.get_inventory_display() == "Bronze Breastplate (equipped) - body, light, 2 DEF, 8/8 durability"
 
 def test_get_inventory_display_lists_same_named_armour_pieces_separately():
     """Two pieces can differ in durability, so armour is never grouped into a 'x2' line the way weapons are."""
@@ -1907,14 +1907,14 @@ def test_get_inventory_display_lists_same_named_armour_pieces_separately():
     fresh = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
     player.inventory.add(worn)
     player.inventory.add(fresh)
-    assert player.get_inventory_display() == "Bronze Breastplate - 2/8 durability\nBronze Breastplate - 8/8 durability"
+    assert player.get_inventory_display() == "Bronze Breastplate - body, light, 2 DEF, 2/8 durability\nBronze Breastplate - body, light, 2 DEF, 8/8 durability"
 
 def test_get_inventory_display_keeps_weapons_and_armour_in_inventory_order():
     player = Player(name="hero", hp=100)
     player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
     player.inventory.add(Armour(name="Wooden Shield", description="", defence=1, max_durability=6))
     player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
-    assert player.get_inventory_display() == "Bronze Xiphos x2\nWooden Shield - 6/6 durability"
+    assert player.get_inventory_display() == "Bronze Xiphos x2 - blade, 3 DMG\nWooden Shield - body, light, 1 DEF, 6/6 durability"
 
 def test_skill_tree_stat_skill_descriptions_state_their_bonus():
     skill_tree = SkillTree()
@@ -1943,3 +1943,357 @@ def test_ally_talk_prefers_hint_complete_over_hint_traded_before_the_trade():
     player.inventory.add(Weapon(name="Bow", description="", damage=1))
     ally = Ally(name="Athena", hint="Bring me the bow.", hint_complete="Say 'trade'.", hint_traded="Wear it well.", required_items=["Bow"])
     assert ally.talk(player) == "Say 'trade'."
+
+def _armour_piece(slot: str, weight: str, defence: int = 1) -> Armour:
+    """Test helper - an armour piece of the given slot and weight."""
+    return Armour(name=f"{weight} {slot}", description="", defence=defence, slot=slot, weight=weight)
+
+def test_character_initialises_with_no_equipped_shield():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.equipped_shield is None
+
+def test_armour_weight_penalty_is_zero_with_no_armour():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.armour_weight_penalty() == 0.0
+
+def test_armour_weight_penalty_sums_helmet_body_and_shield():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    _armour_piece("helmet", "light").use(character)
+    _armour_piece("body", "medium").use(character)
+    _armour_piece("shield", "heavy").use(character)
+    expected = ARMOUR_WEIGHT_MISS_PENALTY["light"] + ARMOUR_WEIGHT_MISS_PENALTY["medium"] + ARMOUR_WEIGHT_MISS_PENALTY["heavy"]
+    assert abs(character.armour_weight_penalty() - expected) < 1e-9
+
+def test_armour_weight_penalty_still_counts_a_broken_piece():
+    """A broken piece is still being worn, so its weight still counts."""
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    plate = _armour_piece("body", "heavy")
+    plate.use(character)
+    plate.durability = 0
+    assert character.armour_weight_penalty() == ARMOUR_WEIGHT_MISS_PENALTY["heavy"]
+
+def test_get_miss_chance_light_is_zero_when_unarmoured():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.get_miss_chance("light") == 0.0
+
+def test_get_miss_chance_light_is_only_the_armour_weight_penalty():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    _armour_piece("body", "medium").use(character)
+    assert character.get_miss_chance("light") == ARMOUR_WEIGHT_MISS_PENALTY["medium"]
+
+def test_get_miss_chance_ranged_matches_light():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    _armour_piece("body", "heavy").use(character)
+    assert character.get_miss_chance("ranged") == character.get_miss_chance("light")
+
+def test_get_miss_chance_heavy_unarmed_is_the_base_chance():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.get_miss_chance("heavy") == HEAVY_ATTACK_MISS_CHANCE
+
+def test_get_miss_chance_heavy_with_a_blade_is_lowered():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    Weapon(name="Sword", description="", damage=3, weapon_class="blade").use(character)
+    assert abs(character.get_miss_chance("heavy") - (HEAVY_ATTACK_MISS_CHANCE + BLADE_HEAVY_MISS_MODIFIER)) < 1e-9
+
+def test_get_miss_chance_heavy_with_a_heavy_weapon_keeps_the_base_chance():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    Weapon(name="Axe", description="", damage=5, weapon_class="heavy").use(character)
+    assert character.get_miss_chance("heavy") == HEAVY_ATTACK_MISS_CHANCE
+
+def test_get_miss_chance_heavy_with_a_piercing_weapon_keeps_the_base_chance():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    Weapon(name="Spear", description="", damage=5, weapon_class="piercing").use(character)
+    assert character.get_miss_chance("heavy") == HEAVY_ATTACK_MISS_CHANCE
+
+def test_get_miss_chance_heavy_adds_the_armour_weight_penalty():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    _armour_piece("body", "heavy").use(character)
+    assert abs(character.get_miss_chance("heavy") - (HEAVY_ATTACK_MISS_CHANCE + ARMOUR_WEIGHT_MISS_PENALTY["heavy"])) < 1e-9
+
+def test_get_miss_chance_reckless_strength_halves_heavy_after_blade_and_armour():
+    """Halving happens last, after the blade modifier and the armour penalty are both applied."""
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.has_reckless_strength = True
+    Weapon(name="Sword", description="", damage=3, weapon_class="blade").use(character)
+    _armour_piece("body", "medium").use(character)
+    expected = (HEAVY_ATTACK_MISS_CHANCE + BLADE_HEAVY_MISS_MODIFIER + ARMOUR_WEIGHT_MISS_PENALTY["medium"]) / 2
+    assert abs(character.get_miss_chance("heavy") - expected) < 1e-9
+
+def test_get_miss_chance_reckless_strength_does_not_halve_light():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.has_reckless_strength = True
+    _armour_piece("body", "medium").use(character)
+    assert character.get_miss_chance("light") == ARMOUR_WEIGHT_MISS_PENALTY["medium"]
+
+def test_attack_light_by_an_armoured_attacker_can_miss(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.01)  # below the medium-armour penalty
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    _armour_piece("body", "medium").use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target)
+    assert message == "Hero attacks Goblin - but misses!"
+    assert target.hp == 100
+
+def test_attack_light_by_an_unarmoured_attacker_makes_no_miss_roll(monkeypatch):
+    """Only the target's own dodge roll in take_damage() draws a random number - the attack never rolls to miss."""
+    calls = []
+    monkeypatch.setattr("random.random", lambda: calls.append(1) or 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=10)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target)
+    assert len(calls) == 1
+
+def test_attack_heavy_with_a_blade_hits_on_a_roll_the_base_chance_would_miss(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.35)  # misses at 0.4, lands at 0.3
+    attacker = Character(name="Hero", hp=30, attack_damage=7)
+    Weapon(name="Sword", description="", damage=3, weapon_class="blade").use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert message == "Hero attacks Goblin for 18 damage."  # round(10 * 1.75)
+
+def test_attack_heavy_with_a_heavy_weapon_uses_the_heavy_weapon_multiplier(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Axe", description="", damage=6, weapon_class="heavy").use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy")
+    assert target.hp == 80  # 100 - (4 + 6) * 2.0
+
+def test_attack_light_with_a_heavy_weapon_has_no_multiplier():
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Axe", description="", damage=6, weapon_class="heavy").use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target)
+    assert target.hp == 90
+
+def test_attack_with_a_piercing_weapon_ignores_some_of_the_target_armour():
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Spear", description="", damage=6, weapon_class="piercing", armour_pierce=2).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5, armour=3)
+    attacker.attack(target)
+    assert target.hp == 91  # 10 - (3 - 2)
+
+def test_attack_armour_pierce_beyond_the_target_armour_adds_no_extra_damage():
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Spear", description="", damage=6, weapon_class="piercing", armour_pierce=5).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5, armour=2)
+    attacker.attack(target)
+    assert target.hp == 90
+
+def test_take_damage_armour_pierce_reduces_the_armour_applied():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=4)
+    dealt, _ = character.take_damage(10, armour_pierce=3)
+    assert dealt == 9
+
+def test_attack_with_a_lifesteal_weapon_heals_the_attacker():
+    attacker = Character(name="Hero", hp=10, attack_damage=4)
+    attacker.max_hp = 30
+    Weapon(name="Fang", description="", damage=4, weapon_class="piercing", lifesteal=True).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target)
+    assert attacker.hp == 14  # 8 dealt // 2
+    assert "Hero drains 4 HP from the wound." in message
+
+def test_attack_lifesteal_only_comes_from_the_weapon_actually_used():
+    """A lifesteal bow in the ranged slot does nothing for a light (melee) attack."""
+    attacker = Character(name="Hero", hp=10, attack_damage=4)
+    attacker.max_hp = 30
+    Weapon(name="Leech Bow", description="", damage=4, slot="ranged", weapon_class="ranged", lifesteal=True).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target)
+    assert attacker.hp == 10
+
+def _cleaver(attacker: Character) -> Weapon:
+    """Test helper - equip a Labrys-like heavy cleave weapon (6 damage) on attacker."""
+    axe = Weapon(name="Axe", description="", damage=6, weapon_class="heavy", cleave=True)
+    axe.use(attacker)
+    return axe
+
+def test_attack_heavy_with_cleave_hits_a_second_enemy_for_half_the_swing(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    second = Enemy(name="Orc", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy", others=[target, second])
+    assert second.hp == 90  # (4 + 6) * 2.0 = 20, halved
+    assert "The swing carries on into Orc for 10 damage." in message
+
+def test_attack_light_with_a_cleave_weapon_does_not_cleave():
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    second = Enemy(name="Orc", hp=100, attack_damage=5)
+    attacker.attack(target, others=[target, second])
+    assert second.hp == 100
+
+def test_attack_heavy_without_a_cleave_weapon_does_not_cleave(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Maul", description="", damage=6, weapon_class="heavy").use(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    second = Enemy(name="Orc", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy", others=[target, second])
+    assert second.hp == 100
+
+def test_attack_heavy_cleave_with_no_others_only_hits_the_target(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy")
+    assert message == "Hero attacks Goblin for 20 damage."
+
+def test_attack_heavy_cleave_skips_dead_and_respawning_combatants(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    dead = Enemy(name="Corpse", hp=0, attack_damage=5)
+    dummy = Enemy(name="Dummy", hp=100, attack_damage=0, respawns=True)
+    living = Enemy(name="Orc", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy", others=[dead, dummy, target, living])
+    assert dummy.hp == 100
+    assert living.hp == 90
+
+def test_attack_heavy_cleave_still_carries_on_when_the_target_dies(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=5, attack_damage=5)
+    second = Enemy(name="Orc", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy", others=[target, second])
+    assert target.hp == 0
+    assert second.hp == 90
+
+def test_attack_heavy_cleave_reports_a_kill_on_the_second_enemy(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    second = Enemy(name="Orc", hp=4, attack_damage=5)
+    message = attacker.attack(target, attack_type="heavy", others=[target, second])
+    assert second.hp == 0
+    assert second.on_death() in message
+
+def test_attack_heavy_cleave_does_not_include_bull_rush(monkeypatch):
+    """Cleave takes half the swing's damage - the heavy-multiplied hit before Bull Rush's flat +3."""
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    attacker.has_bull_rush = True
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    second = Enemy(name="Orc", hp=50, attack_damage=5)
+    attacker.attack(target, attack_type="heavy", others=[target, second])
+    assert target.hp == 77  # 20 + 3
+    assert second.hp == 40  # 20 // 2, no Bull Rush
+
+def test_attack_heavy_miss_with_a_cleave_weapon_hits_nobody(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    second = Enemy(name="Orc", hp=100, attack_damage=5)
+    attacker.attack(target, attack_type="heavy", others=[target, second])
+    assert target.hp == 100
+    assert second.hp == 100
+
+def test_attack_with_a_poison_weapon_poisons_the_target_on_a_low_roll(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Kiss", description="", damage=3, poison_chance=0.15).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target)
+    poison = next(e for e in target.active_effects if e.name == "Poison")
+    assert poison.amount == WEAPON_POISON_AMOUNT
+    assert poison.duration == WEAPON_POISON_DURATION
+
+def test_attack_with_a_poison_weapon_does_not_poison_on_a_high_roll(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Kiss", description="", damage=3, poison_chance=0.15).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target)
+    assert target.active_effects == []
+
+def test_attack_with_a_poison_weapon_never_poisons_a_killed_target(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Kiss", description="", damage=3, poison_chance=0.15).use(attacker)
+    target = Character(name="Goblin", hp=5, attack_damage=5)
+    attacker.attack(target)
+    assert target.active_effects == []
+
+def test_attack_petrifying_gaze_and_weapon_poison_roll_separately(monkeypatch):
+    """Both succeed on the same hit, so the second application prolongs the first (durations add)."""
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    attacker.has_petrifying_gaze = True
+    Weapon(name="Kiss", description="", damage=3, poison_chance=0.15).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    attacker.attack(target)
+    poison = next(e for e in target.active_effects if e.name == "Poison")
+    assert poison.duration == 3 + WEAPON_POISON_DURATION
+
+def test_take_damage_degrades_an_equipped_shield():
+    character = Character(name="Hero", hp=100, attack_damage=5)
+    shield = _armour_piece("shield", "light", defence=2)
+    shield.use(character)
+    character.take_damage(5)
+    assert shield.durability == shield.max_durability - 1
+
+def test_take_damage_breaking_a_shield_backs_out_its_defence():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=1)
+    shield = _armour_piece("shield", "light", defence=2)
+    shield.use(character)
+    shield.durability = 1
+    character.take_damage(5)
+    assert character.armour == 1
+
+def test_get_stats_shows_miss_chance_for_each_attack_type():
+    player = Player(name="Hero", hp=20)
+    _armour_piece("body", "medium").use(player)
+    stats = player.get_stats()
+    assert "Miss chance: 5% light / 45% heavy / 5% ranged" in stats
+
+def test_character_initialises_base_armour_from_the_armour_argument():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=2)
+    assert character.base_armour == 2
+
+def test_armour_is_base_armour_plus_every_worn_piece():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=1)
+    _armour_piece("helmet", "light", defence=1).use(character)
+    _armour_piece("body", "light", defence=2).use(character)
+    _armour_piece("shield", "light", defence=3).use(character)
+    assert character.armour == 7
+
+def test_armour_leaves_out_a_broken_worn_piece():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=1)
+    plate = _armour_piece("body", "light", defence=2)
+    plate.use(character)
+    plate.durability = 0
+    assert character.armour == 1
+
+def test_armour_keeps_a_broken_worn_piece_with_unyielding_tide():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=1)
+    character.has_unyielding_tide = True
+    plate = _armour_piece("body", "light", defence=2)
+    plate.use(character)
+    plate.durability = 0
+    assert character.armour == 3
+
+def test_setting_armour_changes_base_armour_and_leaves_worn_pieces_alone():
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=1)
+    plate = _armour_piece("body", "light", defence=2)
+    plate.use(character)
+    character.armour = 10
+    assert character.base_armour == 8
+    assert plate.defence == 2
+
+def test_defence_boost_skill_with_armour_worn_raises_base_armour():
+    """DefenceBoostSkill still does 'armour += bonus' - the setter routes that into base_armour."""
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=1)
+    _armour_piece("body", "light", defence=2).use(character)
+    DefenceBoostSkill("Hardened Skin", "", bonus=2).apply(character)
+    assert character.base_armour == 3
+    assert character.armour == 5

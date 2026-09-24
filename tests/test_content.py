@@ -6,9 +6,9 @@ from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook
 def test_create_minotaur_has_correct_stats():
     minotaur = create_minotaur()
     assert minotaur.name == "Minotaur"
-    assert minotaur.hp == 25
+    assert minotaur.hp == 28
     assert minotaur.attack_damage == 8
-    assert minotaur.armour == 2
+    assert minotaur.armour == 3
     assert len(minotaur.loot) == 1
     assert minotaur.experience_reward == 30
     assert minotaur.gold_reward == 18
@@ -27,14 +27,14 @@ def test_create_labrys_has_correct_damage_and_description():
     labrys = create_labrys()
     assert labrys.name == "Labrys"
     assert labrys.description == "Two crescent blades on a single haft, heavy enough that every swing feels like it's pulling you along with it."
-    assert labrys.damage == 5
+    assert labrys.damage == 7
     assert labrys.slot == "melee"
 
 def test_create_centaur_has_correct_stats():
     centaur = create_centaur()
     assert centaur.name == "Centaur"
-    assert centaur.hp == 14
-    assert centaur.attack_damage == 5
+    assert centaur.hp == 18
+    assert centaur.attack_damage == 6
     assert centaur.armour == 1
     assert len(centaur.loot) == 1
     assert centaur.experience_reward == 10
@@ -213,12 +213,12 @@ def test_create_petrified_guardian_drops_small_healing_potion():
     message = guardian.on_death()
     assert "Small Healing Potion" in message
 
-def test_create_chipped_stone_aegis_has_correct_defence_and_defaults_to_body_slot():
+def test_create_chipped_stone_aegis_has_correct_defence_and_occupies_the_shield_slot():
     aegis = create_chipped_stone_aegis()
     assert isinstance(aegis, Armour)
     assert aegis.name == "Chipped Stone Aegis"
     assert aegis.defence == 3
-    assert aegis.slot == "body"
+    assert aegis.slot == "shield"
 
 def test_create_chipped_stone_aegis_has_correct_max_durability():
     aegis = create_chipped_stone_aegis()
@@ -227,7 +227,7 @@ def test_create_chipped_stone_aegis_has_correct_max_durability():
 def test_create_satyr_has_correct_stats():
     satyr = create_satyr()
     assert satyr.name == "Satyr"
-    assert satyr.hp == 15
+    assert satyr.hp == 20
     assert satyr.attack_damage == 6
     assert satyr.armour == 1
     assert len(satyr.loot) == 1
@@ -260,7 +260,7 @@ def test_create_wineskin_of_dionysus_is_a_free_action_mid_combat():
 def test_create_lamia_has_correct_stats():
     lamia = create_lamia()
     assert lamia.name == "Lamia"
-    assert lamia.hp == 20
+    assert lamia.hp == 25
     assert lamia.attack_damage == 7
     assert lamia.armour == 1
     assert len(lamia.loot) == 1
@@ -281,7 +281,7 @@ def test_create_lamia_attack_drains_hp_from_the_target():
 def test_create_ember_wraith_has_correct_stats():
     wraith = create_ember_wraith()
     assert wraith.name == "Ember Wraith"
-    assert wraith.hp == 19
+    assert wraith.hp == 24
     assert wraith.attack_damage == 7
     assert wraith.armour == 1
     assert len(wraith.loot) == 1
@@ -297,7 +297,7 @@ def test_create_sunscorched_dagger_has_correct_damage_and_defaults_to_melee_slot
     dagger = create_sunscorched_dagger()
     assert isinstance(dagger, Weapon)
     assert dagger.name == "Sun-scorched Dagger"
-    assert dagger.damage == 6
+    assert dagger.damage == 5
     assert dagger.slot == "melee"
 
 def test_create_talos_has_correct_stats():
@@ -319,7 +319,7 @@ def test_create_talos_bronze_plating_has_correct_defence_and_defaults_to_body_sl
     plating = create_talos_bronze_plating()
     assert isinstance(plating, Armour)
     assert plating.name == "Talos' Bronze Plating"
-    assert plating.defence == 5
+    assert plating.defence == 6
     assert plating.slot == "body"
 
 def test_create_talos_bronze_plating_has_correct_max_durability():
@@ -388,7 +388,7 @@ def test_create_serpents_kiss_has_correct_damage_and_defaults_to_melee_slot():
     kiss = create_serpents_kiss()
     assert isinstance(kiss, Weapon)
     assert kiss.name == "Serpent's Kiss"
-    assert kiss.damage == 7
+    assert kiss.damage == 6
     assert kiss.slot == "melee"
 
 def test_create_lamia_drops_lamias_fang():
@@ -400,7 +400,7 @@ def test_create_lamias_fang_has_correct_damage_and_defaults_to_melee_slot():
     fang = create_lamias_fang()
     assert isinstance(fang, Weapon)
     assert fang.name == "Lamia's Fang"
-    assert fang.damage == 5
+    assert fang.damage == 4
     assert fang.slot == "melee"
 
 def test_create_skeleton_warrior_has_correct_stats():
@@ -2072,3 +2072,57 @@ def test_build_world_lair_of_medusa_guards_descend_exit():
     lair = dungeon.get_room("Lair of Medusa")
     assert lair is not None
     assert lair.guarded_exits == {"descend"}
+
+def test_create_wooden_sword_is_a_blade():
+    assert create_wooden_sword().weapon_class == "blade"
+
+def test_create_wooden_shield_is_a_light_shield():
+    shield = create_wooden_shield()
+    assert shield.slot == "shield"
+    assert shield.weight == "light"
+
+def test_create_weathered_helm_is_light():
+    assert create_weathered_helm().weight == "light"
+
+def test_create_bronze_xiphos_is_a_blade():
+    assert create_bronze_xiphos().weapon_class == "blade"
+
+def test_create_bronze_breastplate_is_medium_weight():
+    assert create_bronze_breastplate().weight == "medium"
+
+def test_create_breastplate_of_athena_is_light():
+    assert create_breastplate_of_athena().weight == "light"
+
+def test_create_spear_of_ares_is_piercing_with_two_pierce():
+    spear = create_spear_of_ares()
+    assert spear.weapon_class == "piercing"
+    assert spear.armour_pierce == 2
+
+def test_create_harpy_fletched_bow_is_ranged_class():
+    assert create_harpy_fletched_bow().weapon_class == "ranged"
+
+def test_create_labrys_is_a_two_handed_heavy_weapon_with_cleave():
+    labrys = create_labrys()
+    assert labrys.weapon_class == "heavy"
+    assert labrys.two_handed is True
+    assert labrys.cleave is True
+
+def test_create_chipped_stone_aegis_is_heavy():
+    assert create_chipped_stone_aegis().weight == "heavy"
+
+def test_create_lamias_fang_is_piercing_with_lifesteal():
+    fang = create_lamias_fang()
+    assert fang.weapon_class == "piercing"
+    assert fang.armour_pierce == 2
+    assert fang.lifesteal is True
+
+def test_create_sunscorched_dagger_is_a_blade():
+    assert create_sunscorched_dagger().weapon_class == "blade"
+
+def test_create_talos_bronze_plating_is_heavy():
+    assert create_talos_bronze_plating().weight == "heavy"
+
+def test_create_serpents_kiss_is_a_blade_with_poison_chance():
+    kiss = create_serpents_kiss()
+    assert kiss.weapon_class == "blade"
+    assert kiss.poison_chance == 0.15

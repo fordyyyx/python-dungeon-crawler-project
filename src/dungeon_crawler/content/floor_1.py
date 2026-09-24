@@ -38,6 +38,7 @@ def create_weathered_helm() -> Armour:
         description="Bronze gone dull and pitted, but the shape still holds - whoever wore it last isn't wearing it now.",
         defence=1,
         slot="helmet",
+        weight="light",
         max_durability=5,
     )
 
@@ -80,7 +81,8 @@ def create_bronze_breastplate() -> Armour:
         name="Bronze Breastplate",
         defence=2,
         description="Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just.",
-        max_durability=8
+        weight="medium",
+        max_durability=8,
     )
 
 def create_bronze_xiphos() -> Weapon:
@@ -89,6 +91,7 @@ def create_bronze_xiphos() -> Weapon:
         name="Bronze Xiphos",
         description="A short, leaf-bladed sword - favoured by soldiers who valued speed over reach.",
         damage=3,
+        weapon_class="blade",
     )
 
 def build_floor_1() -> tuple[Room, dict[str, Room]]:

@@ -336,3 +336,23 @@ def test_room_guard_exit_does_not_remove_the_exit():
     room.connect("south", other)
     room.guard_exit("south")
     assert room.get_exit("south") is other
+
+def test_room_unlock_exit_removes_the_item_lock():
+    room = Room("Chamber")
+    room.lock_exit("east", "Wooden Sword")
+    room.unlock_exit("east")
+    assert "east" not in room.locked_exits
+
+def test_room_unlock_exit_keeps_the_exit_itself():
+    room = Room("Chamber")
+    yard = Room("Yard")
+    room.connect("east", yard)
+    room.lock_exit("east", "Wooden Sword")
+    room.unlock_exit("east")
+    assert room.get_exit("east") is yard
+
+def test_room_unlock_exit_on_an_unlocked_direction_does_nothing():
+    room = Room("Chamber")
+    room.lock_exit("east", "Wooden Sword")
+    room.unlock_exit("west")
+    assert room.locked_exits == {"east": "Wooden Sword"}

@@ -50,7 +50,7 @@ def test_serialise_player_includes_basic_stats():
     assert data["hp"] == 50
     assert data["max_hp"] == 50
     assert data["attack_damage"] == 12
-    assert data["armour"] == 3
+    assert data["base_armour"] == 3
     assert data["intellect"] == 4
     assert data["level"] == 2
     assert data["experience"] == 10
@@ -403,9 +403,8 @@ def test_serialise_room_excludes_incomplete_trade_ally_names():
     assert data["allies_traded"] == []
 
 def test_serialise_room_locked_exits_are_not_captured():
-    """Known gap, not yet built (see roadmap.md/CLAUDE.md): unlocked_extras/locked_exits_removed are both
-    unconditionally empty placeholders right now, regardless of the room's actual locked_exits state - don't
-    treat this as a regression if it's ever touched, it's a deliberately deferred piece of the save/load design."""
+    """unlocked_extras/locked_exits_removed are still unconditionally empty placeholders, whatever the room's locks - the real lock
+    state now travels under "locked_exits" instead (see test_serialise_room_includes_locked_exits)."""
     room = Room("Chamber")
     room.lock_exit("east", "Wooden Sword")
     data = serialise_room(room)
@@ -801,3 +800,75 @@ def test_world_round_trip_mid_medusa_wave_keeps_the_gorgons_the_guard_and_the_ne
         gorgon.hp = 0
     resolve_pending_defeats(player, reloaded)
     assert [e.name for e in reloaded.enemies] == ["Medusa (Awakened)"]
+
+def test_serialise_player_base_armour_leaves_out_worn_gear():
+    player = Player(name="Hero", hp=50, armour=1)
+    plate = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
+    player.inventory.add(plate)
+    plate.use(player)
+    data = serialise_player(player, Room("Chamber"))
+    assert data["base_armour"] == 1
+
+def test_player_from_save_data_restores_base_armour():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    data = base_player_data(base_armour=4)
+    player, _ = player_from_save_data(data, dungeon)
+    assert player.base_armour == 4
+
+def test_player_round_trip_with_worn_armour_does_not_grow_armour():
+    """Regression: the saved total already included worn pieces, and re-equipping them on load added them again - every reload
+    raised armour by the worn pieces' defence."""
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    player = Player(name="Hero", hp=20, armour=1)
+    plate = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
+    player.inventory.add(plate)
+    plate.use(player)
+    for _ in range(3):
+        player, room = player_from_save_data(serialise_player(player, room), dungeon)
+    assert player.armour == 3
+
+def test_player_round_trip_with_broken_worn_armour_keeps_it_broken():
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    player = Player(name="Hero", hp=20, armour=1)
+    plate = Armour(name="Bronze Breastplate", description="", defence=2, max_durability=8)
+    player.inventory.add(plate)
+    plate.use(player)
+    plate.durability = 0
+    loaded, _ = player_from_save_data(serialise_player(player, room), dungeon)
+    assert loaded.armour == 1
+
+def test_player_from_save_data_older_total_armour_save_is_not_double_counted():
+    """An older save stored total armour (worn pieces included) and no base_armour - loading it must land on the same total."""
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    data = base_player_data(armour=4, inventory=[{"name": "Bronze Breastplate", "equipped": True, "durability": 8}])
+    player, _ = player_from_save_data(data, dungeon)
+    assert player.armour == 4
+    assert player.base_armour == 2
+
+def test_serialise_room_includes_locked_exits():
+    room = Room("Chamber")
+    room.lock_exit("east", "Wooden Sword")
+    room.lock_exit("south", "Wooden Shield")
+    data = serialise_room(room)
+    assert data["locked_exits"] == ["east", "south"]
+
+def test_apply_room_data_unlocks_exits_the_save_had_unlocked():
+    room = Room("Chamber")
+    room.lock_exit("east", "Wooden Sword")
+    room.lock_exit("south", "Wooden Shield")
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": [], "locked_exits": ["south"]})
+    assert "east" not in room.locked_exits
+    assert room.locked_exits["south"] == "Wooden Shield"
+
+def test_apply_room_data_without_locked_exits_leaves_locks_alone():
+    """An older save has no "locked_exits" key at all - every lock build_world() made stays in place."""
+    room = Room("Chamber")
+    room.lock_exit("east", "Wooden Sword")
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": []})
+    assert room.locked_exits["east"] == "Wooden Sword"

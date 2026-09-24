@@ -9,9 +9,9 @@ def create_minotaur() -> Enemy:
     """Create the Minotaur enemy, placed in the Labyrinth of the Minotaur (floor 4) by build_floor_4()."""
     return Enemy(
         name="Minotaur",
-        hp=25,
+        hp=28,
         attack_damage=8,
-        armour=2,
+        armour=3,
         loot=[create_labrys()],
         description="Massive and bull-headed, it turns toward you with a snort that shakes dust from the walls.",
         experience_reward=30,
@@ -25,7 +25,9 @@ def create_labrys() -> Weapon:
     return Weapon(
         name="Labrys",
         description="Two crescent blades on a single haft, heavy enough that every swing feels like it's pulling you along with it.",
-        damage=5,
+        damage=7,
+        weapon_class="heavy",
+        cleave=True,
     )
 
 def create_cyclops() -> Enemy:
@@ -69,6 +71,8 @@ def create_chipped_stone_aegis() -> Armour:
         description="Heavier than it should be for its size, faint traces of an old shield-pattern still visible beneath the stone.",
         defence=3,
         max_durability=10,
+        slot="shield",
+        weight="heavy",
     )
 
 def create_satyr() -> Enemy:
@@ -76,7 +80,7 @@ def create_satyr() -> Enemy:
     (create_test_healing_tonic() was dev-only until now)."""
     return Enemy(
         name="Satyr",
-        hp=15,
+        hp=20,
         attack_damage=6,
         armour=1,
         loot=[create_wineskin_of_dionysus()],
@@ -101,7 +105,7 @@ def create_lamia() -> Enemy:
     hit. Drops Lamia's Fang."""
     return Enemy(
         name="Lamia",
-        hp=20,
+        hp=25,
         attack_damage=7,
         armour=1,
         loot=[create_lamias_fang()],
@@ -112,19 +116,22 @@ def create_lamia() -> Enemy:
     )
 
 def create_lamias_fang() -> Weapon:
-    """Create the Lamia's Fang weapon - dropped by Lamia in Shadowy Corner. No lifesteal of its own - that's still a separate, undecided
-    roadmap item, not something to sneak in unannounced here."""
+    """Create the Lamia's Fang weapon - dropped by Lamia in Shadowy Corner. A piercing weapon (ignores 2 armour) with lifesteal - the game's
+    first lifesteal weapon, echoing Lamia's own drain."""
     return Weapon(
         name="Lamia's Fang",
         description="Curved and needle-thin, more suited to a bite than a swing.",
-        damage=5,
+        damage=4,
+        weapon_class="piercing",
+        armour_pierce=2,
+        lifesteal=True,
     )
 
 def create_ember_wraith() -> Enemy:
     """Create the Ember Wraith enemy for Sandy Expanse (floor 4) - the heat here isn't natural, and neither is what's causing it."""
     return Enemy(
         name="Ember Wraith",
-        hp=19,
+        hp=24,
         attack_damage=7,
         armour=1,
         loot=[create_sunscorched_dagger()],
@@ -138,7 +145,8 @@ def create_sunscorched_dagger() -> Weapon:
     return Weapon(
         name="Sun-scorched Dagger",
         description="The blade's still faintly hot to the touch, no matter how long it's been out of the wraith's grip.",
-        damage=6,
+        damage=5,
+        weapon_class="blade",
     )
 
 def create_talos() -> Enemy:
@@ -161,8 +169,9 @@ def create_talos_bronze_plating() -> Armour:
     return Armour(
         name="Talos' Bronze Plating",
         description="Impossibly heavy for its size, seamless where it should show a joint - however it was made, it wasn't with hammers.",
-        defence=5,
+        defence=6,
         max_durability=18,
+        weight="heavy",
     )
 
 def create_medusa() -> Enemy:
@@ -195,7 +204,7 @@ def create_gorgon() -> Enemy:
 def create_medusa_awakened() -> Enemy:
     """Create Medusa (Awakened) - the final phase, only reachable once both Gorgons are cleared. Harder than Phase 1 on every stat, and the
     first Enemy to carry has_petrifying_gaze (previously only ever a player secondary-ancestry ability) - a deliberate thematic callback,
-    not a new mechanic. Drops Serpent's Kiss, the strongest weapon on this floor. heal_amount/brace_amount + a higher caution_weight give her
+    not a new mechanic. Drops Serpent's Kiss, a poisoned blade. heal_amount/brace_amount + a higher caution_weight give her
     genuine defensive options instead of pure damage output, per playtesting feedback - not a new mechanic, just using ones that already existed
     but had never been turned on for any enemy content yet."""
     return Enemy(
@@ -214,11 +223,14 @@ def create_medusa_awakened() -> Enemy:
     )
 
 def create_serpents_kiss() -> Weapon:
-    """Create Serpent's Kiss - the strongest weapon on floor 4, dropped by Medusa (Awakened)."""
+    """Create Serpent's Kiss - a blade with a 15% chance to poison, dropped by Medusa (Awakened). Weaker per hit than the Labrys, but
+    one-handed, so it can be used with a shield."""
     return Weapon(
         name="Serpent's Kiss",
         description="Curved like a fang, and just as reluctant to let go once it's found its mark.",
-        damage=7,
+        damage=6,
+        weapon_class="blade",
+        poison_chance=0.15,
     )
 
 def build_floor_4() -> tuple[Room, dict[str, Room]]:
