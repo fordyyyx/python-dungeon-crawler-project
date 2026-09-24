@@ -20,6 +20,10 @@ HINTS: dict[str, str] = {
     ),
     "skill_points": "You have a skill point to spend. Say 'skills' to see what's on offer, then 'learn <path>' - attack, defence, or abilities.",
     "autosave": "The game autosaves the first time you reach each new floor. Outside combat, 'save' saves to your current slot at any time.",
+    "evasive": (
+        "Some enemies are hard to reach in melee - light and heavy attacks will often miss them. Ranged attacks and spells always hit "
+        "normally, so a bow or spell is worth trying."
+    ),
 }
 
 def show_hint(player, key: str) -> str:

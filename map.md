@@ -92,22 +92,22 @@ Lair of Medusa {Medusa - Enemy}
 * north -> Maze of Pillars
 * descend -> Shadow of Army Camp [NOTE: guarded - blocked until the whole Medusa chain (Phase 1, both Gorgons, Awakened) is defeated]
 
-Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable after beating him in a duel ('challenge shade of achilles'); the only built content on floors 5-9 so far]
+Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable after beating him in a duel ('challenge shade of achilles')]
 * ascend -> Lair of Medusa
 * south -> Shadow of Troy (North)
 Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 32 HP / 9 ATK / 5 armour, drops Hector's Helm; exit not guarded]
 * north -> Shadow of Army Camp
 * south -> Shadow of Troy (Central)
-Shadow of Troy (Central) {Shade of Ajax - Enemy}
+Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 12 ATK / 1 armour, drops the Tower Shield of Ajax]
 * north -> Shadow of Troy (North)
 * west -> Shadow of Troy (Alleyway)
-Shadow of Troy (Alleyway) {Myrmidon Soldier - Enemy}
+Shadow of Troy (Alleyway) {Myrmidon Soldier ×2 - Enemy} [NOTE: built - a pair, each dropping a Field Dressing]
 * east -> Shadow of Troy (Central)
 * south -> Shadow of Troy (South)
-Shadow of Troy (South) {Shade of Paris - Enemy}
+Shadow of Troy (South) {Shade of Paris - Enemy} [NOTE: built - evasive archer: 50% melee dodge, natural 4 armour pierce; drops the Bow of Paris]
 * north -> Shadow of Troy (Alleyway)
 * east -> Shadow of Pylos
-Shadow of Pylos {Nestor - Friendly}
+Shadow of Pylos {Nestor - Friendly} [NOTE: built - advice, no trade; gives away a Cup of Kykeon]
 * west -> Shadow of Troy (South)
 * descend -> Bright Cave
 
@@ -229,10 +229,11 @@ Labyrinth of the Minotaur's `south` (Minotaur), Maze of Pillars' `south`
 (Talos), and Lair of Medusa's `descend` (the whole Medusa chain). Every other
 fight on floors 0-4 is still optional to walk past.
 
-Floor 5 has its first real content: the Shade of Achilles, a recruitable
-Companion in Shadow of Army Camp, who must be beaten in a duel first, and
-the Shade of Hector in Shadow of Troy (North), an armour-5 enemy who drops
-Hector's Helm. Every other room on floors 5-9 remains an unpopulated shell - the per-room
+Floor 5 is fully populated: the Shade of Achilles (a recruitable Companion,
+duel first) in Shadow of Army Camp, then one encounter per room down the
+Shadow of Troy - Hector, Ajax, a pair of Myrmidons, and Paris - with Nestor
+in Shadow of Pylos before the descent. None of floor 5's exits are guarded.
+Every room on floors 6-9 remains an unpopulated shell - the per-room
 enemies/allies listed above for those floors are the planned design, not
 built content. Finishing Floor 2's population (Prometheus' trade and Trophy
-Room of Zeus) and the rest of floors 5-9's population are all deferred to the "Populate all floors" roadmap item.
+Room of Zeus) and floors 6-9's population are all deferred to the "Populate all floors" roadmap item.

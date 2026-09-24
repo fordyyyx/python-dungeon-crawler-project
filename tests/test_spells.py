@@ -181,3 +181,11 @@ def test_spell_cast_self_effect_still_applies_when_damage_kills_target():
 
     assert len(caster.active_effects) == 1
     assert caster.active_effects[0].name == "Regen"
+
+def test_spell_damage_is_never_evaded_by_melee_dodge(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.3)
+    caster = Character(name="Hero", hp=30, attack_damage=5)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    Spell(name="Firebolt", description="", mana_cost=5, damage=6).cast(caster, target)
+    assert target.hp == 14

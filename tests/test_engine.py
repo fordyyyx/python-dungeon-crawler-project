@@ -2,6 +2,7 @@ from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon
 from dungeon_crawler.engine import print_room, get_controls_text, main
+from dungeon_crawler.hints import HINTS
 
 def test_print_room_prints_name_and_description(capsys):
     room = Room("Armoury", "A dusty room full of old weapons.")
@@ -1347,3 +1348,31 @@ def test_main_talking_to_your_own_god_shows_their_line_only_once(monkeypatch, ca
 
     captured = capsys.readouterr()
     assert captured.out.count("Mine, then.") == 1
+
+def test_print_room_with_an_evasive_enemy_shows_the_evasive_hint(capsys):
+    room = Room("Troy")
+    room.add_enemy(Enemy(name="Archer", hp=10, melee_dodge_chance=0.5))
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert HINTS["evasive"] in captured.out
+
+def test_print_room_with_an_ordinary_enemy_does_not_show_the_evasive_hint():
+    room = Room("Troy")
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    assert "evasive" not in player.seen_hints
+
+def test_print_room_with_a_dead_evasive_enemy_does_not_show_the_evasive_hint():
+    room = Room("Troy")
+    room.add_enemy(Enemy(name="Archer", hp=0, melee_dodge_chance=0.5))
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    assert "evasive" not in player.seen_hints

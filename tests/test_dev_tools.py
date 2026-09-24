@@ -1155,3 +1155,20 @@ def test_find_enemy_by_name_finds_the_shade_of_hector():
     enemy = find_enemy_by_name("shade of hector")
     assert enemy is not None
     assert enemy.name == "Shade of Hector"
+
+def test_find_item_by_name_finds_every_new_floor_5_item():
+    for name in ("Tower Shield of Ajax", "Field Dressing", "Bow of Paris", "Cup of Kykeon"):
+        item = find_item_by_name(name)
+        assert item is not None, name
+        assert item.name == name
+
+def test_find_enemy_by_name_finds_every_new_floor_5_enemy():
+    for name in ("Shade of Ajax", "Myrmidon Soldier", "Shade of Paris"):
+        enemy = find_enemy_by_name(name)
+        assert enemy is not None, name
+        assert enemy.name == name
+
+def test_find_ally_by_name_finds_nestor():
+    ally = find_ally_by_name("nestor")
+    assert ally is not None
+    assert ally.name == "Nestor"

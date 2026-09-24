@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_shade_of_hector, create_hectors_helm, create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_shade_of_ajax, create_tower_shield_of_ajax, create_myrmidon_soldier, create_field_dressing, create_shade_of_paris, create_bow_of_paris, create_nestor, create_cup_of_kykeon, create_shade_of_hector, create_hectors_helm, create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
@@ -2255,3 +2255,104 @@ def test_medusa_ancestry_line_is_on_her_first_phase_only():
     """Phase 1 is who the player first sees - the line would otherwise fire again mid-fight."""
     assert "medusa" in create_medusa().ancestry_lines
     assert create_medusa_awakened().ancestry_lines == {}
+
+def test_create_shade_of_ajax_has_correct_stats():
+    ajax = create_shade_of_ajax()
+    assert ajax.name == "Shade of Ajax"
+    assert ajax.hp == 46
+    assert ajax.attack_damage == 12
+    assert ajax.armour == 1
+    assert ajax.experience_reward == 42
+    assert ajax.gold_reward == 24
+
+def test_create_shade_of_ajax_drops_the_tower_shield():
+    assert [item.name for item in create_shade_of_ajax().loot] == ["Tower Shield of Ajax"]
+
+def test_create_tower_shield_of_ajax_is_a_heavy_shield():
+    shield = create_tower_shield_of_ajax()
+    assert isinstance(shield, Armour)
+    assert shield.slot == "shield"
+    assert shield.weight == "heavy"
+    assert shield.defence == 4
+    assert shield.max_durability == 20
+
+def test_create_myrmidon_soldier_has_correct_stats():
+    myrmidon = create_myrmidon_soldier()
+    assert myrmidon.name == "Myrmidon Soldier"
+    assert myrmidon.hp == 22
+    assert myrmidon.attack_damage == 8
+    assert myrmidon.armour == 3
+    assert myrmidon.brace_amount == 3
+    assert myrmidon.caution_weight == 1.2
+
+def test_create_myrmidon_soldier_drops_a_field_dressing():
+    assert [item.name for item in create_myrmidon_soldier().loot] == ["Field Dressing"]
+
+def test_create_field_dressing_heals_ten():
+    dressing = create_field_dressing()
+    assert dressing.heal_amount == 10
+
+def test_create_shade_of_paris_has_correct_stats():
+    paris = create_shade_of_paris()
+    assert paris.name == "Shade of Paris"
+    assert paris.hp == 20
+    assert paris.attack_damage == 10
+    assert paris.armour == 1
+    assert paris.experience_reward == 40
+    assert paris.gold_reward == 30
+
+def test_create_shade_of_paris_is_evasive_in_melee_and_pierces_armour():
+    paris = create_shade_of_paris()
+    assert paris.melee_dodge_chance == 0.5
+    assert paris.armour_pierce == 4
+
+def test_create_shade_of_paris_drops_the_bow_of_paris():
+    assert [item.name for item in create_shade_of_paris().loot] == ["Bow of Paris"]
+
+def test_create_bow_of_paris_is_a_piercing_ranged_weapon():
+    bow = create_bow_of_paris()
+    assert isinstance(bow, Weapon)
+    assert bow.slot == "ranged"
+    assert bow.weapon_class == "ranged"
+    assert bow.damage == 6
+    assert bow.armour_pierce == 2
+
+def test_create_nestor_gives_away_a_cup_of_kykeon():
+    nestor = create_nestor()
+    assert [item.name for item in nestor.inventory.items] == ["Cup of Kykeon"]
+    assert "take cup of kykeon from nestor" in nestor.hint
+
+def test_create_nestor_has_nothing_to_trade():
+    nestor = create_nestor()
+    assert nestor.required_items == []
+    assert nestor.reward is None
+
+def test_create_cup_of_kykeon_is_a_free_action_regen():
+    cup = create_cup_of_kykeon()
+    assert isinstance(cup, StatusEffectItem)
+    assert cup.effect_name == "Regen"
+    assert cup.amount == 4
+    assert cup.duration == 4
+    assert cup.ends_turn(Player(name="Hero", hp=20)) is False
+
+def test_build_floor_5_places_every_enemy_in_its_room():
+    _, rooms = build_floor_5()
+    assert [e.name for e in rooms["Shadow of Troy (Central)"].enemies] == ["Shade of Ajax"]
+    assert [e.name for e in rooms["Shadow of Troy (Alleyway)"].enemies] == ["Myrmidon Soldier", "Myrmidon Soldier"]
+    assert [e.name for e in rooms["Shadow of Troy (South)"].enemies] == ["Shade of Paris"]
+
+def test_build_floor_5_myrmidons_are_separate_with_their_own_dressings():
+    _, rooms = build_floor_5()
+    first, second = rooms["Shadow of Troy (Alleyway)"].enemies
+    assert first is not second
+    assert first.loot[0] is not second.loot[0]
+
+def test_build_floor_5_places_nestor_in_pylos():
+    _, rooms = build_floor_5()
+    assert [a.name for a in rooms["Shadow of Pylos"].allies] == ["Nestor"]
+
+def test_every_achilles_rival_line_names_a_real_placed_enemy():
+    """Rival lines are keyed by enemy name - a renamed enemy would silently drop its line."""
+    _, _, all_floors = build_world()
+    placed = {e.name for rooms in all_floors.values() for room in rooms.values() for e in room.enemies}
+    assert set(create_shade_of_achilles().rival_lines) <= placed

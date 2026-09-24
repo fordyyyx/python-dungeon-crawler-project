@@ -27,6 +27,10 @@ something occurs to you mid-build.
   localise later.
 
 ## Combat
+- **Melee evasion (the Shade of Paris) is the text version standing in for distance** - "stays just out of
+  reach" is a positioning idea with no positions. A visual port can show it literally: the archer backing
+  off or side-stepping on every evaded swing, arrows loosed from range, and a clear visual difference between
+  melee and ranged attacks, so the "use a bow" answer is something the player sees rather than reads.
 - **Lifesteal (`Character.has_lifesteal`, first used by Lamia) wants a visible drain effect** - a beam or
   particle trail flowing from the target to the attacker, timed with the attacker's HP bar ticking up, rather
   than just a second line of combat text under the damage number.

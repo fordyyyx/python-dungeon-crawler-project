@@ -2477,3 +2477,121 @@ def test_companion_initialises_with_no_ancestry_or_rival_lines_by_default():
 def test_companion_initialises_with_custom_rival_lines():
     companion = _companion(rival_lines={"Shade of Hector": "Hector."})
     assert companion.rival_lines == {"Shade of Hector": "Hector."}
+
+def test_character_initialises_with_no_melee_dodge_or_natural_pierce():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    assert character.melee_dodge_chance == 0.0
+    assert character.armour_pierce == 0
+
+def test_enemy_initialises_with_custom_melee_dodge_and_natural_pierce():
+    enemy = Enemy(name="Archer", hp=10, melee_dodge_chance=0.5, armour_pierce=4)
+    assert enemy.melee_dodge_chance == 0.5
+    assert enemy.armour_pierce == 4
+
+def test_take_damage_melee_hit_can_be_evaded_by_melee_dodge(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.3)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    dealt, message = target.take_damage(8, melee=True)
+    assert dealt == 0
+    assert target.hp == 20
+    assert message == "Archer stays just out of reach!"
+
+def test_take_damage_melee_hit_above_the_melee_dodge_lands(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.6)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    dealt, _ = target.take_damage(8, melee=True)
+    assert dealt == 8
+
+def test_take_damage_non_melee_hit_ignores_melee_dodge(monkeypatch):
+    """Ranged attacks and spells never trigger it - take_damage() defaults to melee=False."""
+    monkeypatch.setattr("random.random", lambda: 0.3)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    dealt, _ = target.take_damage(8)
+    assert dealt == 8
+
+def test_take_damage_melee_dodge_stacks_on_top_of_dodge_chance(monkeypatch):
+    """One roll: below dodge_chance is an ordinary dodge, between that and dodge + melee_dodge is a melee evasion."""
+    monkeypatch.setattr("random.random", lambda: 0.4)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.dodge_chance = 0.2
+    target.melee_dodge_chance = 0.3
+    _, message = target.take_damage(8, melee=True)
+    assert message == "Archer stays just out of reach!"
+
+def test_take_damage_roll_below_dodge_chance_is_an_ordinary_dodge_even_in_melee(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.dodge_chance = 0.2
+    target.melee_dodge_chance = 0.3
+    _, message = target.take_damage(8, melee=True)
+    assert message == "Archer dodges the attack!"
+
+def test_take_damage_melee_evasion_does_not_wear_armour(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.3)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    plate = _armour_piece("body", "light")
+    plate.use(target)
+    target.take_damage(8, melee=True)
+    assert plate.durability == plate.max_durability
+
+def test_attack_light_is_a_melee_attack_an_evasive_target_can_avoid(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.3)
+    attacker = Character(name="Hero", hp=30, attack_damage=8)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    attacker.attack(target)
+    assert target.hp == 20
+
+def test_attack_heavy_is_a_melee_attack_an_evasive_target_can_avoid(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.45)  # above the 0.4 heavy miss, below the 0.5 evasion
+    attacker = Character(name="Hero", hp=30, attack_damage=8)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    attacker.attack(target, attack_type="heavy")
+    assert target.hp == 20
+
+def test_attack_ranged_is_never_evaded_by_melee_dodge(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.3)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    Weapon(name="Bow", description="", damage=4, slot="ranged", weapon_class="ranged").use(attacker)
+    target = Character(name="Archer", hp=20, attack_damage=5)
+    target.melee_dodge_chance = 0.5
+    attacker.attack(target, attack_type="ranged")
+    assert target.hp == 12
+
+def test_attack_heavy_cleave_into_an_evasive_enemy_can_be_evaded(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.45)
+    attacker = Character(name="Hero", hp=30, attack_damage=4)
+    _cleaver(attacker)
+    target = Enemy(name="Goblin", hp=100, attack_damage=5)
+    archer = Enemy(name="Archer", hp=50, attack_damage=5, melee_dodge_chance=0.5)
+    attacker.attack(target, attack_type="heavy", others=[target, archer])
+    assert target.hp == 80
+    assert archer.hp == 50
+
+def test_attack_with_natural_armour_pierce_ignores_armour_unarmed():
+    attacker = Character(name="Archer", hp=30, attack_damage=10)
+    attacker.armour_pierce = 4
+    target = Character(name="Hero", hp=100, attack_damage=5, armour=5)
+    attacker.attack(target)
+    assert target.hp == 91  # 10 - (5 - 4)
+
+def test_attack_uses_natural_pierce_when_it_beats_the_weapons():
+    attacker = Character(name="Archer", hp=30, attack_damage=6)
+    attacker.armour_pierce = 4
+    Weapon(name="Spear", description="", damage=4, weapon_class="piercing", armour_pierce=2).use(attacker)
+    target = Character(name="Hero", hp=100, attack_damage=5, armour=5)
+    attacker.attack(target)
+    assert target.hp == 91  # 10 - (5 - 4)
+
+def test_attack_uses_the_weapons_pierce_when_it_beats_natural_pierce():
+    attacker = Character(name="Archer", hp=30, attack_damage=6)
+    attacker.armour_pierce = 1
+    Weapon(name="Spear", description="", damage=4, weapon_class="piercing", armour_pierce=3).use(attacker)
+    target = Character(name="Hero", hp=100, attack_damage=5, armour=5)
+    attacker.attack(target)
+    assert target.hp == 92  # 10 - (5 - 3)

@@ -58,6 +58,8 @@ def print_room(room: Room, player: Player):
         room_hints.append(show_hint(player, "forge"))
     if room.is_practice_chamber:
         room_hints.append(show_hint(player, "practice_chamber"))
+    if any(enemy.is_alive() and enemy.melee_dodge_chance > 0 for enemy in room.enemies):
+        room_hints.append(show_hint(player, "evasive"))
     for hint in room_hints:
         if hint:
             print(f"\n{hint}")

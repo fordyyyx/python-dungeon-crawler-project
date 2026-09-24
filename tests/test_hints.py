@@ -42,7 +42,7 @@ def test_show_hint_with_unknown_key_raises_key_error():
 
 def test_hints_defines_every_key_the_game_triggers():
     """Every show_hint() call site in engine.py uses one of these keys - a missing one would raise KeyError mid-game."""
-    assert set(HINTS) == {"combat", "passive_regen", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave"}
+    assert set(HINTS) == {"combat", "passive_regen", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave", "evasive"}
 
 def test_hints_all_have_non_empty_text():
     assert all(text.strip() for text in HINTS.values())
@@ -52,3 +52,8 @@ def test_passive_regen_hint_matches_the_real_regen_cap():
     from dungeon_crawler.engine import PASSIVE_REGEN_CAP_FRACTION
     assert PASSIVE_REGEN_CAP_FRACTION == 0.75
     assert "three quarters" in HINTS["passive_regen"]
+
+def test_evasive_hint_points_at_ranged_attacks_and_spells():
+    """The hint must name the counters that actually bypass melee dodge - see take_damage()'s melee flag."""
+    assert "Ranged" in HINTS["evasive"]
+    assert "spells" in HINTS["evasive"]

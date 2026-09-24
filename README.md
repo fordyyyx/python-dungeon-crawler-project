@@ -31,7 +31,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * A branching skill tree (Attack and Defence paths of five escalating tiers each, plus an Abilities path) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience, which also raises your max HP
 * Gold, earned from defeating enemies, tracked separately from your core stats
 * Special combat abilities — Double Strike, Thorns, Last Stand, and Dodge
-* Enemies with loot drops
+* Enemies with loot drops, and with styles that ask for different answers — a heavily armoured wall, a brute with none, an archer who keeps out of melee reach
 * Multi-stage boss fights — a defeated phase can transition seamlessly into the next, or first summon a wave of lesser foes that must all be cleared before the boss reveals what comes after them
 * A Practice Chamber (floor 2, by the Forge of Prometheus) with an infinitely-respawning, customisable dummy — freely test weapons/spells/potions with no mana cost or cooldowns while inside
 * A full save/load system — 3 profiles, 5 slots each, with a New Game / Load Game / Delete Save title screen, manual save/load commands mid-game, and autosave the first time you reach a new floor
@@ -124,7 +124,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and the first of floor 5 - the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the Shade of Hector. Planned additions include further floors drawing on the Iliad and Odyssey, with more named multi-stage bosses among them.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and floor 5's Shadow of Troy - home to the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the shades of Hector, Ajax and Paris. Planned additions include further floors drawing on the Iliad and Odyssey, with more named multi-stage bosses among them.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

@@ -1418,3 +1418,14 @@ def test_get_enemy_ancestry_lines_for_another_lineage_is_empty():
     room = Room("Labyrinth")
     room.add_enemy(Enemy(name="Minotaur", hp=10, ancestry_lines={"minotaur": "Kin."}))
     assert get_enemy_ancestry_lines(room, _hero("ares")) == []
+
+def test_get_rival_lines_with_two_same_named_enemies_says_the_line_once():
+    room, player = _party_with_rival()
+    room.add_enemy(Enemy(name="Hector", hp=10))
+    room.add_enemy(Enemy(name="Hector", hp=10))
+    assert get_rival_lines(room, player) == ["Hector."]
+
+def test_has_unfinished_trade_is_false_for_an_ally_with_only_gifts():
+    """Nestor gives an item away but has no trade - he must never show up in 'uncleared'."""
+    ally = Ally(name="Nestor", required_items=[], items=[Consumable(name="Cup", heal_amount=4)])
+    assert has_unfinished_trade(ally) is False

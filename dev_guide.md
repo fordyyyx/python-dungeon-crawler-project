@@ -132,13 +132,15 @@ case-insensitively):
 hermes`, `weathered helm`, `vial of grave rot`, `harpy-fletched bow`, `tome of
 old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `sun-scorched dagger`, `talos' bronze plating`, `serpent's kiss`, `labrys`, `hector's helm`,
+`tower shield of ajax`, `field dressing`, `bow of paris`, `cup of kykeon`,
 `test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
 `fanatic`, `lurker`, `petrified guardian`, `satyr`, `lamia`, `ember wraith`,
 `talos`, `medusa`, `gorgon`, `medusa (awakened)`, `practice enemy` (the
-Practice Chamber's respawning dummy), `shade of hector`, `test boss` — a dev-only,
+Practice Chamber's respawning dummy), `shade of hector`, `shade of ajax`,
+`myrmidon soldier`, `shade of paris`, `test boss` — a dev-only,
 two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
 `next_phase_factory` end-to-end. `medusa`/`gorgon`/`medusa (awakened)` are
@@ -146,7 +148,7 @@ the real equivalent now (floor 4, Lair of Medusa) - `test boss` stays
 useful for isolated testing without a full room/fight.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
-`charon`, `athena`, `ares`, `hermes`, `prometheus`.
+`charon`, `athena`, `ares`, `hermes`, `prometheus`, `nestor`.
 
 **Companions** (`dev spawn <name>`): `shade of achilles` — the real floor 5
 companion, spawned still needing his duel (`challenge shade of achilles`
@@ -181,7 +183,8 @@ now exist as real content too, Spells only partly:
 - **Status-effect items.** Both kinds are real content now: the Vial of
   Grave Rot (a 3-turn poison) drops from the Crypt Keeper in Bony Crypt
   (floor 3), and the Wineskin of Dionysus (a 3-turn Regen) drops from the
-  Satyr in Mossy Grove (floor 4) - neither needs a workaround. `test
+  Satyr in Mossy Grove (floor 4), with a stronger Regen, the Cup of Kykeon,
+  given by Nestor in Shadow of Pylos (floor 5) - none needs a workaround. `test
   healing tonic`/`test venom vial` are now just dev-only duplicates of the
   two real items' effects. `dev afflict` (above) remains the more direct
   way to test status-effect ticking without needing any item.
@@ -320,6 +323,18 @@ recruit test companion
 dev spawn skeleton warrior
 attack
 ```
+
+**Try an evasive enemy (melee dodge and natural pierce):**
+```
+dev spawn shade of paris
+attack light
+dev add bow of paris
+equip bow of paris
+attack ranged
+```
+Light and heavy attacks miss Paris about half the time (`"Shade of Paris stays just out of reach!"`); ranged attacks and spells never
+do. His arrows ignore 4 of your armour. The first room entry with him present also shows the one-off `"evasive"` hint - spawning him
+doesn't, since the hint fires from `print_room()`; use `dev teleport shadow of troy (south)` to see it.
 
 **See an ancestry line:**
 ```

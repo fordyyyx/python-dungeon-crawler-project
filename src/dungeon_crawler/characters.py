@@ -51,7 +51,7 @@ class Character:
         only thing that reads it) doesn't know which subclass self is."""
         self.dodge_chance = 0.0
         """Chance (0.0-1.0) to avoid an incoming attack entirely. Set by DodgeSkill. Lives on Character, not Player, same precedent
-        as has_thorns/brace_amount - Enemy/Companion could plausibly use it too later."""
+        as has_thorns/brace_amount - Enemy/Companion use it too (the Shade of Achilles' duel form has 0.15). See also melee_dodge_chance."""
         self.active_effects: list[StatusEffect] = []
         self.turn_started = False
         """Guards start-of-turn ticking (status effects/spell cooldowns) so a free action (a healing item) followed by a turn-ending one in the
@@ -73,6 +73,13 @@ class Character:
         """Heals the attacker for half of damage_dealt (capped at max_hp) on every successful hit - see Character.attack(). Set via Enemy's
         constructor (Lamia is the first use). A lifesteal weapon (Weapon.lifesteal) never touches this flag - attack() reads the weapon directly,
         so unequipping it can't wipe a flag granted by something else."""
+        self.melee_dodge_chance: float = 0.0
+        """Extra dodge chance against melee attacks only (light and heavy) - added on top of dodge_chance, never applied to ranged attacks or
+        spells. How a ranged enemy 'keeps its distance' without the game having any positioning: closing in is hard, so the answer is a bow,
+        a spell, or accepting a lot of misses. See take_damage()."""
+        self.armour_pierce: int = 0
+        """Armour this character's own attacks ignore when they have no weapon doing it - an archer's natural piercing. If a weapon is equipped,
+        the higher of the two applies. See attack()."""
 
     def equipment_defence(self) -> int:
         """Total defence from worn armour pieces (helmet, body, and shield). A broken piece (durability 0) contributes nothing, unless Unyielding
@@ -122,8 +129,9 @@ class Character:
         Miss: rolled first, against get_miss_chance(attack_type). A light/ranged attack only rolls at all if armour weight gives it a chance to miss,
         so an unarmoured attacker never makes a random roll for it.
         Damage: attack_damage + weapon damage, +2 with Berserking at or below half HP. Heavy attacks multiply that by HEAVY_ATTACK_MULTIPLIER, or
-        HEAVY_WEAPON_MULTIPLIER with a heavy-class weapon. Bull Rush adds a flat +3 after multiplier against a full HP target. The weapon's
-        armour_pierce is ignored from the target's armour.
+        HEAVY_WEAPON_MULTIPLIER with a heavy-class weapon. Bull Rush adds a flat +3 after multiplier against a full HP target. The higher of the
+        weapon's armour_pierce and this character's own natural armour_pierce is ignored from the target's armour. Light and heavy attacks
+        (and their cleave and Double Strike follow-ups) are melee, so a target's melee_dodge_chance can evade them; ranged attacks never are.
         Follow-ups, in order: lifesteal (Character.has_lifesteal or the weapon's) heals half the damage dealt - a weapon's heal is capped at
         WEAPON_LIFESTEAL_CAP, innate lifesteal never is, and the two never stack (innate wins); cleave (a heavy weapon's signature,
         heavy attacks only) hits the first other living, non-respawning combatant in 'others' for half the swing's damage, whether or not the target
@@ -132,6 +140,8 @@ class Character:
 
         Enemy/Companion always calls this with the default ('light', no 'others') and never equip weapons or armour, so they never miss and never cleave."""
         weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
+
+        is_melee = attack_type != "ranged"
 
         miss_chance = self.get_miss_chance(attack_type)
         if miss_chance > 0 and random.random() < miss_chance:
@@ -154,8 +164,9 @@ class Character:
         if self.has_bull_rush and target.hp == target.max_hp:
             incoming += 3
 
-        armour_pierce = weapon.armour_pierce if weapon is not None else 0
-        damage_dealt, death_message = target.take_damage(incoming, attacker=self, armour_pierce=armour_pierce)
+        weapon_pierce = weapon.armour_pierce if weapon is not None else 0
+        armour_pierce = max(weapon_pierce, self.armour_pierce)
+        damage_dealt, death_message = target.take_damage(incoming, attacker=self, armour_pierce=armour_pierce, melee=is_melee)
         deflected = incoming - damage_dealt
 
         message = f"{self.name} attacks {target.name} for {damage_dealt} damage."
@@ -189,7 +200,7 @@ class Character:
 
         if getattr(self, "has_double_strike", False):
             # second strike deals half of base_damage (weapon- and Berserking-inclusive, but before the heavy multiplier/Bull Rush), ignoring armour
-            second_damage, second_death = target.take_damage(base_damage // 2, attacker=self, ignore_armour=True)
+            second_damage, second_death = target.take_damage(base_damage // 2, attacker=self, ignore_armour=True, melee=is_melee)
             message += f"\n{self.name} strikes again for {second_damage} damage."
             if second_death:
                 message += f"\n{second_death}"
@@ -205,21 +216,26 @@ class Character:
         )
         if second is None:
             return ""
-        second_damage, second_death = second.take_damage(damage, attacker=self, armour_pierce=armour_pierce)
+        second_damage, second_death = second.take_damage(damage, attacker=self, armour_pierce=armour_pierce, melee=True)
         message = f"\nThe swing carries on into {second.name} for {second_damage} damage."
         if second_death:
             message += f"\n{second_death}"
         return message
 
-    def take_damage(self, amount: int, attacker: "Character | None" = None, ignore_armour: bool = False, armour_pierce: int = 0) -> tuple[int, str]:
+    def take_damage(self, amount: int, attacker: "Character | None" = None, ignore_armour: bool = False, armour_pierce: int = 0, melee: bool = False) -> tuple[int, str]:
         """Apply any pending Defend/Brace reduction, then armour-reduced damage, handling Last Stand and Thorns along the way. Returns
         (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report. pending_damage_reduction
         is consumed (reset to 0) here regardless of whether it changed anything, since a brace only ever protects against the next hit taken.
         ignore_armour skips the armour subtraction (used by Double Strike's second hit); armour_pierce lowers the armour applied, never below 0
-        (a piercing weapon). Every worn piece loses 1 durability per hit that isn't dodged. Any hit with amount > 0 that isn't dodged deals at
+        (a piercing weapon, or the attacker's natural pierce). melee=True - passed by attack() for light/heavy attacks and cleave - also lets
+        melee_dodge_chance evade the hit, on the same roll as dodge_chance: below dodge_chance is an ordinary dodge, below the two combined is
+        'stays just out of reach'. Spells and ranged attacks leave melee False. Every worn piece loses 1 durability per hit that isn't dodged. Any hit with amount > 0 that isn't dodged deals at
         least MINIMUM_DAMAGE, however much brace/armour/Iron Hide would otherwise absorb - a 0-damage attacker still deals 0."""
-        if random.random() < self.dodge_chance:
+        roll = random.random()
+        if roll < self.dodge_chance:
             return 0, f"{self.name} dodges the attack!"
+        if melee and roll < self.dodge_chance + self.melee_dodge_chance:
+            return 0, f"{self.name} stays just out of reach!"
 
         braced_amount = max(0, amount - self.pending_damage_reduction)
         self.pending_damage_reduction = 0
@@ -469,9 +485,10 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None, ancestry_lines: dict[str, str] | None = None):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None, ancestry_lines: dict[str, str] | None = None, melee_dodge_chance: float = 0.0, armour_pierce: int = 0):
         """experience_reward and gold_reward are granted to the player (and the same experience to their companion) on this enemy's defeat,
-        via handle_enemy_defeat() - see combat.py. defeat_effect runs on that same final defeat.
+        via handle_enemy_defeat() - see combat.py. defeat_effect runs on that same final defeat. melee_dodge_chance and armour_pierce are the
+        Character fields of the same name (see there) - the Shade of Paris is the first enemy to set either.
         aggression_weight/caution_weight/randomness_weight feed choose_enemy_action()'s utility scoring (combat.py) - a balanced
         default (1.0/1.0/0.3) suits most enemies; named/boss enemies should get bespoke values tied to their lore.
         brace_amount is the flat damage reduction this enemy applies to itself when it chooses Defend; heal_amount is the flat HP
@@ -510,6 +527,8 @@ class Enemy(Character):
         self.ancestry_lines = ancestry_lines or {}
         """ANCESTRIES key -> a line shown once, the first time a player of that lineage sees this enemy - see get_enemy_ancestry_lines() (exploration.py).
         Same shape as Ally/Companion.ancestry_lines, but triggered on sight rather than by 'talk', since enemies can't be talked to."""
+        self.melee_dodge_chance = melee_dodge_chance
+        self.armour_pierce = armour_pierce
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""
