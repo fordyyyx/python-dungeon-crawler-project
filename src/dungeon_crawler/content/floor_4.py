@@ -80,7 +80,7 @@ def create_satyr() -> Enemy:
     (create_test_healing_tonic() was dev-only until now)."""
     return Enemy(
         name="Satyr",
-        hp=20,
+        hp=26,
         attack_damage=6,
         armour=1,
         loot=[create_wineskin_of_dionysus()],
@@ -105,7 +105,7 @@ def create_lamia() -> Enemy:
     hit. Drops Lamia's Fang."""
     return Enemy(
         name="Lamia",
-        hp=25,
+        hp=30,
         attack_damage=7,
         armour=1,
         loot=[create_lamias_fang()],
@@ -131,7 +131,7 @@ def create_ember_wraith() -> Enemy:
     """Create the Ember Wraith enemy for Sandy Expanse (floor 4) - the heat here isn't natural, and neither is what's causing it."""
     return Enemy(
         name="Ember Wraith",
-        hp=24,
+        hp=28,
         attack_damage=7,
         armour=1,
         loot=[create_sunscorched_dagger()],

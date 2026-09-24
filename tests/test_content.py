@@ -227,7 +227,7 @@ def test_create_chipped_stone_aegis_has_correct_max_durability():
 def test_create_satyr_has_correct_stats():
     satyr = create_satyr()
     assert satyr.name == "Satyr"
-    assert satyr.hp == 20
+    assert satyr.hp == 26
     assert satyr.attack_damage == 6
     assert satyr.armour == 1
     assert len(satyr.loot) == 1
@@ -260,7 +260,7 @@ def test_create_wineskin_of_dionysus_is_a_free_action_mid_combat():
 def test_create_lamia_has_correct_stats():
     lamia = create_lamia()
     assert lamia.name == "Lamia"
-    assert lamia.hp == 25
+    assert lamia.hp == 30
     assert lamia.attack_damage == 7
     assert lamia.armour == 1
     assert len(lamia.loot) == 1
@@ -281,7 +281,7 @@ def test_create_lamia_attack_drains_hp_from_the_target():
 def test_create_ember_wraith_has_correct_stats():
     wraith = create_ember_wraith()
     assert wraith.name == "Ember Wraith"
-    assert wraith.hp == 24
+    assert wraith.hp == 28
     assert wraith.attack_damage == 7
     assert wraith.armour == 1
     assert len(wraith.loot) == 1

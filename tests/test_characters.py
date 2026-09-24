@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import HP_PER_LEVEL, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import HP_PER_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem
 from dungeon_crawler.world import Room
 from dungeon_crawler.status_effects import StatusEffect
@@ -2086,13 +2086,13 @@ def test_take_damage_armour_pierce_reduces_the_armour_applied():
     assert dealt == 9
 
 def test_attack_with_a_lifesteal_weapon_heals_the_attacker():
-    attacker = Character(name="Hero", hp=10, attack_damage=4)
+    attacker = Character(name="Hero", hp=10, attack_damage=2)
     attacker.max_hp = 30
-    Weapon(name="Fang", description="", damage=4, weapon_class="piercing", lifesteal=True).use(attacker)
+    Weapon(name="Fang", description="", damage=2, weapon_class="piercing", lifesteal=True).use(attacker)
     target = Character(name="Goblin", hp=100, attack_damage=5)
     message = attacker.attack(target)
-    assert attacker.hp == 14  # 8 dealt // 2
-    assert "Hero drains 4 HP from the wound." in message
+    assert attacker.hp == 12  # 4 dealt // 2, under the cap
+    assert "Hero drains 2 HP from the wound." in message
 
 def test_attack_lifesteal_only_comes_from_the_weapon_actually_used():
     """A lifesteal bow in the ranged slot does nothing for a light (melee) attack."""
@@ -2297,3 +2297,31 @@ def test_defence_boost_skill_with_armour_worn_raises_base_armour():
     DefenceBoostSkill("Hardened Skin", "", bonus=2).apply(character)
     assert character.base_armour == 3
     assert character.armour == 5
+
+def test_attack_with_a_lifesteal_weapon_caps_the_heal():
+    attacker = Character(name="Hero", hp=10, attack_damage=4)
+    attacker.max_hp = 30
+    Weapon(name="Fang", description="", damage=4, weapon_class="piercing", lifesteal=True).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target)
+    assert attacker.hp == 10 + WEAPON_LIFESTEAL_CAP  # 8 dealt // 2 = 4, capped
+    assert f"Hero drains {WEAPON_LIFESTEAL_CAP} HP from the wound." in message
+
+def test_attack_innate_lifesteal_is_not_capped():
+    attacker = Character(name="Lamia", hp=10, attack_damage=10)
+    attacker.max_hp = 30
+    attacker.has_lifesteal = True
+    target = Character(name="Hero", hp=100, attack_damage=5)
+    attacker.attack(target)
+    assert attacker.hp == 15  # 10 dealt // 2, more than WEAPON_LIFESTEAL_CAP
+
+def test_attack_innate_and_weapon_lifesteal_do_not_stack():
+    """Both sources heal once, uncapped - the innate heal wins, and the weapon adds nothing on top."""
+    attacker = Character(name="Hero", hp=10, attack_damage=6)
+    attacker.max_hp = 30
+    attacker.has_lifesteal = True
+    Weapon(name="Fang", description="", damage=4, weapon_class="piercing", lifesteal=True).use(attacker)
+    target = Character(name="Goblin", hp=100, attack_damage=5)
+    message = attacker.attack(target)
+    assert attacker.hp == 15  # 10 dealt // 2, once
+    assert message.count("drains") == 1

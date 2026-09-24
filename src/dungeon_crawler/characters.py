@@ -14,6 +14,7 @@ HEAVY_ATTACK_MISS_CHANCE: float = 0.4
 BLADE_HEAVY_MISS_MODIFIER: float = -0.1
 ARMOUR_WEIGHT_MISS_PENALTY: dict[str, float] = {"light": 0.0, "medium": 0.05, "heavy": 0.10}
 MAX_MISS_CHANCE: float = 0.95
+WEAPON_LIFESTEAL_CAP: int = 3
 WEAPON_POISON_AMOUNT: int = -3
 WEAPON_POISON_DURATION: int = 3
 MINIMUM_DAMAGE: int = 1
@@ -120,7 +121,8 @@ class Character:
         Damage: attack_damage + weapon damage, +2 with Berserking at or below half HP. Heavy attacks multiply that by HEAVY_ATTACK_MULTIPLIER, or 
         HEAVY_WEAPON_MULTIPLIER with a heavy-class weapon. Bull Rush adds a flat +3 after multiplier against a full HP target. The weapon's 
         armour_pierce is ignored from the target's armour.
-        Follow-ups, in order: lifesteal (Character.has_lifesteal or the weapon's) heals half the damage dealt; cleave (a heavy weapon's signature,
+        Follow-ups, in order: lifesteal (Character.has_lifesteal or the weapon's) heals half the damage dealt - a weapon's heal is capped at
+        WEAPON_LIFESTEAL_CAP, innate lifesteal never is, and the two never stack (innate wins); cleave (a heavy weapon's signature,
         heavy attacks only) hits the first other living, non-respawning combatant in 'others' for half the swing's damage, whether or not the target
         died. Then, only if the target survived: Petrifying Gaze (15%) and the weapon's own poison_chance each roll separately to poison it, and
         Double Strike hits again for base_damage // 2, ignoring armour.
@@ -159,7 +161,10 @@ class Character:
 
         has_lifesteal = self.has_lifesteal or (weapon is not None and weapon.lifesteal)
         if has_lifesteal and damage_dealt > 0:
-            healed = min(damage_dealt // 2, self.max_hp - self.hp)
+            heal = damage_dealt // 2
+            if not self.has_lifesteal:
+                heal = min(heal, WEAPON_LIFESTEAL_CAP)
+            healed = min(heal, self.max_hp - self.hp)
             if healed > 0:
                 self.hp += healed
                 message += f"\n{self.name} drains {healed} HP from the wound."
