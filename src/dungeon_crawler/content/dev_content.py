@@ -89,7 +89,7 @@ def create_test_boss() -> Enemy:
     )
 
 def build_blank_test_room() -> Room:
-    """A single, deliberately empty room for dev testing - not connected to anything via exits, only ever reached by 
+    """A single, deliberately empty room for dev testing - not connected to anything via exits, only ever reached by
     'dev teleport dev test room'. Nothing pre-populated; use dev spawn / dev add once inside. """
     return Room(
         "Dev Test Room",

@@ -126,8 +126,8 @@ def build_floor_3() -> tuple[Room, dict[str, Room]]:
     cave_of_harpies = Room(name="Cave of Harpies", description="Feathers and old bones litter a cave mouth that reeks of carrion; shrieks echo faintly from somewhere above.")
     prayer_room = Room(name="Prayer Room", description="Faded murals of forgotten gods cover the walls, the air thick with old incense and older dread. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.")
     dim_corridor = Room(name="Dim Corridor", description="A low, narrow passage where the torchlight barely reaches the far end.")
-    overgrown_forest = Room(name="Overgrown Forest", 
-                            description="Twisted black trees crowd close overhead, roots breaking up through the stone floor as if the dungeon itself is being reclaimed.", 
+    overgrown_forest = Room(name="Overgrown Forest",
+                            description="Twisted black trees crowd close overhead, roots breaking up through the stone floor as if the dungeon itself is being reclaimed.",
                             examine_text=(
                                         "Carved into a half-buried stone, worn but still legible: \"Stength alone does not survive what waits below. "
                                         "Say 'learn <path>' - attack, defence, or abilities - to spend what you've earned. The labyrinth does not forgive " \

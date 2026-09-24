@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon, Consumable
-from dungeon_crawler.exploration import start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
+from dungeon_crawler.exploration import talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -1307,3 +1307,114 @@ def test_display_map_shows_an_unopened_shortcut_as_sealed_and_does_not_map_past_
     output = display_map(forge, Player(name="Hero", hp=20))
     assert "prayer room -> Sealed Shortcut" in output
     assert "Cave" not in output
+
+def _hero(primary: str | None = None, secondary: str | None = None) -> Player:
+    """Test helper - a player with the given ancestry keys."""
+    player = Player(name="Hero", hp=20)
+    player.ancestry_key = primary
+    player.secondary_ancestry_key = secondary
+    return player
+
+# ---- talk_to ----
+
+def test_talk_to_without_a_matching_ancestry_line_is_just_the_usual_dialogue():
+    ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
+    player = _hero("ares")
+    assert talk_to(ally, player) == ally.talk(player)
+
+def test_talk_to_prepends_the_ancestry_line_the_first_time():
+    ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
+    player = _hero("athena")
+    assert talk_to(ally, player) == "Mine, then.\n\n" + ally.talk(player)
+
+def test_talk_to_only_shows_the_ancestry_line_once():
+    ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
+    player = _hero("athena")
+    talk_to(ally, player)
+    assert talk_to(ally, player) == ally.talk(player)
+
+def test_talk_to_matches_the_secondary_ancestry_too():
+    ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
+    player = _hero("ares", "athena")
+    assert talk_to(ally, player).startswith("Mine, then.")
+
+def test_talk_to_shows_both_lines_when_both_ancestries_match():
+    ally = Ally(name="Oracle", hint="Hm.", ancestry_lines={"ares": "War.", "athena": "Wisdom."})
+    player = _hero("ares", "athena")
+    assert talk_to(ally, player) == "War.\n\nWisdom.\n\n" + ally.talk(player)
+
+def test_talk_to_records_the_line_as_seen():
+    ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
+    player = _hero("athena")
+    talk_to(ally, player)
+    assert "ancestry:Athena:athena" in player.seen_lines
+
+def test_talk_to_works_for_companions():
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=10, home_room=room, hint="Hi.", ancestry_lines={"ares": "Kin."})
+    player = _hero("ares")
+    assert talk_to(companion, player) == "Kin.\n\nHi."
+
+# ---- get_rival_lines ----
+
+def _party_with_rival():
+    room = Room("Troy")
+    player = Player(name="Hero", hp=20)
+    player.companion = Companion(name="Achilles", hp=20, home_room=Room("Camp"), rival_lines={"Hector": "Hector."})
+    return room, player
+
+def test_get_rival_lines_returns_the_line_on_first_meeting():
+    room, player = _party_with_rival()
+    room.add_enemy(Enemy(name="Hector", hp=10))
+    assert get_rival_lines(room, player) == ["Hector."]
+
+def test_get_rival_lines_only_returns_the_line_once():
+    room, player = _party_with_rival()
+    room.add_enemy(Enemy(name="Hector", hp=10))
+    get_rival_lines(room, player)
+    assert get_rival_lines(room, player) == []
+
+def test_get_rival_lines_ignores_a_dead_enemy():
+    room, player = _party_with_rival()
+    room.add_enemy(Enemy(name="Hector", hp=0))
+    assert get_rival_lines(room, player) == []
+
+def test_get_rival_lines_with_no_companion_is_empty():
+    room = Room("Troy")
+    room.add_enemy(Enemy(name="Hector", hp=10))
+    assert get_rival_lines(room, Player(name="Hero", hp=20)) == []
+
+def test_get_rival_lines_with_a_downed_companion_is_empty():
+    room, player = _party_with_rival()
+    player.companion.hp = 0
+    room.add_enemy(Enemy(name="Hector", hp=10))
+    assert get_rival_lines(room, player) == []
+
+# ---- get_enemy_ancestry_lines ----
+
+def test_get_enemy_ancestry_lines_returns_the_line_on_first_sight():
+    room = Room("Labyrinth")
+    room.add_enemy(Enemy(name="Minotaur", hp=10, ancestry_lines={"minotaur": "Kin."}))
+    assert get_enemy_ancestry_lines(room, _hero("minotaur")) == ["Kin."]
+
+def test_get_enemy_ancestry_lines_only_returns_the_line_once():
+    room = Room("Labyrinth")
+    room.add_enemy(Enemy(name="Minotaur", hp=10, ancestry_lines={"minotaur": "Kin."}))
+    player = _hero("minotaur")
+    get_enemy_ancestry_lines(room, player)
+    assert get_enemy_ancestry_lines(room, player) == []
+
+def test_get_enemy_ancestry_lines_matches_the_secondary_ancestry_too():
+    room = Room("Labyrinth")
+    room.add_enemy(Enemy(name="Minotaur", hp=10, ancestry_lines={"minotaur": "Kin."}))
+    assert get_enemy_ancestry_lines(room, _hero("ares", "minotaur")) == ["Kin."]
+
+def test_get_enemy_ancestry_lines_ignores_a_dead_enemy():
+    room = Room("Labyrinth")
+    room.add_enemy(Enemy(name="Minotaur", hp=0, ancestry_lines={"minotaur": "Kin."}))
+    assert get_enemy_ancestry_lines(room, _hero("minotaur")) == []
+
+def test_get_enemy_ancestry_lines_for_another_lineage_is_empty():
+    room = Room("Labyrinth")
+    room.add_enemy(Enemy(name="Minotaur", hp=10, ancestry_lines={"minotaur": "Kin."}))
+    assert get_enemy_ancestry_lines(room, _hero("ares")) == []

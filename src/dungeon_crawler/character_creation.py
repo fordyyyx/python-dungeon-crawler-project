@@ -50,12 +50,14 @@ def create_player(name: str, ancestry_key: str, secondary_ancestry_key: str) -> 
     player.intellect = data["intellect"]
     if data["bonus_skill_point"]:
         player.skill_tree.skill_points += 1
+    player.ancestry_key = ancestry_key
 
     secondary_data = ANCESTRIES.get(secondary_ancestry_key)
     if secondary_data is not None and secondary_ancestry_key != ancestry_key and secondary_data["secondary_effect"] is not None:
         secondary_data["secondary_effect"](player)
         player.secondary_ancestry_label = secondary_data["secondary_ability_label"]
-    
+        player.secondary_ancestry_key = secondary_ancestry_key
+
     return player
 
 def choose_title_screen_action() -> str:

@@ -1145,3 +1145,13 @@ def test_handle_dev_command_spawn_shade_of_achilles_adds_the_companion():
     assert [c.name for c in room.companions] == ["Shade of Achilles"]
     assert room.enemies == []
     assert message == "[DEV] Spawned Shade of Achilles. Use 'recruit Shade of Achilles' to add them to your team."
+
+def test_find_item_by_name_finds_hectors_helm():
+    item = find_item_by_name("hector's helm")
+    assert item is not None
+    assert item.name == "Hector's Helm"
+
+def test_find_enemy_by_name_finds_the_shade_of_hector():
+    enemy = find_enemy_by_name("shade of hector")
+    assert enemy is not None
+    assert enemy.name == "Shade of Hector"

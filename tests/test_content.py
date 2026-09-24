@@ -1,4 +1,4 @@
-from dungeon_crawler.content import create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_shade_of_hector, create_hectors_helm, create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
@@ -2196,3 +2196,62 @@ def test_build_floor_5_holds_no_other_companions():
     _, rooms = build_floor_5()
     others = [c for name, room in rooms.items() if name != "Shadow of Army Camp" for c in room.companions]
     assert others == []
+
+def test_create_shade_of_hector_has_correct_stats():
+    hector = create_shade_of_hector()
+    assert hector.name == "Shade of Hector"
+    assert hector.hp == 32
+    assert hector.attack_damage == 9
+    assert hector.armour == 5
+    assert hector.experience_reward == 38
+    assert hector.gold_reward == 22
+
+def test_create_shade_of_hector_has_no_brace_heal_or_special_ability():
+    """The whole fight is armour 5 - nothing else."""
+    hector = create_shade_of_hector()
+    assert hector.brace_amount == 0
+    assert hector.heal_amount == 0
+    assert hector.has_lifesteal is False
+    assert hector.has_petrifying_gaze is False
+
+def test_create_shade_of_hector_drops_hectors_helm():
+    loot = create_shade_of_hector().loot
+    assert [item.name for item in loot] == ["Hector's Helm"]
+
+def test_create_hectors_helm_is_a_medium_helmet():
+    helm = create_hectors_helm()
+    assert isinstance(helm, Armour)
+    assert helm.slot == "helmet"
+    assert helm.weight == "medium"
+    assert helm.defence == 2
+    assert helm.max_durability == 12
+
+def test_build_floor_5_places_the_shade_of_hector_in_troy_north():
+    _, rooms = build_floor_5()
+    assert [e.name for e in rooms["Shadow of Troy (North)"].enemies] == ["Shade of Hector"]
+
+def test_create_shade_of_achilles_has_a_rival_line_for_the_real_shade_of_hector():
+    """Rival lines are keyed by enemy name - this one must match the name Hector actually has."""
+    achilles = create_shade_of_achilles()
+    assert create_shade_of_hector().name in achilles.rival_lines
+
+def test_ancestry_lines_are_on_the_matching_figures():
+    speakers = {
+        "athena": create_athena(), "ares": create_ares(), "hermes": create_hermes(), "minotaur": create_minotaur(),
+        "cyclops": create_cyclops(), "medusa": create_medusa(), "achilles": create_shade_of_achilles(),
+    }
+    for key, speaker in speakers.items():
+        assert key in speaker.ancestry_lines, speaker.name
+
+def test_every_ancestry_line_in_the_world_uses_a_real_ancestry_key():
+    """A typo'd key would silently never fire - every key must be one of ANCESTRIES'."""
+    _, _, all_floors = build_world()
+    speakers = [s for rooms in all_floors.values() for room in rooms.values() for s in (*room.enemies, *room.allies, *room.companions)]
+    keys = {key for s in speakers for key in s.ancestry_lines}
+    assert keys
+    assert keys <= set(ANCESTRIES)
+
+def test_medusa_ancestry_line_is_on_her_first_phase_only():
+    """Phase 1 is who the player first sees - the line would otherwise fire again mid-fight."""
+    assert "medusa" in create_medusa().ancestry_lines
+    assert create_medusa_awakened().ancestry_lines == {}

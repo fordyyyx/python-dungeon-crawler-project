@@ -131,14 +131,14 @@ case-insensitively):
 `centaur's broken bow`, `skeleton bone`, `breastplate of athena`, `favour of
 hermes`, `weathered helm`, `vial of grave rot`, `harpy-fletched bow`, `tome of
 old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
-`sun-scorched dagger`, `talos' bronze plating`, `serpent's kiss`, `labrys`,
+`sun-scorched dagger`, `talos' bronze plating`, `serpent's kiss`, `labrys`, `hector's helm`,
 `test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
 `fanatic`, `lurker`, `petrified guardian`, `satyr`, `lamia`, `ember wraith`,
 `talos`, `medusa`, `gorgon`, `medusa (awakened)`, `practice enemy` (the
-Practice Chamber's respawning dummy), `test boss` — a dev-only,
+Practice Chamber's respawning dummy), `shade of hector`, `test boss` — a dev-only,
 two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
 `next_phase_factory` end-to-end. `medusa`/`gorgon`/`medusa (awakened)` are
@@ -320,6 +320,17 @@ recruit test companion
 dev spawn skeleton warrior
 attack
 ```
+
+**See an ancestry line:**
+```
+(name: developer mode, primary ancestry: athena)
+floor_2
+talk
+talk
+```
+The first `talk` opens with Athena's line for her own descendants; the second doesn't repeat it. Lines match the primary *or* secondary
+pick, so an ancestry chosen as the secondary gift works too. Enemy lines fire on sight instead - pick `minotaur`, then `dev teleport
+labyrinth of the minotaur`. For a rival line, recruit the Shade of Achilles (below), then walk `south` into Shadow of Troy (North).
 
 **Duel the Shade of Achilles, then recruit him:**
 ```

@@ -305,3 +305,19 @@ def test_choose_occupied_slot_prints_which_slot_prompt(monkeypatch, tmp_path, ca
     choose_occupied_slot(1)
     captured = capsys.readouterr()
     assert "which slot?" in captured.out.lower()
+
+def test_create_player_records_the_primary_ancestry_key():
+    player = create_player("Hero", "athena", "basic")
+    assert player.ancestry_key == "athena"
+
+def test_create_player_records_the_secondary_ancestry_key():
+    player = create_player("Hero", "athena", "medusa")
+    assert player.secondary_ancestry_key == "medusa"
+
+def test_create_player_with_no_secondary_gift_leaves_the_secondary_key_unset():
+    player = create_player("Hero", "athena", "basic")
+    assert player.secondary_ancestry_key is None
+
+def test_create_player_with_the_same_secondary_as_primary_leaves_the_secondary_key_unset():
+    player = create_player("Hero", "athena", "athena")
+    assert player.secondary_ancestry_key is None

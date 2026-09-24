@@ -42,12 +42,12 @@ class Item(ABC):
     def details(self) -> str:
         """A short stat summary for the inventory display (e.g. 'blade, 3 DMG'). Empty by default; Weapon and Armour override it."""
         return ""
-    
+
 class Weapon(Item):
-    """An equippable item that deals extra damage while equipped, in one of two slots ('melee' or 'ranged'). A weapon's damage is NOT added into 
-    Character.attack_damage - it's read directly off whichever slot matches the attack type at the moment of attacking (see Character.attack()), 
+    """An equippable item that deals extra damage while equipped, in one of two slots ('melee' or 'ranged'). A weapon's damage is NOT added into
+    Character.attack_damage - it's read directly off whichever slot matches the attack type at the moment of attacking (see Character.attack()),
     so a melee and a ranged weapon worn together never stack.
-    
+
     weapon_class decides how it fights: 'blade' lowers the heavy-attack miss chance, 'heavy' raises the heavy-attack multiplier but is two-handed
     (can't be used with a shield), 'piercing' ignores armour_pierce points of the target's armour, and 'ranged' is for the ranged slot. lifesteal,
     poison_chance, and cleave are signature properties for unique boss drops. All of these are read from the equipped weapon during attack() -
@@ -122,7 +122,7 @@ class Armour(Item):
     """An equippable item that raises armour while equipped, in one of three slots ('helmet', 'body', or shield) - all three can be worn at once.
     A worn, unbroken piece's defence counts towards Character.armour, which is calculated fresh from base_armour plus worn gear - equipping
     and unequipping never add to or subtract from a running total.
-    
+
     weight ('light', 'medium', or 'heavy') adds a miss chance to every attack the wearer makes - see Character.get_miss_chance(). A shield can't
     be used with a two-handed weapon: equipping one unequips the other, whichever way around."""
 
@@ -210,7 +210,7 @@ class Reviver(Consumable):
     is a significant combat action, not a quick self-heal, despite heal_amount always being positive."""
 
     def use(self, character) -> str:
-        """Revive character.companion if one exists and is downed; otherwise explain why nothing happened, since 'no companion to revive' 
+        """Revive character.companion if one exists and is downed; otherwise explain why nothing happened, since 'no companion to revive'
         isn't a lookup failure the way a missing item name is."""
         companion = getattr(character, "companion", None)
         if companion is None:
@@ -297,7 +297,7 @@ class SpellBook(Consumable):
         if any(known.name == self.spell.name for known in character.known_spells):
             raise ValueError(f"{character.name} already knows {self.spell.name}.")
         character.known_spells.append(self.spell)
-        return f"{character.name} learns {self.spell.name}!" 
+        return f"{character.name} learns {self.spell.name}!"
 
     def would_fail(self, character) -> str | None:
         if any(known.name == self.spell.name for known in character.known_spells):
@@ -331,7 +331,7 @@ class Inventory:
                     self._items.remove(item)
                 return message
         raise ValueError(f"No item named '{item_name}' in inventory.")
-    
+
     def drop_item(self, item_name: str):
         """Remove and return the named item, for dropping into a Room. Raises ValueError if the item is a QuestItem, is currently equipped, or isn't present."""
         for item in self._items:
@@ -363,4 +363,3 @@ class Inventory:
     def __repr__(self) -> str:
         """Debug representation listing item names."""
         return f"Inventory({[item.name for item in self._items]})"
-    

@@ -16,6 +16,7 @@ from dungeon_crawler.world import Map, Room
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.items import Armour
 from dungeon_crawler.dev_tools import find_item_by_name, find_spell_by_name, find_companion_by_name, find_enemy_by_name, ENEMY_REGISTRY
+from dungeon_crawler.character_creation import ANCESTRIES
 
 PROFILE_LIMIT = 3
 SAVE_SLOTS_PER_PROFILE = 5
@@ -89,7 +90,15 @@ def serialise_player(player: Player, current_room) -> dict:
         "auto_map": player.auto_map,
         "visited_rooms": sorted(player.visited_rooms),
         "seen_hints": sorted(player.seen_hints),
+        "ancestry_key": player.ancestry_key,
+        "secondary_ancestry_key": player.secondary_ancestry_key,
+        "seen_lines": sorted(player.seen_lines),
     }
+
+def _ancestry_key_for_label(label: str, field: str = "label") -> str | None:
+    """The ANCESTRIES key whose `field` matches label, or None - recovers keys for saves made before they were stored. The secondary lookup
+    passes field="secondary_ability_label", since that's what secondary_ancestry_label holds."""
+    return next((key for key, data in ANCESTRIES.items() if data[field] == label), None)
 
 def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
     """Reconstruct a Player from a save's 'player' section - bypasses ancestry selection entirely since every stat is already known.
@@ -114,6 +123,9 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
     player.secondary_ancestry_label = data["secondary_ancestry_label"]
     player.visited_floors = set(data["visited_floors"])
     player.dodge_chance = data["dodge_chance"]
+    player.ancestry_key = data.get("ancestry_key") or _ancestry_key_for_label(data["ancestry_label"])
+    player.secondary_ancestry_key = data.get("secondary_ancestry_key") or _ancestry_key_for_label(data["secondary_ancestry_label"], "secondary_ability_label")
+    player.seen_lines = set(data.get("seen_lines", []))
 
     for flag, value in data["ability_flags"].items():
         setattr(player, flag, value)
@@ -196,16 +208,16 @@ def serialise_room(room) -> dict:
     return {
         "enemies": [
             {
-            "name": e.name, 
-            "hp": e.hp, 
+            "name": e.name,
+            "hp": e.hp,
             "has_been_fled_from": e.has_been_fled_from,
             "wave_gate": e.wave_gate_factory().name if e.wave_gate_factory is not None else None
-            } 
+            }
             for e in room.enemies if e.is_alive()],
         "items": [
             {"name": item.name, "durability": getattr(item, "durability", None)} for item in room.items
         ],
-        "unlocked_extras": [d for d in list(room.locked_exits) if False], 
+        "unlocked_extras": [d for d in list(room.locked_exits) if False],
         "locked_exits_removed": [],
         "allies_traded": [ally.name for ally in room.allies if getattr(ally, "trade_completed", False)],
         "fast_travel_locks": sorted(room.fast_travel_locks),

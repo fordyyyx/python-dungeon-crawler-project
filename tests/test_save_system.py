@@ -3,6 +3,7 @@ import os
 
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
+from dungeon_crawler.character_creation import create_player
 from dungeon_crawler.dev_tools import ENEMY_REGISTRY
 from dungeon_crawler.content import build_world, create_shade_of_achilles, create_gorgon, create_medusa_awakened
 from dungeon_crawler.combat import handle_enemy_defeat, resolve_pending_defeats
@@ -1009,3 +1010,48 @@ def test_world_round_trip_with_the_companion_recruited_leaves_the_camp_empty():
     fresh, _, fresh_floors = build_world()
     apply_world_data(fresh, data)
     assert fresh_floors["floor_5"]["Shadow of Army Camp"].companions == []
+
+# ---- ancestry keys and seen_lines ----
+
+def test_serialise_player_includes_ancestry_keys_and_seen_lines():
+    player = Player(name="Hero", hp=20)
+    player.ancestry_key = "athena"
+    player.secondary_ancestry_key = "medusa"
+    player.seen_lines = {"ancestry:Athena:athena"}
+    data = serialise_player(player, Room("Chamber"))
+    assert data["ancestry_key"] == "athena"
+    assert data["secondary_ancestry_key"] == "medusa"
+    assert data["seen_lines"] == ["ancestry:Athena:athena"]
+
+def test_player_from_save_data_restores_ancestry_keys_and_seen_lines():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    data = base_player_data(ancestry_key="athena", secondary_ancestry_key="medusa", seen_lines=["ancestry:Athena:athena"])
+    player, _ = player_from_save_data(data, dungeon)
+    assert player.ancestry_key == "athena"
+    assert player.secondary_ancestry_key == "medusa"
+    assert player.seen_lines == {"ancestry:Athena:athena"}
+
+def test_player_from_save_data_older_save_recovers_both_ancestry_keys():
+    """Regression: the secondary key was looked up by ancestry name, but secondary_ancestry_label holds the ability's description, so
+    it never matched and an older save reloaded with no secondary key."""
+    dungeon, start, _ = build_world()
+    data = serialise_player(create_player("Hero", "athena", "medusa"), start)
+    del data["ancestry_key"]
+    del data["secondary_ancestry_key"]
+    player, _ = player_from_save_data(data, dungeon)
+    assert player.ancestry_key == "athena"
+    assert player.secondary_ancestry_key == "medusa"
+
+def test_player_from_save_data_with_no_secondary_gift_leaves_the_secondary_key_unset():
+    """Also a regression: the recovery lookup used to crash with KeyError whenever it ran, including for this common case."""
+    dungeon, start, _ = build_world()
+    data = serialise_player(create_player("Hero", "athena", "basic"), start)
+    player, _ = player_from_save_data(data, dungeon)
+    assert player.secondary_ancestry_key is None
+
+def test_player_from_save_data_older_save_without_seen_lines_starts_empty():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    player, _ = player_from_save_data(base_player_data(), dungeon)
+    assert player.seen_lines == set()

@@ -112,7 +112,7 @@ def build_floor_0() -> tuple[Room, dict[str, Room]]:
     chamber_of_chiron_south = Room("Chamber of Chiron (South)", "A straw-stuffed dummy stands bolted to the floor, dented from years of use. "
         "Chiron's voice calls from behind you: \"Go on — type 'attack' and show me what you've got.\"")
     chamber_of_chiron_west = Room("Chamber of Chiron (West)", "A small resting nook with a low bench, where those who've trained here catch their breath before what comes next.")
-    
+
     chamber_of_chiron.connect("north", chamber_of_chiron_north)
     chamber_of_chiron.connect("east", chamber_of_chiron_east)
     chamber_of_chiron.connect("south", chamber_of_chiron_south)

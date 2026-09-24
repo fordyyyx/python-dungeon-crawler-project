@@ -30,7 +30,7 @@ ANCESTRIES: dict[str, dict] = {
                  "secondary_effect": lambda player: setattr(player, "has_petrifying_gaze", True),
                  "secondary_ability_label": "Petrifying Gaze - chance to poison on attack"},
     "minotaur": {"label": "Descendant of the Minotaur", "attack": 6, "armour": 0, "hp": 21, "intellect": 0, "bonus_skill_point": False,
-                 "secondary_effect": lambda player: setattr(player, "has_bull_rush", True), 
+                 "secondary_effect": lambda player: setattr(player, "has_bull_rush", True),
                  "secondary_ability_label": "Bull Rush - bonus damage vs a full-HP target"},
     "cyclops":  {"label": "Descendant of a Cyclops",    "attack": 4, "armour": 1, "hp": 23, "intellect": 0, "bonus_skill_point": False,
                  "secondary_effect": lambda player: setattr(player, "has_iron_hide", True),

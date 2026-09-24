@@ -47,7 +47,7 @@ class Character:
         self.current_target: "Enemy | None" = None
         self.pending_damage_reduction = 0
         """Flat damage reduction applied to (and consumed by) the next hit this character takes - set when an Enemy chooses the Defend/Brace
-        action (see combat.py's choose_enemy_action()/_score_candidate_actions()). Lives on Character, not Enemy, since take_damage() (the 
+        action (see combat.py's choose_enemy_action()/_score_candidate_actions()). Lives on Character, not Enemy, since take_damage() (the
         only thing that reads it) doesn't know which subclass self is."""
         self.dodge_chance = 0.0
         """Chance (0.0-1.0) to avoid an incoming attack entirely. Set by DodgeSkill. Lives on Character, not Player, same precedent
@@ -118,18 +118,18 @@ class Character:
     def attack(self, target: "Character", attack_type: str = "light", others: "Sequence[Character] | None" = None) -> str:
         """Attack target once, then apply any follow-ups. attack_type picks the weapon slot: 'light' and 'heavy' use equipped_melee_weapon, 'ranged'
         uses equipped_ranged_weapon.
-        
+
         Miss: rolled first, against get_miss_chance(attack_type). A light/ranged attack only rolls at all if armour weight gives it a chance to miss,
         so an unarmoured attacker never makes a random roll for it.
-        Damage: attack_damage + weapon damage, +2 with Berserking at or below half HP. Heavy attacks multiply that by HEAVY_ATTACK_MULTIPLIER, or 
-        HEAVY_WEAPON_MULTIPLIER with a heavy-class weapon. Bull Rush adds a flat +3 after multiplier against a full HP target. The weapon's 
+        Damage: attack_damage + weapon damage, +2 with Berserking at or below half HP. Heavy attacks multiply that by HEAVY_ATTACK_MULTIPLIER, or
+        HEAVY_WEAPON_MULTIPLIER with a heavy-class weapon. Bull Rush adds a flat +3 after multiplier against a full HP target. The weapon's
         armour_pierce is ignored from the target's armour.
         Follow-ups, in order: lifesteal (Character.has_lifesteal or the weapon's) heals half the damage dealt - a weapon's heal is capped at
         WEAPON_LIFESTEAL_CAP, innate lifesteal never is, and the two never stack (innate wins); cleave (a heavy weapon's signature,
         heavy attacks only) hits the first other living, non-respawning combatant in 'others' for half the swing's damage, whether or not the target
         died. Then, only if the target survived: Petrifying Gaze (15%) and the weapon's own poison_chance each roll separately to poison it, and
         Double Strike hits again for base_damage // 2, ignoring armour.
-        
+
         Enemy/Companion always calls this with the default ('light', no 'others') and never equip weapons or armour, so they never miss and never cleave."""
         weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
 
@@ -252,7 +252,7 @@ class Character:
             if attacker.hp < 0:
                 attacker.hp = 0
             message += f"\n{attacker.name} takes {thorns_damage} damage from the counter-strike."
-        
+
         if not self.is_alive():
             death_message = self.on_death()
             return reduced, (message + f"\n{death_message}").strip()
@@ -312,6 +312,13 @@ class Player(Character):
         self.max_mana = 20
         self.spell_cooldowns: dict[str, int] = {}
         self.secondary_ancestry_label = ""
+        self.ancestry_key: str | None = None
+        self.secondary_ancestry_key: str | None = None
+        """ANCESTRIES keys (content/ancestries.py) - the canonical form of the player's lineage, used to match ancestry_lines. Kept alongside
+        ancestry_label/secondary_ancestry_label because labels are display text and may be reworded; keys shouldn't be."""
+        self.seen_lines: set[str] = set()
+        """Keys for one-off dialogue already shown this save - ancestry lines ('ancestry:<speaker>:<key>') and rival lines
+        ('rival:<companion>:<enemy>'). Separate from seen_hints, which is only for hints.HINTs. Saved."""
         self.visited_floors: set[str] = set()
         """Which floors this run has reached, keyed by build_world()'s floor names (e.g. 'floor_0') - populated by main()'s
         autosave on first crossing into a new floor, checked via find_floor_for_room() so re-crossing an already-visited
@@ -462,7 +469,7 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None, ancestry_lines: dict[str, str] | None = None):
         """experience_reward and gold_reward are granted to the player (and the same experience to their companion) on this enemy's defeat,
         via handle_enemy_defeat() - see combat.py. defeat_effect runs on that same final defeat.
         aggression_weight/caution_weight/randomness_weight feed choose_enemy_action()'s utility scoring (combat.py) - a balanced
@@ -498,8 +505,11 @@ class Enemy(Character):
         """Set by start_duel() (exploration.py) on the combat form of a companion who's being duelled - the companion to put back in the room when
         the duel ends, whichever way it goes. None for every ordinary enemy."""
         self.duel_return_hp: int | None = None
-        """The player's HP when this duel began - set by start_duel(), restored whenever the duel ends (win, loss, or flee), so a friendly fight 
+        """The player's HP when this duel began - set by start_duel(), restored whenever the duel ends (win, loss, or flee), so a friendly fight
         never leaves the player worse off. None for every ordinary enemy."""
+        self.ancestry_lines = ancestry_lines or {}
+        """ANCESTRIES key -> a line shown once, the first time a player of that lineage sees this enemy - see get_enemy_ancestry_lines() (exploration.py).
+        Same shape as Ally/Companion.ancestry_lines, but triggered on sight rather than by 'talk', since enemies can't be talked to."""
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""
@@ -513,7 +523,7 @@ class Enemy(Character):
 class Ally():
     """A non-combat NPC that can be talked to and traded with, per its required_items/reward data - never branched on by name, see CLAUDE.md."""
 
-    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str=""):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str="", ancestry_lines: dict[str, str] | None = None):
         """Set up an ally's dialogue and starting inventory."""
         self.name = name
         self.description = description
@@ -528,6 +538,8 @@ class Ally():
         for item in self.items or []:
             self.inventory.add(item)
         self.hint_traded = hint_traded
+        self.ancestry_lines = ancestry_lines or {}
+        """ANCESTRIES key -> a line said once to a player of that lineage, before their usual dialogue - see talk_to() (exploration.py)."""
 
 
     def talk(self, player) -> str:
@@ -554,7 +566,7 @@ class Companion(Character):
     Companion IS a Character - it needs real combat stats to sit in Player.team and act via choose_companion_action() (combat.py),
     home_room is where a dismissed Companion reappears - see dismiss_companion()."""
 
-    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = ""):
+    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = "", ancestry_lines: dict[str, str] | None = None, rival_lines: dict[str, str] | None = None):
         """required_items are what the player must hold to recruit this companion (see recruit_companion()) - mirrors Ally.required_items.
         aggression_weight/caution_weight/randomness_weight/brace_amount/heal_amount feed choose_companion_action()'s utility scoring (combat.py)
         - same shape and same defaults as Enemy's equivalent fields. hint/hint_recruitable are this companion's talk() lines, and
@@ -579,6 +591,10 @@ class Companion(Character):
         self.level = 1
         self.experience = 0
         self.experience_to_next_level = STARTING_EXPERIENCE_TO_NEXT_LEVEL
+        self.ancestry_lines = ancestry_lines or {}
+        self.rival_lines = rival_lines or {}
+        """Enemy name -> a line this companion says once, the first time they meet that enemy while in the player's party - see get_rival_lines()
+        (exploration.py). Keyed by enemy name as content data; no code ever branches on a particular name."""
 
     def on_death(self) -> str:
         """Companion-specific 'downed' message - distinct from a permanent death. Fires via the same take_damage()/on_death() mechanism
@@ -598,7 +614,7 @@ class Companion(Character):
         return self.hint if self.hint else f"{self.name} has nothing to say."
 
     def gain_experience(self, amount: int) -> str:
-        """Add experience, levelling up as many times as it covers. Companions follow the same curve as the player - see 
+        """Add experience, levelling up as many times as it covers. Companions follow the same curve as the player - see
         STARTING_EXPERIENCE_TO_NEXT_LEVEL."""
         self.experience += amount
         messages = [f"{self.name} gains {amount} experience."]
@@ -608,7 +624,7 @@ class Companion(Character):
         return "\n".join(messages)
 
     def _level_up(self) -> str:
-        """Raise level, roll the threshold forward, and add COMPANION_HP_PER_LEVEL max HP and COMPANION_ATTACK_PER_LEVEL attack. Current HP only 
+        """Raise level, roll the threshold forward, and add COMPANION_HP_PER_LEVEL max HP and COMPANION_ATTACK_PER_LEVEL attack. Current HP only
         rises if the companion is still standing, so levelling up can never revive a downed companion - only a Reviver or dismissal does that."""
         self.level += 1
         self.experience_to_next_level = int(self.experience_to_next_level * 1.5)

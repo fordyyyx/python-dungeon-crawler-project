@@ -119,6 +119,52 @@ def dismiss_companion(player: Player):
     player.companion = None
     return f"{companion.name} returns to {companion.home_room.name}."
 
+def talk_to(speaker, player: Player) -> str:
+    """speaker's dialogue, preceded - the first time only - by any ancestry line matching the player's primary or secondary ancestry. Every
+    place that shows ally or companion dialogue (the 'talk' command and auto-talk) goes through this rather than calling speaker.talk() directly,
+    so the once-only rule lives in one place and talk() itself stays free of side effects."""
+    lines = []
+    for key in (player.ancestry_key, player.secondary_ancestry_key):
+        if key is None or key not in speaker.ancestry_lines:
+            continue
+        seen_key = f"ancestry:{speaker.name}:{key}"
+        if seen_key not in player.seen_lines:
+            player.seen_lines.add(seen_key)
+            lines.append(speaker.ancestry_lines[key])
+    lines.append(speaker.talk(player))
+    return "\n\n".join(lines)
+
+def get_rival_lines(room: Room, player: Player) -> list[str]:
+    """Lines the player's companion says on first meeting a living enemy in room that they have a rival line for. Each line is shown once per save.
+    Nothing if the player has no companion, or theirs is downed."""
+    companion = player.companion
+    if companion is None or not companion.is_alive():
+        return []
+    lines = []
+    for enemy in room.enemies:
+        line = companion.rival_lines.get(enemy.name)
+        seen_key = f"rival:{companion.name}:{enemy.name}"
+        if line and enemy.is_alive() and seen_key not in player.seen_lines:
+            player.seen_lines.add(seen_key)
+            lines.append(line)
+    return lines
+
+def get_enemy_ancestry_lines(room: Room, player: Player) -> list[str]:
+    """Lines living enemies in room say on first sight of a player descended from them (primary or secondary ancestry). Each is shown once per save,
+    sharing seen_lines' 'ancestry:<speaker>:<key>' keys with talk_to(), so an enemy and an ally can never collide unless they share a name."""
+    lines = []
+    for enemy in room.enemies:
+        if not enemy.is_alive():
+            continue
+        for key in (player.ancestry_key, player.secondary_ancestry_key):
+            if key is None or key not in enemy.ancestry_lines:
+                continue
+            seen_key = f"ancestry:{enemy.name}:{key}"
+            if seen_key not in player.seen_lines:
+                player.seen_lines.add(seen_key)
+                lines.append(enemy.ancestry_lines[key])
+    return lines
+
 def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     """Whether direction requires an item player doesn't currently hold. An exit not in locked_exits is never locked."""
     if direction not in room.locked_exits:
@@ -310,7 +356,7 @@ def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) 
     return "\n".join(lines) if lines else "Every room you've visited has been cleared."
 
 def start_duel(name: str, room: Room, player: Player) -> str:
-    """Begin a duel with the named companion in the room: they're swapped out for the Enemy their duel_enemy_factory builds, which carries a 
+    """Begin a duel with the named companion in the room: they're swapped out for the Enemy their duel_enemy_factory builds, which carries a
     duel_companion link back to them, and combat starts. The duel ends in handle_enemy_defeat() on a win, or end_duel() on a loss or flee
     (combat.py) - either way the companion is returned to the room."""
     companion = next((c for c in room.companions if c.name.lower() == name.lower()), None)

@@ -39,6 +39,12 @@ def create_athena() -> Ally:
         hint_complete="\"The centaur's bow. So you closed the distance - good. Say 'trade' and it's yours.\"",
         hint_traded="\"Wear it well. Hades is patient, and so are his halls - don't mistake either for weakness.\"",
         post_trade_message="\"The owl on it watches whichever side you forget to.\"",
+        ancestry_lines={
+            "athena": (
+                "Her eyes rest on you a moment longer than they need to. \"Mine, then. I wondered when one of you would come down.\" "
+                "A faint smile. \"Don't make me regret the family resemblance.\""
+            ),
+        },
         required_items = ["Centaur's Broken Bow"],
         items=[],
         reward=create_breastplate_of_athena()
@@ -58,6 +64,9 @@ def create_ares() -> Ally:
         hint_complete="\"That's the eye. Say 'trade'.\"",
         hint_traded="\"Don't hold it like a broom. Point, then push.\"",
         post_trade_message="\"Now go and use it on something that deserves it.\"",
+        ancestry_lines={
+            "ares": "He looks you over properly for the first time. \"Well. You've got my shoulders. Let's see if you've got the rest.\"",
+        },
         required_items=["Cyclops' Eye"],
         items=[],
         reward=create_spear_of_ares()
@@ -78,6 +87,12 @@ def create_hermes() -> Ally:
         hint_complete="\"Oh, that's a good one. Say 'trade' - quickly, I've places to be.\"",
         hint_traded="\"Still here? The dead won't judge themselves - which is rather the whole problem, isn't it?\"",
         post_trade_message="\"A little something for your trouble. Use it wisely - or quickly, which is usually the same thing.\"",
+        ancestry_lines={
+            "hermes": (
+                "\"Oh - it's one of mine!\" For a moment, he actually stops moving, \"You'll be fine. Probably. We're very good at "
+                "getting out of things.\""
+            ),
+        },
         required_items=["Skeleton Bone"],
         reward=create_hermes_favour(),
         items=[]

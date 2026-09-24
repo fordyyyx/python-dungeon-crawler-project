@@ -1,4 +1,4 @@
-"""One-off contextual hints - each explains a mechanic the first time it becomes relevant, then never again. Tracked per save via 
+"""One-off contextual hints - each explains a mechanic the first time it becomes relevant, then never again. Tracked per save via
 Player.seen_hints (see save_system.py). The text lives here rather than at the trigger sites, so wording can be tuned in one place."""
 
 HINTS: dict[str, str] = {

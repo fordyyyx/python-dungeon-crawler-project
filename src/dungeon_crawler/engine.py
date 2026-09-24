@@ -5,7 +5,7 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
-from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel
+from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
 from dungeon_crawler.hints import show_hint
@@ -30,12 +30,14 @@ def print_room(room: Room, player: Player):
             print(f"The {enemy.name} is still here - it hasn't forgotten you either.")
         else:
             print(f"A {enemy.name} blocks your path! {enemy.description} [Armour {enemy.armour}]")
+        for line in get_enemy_ancestry_lines(room, player) + get_rival_lines(room, player):
+            print(f"\n{line}")
 
     if room.allies:
         ally = room.allies[0]
         print(f"{ally.name} is here. {ally.description}")
         if player.auto_talk:
-            print("\n" + ally.talk(player))
+            print("\n" + talk_to(room.allies[0], player))
 
     if room.companions:
         companion = room.companions[0]
@@ -44,7 +46,7 @@ def print_room(room: Room, player: Player):
         else:
             print(f"{companion.name} could be recruited here. {companion.description}")
         if player.auto_talk and not room.allies:
-            print("\n" + companion.talk(player))
+            print("\n" + talk_to(room.companions[0], player))
 
     if player.auto_map:
         print("\nExits:\n" + display_local_exits(room, player))
@@ -100,7 +102,7 @@ def get_controls_text() -> str:
         "inventory - display carried items\n"
         "stats - display your core stats and ancestry\n"
         "controls - show this list\n"
-        "quit / exit - quit the game" 
+        "quit / exit - quit the game"
     )
 
 
@@ -426,9 +428,9 @@ def main() -> None:
 
             elif command == "talk":
                 if current_room.allies:
-                    print(current_room.allies[0].talk(player))
+                    print(talk_to(current_room.allies[0], player))
                 elif current_room.companions:
-                    print(current_room.companions[0].talk(player))
+                    print(talk_to(current_room.companions[0], player))
                 else:
                     print("There's no one here to talk to.")
 
@@ -467,7 +469,7 @@ def main() -> None:
                     print(player.skill_tree.invest(path_name, player))
                 except ValueError as e:
                     print(e)
-        
+
 
             else:
                 print("Nothing happens.")

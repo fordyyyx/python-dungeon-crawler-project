@@ -1291,3 +1291,59 @@ def test_get_controls_text_lists_the_challenge_command():
 def test_get_controls_text_says_talk_works_on_companions_too():
     text = get_controls_text()
     assert "talk - talk to an ally or companion in the room" in text
+
+def test_print_room_shows_an_enemys_ancestry_line_once(capsys):
+    room = Room("Labyrinth")
+    room.add_enemy(Enemy(name="Minotaur", hp=10, ancestry_lines={"minotaur": "Something is familiar."}))
+    player = Player(name="hero", hp=100)
+    player.ancestry_key = "minotaur"
+
+    print_room(room, player)
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert captured.out.count("Something is familiar.") == 1
+
+def test_print_room_shows_the_companions_rival_line(capsys):
+    room = Room("Troy")
+    room.add_enemy(Enemy(name="Hector", hp=10))
+    player = Player(name="hero", hp=100)
+    player.companion = Companion(name="Achilles", hp=20, home_room=Room("Camp"), rival_lines={"Hector": "Hector."})
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "Hector." in captured.out
+
+def test_print_room_with_auto_talk_shows_the_allys_ancestry_line(capsys):
+    room = Room("Library")
+    room.add_ally(Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."}))
+    player = Player(name="hero", hp=100)
+    player.ancestry_key = "athena"
+    player.auto_talk = True
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "Mine, then." in captured.out
+
+def test_main_talk_with_no_one_present_says_so(monkeypatch, capsys, tmp_path):
+    """Regression: the 'no one here' branch was dropped when talk moved to talk_to(), so talk in an empty room printed nothing."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "Hero", "basic", "ares", "north", "talk", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "There's no one here to talk to." in captured.out
+
+def test_main_talking_to_your_own_god_shows_their_line_only_once(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "developer mode", "athena", "basic", "floor_2", "talk", "talk", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert captured.out.count("Mine, then.") == 1

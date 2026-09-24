@@ -8,7 +8,7 @@ from .common import create_small_healing_potion
 def create_skeleton_warrior() -> Enemy:
     """Create a skeleton warrior enemy"""
     return Enemy(
-        name="Skeleton Warrior", 
+        name="Skeleton Warrior",
         hp=8,
         attack_damage=4,
         armour=0,
@@ -99,7 +99,7 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     cave_entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
 
     styx_crossing = Room("Styx Crossing",
-                          "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.", 
+                          "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.",
                           examine_text=(
         "The stonework here looks subtly disturbed — as if something below "
         "has shifted, recently, on its own."

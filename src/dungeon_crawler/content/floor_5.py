@@ -2,6 +2,7 @@
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.characters import Companion, Enemy
+from dungeon_crawler.items import Armour
 
 def _grant_achilles_skill_point(player) -> str:
     """Achilles' duel reward - a free skill point."""
@@ -58,6 +59,48 @@ def create_shade_of_achilles(home_room: Room | None = None) -> Companion:
             "His spear stops a finger's width from your throat. \"Not yet.\" He steps back, and the camp is quiet again. "
             "\"Come back when you've learned something.\""
         ),
+        ancestry_lines={
+            "achilles": (
+                "He stares at you for a long moment, the spear forgotten. \"Neoptolemus' line, then. My son never did anything quietly "
+                "either.\" Something close to pride crosses his face, and is gone. \"Let's see if the blood ran true.\""
+            ),
+        },
+        rival_lines={
+            "Shade of Hector": (
+                "Achilles goes very still. \"Hector.\" Just the name. Then, quieter: \"I dragged him three times round the walls of his own city. "
+                "I'd like to think I've changed.\" His grip tightens on the spear. \"Let's find out.\""
+            ),
+            "Myrmidon Soldier": (
+                "\"Those are my Myrmidons.\" Something in his voice cracks. \"They followed me to Troy. They'd have followed me anywhere. "
+                "Make it quick, if you can.\""
+            )
+        }
+    )
+
+def create_shade_of_hector() -> Enemy:
+    """Create the Shade of Hector for Shadow of Troy (North) - high armour, no tricks. No brace, heal or special ability: the whole challenge is
+    getting through armour 5, which makes this the fight piercing weapons, heavy attacks and Twin Strike's armour-ignoring second hit are built for.
+    Drops Hector's Helm."""
+    return Enemy(
+        name="Shade of Hector",
+        hp=32,
+        attack_damage=9,
+        armour=5,
+        loot=[create_hectors_helm()],
+        description="Bronze from crest to greaves, the plume on his helm still stirring in a wind you can't feel. He doesn't taunt. He simply waits.",
+        experience_reward=38,
+        gold_reward=22,
+    )
+
+def create_hectors_helm() -> Armour:
+    """Create Hector's Helm - a medium helmet-slot piece, the first helmet to improve on the Weathered Helm. Dropped by the Shade of Hector."""
+    return Armour(
+        name="Hector's Helm",
+        description="Tall-crested and polished to a shine that hasn't dulled, even here.",
+        defence=2,
+        slot="helmet",
+        weight="medium",
+        max_durability=12,
     )
 
 def build_floor_5() -> tuple[Room, dict[str, Room]]:
@@ -81,6 +124,7 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     shadow_of_pylos.connect("west", shadow_of_troy_south)
 
     shadow_of_army_camp.add_companion(create_shade_of_achilles(shadow_of_army_camp))
+    shadow_of_troy_north.add_enemy(create_shade_of_hector())
 
     return shadow_of_army_camp, {
         room.name: room for room in (shadow_of_army_camp, shadow_of_troy_north, shadow_of_troy_central, shadow_of_troy_alleyway, shadow_of_troy_south, shadow_of_pylos)

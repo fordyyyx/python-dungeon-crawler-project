@@ -183,6 +183,13 @@ something occurs to you mid-build.
   replacing the typed `trade` command — the underlying `trade_with_ally()`
   logic (missing items / equipped items check) doesn't need to change.
 
+- **Ancestry lines and companion rival lines are one-off moments** that
+  text delivers as an extra paragraph. In a visual port they'd suit a
+  distinct presentation - a close-up or a lineage emblem on the speaker's
+  portrait for an ancestry line, and a short over-the-shoulder bark from the
+  companion for a rival line - so they read as special rather than as more
+  of the usual dialogue.
+
 ## Skill Tree
 - The three-path, three-tier structure is a natural fit for a visual skill
   tree UI (the genre-standard branching-node look) — `SkillPath.unlocked_count`

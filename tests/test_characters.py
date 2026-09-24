@@ -2445,3 +2445,35 @@ def test_companion_restore_level_one_changes_no_stats():
     assert companion.level == 1
     assert companion.max_hp == 20
     assert companion.experience == 7
+
+def test_player_initialises_with_no_ancestry_keys():
+    player = Player(name="Hero", hp=20)
+    assert player.ancestry_key is None
+    assert player.secondary_ancestry_key is None
+
+def test_player_initialises_with_no_seen_lines():
+    player = Player(name="Hero", hp=20)
+    assert player.seen_lines == set()
+
+def test_enemy_initialises_with_no_ancestry_lines_by_default():
+    assert Enemy(name="Goblin", hp=10).ancestry_lines == {}
+
+def test_enemy_initialises_with_custom_ancestry_lines():
+    enemy = Enemy(name="Minotaur", hp=10, ancestry_lines={"minotaur": "Kin."})
+    assert enemy.ancestry_lines == {"minotaur": "Kin."}
+
+def test_ally_initialises_with_no_ancestry_lines_by_default():
+    assert Ally(name="Sage").ancestry_lines == {}
+
+def test_ally_initialises_with_custom_ancestry_lines():
+    ally = Ally(name="Athena", ancestry_lines={"athena": "Mine, then."})
+    assert ally.ancestry_lines == {"athena": "Mine, then."}
+
+def test_companion_initialises_with_no_ancestry_or_rival_lines_by_default():
+    companion = _companion()
+    assert companion.ancestry_lines == {}
+    assert companion.rival_lines == {}
+
+def test_companion_initialises_with_custom_rival_lines():
+    companion = _companion(rival_lines={"Shade of Hector": "Hector."})
+    assert companion.rival_lines == {"Shade of Hector": "Hector."}

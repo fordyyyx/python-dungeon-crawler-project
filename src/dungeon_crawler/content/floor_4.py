@@ -14,6 +14,12 @@ def create_minotaur() -> Enemy:
         armour=3,
         loot=[create_labrys()],
         description="Massive and bull-headed, it turns toward you with a snort that shakes dust from the walls.",
+        ancestry_lines={
+            "minotaur": (
+                "It stops mid-charge, nostrils flaring. Something in the smell of you is familiar. It lowers its horns anyway - slower "
+                "this time, almost reluctant."
+            ),
+        },
         experience_reward=30,
         gold_reward=18,
         brace_amount=3,
@@ -39,6 +45,12 @@ def create_cyclops() -> Enemy:
         armour=1,
         loot=[create_cyclops_eye()],
         description="It ducks under the cavern's low roof, one vast eye finding you before you've fully stepped inside.",
+        ancestry_lines={
+            "cyclops": (
+                "The great eye narrows, then widens. \"Brother's blood?\" it rumbles, in a voice like rocks settling. \"Doesn't matter. "
+                "Nobody leaves the cave.\""
+            ),
+        },
         experience_reward=25,
         gold_reward=15,
     )
@@ -101,7 +113,7 @@ def create_wineskin_of_dionysus() -> StatusEffectItem:
     )
 
 def create_lamia() -> Enemy:
-    """Create the Lamia enemy for Shadowy Corner (floor 4) - the game's first use of Character.has_lifesteal, draining HP on every successful 
+    """Create the Lamia enemy for Shadowy Corner (floor 4) - the game's first use of Character.has_lifesteal, draining HP on every successful
     hit. Drops Lamia's Fang."""
     return Enemy(
         name="Lamia",
@@ -186,6 +198,13 @@ def create_medusa() -> Enemy:
         next_wave_factories=[create_gorgon, create_gorgon],
         next_phase_factory=create_medusa_awakened,
         description="She doesn't turn to face you outright - not yet. Even half-seen, something about her is already wrong to look at.",
+        ancestry_lines={
+            "medusa": (
+                "She stops. For the first time, the snakes on her head fall quiet. \"Chrysaor's blood.\" Her voice is almost gentle. "
+                "\"You have my eyes, you know. They'll never forgive you for that - they never forgave me.\" Then the gentleness is gone. "
+                "\"Neither will I, if you stand in my way.\""
+            ),
+        },
     )
 
 def create_gorgon() -> Enemy:

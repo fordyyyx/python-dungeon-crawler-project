@@ -14,7 +14,7 @@ from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
     """The name to show for enemy in displays - appends a stable (n) index only when enemy_team has more than one enemy sharing this name, so
-    uniquely-named enemies display exactly as before. The index is based on the enemy's position among the same-named enemies within 
+    uniquely-named enemies display exactly as before. The index is based on the enemy's position among the same-named enemies within
     enemy_team (including defeated ones, so a survivor's number never shifts when a teammate dies) - callers should always pass the full
     team, not a filtered list."""
     same_named = [e for e in enemy_team if e.name == enemy.name]
@@ -25,7 +25,7 @@ def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
 
 def format_hp_line(player_team: list[Character], enemy_team: list[Enemy]) -> str:
     """HP status line for every currently living combatant on both sides - never rebuild this string elsewhere, see CLAUDE.md
-    for why this exists as its own function. Defeated combatants are omitted; their defeat is already reported separately by 
+    for why this exists as its own function. Defeated combatants are omitted; their defeat is already reported separately by
     handle_enemy_defeat()/on_death()."""
     living_player_team = [character for character in player_team if character.is_alive()]
     living_enemy_team = [character for character in enemy_team if character.is_alive()]
@@ -65,7 +65,7 @@ def _greatest_threat_to_self(self_character: Character, opposing_team: Sequence[
 
 def choose_enemy_target(enemy: Enemy, player_team: list[Character]) -> Character:
     """Pick which member of player_team enemy should attack. With only one living candidate, returns it directly with no scoring/randomness
-    involved - preserves single-target behaviour and random.random() call counts exactly for every enemy fought without a companion present. 
+    involved - preserves single-target behaviour and random.random() call counts exactly for every enemy fought without a companion present.
     With two or more, scores each using _candidate_attack_score() plus the same random noise treatment as action selection, so targeting
     isn't always optimal either."""
     living_team = [c for c in player_team if c.is_alive()]
@@ -101,7 +101,7 @@ def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict
     return scores
 
 def _score_companion_candidate_actions(companion: Companion, enemy_team: list[Enemy]) -> dict[str, float]:
-    """Companion's mirror of _score_candidate_actions() - same shape and formulas (see CLAUDE.md's "Enemy AI and team combat"), 
+    """Companion's mirror of _score_candidate_actions() - same shape and formulas (see CLAUDE.md's "Enemy AI and team combat"),
     scored against enemy_team instead of player_team. Kept as a separate, mirrored function rather than a shared one (per that
     same decision) even though the underlying per-candidate math (_best_attack_score(), _greatest_threat_to_self()) is fully reused."""
     self_missing_hp_ratio = 1 - (companion.hp / companion.max_hp)
@@ -341,7 +341,7 @@ def resolve_pending_defeats(player: Player, room: Room) -> str:
     snapshot: handle_enemy_defeat() always removes a dead enemy or (respawns=True) resets it to full HP, so any enemy still in room.enemies
     at 0 HP is by definition unprocessed. That makes this correct whatever did the killing - an attack, a spell, a companion, Thorns - and
     it also cleans up enemies left stuck at 0 HP by the old cast-branch bug.
-    
+
     Before any of that, protect_duel_loser() catches a player at 0 HP mid-duel, so losing a duel is never a death - this runs at the end of
     every turn-ending action, so it covers attacks, casts, item use and poison ticks alike.
 
@@ -509,7 +509,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         failure = spell.would_fail(player, target)
         if failure is not None:
             return failure
-        
+
         tick_messages = tick_start_of_turn_if_needed(player)
 
         result = spell.cast(player, target)
@@ -603,4 +603,4 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         item_name = command.removeprefix("take ").strip()
         return pick_up(room, item_name, player)
 
-    return "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'take <item>', 'stats', 'skills', or 'inventory'." 
+    return "You can't do that mid-combat. Try 'attack', 'flee', 'use <item>', 'take <item>', 'stats', 'skills', or 'inventory'."
