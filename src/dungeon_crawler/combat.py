@@ -249,7 +249,10 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
     sibling sharing that same factory - alive or dead, since a dead sibling still in the room hasn't been processed yet and its own defeat
     will trigger the spawn (see resolve_pending_defeats()). Only once none remain does the next phase actually appear - correct regardless of
     kill order, and exactly once even when a whole wave dies in the same round (e.g. one add to an attack, another to Thorns). Whenever a wave or a new phase spawns,
-    the message also includes the newcomers' descriptions - each distinct add name once, so a pair of identical adds gets one line."""
+    the message also includes the newcomers' descriptions - each distinct add name once, so a pair of identical adds gets one line.
+    On a normal defeat, the player's companion gains the same experience, and the enemy's defeat_effect runs. A duel opponent
+    (duel_companion set) is handled first instead: the companion returns to the room as won, its defeat_effect runs, and the player's
+    pre-duel HP is restored - with no XP, gold or loot, so a duel can't be farmed."""
     if enemy.next_wave_factories is not None:
         room.remove_enemy(enemy)
         adds = [factory() for factory in enemy.next_wave_factories]
@@ -285,6 +288,19 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         enemy.pending_damage_reduction = 0
         return f"{enemy.name} resets, ready for another round."
 
+    if enemy.duel_companion is not None:
+        room.remove_enemy(enemy)
+        companion = enemy.duel_companion
+        companion.duel_won = True
+        room.add_companion(companion)
+        messages = [companion.duel_won_message] if companion.duel_won_message else []
+        if enemy.defeat_effect is not None:
+            messages.append(enemy.defeat_effect(player))
+        restored = restore_duel_hp(enemy, player)
+        if restored:
+            messages.append(restored)
+        return "\n".join(messages)
+
     room.remove_enemy(enemy)
 
     messages = []
@@ -299,6 +315,11 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
 
     if enemy.experience_reward > 0:
         messages.append(player.gain_experience(enemy.experience_reward))
+        if player.companion is not None:
+            messages.append(player.companion.gain_experience(enemy.experience_reward))
+
+    if enemy.defeat_effect is not None:
+        messages.append(enemy.defeat_effect(player))
 
     if enemy.wave_gate_factory is not None:
         siblings_remaining = any(
@@ -321,13 +342,17 @@ def resolve_pending_defeats(player: Player, room: Room) -> str:
     at 0 HP is by definition unprocessed. That makes this correct whatever did the killing - an attack, a spell, a companion, Thorns - and
     it also cleans up enemies left stuck at 0 HP by the old cast-branch bug.
     
+    Before any of that, protect_duel_loser() catches a player at 0 HP mid-duel, so losing a duel is never a death - this runs at the end of
+    every turn-ending action, so it covers attacks, casts, item use and poison ticks alike.
+
     Afterwards: combat continues only if a living, non-respawning enemy remains. The current target is kept if it's still alive (including
     a boss phase handle_enemy_defeat() just targeted), otherwise it moves to the first survivor, or clears if none remain."""
+    duel_message = protect_duel_loser(player, room)
     defeated = [enemy for enemy in room.enemies if not enemy.is_alive()]
     if not defeated:
-        return ""
+        return duel_message
 
-    messages = []
+    messages = [duel_message] if duel_message else []
     for enemy in defeated:
         extras = handle_enemy_defeat(room, enemy, player)
         if extras:
@@ -375,6 +400,44 @@ def flee_combat(player: Player, enemy_team: list[Enemy]) -> str:
     if hit_landed:
         return "You disengage but not without cost.\n" + "\n".join(messages)
     return "You disengage cleanly, leaving your enemies behind."
+
+def get_duel(room: Room) -> tuple[Enemy, Companion] | None:
+    """The duel in progress in room, as (the companion's combat form, the companion), or None. Returns both together so callers get a plain
+    Companion rather than an Optional to re-check."""
+    for enemy in room.enemies:
+        if enemy.duel_companion is not None:
+            return enemy, enemy.duel_companion
+    return None
+
+def restore_duel_hp(opponent: Enemy, player: Player) -> str:
+    """Put the player's HP back to what it was when the duel began. Returns a message line, or '' if nothing changed."""
+    if opponent.duel_return_hp is None or player.hp == opponent.duel_return_hp:
+        return ""
+    player.hp = opponent.duel_return_hp
+    return f"You catch your breath - the duel's wounds fade. ({player.hp}/{player.max_hp} HP)"
+
+def end_duel(opponent: Enemy, companion: Companion, room: Room, player: Player, message: str) -> str:
+    """End a duel without a win: remove the combat form, put the companion back in the room (not marked as won, so they can be challenged again),
+    restore the player's pre-duel HP, and release them from combat."""
+    room.remove_enemy(opponent)
+    room.add_companion(companion)
+    player.in_combat = False
+    player.current_target = None
+    lines = [message, restore_duel_hp(opponent, player)]
+    return "\n".join(line for line in lines if line)
+
+def protect_duel_loser(player: Player, room: Room) -> str:
+    """A duel is non-lethal: if the player drops to 0 HP during one, they never actually die. If the opponent is still standing, the duel ends as
+    a loss; if both fell on the same turn, the defeat sweep processes it as a win. Either way their pre-duel HP is restored. HP is set to 1
+    first so that nothing between here and that restore can ever see the player at 0."""
+    duel = get_duel(room)
+    if duel is None or player.is_alive():
+        return ""
+    opponent, companion = duel
+    player.hp = 1
+    if not opponent.is_alive():
+        return ""
+    return end_duel(opponent, companion, room, player, companion.duel_lost_message)
 
 def handle_target_command(command: str, enemy_team: list[Enemy], player: Player) -> str:
     """Handle 'target <name>' or 'target <name> <number>' - sets player.current_target to a matching, still-living, enemy in enemy_team.
@@ -469,6 +532,10 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
 
     if command == "flee":
         result = flee_combat(player, enemy_team)
+        duel = get_duel(room)
+        if duel is not None:
+            opponent, companion = duel
+            result += "\n" + end_duel(opponent, companion, room, player, f"{companion.name} lets you go, unimpressed.")
         player.in_combat = False
         player.current_target = None
         player.turn_started = False

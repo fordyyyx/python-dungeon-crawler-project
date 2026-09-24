@@ -74,13 +74,15 @@ def trade_with_ally(ally: Ally, player: Player):
 def recruit_companion(name: str, room: Room, player: Player) -> str:
     """Recruit the named companion from room onto player's team, if player already holds every item in the companion's required_items
     (and none are currently equipped) - consumes those items on success, mirroring trade_with_ally()'s exact mechanics. Blocks with
-    an error is player already has a companion (dismiss_companion() first) or if no matching companion is present."""
+    an error if player already has a companion (dismiss_companion() first), if no matching companion is present, or if the companion
+    still requires a duel (see start_duel())."""
     if player.companion is not None:
         return f"You already have a companion, {player.companion.name}. Dismiss them first."
-
     companion: Companion | None = next((c for c in room.companions if c.name.lower() == name.lower()), None)
     if companion is None:
         return f"There's no one named '{name}' here to recruit."
+    if companion.requires_duel:
+        return f"{companion.name} won't follow anyone who hasn't beaten them. Try 'challenge {companion.name.lower()}'."
 
     player_item_names = [item.name for item in player.inventory.items]
     missing = [item_name for item_name in companion.required_items if item_name not in player_item_names]
@@ -106,7 +108,7 @@ def recruit_companion(name: str, room: Room, player: Player) -> str:
     return f"{companion.name} joins you."
 
 def dismiss_companion(player: Player):
-    """Release player's current companion, restoring them to full HP and returning them to their home_room, Returns a message explaining
+    """Release player's current companion, restoring them to full HP and returning them to their home_room, returns a message explaining
     nothing happened if player has no companion to dismiss."""
     companion = player.companion
     if companion is None:
@@ -131,7 +133,8 @@ def get_exit_guardian(room: Room, direction: str) -> Enemy | None:
     return next((e for e in room.enemies if e.is_alive() and not e.respawns), None)
 
 def display_local_exits(room: Room, player: Player) -> str:
-    """Format only the current room's own exits - shows 'Locked Door' in place of the destination name for any exit the player can't yet use."""
+    """Format only the current room's own exits - 'Locked Door' in place of the destination for an item-locked exit, the destination plus
+    '(guarded by <name>)' while a guardian lives, and 'Sealed Shortcut' for a fast-travel exit not yet opened from the other side."""
     if not room.exits:
         return "There are no exits from this room."
     lines = []
@@ -148,13 +151,14 @@ def display_local_exits(room: Room, player: Player) -> str:
     return "\n".join(lines)
 
 def display_map(current_room: Room, player: Player) -> str:
-    """Format every room reachable from current_room, via a recursive traversal that stops at any locked exit - unlike
-    display_local_exits(), this shows the whole currently-reachable map, not just the current room's own exits."""
+    """Format every room reachable from current_room, via a recursive traversal that stops at any exit the player can't use yet - locked,
+    guarded, or a sealed shortcut, each labelled as in display_local_exits(). Unlike display_local_exits(), this shows the whole
+    currently-reachable map, not just the current room's own exits."""
     visited: set[str] = set()
     lines = []
 
     def explore(room: Room) -> None:
-        """Depth-first visit room and every room reachable from it, appending exit lines to the enclosing lines list. Recursion stops at a locked exit or an already-visited room, so this always terminates even with exit loops."""
+        """Depth-first visit room and every room reachable from it, appending exit lines to the enclosing lines list. Recursion stops at an unusable exit (locked, guarded or sealed) or an already-visited room, so this always terminates even with exit loops."""
         if room.name in visited:
             return
         visited.add(room.name)
@@ -168,7 +172,7 @@ def display_map(current_room: Room, player: Player) -> str:
             elif guardian is not None:
                 lines.append(f"  {direction} -> {target.name} (guarded by {guardian.name})")
             elif direction in room.fast_travel_locks:
-                lines.append(f"{direction} -> Sealed Shortcut")
+                lines.append(f"  {direction} -> Sealed Shortcut")
             else:
                 lines.append(f"  {direction} -> {target.name}")
                 unlocked_targets.append(target)
@@ -304,3 +308,24 @@ def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) 
             lines.append(f"{floor_key.replace('_', ' ').title()}:")
             lines.extend(floor_lines)
     return "\n".join(lines) if lines else "Every room you've visited has been cleared."
+
+def start_duel(name: str, room: Room, player: Player) -> str:
+    """Begin a duel with the named companion in the room: they're swapped out for the Enemy their duel_enemy_factory builds, which carries a 
+    duel_companion link back to them, and combat starts. The duel ends in handle_enemy_defeat() on a win, or end_duel() on a loss or flee
+    (combat.py) - either way the companion is returned to the room."""
+    companion = next((c for c in room.companions if c.name.lower() == name.lower()), None)
+    if companion is None:
+        return f"There's no one named '{name}' here to challenge."
+    if companion.duel_enemy_factory is None:
+        return f"{companion.name} has no interest in fighting you."
+    if companion.duel_won:
+        return f"{companion.name} has already measured you - there's nothing left to prove."
+
+    opponent = companion.duel_enemy_factory()
+    opponent.duel_companion = companion
+    opponent.duel_return_hp = player.hp
+    room.remove_companion(companion)
+    room.add_enemy(opponent)
+    player.in_combat = True
+    player.current_target = opponent
+    return f"{companion.name} accepts. The duel begins.\n{opponent.description}"

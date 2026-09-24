@@ -1,5 +1,6 @@
-from dungeon_crawler.content import create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
-from dungeon_crawler.characters import Player
+from dungeon_crawler.content import create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.characters import Player, Companion, Enemy
+from dungeon_crawler.world import Room
 from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
 
 
@@ -2126,3 +2127,72 @@ def test_create_serpents_kiss_is_a_blade_with_poison_chance():
     kiss = create_serpents_kiss()
     assert kiss.weapon_class == "blade"
     assert kiss.poison_chance == 0.15
+
+def test_create_shade_of_achilles_duellist_has_correct_stats():
+    duellist = create_shade_of_achilles_duellist()
+    assert isinstance(duellist, Enemy)
+    assert duellist.name == "Shade of Achilles"
+    assert duellist.hp == 40
+    assert duellist.attack_damage == 10
+    assert duellist.armour == 3
+    assert duellist.brace_amount == 3
+    assert duellist.dodge_chance == 0.15
+
+def test_create_shade_of_achilles_duellist_gives_no_xp_or_gold():
+    duellist = create_shade_of_achilles_duellist()
+    assert duellist.experience_reward == 0
+    assert duellist.gold_reward == 0
+
+def test_create_shade_of_achilles_duellist_defeat_effect_grants_a_skill_point():
+    player = Player(name="Hero", hp=20)
+    duellist = create_shade_of_achilles_duellist()
+    assert duellist.defeat_effect is not None
+    message = duellist.defeat_effect(player)
+    assert player.skill_tree.skill_points == 1
+    assert message == "Hero gains a skill point for besting Achilles."
+
+def test_create_shade_of_achilles_is_a_companion_with_correct_stats():
+    achilles = create_shade_of_achilles()
+    assert isinstance(achilles, Companion)
+    assert achilles.name == "Shade of Achilles"
+    assert achilles.hp == 30
+    assert achilles.attack_damage == 8
+    assert achilles.armour == 2
+    assert achilles.brace_amount == 3
+
+def test_create_shade_of_achilles_must_be_duelled_before_recruiting():
+    achilles = create_shade_of_achilles()
+    assert achilles.duel_enemy_factory is create_shade_of_achilles_duellist
+    assert achilles.requires_duel is True
+
+def test_create_shade_of_achilles_has_every_line_of_dialogue():
+    achilles = create_shade_of_achilles()
+    assert "challenge shade of achilles" in achilles.hint
+    assert "recruit shade of achilles" in achilles.hint_recruitable
+    assert achilles.duel_won_message != ""
+    assert achilles.duel_lost_message != ""
+
+def test_create_shade_of_achilles_duellist_shares_the_companions_name():
+    """The combat form is the same person - target/HP lines read naturally, and nothing looks up the duellist by a different name."""
+    assert create_shade_of_achilles_duellist().name == create_shade_of_achilles().name
+
+def test_create_shade_of_achilles_uses_the_home_room_it_is_given():
+    camp = Room("Shadow of Army Camp")
+    achilles = create_shade_of_achilles(camp)
+    assert achilles.home_room is camp
+
+def test_create_shade_of_achilles_without_a_home_room_gets_a_placeholder_camp():
+    """Only so the no-argument COMPANION_REGISTRY factory works - a save load re-links the real room by name."""
+    achilles = create_shade_of_achilles()
+    assert achilles.home_room.name == "Shadow of Army Camp"
+
+def test_build_floor_5_places_the_shade_of_achilles_in_the_army_camp():
+    start, rooms = build_floor_5()
+    camp = rooms["Shadow of Army Camp"]
+    assert [c.name for c in camp.companions] == ["Shade of Achilles"]
+    assert camp.companions[0].home_room is camp
+
+def test_build_floor_5_holds_no_other_companions():
+    _, rooms = build_floor_5()
+    others = [c for name, room in rooms.items() if name != "Shadow of Army Camp" for c in room.companions]
+    assert others == []

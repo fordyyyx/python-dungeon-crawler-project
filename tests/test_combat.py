@@ -3,7 +3,7 @@ from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.combat import resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
+from dungeon_crawler.combat import get_duel, restore_duel_hp, end_duel, protect_duel_loser, resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -3198,3 +3198,203 @@ def test_resolve_attack_and_check_defeat_processes_an_enemy_killed_by_cleave(mon
     assert second not in room.enemies
     assert player.experience == 7
     assert player.current_target is target
+
+def _duel(player_hp: int = 20, return_hp: int = 20, opponent_hp: int = 30, opponent_attack: int = 5):
+    """Test helper - a room mid-duel: the companion is out of the room, its combat form is in, and the player is in combat with it."""
+    room = Room("Camp")
+    player = Player(name="Hero", hp=return_hp)
+    player.hp = player_hp
+    companion = Companion(name="Imp", hp=20, home_room=room, duel_won_message="Well fought.", duel_lost_message="Not yet.")
+    opponent = Enemy(name="Imp", hp=opponent_hp, attack_damage=opponent_attack)
+    opponent.duel_companion = companion
+    opponent.duel_return_hp = return_hp
+    room.add_enemy(opponent)
+    player.in_combat = True
+    player.current_target = opponent
+    return room, player, companion, opponent
+
+# ---- get_duel / restore_duel_hp / end_duel ----
+
+def test_get_duel_returns_the_opponent_and_companion():
+    room, _, companion, opponent = _duel()
+    assert get_duel(room) == (opponent, companion)
+
+def test_get_duel_with_only_ordinary_enemies_returns_none():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    assert get_duel(room) is None
+
+def test_restore_duel_hp_puts_the_players_hp_back():
+    _, player, _, opponent = _duel(player_hp=4, return_hp=20)
+    message = restore_duel_hp(opponent, player)
+    assert player.hp == 20
+    assert message == "You catch your breath - the duel's wounds fade. (20/20 HP)"
+
+def test_restore_duel_hp_with_hp_unchanged_returns_nothing():
+    _, player, _, opponent = _duel(player_hp=20, return_hp=20)
+    assert restore_duel_hp(opponent, player) == ""
+
+def test_restore_duel_hp_for_an_ordinary_enemy_returns_nothing():
+    player = Player(name="Hero", hp=20)
+    player.hp = 5
+    assert restore_duel_hp(Enemy(name="Goblin", hp=10), player) == ""
+    assert player.hp == 5
+
+def test_end_duel_swaps_the_combat_form_back_for_the_companion():
+    room, player, companion, opponent = _duel()
+    end_duel(opponent, companion, room, player, "Done.")
+    assert opponent not in room.enemies
+    assert companion in room.companions
+
+def test_end_duel_does_not_count_as_a_win():
+    room, player, companion, opponent = _duel()
+    end_duel(opponent, companion, room, player, "Done.")
+    assert companion.duel_won is False
+
+def test_end_duel_releases_the_player_and_restores_their_hp():
+    room, player, companion, opponent = _duel(player_hp=6, return_hp=20)
+    message = end_duel(opponent, companion, room, player, "Done.")
+    assert player.in_combat is False
+    assert player.current_target is None
+    assert player.hp == 20
+    assert message.startswith("Done.")
+
+# ---- winning a duel ----
+
+def test_handle_enemy_defeat_winning_a_duel_returns_the_companion_as_won():
+    room, player, companion, opponent = _duel()
+    opponent.hp = 0
+    handle_enemy_defeat(room, opponent, player)
+    assert opponent not in room.enemies
+    assert companion in room.companions
+    assert companion.duel_won is True
+
+def test_handle_enemy_defeat_winning_a_duel_shows_the_won_message_and_restores_hp():
+    room, player, companion, opponent = _duel(player_hp=7, return_hp=20)
+    opponent.hp = 0
+    message = handle_enemy_defeat(room, opponent, player)
+    assert "Well fought." in message
+    assert player.hp == 20
+
+def test_handle_enemy_defeat_winning_a_duel_runs_the_defeat_effect():
+    room, player, _, opponent = _duel()
+    opponent.defeat_effect = lambda p: "A reward."
+    opponent.hp = 0
+    message = handle_enemy_defeat(room, opponent, player)
+    assert "A reward." in message
+
+def test_handle_enemy_defeat_winning_a_duel_grants_no_xp_gold_or_loot():
+    """A friendly fight isn't farmable - its only reward is the defeat_effect."""
+    room, player, _, opponent = _duel()
+    opponent.experience_reward = 10
+    opponent.gold_reward = 5
+    opponent.loot = [Weapon(name="Spear", description="", damage=5)]
+    opponent.hp = 0
+    handle_enemy_defeat(room, opponent, player)
+    assert player.experience == 0
+    assert player.gold == 0
+    assert room.items == []
+
+# ---- defeat_effect and companion XP on ordinary defeats ----
+
+def test_handle_enemy_defeat_runs_an_ordinary_enemys_defeat_effect():
+    room = Room("Hall")
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Goblin", hp=0, defeat_effect=lambda p: p.name + " feels something shift.")
+    room.add_enemy(enemy)
+    message = handle_enemy_defeat(room, enemy, player)
+    assert "Hero feels something shift." in message
+
+def test_handle_enemy_defeat_gives_the_companion_the_same_experience():
+    room = Room("Hall")
+    player = Player(name="Hero", hp=20)
+    player.companion = Companion(name="Imp", hp=20, home_room=room)
+    enemy = Enemy(name="Goblin", hp=0, experience_reward=12)
+    room.add_enemy(enemy)
+    handle_enemy_defeat(room, enemy, player)
+    assert player.companion.experience == 12
+
+def test_handle_enemy_defeat_gives_a_downed_companion_experience_too():
+    room = Room("Hall")
+    player = Player(name="Hero", hp=20)
+    player.companion = Companion(name="Imp", hp=20, home_room=room)
+    player.companion.hp = 0
+    enemy = Enemy(name="Goblin", hp=0, experience_reward=12)
+    room.add_enemy(enemy)
+    handle_enemy_defeat(room, enemy, player)
+    assert player.companion.experience == 12
+
+# ---- losing a duel is never a death ----
+
+def test_protect_duel_loser_ends_the_duel_as_a_loss_when_the_player_falls():
+    room, player, companion, opponent = _duel(return_hp=20)
+    player.hp = 0
+    message = protect_duel_loser(player, room)
+    assert player.hp == 20
+    assert companion in room.companions
+    assert companion.duel_won is False
+    assert "Not yet." in message
+
+def test_protect_duel_loser_with_the_player_standing_does_nothing():
+    room, player, _, opponent = _duel()
+    assert protect_duel_loser(player, room) == ""
+    assert opponent in room.enemies
+
+def test_protect_duel_loser_outside_a_duel_does_not_save_the_player():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    player = Player(name="Hero", hp=20)
+    player.hp = 0
+    protect_duel_loser(player, room)
+    assert player.hp == 0
+
+def test_protect_duel_loser_when_both_fall_leaves_the_win_to_the_defeat_sweep():
+    room, player, _, opponent = _duel()
+    player.hp = 0
+    opponent.hp = 0
+    message = protect_duel_loser(player, room)
+    assert message == ""
+    assert player.hp == 1
+    assert opponent in room.enemies
+
+def test_resolve_pending_defeats_when_both_fall_counts_the_duel_as_won():
+    room, player, companion, opponent = _duel(return_hp=20)
+    player.hp = 0
+    opponent.hp = 0
+    resolve_pending_defeats(player, room)
+    assert companion.duel_won is True
+    assert player.hp == 20
+    assert player.in_combat is False
+
+def test_resolve_attack_and_check_defeat_losing_a_duel_leaves_the_player_alive(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    room, player, companion, opponent = _duel(player_hp=3, return_hp=20, opponent_attack=50)
+    resolve_attack_and_check_defeat(player, opponent, player.team, room.enemies, room)
+    assert player.is_alive()
+    assert player.hp == 20
+    assert companion in room.companions
+    assert player.in_combat is False
+
+def test_handle_combat_command_flee_mid_duel_ends_the_duel(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)  # no parting hit
+    room, player, companion, opponent = _duel(player_hp=9, return_hp=20)
+    message = handle_combat_command("flee", player, opponent, player.team, room.enemies, room)
+    assert opponent not in room.enemies
+    assert companion in room.companions
+    assert player.hp == 20
+    assert "Imp lets you go, unimpressed." in message
+
+def test_handle_combat_command_use_reports_an_enemy_its_poison_kills(monkeypatch):
+    """The enemy dies to the vial's poison on its own turn, in the same round - the defeat is processed and reported in the use result."""
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    room = Room("Hall")
+    player = Player(name="Hero", hp=30)
+    enemy = Enemy(name="Goblin", hp=3, attack_damage=1, gold_reward=4)
+    room.add_enemy(enemy)
+    player.in_combat = True
+    player.current_target = enemy
+    player.inventory.add(StatusEffectItem(name="Venom", description="", effect_name="Poison", amount=-5, duration=2))
+    result = handle_combat_command("use venom", player, enemy, player.team, room.enemies, room)
+    assert enemy not in room.enemies
+    assert "Hero picked up 4 gold." in result
+    assert player.in_combat is False

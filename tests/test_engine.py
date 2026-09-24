@@ -450,9 +450,8 @@ def test_main_target_command_redirects_pre_combat_attack_smoke_test(monkeypatch,
 
 def test_main_recruit_and_dismiss_routing_smoke_test(monkeypatch, capsys, tmp_path):
     """Scripted playthrough confirming 'recruit <name>' and 'dismiss' route to their handlers, via the
-    no-companion-present/no-companion-to-dismiss error paths - no room in the built world has a recruitable
-    Companion yet, and there's no dev-spawn support for them either, so a successful recruit isn't
-    reachable through main() at all right now."""
+    no-companion-present/no-companion-to-dismiss error paths. A successful recruit, through the Shade of Achilles'
+    duel, is covered by test_main_winning_the_achilles_duel_then_recruiting_him."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
         "1", "1", "1",
@@ -1202,3 +1201,93 @@ def test_main_an_opened_door_stays_open_after_saving_and_loading(monkeypatch, ca
     after_reload = captured.out.split("Loading will discard")[-1]
     assert "That way is locked" not in after_reload
     assert "Chamber of Chiron (East):" in after_reload
+
+def test_print_room_with_a_companion_who_must_be_duelled_does_not_offer_recruiting(capsys):
+    room = Room("Camp")
+    room.add_companion(Companion(name="Imp", hp=10, home_room=room, description="A proud imp.",
+                                 duel_enemy_factory=lambda: Enemy(name="Imp", hp=10)))
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "Imp is here. A proud imp." in captured.out
+    assert "could be recruited" not in captured.out
+
+def test_print_room_with_auto_talk_prints_the_companions_dialogue(capsys):
+    room = Room("Camp")
+    room.add_companion(Companion(name="Imp", hp=10, home_room=room, hint="Hello there."))
+    player = Player(name="hero", hp=100)
+    player.auto_talk = True
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "Hello there." in captured.out
+
+def test_print_room_with_auto_talk_and_an_ally_prints_only_the_allys_dialogue(capsys):
+    room = Room("Camp")
+    room.add_ally(Ally(name="Sage", hint="Listen well."))
+    room.add_companion(Companion(name="Imp", hp=10, home_room=room, hint="Hello there."))
+    player = Player(name="hero", hp=100)
+    player.auto_talk = True
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert "Hello there." not in captured.out
+
+def test_main_winning_the_achilles_duel_then_recruiting_him(monkeypatch, capsys, tmp_path):
+    """The full duel flow: talk, challenge (which used to fail - removeprefix stripped the prefix, not the name), win, collect
+    the skill point, then recruit."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("random.random", lambda: 0.5)  # above Achilles' 0.15 dodge
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_5",
+        "talk",
+        "recruit shade of achilles",
+        "challenge shade of achilles",
+        "dev set atk 999",
+        "attack",
+        "recruit shade of achilles",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Say 'challenge shade of achilles'" in captured.out
+    assert "Shade of Achilles won't follow anyone who hasn't beaten them." in captured.out
+    assert "Shade of Achilles accepts. The duel begins." in captured.out
+    assert "There it is." in captured.out
+    assert "gains a skill point for besting Achilles." in captured.out
+    assert "Shade of Achilles joins you." in captured.out
+
+def test_main_losing_the_achilles_duel_is_not_a_death(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("random.random", lambda: 0.5)
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_5",
+        "challenge shade of achilles",
+        "dev set hp 1",
+        "attack",
+        "stats",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Not yet." in captured.out
+    assert "You catch your breath - the duel's wounds fade." in captured.out
+    assert "You have died" not in captured.out
+
+def test_get_controls_text_lists_the_challenge_command():
+    text = get_controls_text()
+    assert "challenge <name> - duel a companion who won't join until you've beaten them; losing isn't a death, and your HP is restored afterwards" in text
+
+def test_get_controls_text_says_talk_works_on_companions_too():
+    text = get_controls_text()
+    assert "talk - talk to an ally or companion in the room" in text

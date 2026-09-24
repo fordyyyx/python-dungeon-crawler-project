@@ -148,7 +148,10 @@ useful for isolated testing without a full room/fight.
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`.
 
-**Companions** (`dev spawn <name>`): `test companion` — a dev-only stand-in
+**Companions** (`dev spawn <name>`): `shade of achilles` — the real floor 5
+companion, spawned still needing his duel (`challenge shade of achilles`
+before `recruit`); his duel form is deliberately *not* spawnable on its own.
+`test companion` — a dev-only stand-in
 with all three AI actions live (non-zero attack, `heal_amount`, and
 `brace_amount`), no `required_items`, so `recruit test companion` succeeds
 immediately after spawning.
@@ -161,16 +164,15 @@ Tome of Old Prayers (8 damage, 6 mana).
 
 Companions, Spells, and status-effect items all have their full engine
 built and unit-tested, and are now genuinely reachable in a live `main()`
-run through dev tooling (see the recipes above and below) — but Companions
-don't exist as *real, narrative* content placed anywhere by `build_world()`,
-and Spells and status-effect items only partly do:
+run through dev tooling (see the recipes above and below), and all three
+now exist as real content too, Spells only partly:
 
-- **Companions.** No room in the actual world holds a recruitable
-  `Companion` — `dev spawn test companion` (above) is the only way to reach
-  one right now. The full system (recruiting, fighting alongside you, being
-  downed, `dismiss`, `Reviver`) works identically either way, since it's the
-  same `Companion` class and the same `recruit_companion()`/combat AI either
-  way.
+- **Companions.** One real companion exists now: the Shade of Achilles, in
+  Shadow of Army Camp (floor 5), recruited by beating him in a duel. He's the
+  only one, and no `Reviver` is real content yet, so reviving a downed
+  companion still needs `dismiss` (which restores them) or a dev-added item.
+  `test companion` remains useful as a companion with no duel, no
+  `required_items`, and all three AI actions live.
 - **Spells.** One real spell exists now: Prayer Bolt, taught by the Tome of
   Old Prayers, which drops from the Fanatic in Prayer Room (floor 3) - no
   workaround needed. It's the only real one, though: `test bolt`/`test
@@ -184,9 +186,8 @@ and Spells and status-effect items only partly do:
   two real items' effects. `dev afflict` (above) remains the more direct
   way to test status-effect ticking without needing any item.
 
-Real, narrative versions of the rest are expected as part of "Populate all
-floors" (`roadmap.md`) — until then, `dev spawn test companion` is the only
-way to reach a Companion outside the automated test suite.
+More real content of each kind is expected as part of "Populate all
+floors" (`roadmap.md`).
 
 - **Ranged attacks are reachable now.** The Harpy-fletched Bow (`slot="ranged"`,
   4 damage) drops from the Harpy in Cave of Harpies (floor 3), or `dev add
@@ -319,6 +320,19 @@ recruit test companion
 dev spawn skeleton warrior
 attack
 ```
+
+**Duel the Shade of Achilles, then recruit him:**
+```
+dev teleport shadow of army camp
+talk
+challenge shade of achilles
+attack
+```
+Losing is safe - the duel ends, your HP is restored, and you can
+`challenge` again. `dev set atk 999` before `attack` wins it in one hit; the
+win grants a skill point, and then `recruit shade of achilles` works. To test
+companion levelling, recruit him and `dev kill` a few enemies - he gains the
+same XP you do.
 
 **Try a multi-stage boss fight (wave, then phase transition):**
 ```

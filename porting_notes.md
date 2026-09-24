@@ -166,6 +166,15 @@ something occurs to you mid-build.
 - Item descriptions (already written with flavour) are ready-made tooltip
   text.
 
+- **Companion duels want to read as a sparring match, not a death-risk
+  fight** - the text version only says so in the controls and the result
+  lines. A distinct duel framing (a ring or arena overlay, blunted weapons,
+  a "yield" pose at 0 HP instead of a death animation) would tell the player
+  up front that losing is safe, which changes how boldly they'll play it.
+- **Companion levels** are currently only visible through combat messages -
+  a level badge and XP bar on the companion's portrait, next to the player's
+  own, would make "they level with you" legible.
+
 ## NPCs / Dialogue
 - `Ally.hint` / `hint_complete` are effectively dialogue nodes already —
   could map onto a simple dialogue-tree/text-box system fairly directly,

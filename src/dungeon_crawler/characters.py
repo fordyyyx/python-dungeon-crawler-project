@@ -5,7 +5,7 @@ from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
 from textwrap import dedent
-from typing import Sequence
+from typing import Sequence, Callable
 import random
 
 HEAVY_ATTACK_MULTIPLIER: float = 1.75
@@ -19,6 +19,9 @@ WEAPON_POISON_AMOUNT: int = -3
 WEAPON_POISON_DURATION: int = 3
 MINIMUM_DAMAGE: int = 1
 HP_PER_LEVEL: int = 2
+COMPANION_HP_PER_LEVEL: int = 2
+COMPANION_ATTACK_PER_LEVEL: int = 1
+STARTING_EXPERIENCE_TO_NEXT_LEVEL: int = 50
 
 class Character:
     """Shared base for anything that can fight - HP, attack, armour, and the ability flags (Double Strike, Thorns, Last Stand) that Skills can turn on."""
@@ -26,12 +29,12 @@ class Character:
     def __init__(self, name: str, hp: int, attack_damage: int, armour: int = 0):
         """Set up base combat stats; ability flags default off until a Skill enables them."""
         self.name = name
-        self.hp = hp
-        self.attack_damage = attack_damage
+        self.hp: int = hp
+        self.attack_damage: int = attack_damage
         self.base_armour = armour
         """Armour that doesn't come from worn gear - an enemy's natural armour, ancestry, Defence skills, dev/dummy set. Worn pieces are never added
         into this; see the armour property."""
-        self.max_hp = hp
+        self.max_hp: int = hp
         self.equipped_melee_weapon: "Weapon | None" = None
         self.equipped_ranged_weapon: "Weapon | None" = None
         self.equipped_helmet: "Armour | None" = None
@@ -295,7 +298,7 @@ class Player(Character):
         super().__init__(name, hp, attack_damage, armour)
         self.level = 1
         self.experience = 0
-        self.experience_to_next_level = 50
+        self.experience_to_next_level = STARTING_EXPERIENCE_TO_NEXT_LEVEL
         self.gold = 0
         """currency earned from defeating enemies. Displayed in the inventory listing, not stats - it isn't a character stat, it's a resource"""
         self.inventory = Inventory()
@@ -459,8 +462,9 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False):
-        """experience_reward and gold_reward are granted to the player on this enemy's defeat, via handle_enemy_defeat() - see engine.py
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None):
+        """experience_reward and gold_reward are granted to the player (and the same experience to their companion) on this enemy's defeat,
+        via handle_enemy_defeat() - see combat.py. defeat_effect runs on that same final defeat.
         aggression_weight/caution_weight/randomness_weight feed choose_enemy_action()'s utility scoring (combat.py) - a balanced
         default (1.0/1.0/0.3) suits most enemies; named/boss enemies should get bespoke values tied to their lore.
         brace_amount is the flat damage reduction this enemy applies to itself when it chooses Defend; heal_amount is the flat HP
@@ -487,6 +491,15 @@ class Enemy(Character):
         self.respawns = respawns
         self.has_lifesteal = has_lifesteal
         self.has_petrifying_gaze = has_petrifying_gaze
+        self.defeat_effect = defeat_effect
+        """Optional function run once when this enemy is finally defeated (not on an intermediate boss phase), returning a message line. A generic
+        hook, never a name check: Achilles' duel form uses it to grant a skill point, and Hades will use it for the reveal."""
+        self.duel_companion: "Companion | None" = None
+        """Set by start_duel() (exploration.py) on the combat form of a companion who's being duelled - the companion to put back in the room when
+        the duel ends, whichever way it goes. None for every ordinary enemy."""
+        self.duel_return_hp: int | None = None
+        """The player's HP when this duel began - set by start_duel(), restored whenever the duel ends (win, loss, or flee), so a friendly fight 
+        never leaves the player worse off. None for every ordinary enemy."""
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""
@@ -541,10 +554,11 @@ class Companion(Character):
     Companion IS a Character - it needs real combat stats to sit in Player.team and act via choose_companion_action() (combat.py),
     home_room is where a dismissed Companion reappears - see dismiss_companion()."""
 
-    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0):
+    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = ""):
         """required_items are what the player must hold to recruit this companion (see recruit_companion()) - mirrors Ally.required_items.
         aggression_weight/caution_weight/randomness_weight/brace_amount/heal_amount feed choose_companion_action()'s utility scoring (combat.py)
-        - same shape and same defaults as Enemy's equivalent fields."""
+        - same shape and same defaults as Enemy's equivalent fields. hint/hint_recruitable are this companion's talk() lines, and
+        duel_enemy_factory/duel_won_message/duel_lost_message set up a duel they insist on before joining (see start_duel(), exploration.py)."""
         super().__init__(name, hp, attack_damage, armour)
         self.description = description
         self.home_room = home_room
@@ -554,11 +568,63 @@ class Companion(Character):
         self.randomness_weight = randomness_weight
         self.brace_amount = brace_amount
         self.heal_amount = heal_amount
+        self.hint = hint
+        self.hint_recruitable = hint_recruitable
+        self.duel_enemy_factory = duel_enemy_factory
+        """If set, this companion must be beaten in a duel before they'll join - 'challenge <name>' swaps them for the Enemy this builds
+        (see start_duel()). None means they can be recruited straight away, as before."""
+        self.duel_won = False
+        self.duel_won_message = duel_won_message
+        self.duel_lost_message = duel_lost_message
+        self.level = 1
+        self.experience = 0
+        self.experience_to_next_level = STARTING_EXPERIENCE_TO_NEXT_LEVEL
 
     def on_death(self) -> str:
         """Companion-specific 'downed' message - distinct from a permanent death. Fires via the same take_damage()/on_death() mechanism
         as Player/Enemy, but a Companion reaching 0 HP means downed-and-recoverable, not game-ending or gone for good."""
         return f"{self.name} is downed and can no longer fight - a Reviver can bring them back."
+
+    @property
+    def requires_duel(self) -> bool:
+        """Whether this companion still has to be beaten in a duel before they can be recruited."""
+        return self.duel_enemy_factory is not None and not self.duel_won
+
+    def talk(self, player) -> str:
+        """This companion's dialogue - the recruitable line once nothing stands in the way of recruiting them, otherwise the regular hint. Mirrors
+        Ally.talk()'s shape."""
+        if not self.requires_duel and self.hint_recruitable:
+            return self.hint_recruitable
+        return self.hint if self.hint else f"{self.name} has nothing to say."
+
+    def gain_experience(self, amount: int) -> str:
+        """Add experience, levelling up as many times as it covers. Companions follow the same curve as the player - see 
+        STARTING_EXPERIENCE_TO_NEXT_LEVEL."""
+        self.experience += amount
+        messages = [f"{self.name} gains {amount} experience."]
+        while self.experience >= self.experience_to_next_level:
+            self.experience -= self.experience_to_next_level
+            messages.append(self._level_up())
+        return "\n".join(messages)
+
+    def _level_up(self) -> str:
+        """Raise level, roll the threshold forward, and add COMPANION_HP_PER_LEVEL max HP and COMPANION_ATTACK_PER_LEVEL attack. Current HP only 
+        rises if the companion is still standing, so levelling up can never revive a downed companion - only a Reviver or dismissal does that."""
+        self.level += 1
+        self.experience_to_next_level = int(self.experience_to_next_level * 1.5)
+        self.max_hp += COMPANION_HP_PER_LEVEL
+        if self.is_alive():
+            self.hp += COMPANION_HP_PER_LEVEL
+        self.attack_damage += COMPANION_ATTACK_PER_LEVEL
+        return f"{self.name} reaches level {self.level}! (+{COMPANION_HP_PER_LEVEL} max HP, +{COMPANION_ATTACK_PER_LEVEL} ATK)"
+
+    def restore_level(self, level: int, experience: int) -> None:
+        """Rebuild level state on a freshly created (level 1) companion when loading a save, replaying each level-up. Stats are recalculated
+        rather than saved, so they can never drift from what the levels say - the same lesson as the armour double-counting bug. Callers
+        set hp afterwards."""
+        for _ in range(level - 1):
+            self._level_up()
+        self.experience = experience
 
 class Skill:
     """Base class for a single skill-tree unlock; subclasses implement apply() to grant its effect."""

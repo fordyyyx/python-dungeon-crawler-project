@@ -1130,3 +1130,18 @@ def test_handle_dev_command_set_durability_dispatches_the_shield_slot():
 
     assert shield.durability == 4
     assert message == "[DEV] Aegis durability set to 4/10."
+
+def test_find_enemy_by_name_does_not_know_the_achilles_duel_form():
+    """The duel form only exists via start_duel() - registering it under the companion's name made 'dev spawn' pick it over the companion."""
+    assert find_enemy_by_name("shade of achilles") is None
+
+def test_handle_dev_command_spawn_shade_of_achilles_adds_the_companion():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+    dungeon = Map()
+
+    message, _ = handle_dev_command("spawn shade of achilles", player, room, dungeon)
+
+    assert [c.name for c in room.companions] == ["Shade of Achilles"]
+    assert room.enemies == []
+    assert message == "[DEV] Spawned Shade of Achilles. Use 'recruit Shade of Achilles' to add them to your team."

@@ -92,7 +92,7 @@ Lair of Medusa {Medusa - Enemy}
 * north -> Maze of Pillars
 * descend -> Shadow of Army Camp [NOTE: guarded - blocked until the whole Medusa chain (Phase 1, both Gorgons, Awakened) is defeated]
 
-Shadow of Army Camp {Shade of Achilles - Friendly}
+Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable after beating him in a duel ('challenge shade of achilles'); the only built content on floors 5-9 so far]
 * ascend -> Lair of Medusa
 * south -> Shadow of Troy (North)
 Shadow of Troy (North) {Shade of Hector - Enemy}
@@ -229,6 +229,9 @@ Labyrinth of the Minotaur's `south` (Minotaur), Maze of Pillars' `south`
 (Talos), and Lair of Medusa's `descend` (the whole Medusa chain). Every other
 fight on floors 0-4 is still optional to walk past.
 
-Every room on floors 5-9 remains an unpopulated shell. Finishing Floor 2's
-population (Prometheus' trade and Trophy Room of Zeus) and floors 5-9's
-population are all deferred to the "Populate all floors" roadmap item.
+Floor 5 has its first real content: the Shade of Achilles, a recruitable
+Companion in Shadow of Army Camp, who must be beaten in a duel first. Every
+other room on floors 5-9 remains an unpopulated shell - the per-room
+enemies/allies listed above for those floors are the planned design, not
+built content. Finishing Floor 2's population (Prometheus' trade and Trophy
+Room of Zeus) and the rest of floors 5-9's population are all deferred to the "Populate all floors" roadmap item.

@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon, Consumable
-from dungeon_crawler.exploration import pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
+from dungeon_crawler.exploration import start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -1187,3 +1187,123 @@ def test_repair_item_on_an_unequipped_broken_piece_does_not_change_armour():
     repair_item("shield", player, room)
 
     assert player.armour == 1
+
+def _duellist() -> Enemy:
+    """Test helper - a stand-in duel_enemy_factory."""
+    return Enemy(name="Imp", hp=30, description="It squares up.")
+
+def _camp_with_duelling_companion():
+    """Test helper - a room holding a companion who has to be duelled first."""
+    room = Room("Camp")
+    companion = Companion(name="Imp", hp=20, home_room=room, duel_enemy_factory=_duellist)
+    room.add_companion(companion)
+    return room, companion
+
+# ---- recruit_companion and duels ----
+
+def test_recruit_companion_refuses_a_companion_who_must_be_duelled_first():
+    room, companion = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    message = recruit_companion("imp", room, player)
+    assert player.companion is None
+    assert message == "Imp won't follow anyone who hasn't beaten them. Try 'challenge imp'."
+
+def test_recruit_companion_succeeds_once_the_duel_is_won():
+    room, companion = _camp_with_duelling_companion()
+    companion.duel_won = True
+    player = Player(name="Hero", hp=20)
+    recruit_companion("imp", room, player)
+    assert player.companion is companion
+
+# ---- start_duel ----
+
+def test_start_duel_with_no_matching_companion_returns_message():
+    room = Room("Camp")
+    player = Player(name="Hero", hp=20)
+    assert start_duel("imp", room, player) == "There's no one named 'imp' here to challenge."
+
+def test_start_duel_with_a_companion_who_does_not_duel_returns_message():
+    room = Room("Camp")
+    room.add_companion(Companion(name="Imp", hp=20, home_room=room))
+    player = Player(name="Hero", hp=20)
+    assert start_duel("imp", room, player) == "Imp has no interest in fighting you."
+    assert player.in_combat is False
+
+def test_start_duel_after_the_duel_is_won_returns_message():
+    room, companion = _camp_with_duelling_companion()
+    companion.duel_won = True
+    player = Player(name="Hero", hp=20)
+    assert start_duel("imp", room, player) == "Imp has already measured you - there's nothing left to prove."
+    assert room.enemies == []
+
+def test_start_duel_swaps_the_companion_for_its_combat_form():
+    room, companion = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    start_duel("imp", room, player)
+    assert companion not in room.companions
+    assert len(room.enemies) == 1
+    assert room.enemies[0].duel_companion is companion
+
+def test_start_duel_records_the_players_hp_to_restore_afterwards():
+    room, _ = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    player.hp = 13
+    start_duel("imp", room, player)
+    assert room.enemies[0].duel_return_hp == 13
+
+def test_start_duel_puts_the_player_into_combat_with_the_opponent():
+    room, _ = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    message = start_duel("imp", room, player)
+    assert player.in_combat is True
+    assert player.current_target is room.enemies[0]
+    assert message == "Imp accepts. The duel begins.\nIt squares up."
+
+def test_start_duel_matches_the_name_case_insensitively():
+    room, companion = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    start_duel("IMP", room, player)
+    assert companion not in room.companions
+
+# ---- guarded and sealed exits in exit listings ----
+
+def test_display_local_exits_names_the_guardian_of_a_guarded_exit():
+    room = Room("Labyrinth")
+    room.connect("south", Room("Grove"))
+    room.guard_exit("south")
+    room.add_enemy(Enemy(name="Minotaur", hp=20))
+    assert display_local_exits(room, Player(name="Hero", hp=20)) == "south -> Grove (guarded by Minotaur)"
+
+def test_display_local_exits_drops_the_guard_label_once_the_guardian_is_gone():
+    room = Room("Labyrinth")
+    room.connect("south", Room("Grove"))
+    room.guard_exit("south")
+    assert display_local_exits(room, Player(name="Hero", hp=20)) == "south -> Grove"
+
+def test_display_local_exits_shows_an_unopened_shortcut_as_sealed():
+    room = Room("Forge")
+    room.connect("prayer room", Room("Prayer Room"))
+    room.lock_fast_travel_exit("prayer room")
+    assert display_local_exits(room, Player(name="Hero", hp=20)) == "prayer room -> Sealed Shortcut"
+
+def test_display_map_names_the_guardian_and_does_not_map_past_it():
+    labyrinth = Room("Labyrinth")
+    grove = Room("Grove")
+    beyond = Room("Beyond")
+    labyrinth.connect("south", grove)
+    grove.connect("south", beyond)
+    labyrinth.guard_exit("south")
+    labyrinth.add_enemy(Enemy(name="Minotaur", hp=20))
+    output = display_map(labyrinth, Player(name="Hero", hp=20))
+    assert "south -> Grove (guarded by Minotaur)" in output
+    assert "Beyond" not in output
+
+def test_display_map_shows_an_unopened_shortcut_as_sealed_and_does_not_map_past_it():
+    forge = Room("Forge")
+    prayer_room = Room("Prayer Room")
+    prayer_room.connect("west", Room("Cave"))
+    forge.connect("prayer room", prayer_room)
+    forge.lock_fast_travel_exit("prayer room")
+    output = display_map(forge, Player(name="Hero", hp=20))
+    assert "prayer room -> Sealed Shortcut" in output
+    assert "Cave" not in output

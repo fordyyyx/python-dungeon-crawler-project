@@ -5,7 +5,7 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
-from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms
+from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
 from dungeon_crawler.hints import show_hint
@@ -17,7 +17,8 @@ PASSIVE_REGEN_CAP_FRACTION = 0.75
 
 def print_room(room: Room, player: Player):
     """Display a room's name, description, contents, and occupants on entry.
-    Ally dialogue fires automatically here if player.auto_talk is enabled, and the room's exits are listed if player.auto_map is."""
+    Ally dialogue - or, with no ally present, a companion's - fires automatically here if player.auto_talk is enabled, and the room's exits
+    are listed if player.auto_map is. A companion who still requires a duel is announced as present, not as recruitable."""
     print(f"{room.name}: {room.description}")
 
     if room.items:
@@ -38,7 +39,12 @@ def print_room(room: Room, player: Player):
 
     if room.companions:
         companion = room.companions[0]
-        print(f"{companion.name} could be recruited here. {companion.description}")
+        if companion.requires_duel:
+            print(f"{companion.name} is here. {companion.description}")
+        else:
+            print(f"{companion.name} could be recruited here. {companion.description}")
+        if player.auto_talk and not room.allies:
+            print("\n" + companion.talk(player))
 
     if player.auto_map:
         print("\nExits:\n" + display_local_exits(room, player))
@@ -67,7 +73,7 @@ def get_controls_text() -> str:
         "fullmap / world - show every reachable room on the current floor\n"
         "toggle auto map - map displays automatically on room entry\n"
         "uncleared - display visited rooms that are not yet cleared and reachable rooms not yet discovered\n"
-        "talk - talk to an ally in the room\n"
+        "talk - talk to an ally or companion in the room\n"
         "toggle auto talk - allies speak automatically on room entry\n"
         "attack / attack light / attack heavy / attack ranged - attack an enemy in the room (locks you into combat); heavy hits harder but can miss, ranged needs an equipped ranged weapon\n"
         "target <name> - set your attack target; add a number if enemies share a name (e.g. target harpies 2)\n"
@@ -82,6 +88,7 @@ def get_controls_text() -> str:
         "take all from <ally> - take all items from an ally's inventory\n"
         "trade - trade required items with an ally for their reward\n"
         "recruit <name> - recruit a companion who joins your team in combat (requires specific items)\n"
+        "challenge <name> - duel a companion who won't join until you've beaten them; losing isn't a death, and your HP is restored afterwards\n"
         "repair <item> - repair an item to full durability (requires gold)\n"
         "dismiss - release your current companion, who returns home\n"
         "dummy set <stat> <value> - customise the practice dummy's stats (Practice Chamber only)\n"
@@ -223,6 +230,9 @@ def main() -> None:
                         player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
                         active_profile, active_slot = profile_num, slot_num
                         print_room(current_room, player)
+
+            elif command.startswith("challenge ") and not player.in_combat:
+                print(start_duel(command.removeprefix("challenge ").strip(), current_room, player))
 
             elif command == "controls":
                 print(get_controls_text())
@@ -416,8 +426,9 @@ def main() -> None:
 
             elif command == "talk":
                 if current_room.allies:
-                    ally = current_room.allies[0]
-                    print(ally.talk(player))
+                    print(current_room.allies[0].talk(player))
+                elif current_room.companions:
+                    print(current_room.companions[0].talk(player))
                 else:
                     print("There's no one here to talk to.")
 

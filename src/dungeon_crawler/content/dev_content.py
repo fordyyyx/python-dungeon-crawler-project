@@ -16,8 +16,8 @@ def build_companion_test_camp() -> Room:
 
 def create_test_companion() -> Companion:
     """Generic dev-test Companion - no lore, no required_items (so 'recruit' succeeds immediately after 'dev spawn'), with attack/defend/heal
-    all non-zero so every AI branch is genuinely exercised. Not yet placed in any room; reachable only via 'dev spawn test companion' until a 
-    real recruitable Companion (Zeus, tamed enemies, etc.) gets its design finished."""
+    all non-zero so every AI branch is genuinely exercised. Not placed in any room - reachable only via 'dev spawn test companion'. Kept
+    alongside the real Shade of Achilles (floor 5) as a companion with no duel to win first."""
     return Companion(
         name="Test Companion",
         description="A dev-only stand-in companion, here purely to exercise the recruit/fight/dismiss loop.",

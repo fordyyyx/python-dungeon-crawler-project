@@ -13,7 +13,8 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * An Intellect stat, set by ancestry and grown through levelling, that unlocks additional flavour text and lore when examining — never anything required to progress
 * Turn-based, team-vs-team combat that locks you into an encounter — attack a chosen target, cast a spell, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
 * Multiple enemies at once, each deciding for itself whether to attack, defend, or heal via a utility-based AI (with a little randomness baked in, so it doesn't always play perfectly) — target a specific enemy by name, disambiguating with a number when more than one shares it
-* Recruitable companions who fight alongside you with the same AI-driven decision-making as enemies — a downed companion isn't gone for good, and can be revived or simply dismissed home to recover
+* Recruitable companions who fight alongside you with the same AI-driven decision-making as enemies, and level up as you fight together — a downed companion isn't gone for good, and can be revived or simply dismissed home to recover
+* Duels — some companions won't follow you until you've beaten them in a fight of their own; losing a duel isn't a death, and your wounds fade once it's over
 * An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time — and an auto-map setting that lists each room's exits the same way
 * An `uncleared` command that remembers every room you've visited and lists the ones you haven't finished with yet, plus any new rooms one step away that you haven't explored — without ever spoiling anything further out
 * Item pickup, inventory, use, and unequip — weapons occupy two slots (melee and ranged) and armour three (helmet, body, and shield), so a piece in each can be worn at once, only swapping within the same slot — though a two-handed weapon and a shield can't be used together
@@ -77,7 +78,7 @@ pytest --cov=src/dungeon_crawler
 * `fullmap` / `world` - show every reachable room on the current floor
 * `toggle auto map` - list the exits automatically every time you enter a room
 * `uncleared` - list the rooms you've visited that aren't cleared yet (enemies, items left behind, an unfinished trade, or a hidden passage worth a closer look), plus reachable rooms you haven't discovered yet
-* `talk` - talk to an ally in the room
+* `talk` - talk to an ally or companion in the room
 * `toggle auto talk` - allies speak automatically on room entry, without needing `talk` each time
 * `attack` / `attack light` / `attack heavy` / `attack ranged` - attack an enemy in the room; this locks you into combat until every enemy is defeated or you flee. Heavy hits harder but can miss entirely; ranged requires an equipped ranged weapon
 * `target <name>` - set your attack target, persisting across rounds; if two or more enemies share a name, add a number (e.g. `target harpies 2`)
@@ -92,6 +93,7 @@ pytest --cov=src/dungeon_crawler
 * `take all from <ally>` - take everything an ally is holding at once
 * `trade` - trade required items with an ally for their reward
 * `recruit <name>` - recruit a companion who joins your team in combat (requires specific items)
+* `challenge <name>` - duel a companion who won't join until you've beaten them; losing isn't a death, and your HP is restored afterwards
 * `dismiss` - release your current companion, who returns home
 * `repair <item>` - repair an item to full durability at a Forge (requires gold)
 * `dummy set <stat> <value>` - customise the practice dummy's stats (Practice Chamber only)
@@ -121,7 +123,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, and floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair. Planned additions include further floors drawing on the Iliad and Odyssey, with more named multi-stage bosses among them.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and the first of floor 5 - the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel. Planned additions include further floors drawing on the Iliad and Odyssey, with more named multi-stage bosses among them.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

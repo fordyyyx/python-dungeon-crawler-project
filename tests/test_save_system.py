@@ -1,16 +1,17 @@
+import json
 import os
 
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.dev_tools import ENEMY_REGISTRY
-from dungeon_crawler.content import build_world, create_gorgon, create_medusa_awakened
+from dungeon_crawler.content import build_world, create_shade_of_achilles, create_gorgon, create_medusa_awakened
 from dungeon_crawler.combat import handle_enemy_defeat, resolve_pending_defeats
 from dungeon_crawler.items import Weapon, Armour
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.save_system import (
     slot_path, ensure_profile_dir, slot_exists, slot_summary,
-    serialise_player, player_from_save_data,
+    serialise_player, player_from_save_data, serialise_companion, companion_from_save_data,
     serialise_room, apply_room_data,
     serialise_world, apply_world_data,
     save_game, load_game, delete_save, delete_profile,
@@ -162,7 +163,7 @@ def test_serialise_player_with_companion_includes_name_and_hp():
     companion.hp = 10
     player.companion = companion
     data = serialise_player(player, Room("Chamber"))
-    assert data["companion"] == {"name": "Imp", "hp": 10, "active_effects": []}
+    assert data["companion"] == {"name": "Imp", "hp": 10, "level": 1, "experience": 0, "duel_won": False, "home_room": "Camp", "active_effects": []}
 
 def test_serialise_player_with_companion_includes_active_effects():
     player = Player(name="Hero", hp=50)
@@ -717,7 +718,7 @@ def test_apply_room_data_skips_a_saved_enemy_nobody_can_rebuild():
     assert room.enemies == []
 
 def test_apply_room_data_keeps_the_fresh_rooms_own_instance_for_an_unregistered_enemy():
-    """The Practice Chamber's dummy isn't in ENEMY_REGISTRY - claiming the fresh room's instance is what keeps it across a reload."""
+    """An enemy ENEMY_REGISTRY doesn't know by its own name - claiming the fresh room's instance is what keeps it across a reload."""
     room = Room("Practice Chamber")
     dummy = Enemy(name="Practice Enemy", hp=20, respawns=True)
     room.add_enemy(dummy)
@@ -872,3 +873,139 @@ def test_apply_room_data_without_locked_exits_leaves_locks_alone():
     room.lock_exit("east", "Wooden Sword")
     apply_room_data(room, {"enemies": [], "items": [], "allies_traded": []})
     assert room.locked_exits["east"] == "Wooden Sword"
+
+# ---- companions: serialise_companion / companion_from_save_data ----
+
+def test_serialise_companion_saves_level_and_experience_not_stats():
+    companion = Companion(name="Imp", hp=15, home_room=Room("Camp"))
+    companion.restore_level(3, 8)
+    data = serialise_companion(companion)
+    assert data["level"] == 3
+    assert data["experience"] == 8
+    assert "max_hp" not in data
+    assert "attack_damage" not in data
+
+def test_serialise_companion_saves_the_home_room_by_name_so_it_is_json_safe():
+    """Regression: the Room object itself used to be stored, so every save crashed - the floor 5 camp always holds a companion."""
+    companion = Companion(name="Imp", hp=15, home_room=Room("Camp"))
+    data = serialise_companion(companion)
+    assert data["home_room"] == "Camp"
+    assert json.loads(json.dumps(data)) == data
+
+def test_serialise_companion_saves_whether_the_duel_is_won():
+    companion = Companion(name="Imp", hp=15, home_room=Room("Camp"))
+    companion.duel_won = True
+    assert serialise_companion(companion)["duel_won"] is True
+
+def test_companion_from_save_data_rebuilds_a_registered_companion():
+    """Regression: the rebuilt companion was never returned, so every loaded companion vanished."""
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": 30}, None)
+    assert companion is not None
+    assert companion.name == "Shade of Achilles"
+
+def test_companion_from_save_data_with_an_unknown_name_returns_none():
+    assert companion_from_save_data({"name": "Nobody", "hp": 5}, None) is None
+
+def test_companion_from_save_data_replays_the_saved_level():
+    """Regression: restore_level() referenced _level_up without calling it, so a reloaded companion was always level 1."""
+    fresh = create_shade_of_achilles()
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": 30, "level": 3, "experience": 4}, None)
+    assert companion.level == 3
+    assert companion.experience == 4
+    assert companion.max_hp > fresh.max_hp
+    assert companion.attack_damage > fresh.attack_damage
+
+def test_companion_from_save_data_keeps_saved_hp_that_only_a_higher_level_allows():
+    fresh_max = create_shade_of_achilles().max_hp
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": fresh_max + 2, "level": 2}, None)
+    assert companion.hp == fresh_max + 2
+
+def test_companion_from_save_data_clamps_hp_to_max_hp():
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": 999}, None)
+    assert companion.hp == companion.max_hp
+
+def test_companion_from_save_data_restores_the_duel_as_won():
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": 30, "duel_won": True}, None)
+    assert companion.duel_won is True
+    assert companion.requires_duel is False
+
+def test_companion_from_save_data_older_save_defaults_to_level_one_and_no_duel_won():
+    """An older save only had name, hp and active_effects."""
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": 30, "active_effects": []}, None)
+    assert companion.level == 1
+    assert companion.duel_won is False
+
+def test_companion_from_save_data_relinks_the_given_home_room():
+    camp = Room("Shadow of Army Camp")
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": 30}, camp)
+    assert companion.home_room is camp
+
+def test_companion_from_save_data_without_a_home_room_keeps_the_factory_default():
+    companion = companion_from_save_data({"name": "Shade of Achilles", "hp": 30}, None)
+    assert companion.home_room.name == "Shadow of Army Camp"
+
+def test_player_from_save_data_relinks_the_companions_home_room_from_the_world():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    camp = Room("Shadow of Army Camp")
+    dungeon.add_room(camp)
+    data = base_player_data(companion={"name": "Shade of Achilles", "hp": 30, "home_room": "Shadow of Army Camp", "active_effects": []})
+    player, _ = player_from_save_data(data, dungeon)
+    assert player.companion is not None
+    assert player.companion.home_room is camp
+
+# ---- companions in rooms ----
+
+def test_serialise_room_includes_its_companions():
+    room = Room("Camp")
+    room.add_companion(Companion(name="Imp", hp=15, home_room=room))
+    data = serialise_room(room)
+    assert [c["name"] for c in data["companions"]] == ["Imp"]
+
+def test_apply_room_data_restores_a_companions_won_duel():
+    room = Room("Shadow of Army Camp")
+    room.add_companion(create_shade_of_achilles(room))
+    data = {"enemies": [], "items": [], "allies_traded": [],
+            "companions": [{"name": "Shade of Achilles", "hp": 30, "duel_won": True, "home_room": "Shadow of Army Camp", "active_effects": []}]}
+    apply_room_data(room, data)
+    assert len(room.companions) == 1
+    assert room.companions[0].duel_won is True
+    assert room.companions[0].home_room is room
+
+def test_apply_room_data_with_no_saved_companions_removes_a_recruited_one():
+    room = Room("Shadow of Army Camp")
+    room.add_companion(create_shade_of_achilles(room))
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": [], "companions": []})
+    assert room.companions == []
+
+def test_apply_room_data_older_save_without_companions_leaves_them_alone():
+    room = Room("Shadow of Army Camp")
+    achilles = create_shade_of_achilles(room)
+    room.add_companion(achilles)
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": []})
+    assert room.companions == [achilles]
+
+def test_apply_room_data_skips_a_saved_item_nobody_can_rebuild():
+    room = Room("Chamber")
+    apply_room_data(room, {"enemies": [], "items": [{"name": "Mystery Box", "durability": None}], "allies_traded": []})
+    assert room.items == []
+
+def test_world_round_trip_keeps_a_won_duel_in_the_camp():
+    dungeon, _, all_floors = build_world()
+    camp = all_floors["floor_5"]["Shadow of Army Camp"]
+    camp.companions[0].duel_won = True
+    data = json.loads(json.dumps(serialise_world(dungeon)))
+    fresh, _, fresh_floors = build_world()
+    apply_world_data(fresh, data)
+    fresh_camp = fresh_floors["floor_5"]["Shadow of Army Camp"]
+    assert [c.name for c in fresh_camp.companions] == ["Shade of Achilles"]
+    assert fresh_camp.companions[0].duel_won is True
+
+def test_world_round_trip_with_the_companion_recruited_leaves_the_camp_empty():
+    dungeon, _, all_floors = build_world()
+    camp = all_floors["floor_5"]["Shadow of Army Camp"]
+    camp.remove_companion(camp.companions[0])
+    data = json.loads(json.dumps(serialise_world(dungeon)))
+    fresh, _, fresh_floors = build_world()
+    apply_world_data(fresh, data)
+    assert fresh_floors["floor_5"]["Shadow of Army Camp"].companions == []

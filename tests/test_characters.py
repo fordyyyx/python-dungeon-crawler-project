@@ -1,4 +1,4 @@
-from dungeon_crawler.characters import HP_PER_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
+from dungeon_crawler.characters import HP_PER_LEVEL, COMPANION_HP_PER_LEVEL, COMPANION_ATTACK_PER_LEVEL, STARTING_EXPERIENCE_TO_NEXT_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem
 from dungeon_crawler.world import Room
 from dungeon_crawler.status_effects import StatusEffect
@@ -2325,3 +2325,123 @@ def test_attack_innate_and_weapon_lifesteal_do_not_stack():
     message = attacker.attack(target)
     assert attacker.hp == 15  # 10 dealt // 2, once
     assert message.count("drains") == 1
+
+def test_enemy_initialises_with_no_defeat_effect_by_default():
+    enemy = Enemy(name="Goblin", hp=10)
+    assert enemy.defeat_effect is None
+
+def test_enemy_initialises_with_a_custom_defeat_effect():
+    effect = lambda player: "done"
+    enemy = Enemy(name="Goblin", hp=10, defeat_effect=effect)
+    assert enemy.defeat_effect is effect
+
+def test_enemy_initialises_with_no_duel_link():
+    enemy = Enemy(name="Goblin", hp=10)
+    assert enemy.duel_companion is None
+    assert enemy.duel_return_hp is None
+
+def test_player_starts_with_the_starting_experience_threshold():
+    player = Player(name="Hero", hp=20)
+    assert player.experience_to_next_level == STARTING_EXPERIENCE_TO_NEXT_LEVEL
+
+def _companion(**kwargs) -> Companion:
+    """Test helper - a plain companion with a throwaway home room."""
+    return Companion(name="Imp", hp=20, home_room=Room("Camp"), attack_damage=5, **kwargs)
+
+def _duel_opponent() -> Enemy:
+    """Test helper - a stand-in duel_enemy_factory."""
+    return Enemy(name="Imp", hp=30)
+
+def test_companion_initialises_at_level_one_on_the_player_curve():
+    companion = _companion()
+    assert companion.level == 1
+    assert companion.experience == 0
+    assert companion.experience_to_next_level == STARTING_EXPERIENCE_TO_NEXT_LEVEL
+
+def test_companion_initialises_with_no_duel_by_default():
+    companion = _companion()
+    assert companion.duel_enemy_factory is None
+    assert companion.duel_won is False
+
+def test_companion_without_a_duel_does_not_require_one():
+    companion = _companion()
+    assert companion.requires_duel is False
+
+def test_companion_with_a_duel_requires_one():
+    companion = _companion(duel_enemy_factory=_duel_opponent)
+    assert companion.requires_duel is True
+
+def test_companion_with_a_won_duel_no_longer_requires_one():
+    companion = _companion(duel_enemy_factory=_duel_opponent)
+    companion.duel_won = True
+    assert companion.requires_duel is False
+
+def test_companion_talk_before_the_duel_returns_the_hint():
+    companion = _companion(hint="Fight me.", hint_recruitable="Recruit me.", duel_enemy_factory=_duel_opponent)
+    assert companion.talk(Player(name="Hero", hp=20)) == "Fight me."
+
+def test_companion_talk_after_the_duel_returns_the_recruitable_line():
+    companion = _companion(hint="Fight me.", hint_recruitable="Recruit me.", duel_enemy_factory=_duel_opponent)
+    companion.duel_won = True
+    assert companion.talk(Player(name="Hero", hp=20)) == "Recruit me."
+
+def test_companion_talk_with_no_duel_returns_the_recruitable_line():
+    companion = _companion(hint="Hello.", hint_recruitable="Recruit me.")
+    assert companion.talk(Player(name="Hero", hp=20)) == "Recruit me."
+
+def test_companion_talk_with_no_recruitable_line_falls_back_to_the_hint():
+    companion = _companion(hint="Hello.")
+    assert companion.talk(Player(name="Hero", hp=20)) == "Hello."
+
+def test_companion_talk_with_no_lines_has_nothing_to_say():
+    companion = _companion()
+    assert companion.talk(Player(name="Hero", hp=20)) == "Imp has nothing to say."
+
+def test_companion_gain_experience_below_the_threshold_does_not_level_up():
+    companion = _companion()
+    message = companion.gain_experience(10)
+    assert companion.level == 1
+    assert companion.experience == 10
+    assert message == "Imp gains 10 experience."
+
+def test_companion_gain_experience_at_the_threshold_levels_up():
+    companion = _companion()
+    message = companion.gain_experience(STARTING_EXPERIENCE_TO_NEXT_LEVEL + 3)
+    assert companion.level == 2
+    assert companion.experience == 3
+    assert companion.max_hp == 20 + COMPANION_HP_PER_LEVEL
+    assert companion.hp == 20 + COMPANION_HP_PER_LEVEL
+    assert companion.attack_damage == 5 + COMPANION_ATTACK_PER_LEVEL
+    assert companion.experience_to_next_level == int(STARTING_EXPERIENCE_TO_NEXT_LEVEL * 1.5)
+    assert f"Imp reaches level 2! (+{COMPANION_HP_PER_LEVEL} max HP, +{COMPANION_ATTACK_PER_LEVEL} ATK)" in message
+
+def test_companion_gain_experience_can_level_up_more_than_once():
+    """Unlike Player.gain_experience(), a companion keeps levelling while the XP covers the next threshold too."""
+    companion = _companion()
+    companion.gain_experience(STARTING_EXPERIENCE_TO_NEXT_LEVEL + int(STARTING_EXPERIENCE_TO_NEXT_LEVEL * 1.5))
+    assert companion.level == 3
+    assert companion.experience == 0
+
+def test_companion_levelling_up_while_downed_does_not_revive_them():
+    companion = _companion()
+    companion.hp = 0
+    companion.gain_experience(STARTING_EXPERIENCE_TO_NEXT_LEVEL)
+    assert companion.level == 2
+    assert companion.hp == 0
+    assert companion.max_hp == 20 + COMPANION_HP_PER_LEVEL
+
+def test_companion_restore_level_replays_each_level_up():
+    companion = _companion()
+    companion.restore_level(3, 12)
+    assert companion.level == 3
+    assert companion.experience == 12
+    assert companion.max_hp == 20 + 2 * COMPANION_HP_PER_LEVEL
+    assert companion.attack_damage == 5 + 2 * COMPANION_ATTACK_PER_LEVEL
+    assert companion.experience_to_next_level == int(int(STARTING_EXPERIENCE_TO_NEXT_LEVEL * 1.5) * 1.5)
+
+def test_companion_restore_level_one_changes_no_stats():
+    companion = _companion()
+    companion.restore_level(1, 7)
+    assert companion.level == 1
+    assert companion.max_hp == 20
+    assert companion.experience == 7
