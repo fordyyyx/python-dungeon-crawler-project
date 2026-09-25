@@ -3398,3 +3398,37 @@ def test_handle_combat_command_use_reports_an_enemy_its_poison_kills(monkeypatch
     assert enemy not in room.enemies
     assert "Hero picked up 4 gold." in result
     assert player.in_combat is False
+
+def test_resolve_companion_and_enemy_turns_skips_the_companion_when_no_enemy_is_alive(monkeypatch):
+    """Regression: the companion still took its turn after the player killed the last enemy, and choosing 'attack' then called max() on an
+    empty target list - a ValueError that crashed the game about half the time a fight ended with a companion in the party."""
+    monkeypatch.setattr("random.random", lambda: 0.9)  # equal noise, so 'attack' (listed first) wins the tie
+    room = Room("Hall")
+    player = Player(name="Hero", hp=30)
+    player.companion = Companion(name="Imp", hp=20, home_room=room, brace_amount=2)
+    dead = Enemy(name="Goblin", hp=0)
+    result = resolve_companion_and_enemy_turns(player, player.team, [dead])
+    assert "Imp" not in result
+    assert player.companion.pending_damage_reduction == 0
+
+def test_resolve_attack_and_check_defeat_killing_the_last_enemy_with_a_companion_does_not_crash(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    room = Room("Hall")
+    player = Player(name="Hero", hp=30, attack_damage=50)
+    player.companion = Companion(name="Imp", hp=20, home_room=room, brace_amount=2)
+    enemy = Enemy(name="Goblin", hp=5, experience_reward=3)
+    room.add_enemy(enemy)
+    player.in_combat = True
+    player.current_target = enemy
+    resolve_attack_and_check_defeat(player, enemy, player.team, room.enemies, room)
+    assert enemy not in room.enemies
+    assert player.in_combat is False
+
+def test_resolve_companion_and_enemy_turns_companion_still_acts_while_an_enemy_lives(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    room = Room("Hall")
+    player = Player(name="Hero", hp=30)
+    player.companion = Companion(name="Imp", hp=20, home_room=room, attack_damage=4)
+    enemy = Enemy(name="Goblin", hp=50, attack_damage=1)
+    resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    assert enemy.hp < 50

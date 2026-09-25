@@ -2132,10 +2132,11 @@ def test_create_shade_of_achilles_duellist_has_correct_stats():
     duellist = create_shade_of_achilles_duellist()
     assert isinstance(duellist, Enemy)
     assert duellist.name == "Shade of Achilles"
-    assert duellist.hp == 40
-    assert duellist.attack_damage == 10
+    assert duellist.hp == 50
+    assert duellist.attack_damage == 14
+    assert duellist.armour_pierce == 5
     assert duellist.armour == 3
-    assert duellist.brace_amount == 3
+    assert duellist.brace_amount == 5
     assert duellist.dodge_chance == 0.15
 
 def test_create_shade_of_achilles_duellist_gives_no_xp_or_gold():
@@ -2155,8 +2156,8 @@ def test_create_shade_of_achilles_is_a_companion_with_correct_stats():
     achilles = create_shade_of_achilles()
     assert isinstance(achilles, Companion)
     assert achilles.name == "Shade of Achilles"
-    assert achilles.hp == 30
-    assert achilles.attack_damage == 8
+    assert achilles.hp == 20
+    assert achilles.attack_damage == 6
     assert achilles.armour == 2
     assert achilles.brace_amount == 3
 
@@ -2260,7 +2261,8 @@ def test_create_shade_of_ajax_has_correct_stats():
     ajax = create_shade_of_ajax()
     assert ajax.name == "Shade of Ajax"
     assert ajax.hp == 46
-    assert ajax.attack_damage == 12
+    assert ajax.attack_damage == 14
+    assert ajax.armour_pierce == 3
     assert ajax.armour == 1
     assert ajax.experience_reward == 42
     assert ajax.gold_reward == 24
@@ -2280,7 +2282,8 @@ def test_create_myrmidon_soldier_has_correct_stats():
     myrmidon = create_myrmidon_soldier()
     assert myrmidon.name == "Myrmidon Soldier"
     assert myrmidon.hp == 22
-    assert myrmidon.attack_damage == 8
+    assert myrmidon.attack_damage == 9
+    assert myrmidon.armour_pierce == 2
     assert myrmidon.armour == 3
     assert myrmidon.brace_amount == 3
     assert myrmidon.caution_weight == 1.2
@@ -2304,7 +2307,7 @@ def test_create_shade_of_paris_has_correct_stats():
 def test_create_shade_of_paris_is_evasive_in_melee_and_pierces_armour():
     paris = create_shade_of_paris()
     assert paris.melee_dodge_chance == 0.5
-    assert paris.armour_pierce == 4
+    assert paris.armour_pierce == 8
 
 def test_create_shade_of_paris_drops_the_bow_of_paris():
     assert [item.name for item in create_shade_of_paris().loot] == ["Bow of Paris"]
@@ -2356,3 +2359,17 @@ def test_every_achilles_rival_line_names_a_real_placed_enemy():
     _, _, all_floors = build_world()
     placed = {e.name for rooms in all_floors.values() for room in rooms.values() for e in room.enemies}
     assert set(create_shade_of_achilles().rival_lines) <= placed
+
+def test_create_shade_of_hector_pierces_three_armour():
+    assert create_shade_of_hector().armour_pierce == 3
+
+def test_build_floor_5_hector_ajax_and_paris_each_guard_the_way_on():
+    _, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (North)"].guarded_exits == {"south"}
+    assert rooms["Shadow of Troy (Central)"].guarded_exits == {"west"}
+    assert rooms["Shadow of Troy (South)"].guarded_exits == {"east"}
+
+def test_build_floor_5_leaves_the_myrmidons_exit_unguarded():
+    """Deliberate: the Myrmidons can be walked past, and skipping them means giving up their Field Dressings."""
+    _, rooms = build_floor_5()
+    assert rooms["Shadow of Troy (Alleyway)"].guarded_exits == set()

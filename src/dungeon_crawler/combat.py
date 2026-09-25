@@ -132,7 +132,8 @@ def choose_companion_action(companion: Companion, enemy_team: list[Enemy]) -> st
 
 def choose_companion_target(companion: Companion, enemy_team: list[Enemy]) -> Enemy:
     """Companion's mirror of choose_enemy_target() - identical single-candidate short-circuit and noisy-scoring logic, picking which member
-    of enemy_team to attack."""
+    of enemy_team to attack. Requires at least one living enemy in enemy_team - resolve_companion_and_enemy_turns() skips the companion's turn
+    when there isn't one, and any new caller must do the same."""
     living_team = [e for e in enemy_team if e.is_alive()]
     if len(living_team) == 1:
         return living_team[0]
@@ -204,10 +205,12 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
         player.turn_started = False
         return ""
 
+    enemies_remain = any(enemy.is_alive() for enemy in enemy_team)
+
     messages = []
     if player.companion is not None and player.companion.is_alive():
         messages.extend(player.companion.tick_status_effects())
-    if player.is_alive() and player.companion is not None and player.companion.is_alive():
+    if enemies_remain and player.is_alive() and player.companion is not None and player.companion.is_alive():
         companion_action = choose_companion_action(player.companion, enemy_team)
         if companion_action == "attack":
             companion_target = choose_companion_target(player.companion, enemy_team)

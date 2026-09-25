@@ -95,16 +95,16 @@ Lair of Medusa {Medusa - Enemy}
 Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable after beating him in a duel ('challenge shade of achilles')]
 * ascend -> Lair of Medusa
 * south -> Shadow of Troy (North)
-Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 32 HP / 9 ATK / 5 armour, drops Hector's Helm; exit not guarded]
+Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 32 HP / 9 ATK / 5 armour / pierce 3, drops Hector's Helm; guards 'south']
 * north -> Shadow of Army Camp
 * south -> Shadow of Troy (Central)
-Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 12 ATK / 1 armour, drops the Tower Shield of Ajax]
+Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 14 ATK / 1 armour / pierce 3, drops the Tower Shield of Ajax; guards 'west']
 * north -> Shadow of Troy (North)
 * west -> Shadow of Troy (Alleyway)
-Shadow of Troy (Alleyway) {Myrmidon Soldier ×2 - Enemy} [NOTE: built - a pair, each dropping a Field Dressing]
+Shadow of Troy (Alleyway) {Myrmidon Soldier ×2 - Enemy} [NOTE: built - a pair, 9 ATK / pierce 2, each dropping a Field Dressing; 'south' deliberately unguarded - skipping them costs the dressings]
 * east -> Shadow of Troy (Central)
 * south -> Shadow of Troy (South)
-Shadow of Troy (South) {Shade of Paris - Enemy} [NOTE: built - evasive archer: 50% melee dodge, natural 4 armour pierce; drops the Bow of Paris]
+Shadow of Troy (South) {Shade of Paris - Enemy} [NOTE: built - evasive archer: 50% melee dodge, natural 8 armour pierce; drops the Bow of Paris; guards 'east']
 * north -> Shadow of Troy (Alleyway)
 * east -> Shadow of Pylos
 Shadow of Pylos {Nestor - Friendly} [NOTE: built - advice, no trade; gives away a Cup of Kykeon]
@@ -232,7 +232,8 @@ fight on floors 0-4 is still optional to walk past.
 Floor 5 is fully populated: the Shade of Achilles (a recruitable Companion,
 duel first) in Shadow of Army Camp, then one encounter per room down the
 Shadow of Troy - Hector, Ajax, a pair of Myrmidons, and Paris - with Nestor
-in Shadow of Pylos before the descent. None of floor 5's exits are guarded.
+in Shadow of Pylos before the descent. Hector, Ajax and Paris guard the way on;
+the Myrmidons' exit is deliberately left open.
 Every room on floors 6-9 remains an unpopulated shell - the per-room
 enemies/allies listed above for those floors are the planned design, not
 built content. Finishing Floor 2's population (Prometheus' trade and Trophy

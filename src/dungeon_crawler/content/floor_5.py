@@ -16,13 +16,14 @@ def create_shade_of_achilles_duellist() -> Enemy:
     start_duel(), which links it back to the companion - registering it made 'dev spawn shade of achilles' pick this over the companion."""
     duellist = Enemy(
         name="Shade of Achilles",
-        hp=40,
-        attack_damage=10,
+        hp=50,
+        attack_damage=14,
         armour=3,
         description="He moves faster than anything dead has a right to - the spear is simply there, wherever you aren't looking",
-        brace_amount=3,
+        brace_amount=5,
         aggression_weight=1.4,
         caution_weight=0.8,
+        armour_pierce=5,
         defeat_effect=_grant_achilles_skill_point,
     )
     duellist.dodge_chance = 0.15
@@ -34,9 +35,9 @@ def create_shade_of_achilles(home_room: Room | None = None) -> Companion:
     passes the real room, and loading a save re-links the real one by name (see save_system.py)."""
     return Companion(
         name="Shade of Achilles",
-        hp=30,
+        hp=20,
         home_room=home_room or Room("Shadow of Army Camp"),
-        attack_damage=8,
+        attack_damage=6,
         armour=2,
         description="He sits apart from the other shades, polishing a spear that will never need polishing again.",
         aggression_weight=1.5,
@@ -99,6 +100,7 @@ def create_shade_of_hector() -> Enemy:
         description="Bronze from crest to greaves, the plume on his helm still stirring in a wind you can't feel. He doesn't taunt. He simply waits.",
         experience_reward=38,
         gold_reward=22,
+        armour_pierce=3,
     )
 
 def create_hectors_helm() -> Armour:
@@ -119,12 +121,13 @@ def create_shade_of_ajax() -> Enemy:
     return Enemy(
         name="Shade of Ajax",
         hp=46,
-        attack_damage=12,
+        attack_damage=14,
         armour=1,
         loot=[create_tower_shield_of_ajax()],
         description="Head and shoulders above every other shade on the field, he fights like a landslide - no footwork, no feints, just weight.",
         experience_reward=42,
         gold_reward=24,
+        armour_pierce=3,
     )
 
 def create_tower_shield_of_ajax() -> Armour:
@@ -147,7 +150,7 @@ def create_myrmidon_soldier() -> Enemy:
     return Enemy(
         name="Myrmidon Soldier",
         hp=22,
-        attack_damage=8,
+        attack_damage=9,
         armour=3,
         loot=[create_field_dressing()],
         description="Bronze-armoured and silent, moving in step with the soldier beside it, as if they'd never stopped drilling.",
@@ -155,6 +158,7 @@ def create_myrmidon_soldier() -> Enemy:
         gold_reward=10,
         brace_amount=3,
         caution_weight=1.2,
+        armour_pierce=2,
     )
 
 def create_field_dressing() -> Consumable:
@@ -179,7 +183,7 @@ def create_shade_of_paris() -> Enemy:
         experience_reward=40,
         gold_reward=30,
         melee_dodge_chance=0.5,
-        armour_pierce=4,
+        armour_pierce=8,
     )
 
 def create_bow_of_paris() -> Weapon:
@@ -251,6 +255,10 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     shadow_of_troy_alleyway.add_enemy(create_myrmidon_soldier())
     shadow_of_troy_south.add_enemy(create_shade_of_paris())
     shadow_of_pylos.add_ally(create_nestor())
+
+    shadow_of_troy_north.guard_exit("south")
+    shadow_of_troy_central.guard_exit("west")
+    shadow_of_troy_south.guard_exit("east")
 
     return shadow_of_army_camp, {
         room.name: room for room in (shadow_of_army_camp, shadow_of_troy_north, shadow_of_troy_central, shadow_of_troy_alleyway, shadow_of_troy_south, shadow_of_pylos)

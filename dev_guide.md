@@ -207,7 +207,7 @@ respawning dummy, every floor 1/3/4 enemy (Shade, Crypt Keeper, Harpy,
 Fanatic, Lurker, Petrified Guardian, Satyr, Lamia, Ember Wraith, Talos,
 Medusa), Hermes'/Athena's/Ares' now-completable trades, reloading from
 your last save on death instead of the game always just ending, guarded
-exits (the Minotaur, Talos, the Centaur and the Medusa chain each bar the
+exits (the Minotaur, Talos, the Centaur, the Medusa chain, and floor 5's Hector, Ajax and Paris each bar the
 way forward until defeated), and the minimum-damage rule (every landed hit
 deals at least 1) — has real, reachable in-game content and needs no
 dev-tool workaround to try. The
@@ -333,7 +333,7 @@ equip bow of paris
 attack ranged
 ```
 Light and heavy attacks miss Paris about half the time (`"Shade of Paris stays just out of reach!"`); ranged attacks and spells never
-do. His arrows ignore 4 of your armour. The first room entry with him present also shows the one-off `"evasive"` hint - spawning him
+do. His arrows ignore 8 of your armour. The first room entry with him present also shows the one-off `"evasive"` hint - spawning him
 doesn't, since the hint fires from `print_room()`; use `dev teleport shadow of troy (south)` to see it.
 
 **See an ancestry line:**

@@ -100,12 +100,19 @@ reordered, or new ideas come up.
   *(Three real bugs caught in review before shipping, each regression-tested and each failing against the broken code: older saves lost their secondary key (it was matched against the ancestry's name, but the save holds the ability's description); the fix then read `data["field"]` instead of `data[field]`, crashing any load that reached the lookup; and moving `talk` onto `talk_to()` dropped the "There's no one here to talk to." reply. See `CLAUDE.md`'s "Ancestry and rival lines".)*
 
 - [x] **Floor 5 populated - Ajax, the Myrmidons, Paris and Nestor, plus melee evasion and natural pierce.** Every room of the Shadow of Troy now holds content, each encounter testing a different answer:
-  - **Shade of Ajax** (46 HP / 12 attack / 1 armour) - raw damage with almost no armour, the opposite of Hector before him. Drops the Tower Shield of Ajax.
+  - **Shade of Ajax** (46 HP / 12 attack / 1 armour at first - retuned since, see the next entry) - raw damage with almost no armour, the opposite of Hector before him. Drops the Tower Shield of Ajax.
   - **Two Myrmidon Soldiers** - the first room placed with a pair of ordinary enemies, armoured and quick to brace. Each drops a Field Dressing, the first 10 HP heal.
   - **Shade of Paris** - an evasive archer, built on two new `Character` fields: **`melee_dodge_chance`** (extra dodge against light/heavy attacks and cleave, on the same roll as `dodge_chance`, never against ranged attacks or spells - `take_damage()`'s new `melee` flag) and a natural **`armour_pierce`** (the higher of it and a weapon's applies). Drops the Bow of Paris, the first ranged upgrade.
   - **Nestor** (Shadow of Pylos) - advice and a gift, no trade: the Cup of Kykeon, a strong heal-over-time before floor 6.
   - **A ninth one-off hint, `"evasive"`**, fires on first meeting a melee-evasive enemy and points at ranged attacks and spells.
-  - The Shade of Achilles gained rival lines for Ajax and Paris; `test_content.py` now checks every rival-line key names a placed enemy. **Deliberately left open**: no floor 5 exit is guarded, so every fight there can be walked past - a design call still to make.
+  - The Shade of Achilles gained rival lines for Ajax and Paris; `test_content.py` now checks every rival-line key names a placed enemy. No floor 5 exit was guarded at first - settled in the next entry.
+
+- [x] **Floor 5 balance pass - natural pierce, guarded exits, a real Achilles duel, and a companion crash.** A `/balance-check` found floor 5 near-harmless: careful players reached it with 12-19 armour, every enemy there hit for 8-12, so every hit landed only the 1-damage minimum - no one who reached the floor died on it.
+  - **Natural `armour_pierce` on every floor 5 enemy** (Hector 3, Ajax 3, the Myrmidons 2, Paris 4 → 8), plus a little attack (Ajax 12 → 14, the Myrmidons 8 → 9). Careful shield and two-handed players now bottom out at 5-10 HP instead of 9-18, with 0-1% deaths. Pierce was chosen over raw attack because it only takes armour away from players who have a lot of it; very lightly armoured builds still pay, at 26-33% deaths.
+  - **Guarded exits**: Hector, Ajax and Paris each guard the way on, like floors 3 and 4's exit fights. The Myrmidons' Alleyway is **deliberately left unguarded** - skipping them means giving up their Field Dressings.
+  - **The Achilles duel became a real test** - his duel form went to 50 HP / 14 attack / brace 5 / pierce 5, from being won first try every time to about 60%. His companion form went to 20 HP / 6 attack, since his value is mostly soaking hits: with him in the party, floor 5's lowest HP is now 9-17, where it had been 16-26.
+
+  *(A real crash found and fixed along the way: killing the last enemy with a companion in the party crashed the whole game about half the time - the companion still took its turn with nothing left alive, and `choose_companion_target()` called `max()` on an empty list. Reachable only since Achilles became the first real companion. Regression-tested, including through `main()`. See `CLAUDE.md`'s "Companion duels and levelling".)*
 
 ## In order
 

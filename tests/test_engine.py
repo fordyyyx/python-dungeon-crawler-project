@@ -1376,3 +1376,24 @@ def test_print_room_with_a_dead_evasive_enemy_does_not_show_the_evasive_hint():
     print_room(room, player)
 
     assert "evasive" not in player.seen_hints
+
+def test_main_killing_the_last_enemy_with_achilles_in_the_party_does_not_crash(monkeypatch, capsys, tmp_path):
+    """Regression: this exact flow raised an uncaught ValueError about half the time - see the companion-turn guard in
+    resolve_companion_and_enemy_turns(). The fixed roll makes the companion's AI pick 'attack', the case that crashed."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_5",
+        "challenge shade of achilles", "dev set atk 999", "attack",
+        "recruit shade of achilles",
+        "dev spawn gorgon", "attack",
+        "look",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Shade of Achilles joins you." in captured.out
+    assert captured.out.count("Shadow of Army Camp:") >= 2  # 'look' after the fight ran, so the game kept going
