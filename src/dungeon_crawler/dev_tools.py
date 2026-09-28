@@ -202,7 +202,8 @@ def handle_dummy_set(stat_name: str, value_str: str, dummy: Enemy) -> str:
 
 def handle_dev_kill(player: Player, room: Room) -> str:
     """Instantly defeat the player's current combat target if it's in this room, otherwise the room's first enemy. Reuses
-    handle_enemy_defeat() for the actual removal/loot/reward handling rather than reimplementing it."""
+    handle_enemy_defeat() for the actual removal/loot/reward handling rather than reimplementing it. Combat carries on, moving to the next
+    survivor, if other enemies remain; emptying the room sets its cleared story flag (apply_room_cleared_flag()), like a real clear."""
     if player.current_target is not None and player.current_target in room.enemies:
         enemy = player.current_target
     elif room.enemies:
@@ -264,7 +265,8 @@ def handle_dev_remove_all(character_name: str, room: Room, player: Player) -> st
 
 def handle_dev_clear_room(room: Room, player: Player) -> str:
     """Remove every enemy and ally in room, regardless of name. Does not call handle_enemy_defeat() - no loot, XP, or gold;
-    a dev removal is not a kill. See also handle_dev_remove() (single instance) and handle_dev_remove_all() (all of one name)."""
+    a dev removal is not a kill - though emptying the room still sets its cleared story flag. See also handle_dev_remove() (single instance) and
+    handle_dev_remove_all() (all of one name)."""
     enemy_count = len(room.enemies)
     ally_count = len(room.allies)
     for enemy in list(room.enemies):

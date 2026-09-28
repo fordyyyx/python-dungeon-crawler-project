@@ -108,7 +108,9 @@ content getting in the way.
   arrival. The room you leave resets its per-visit state (`Room.on_leave()`),
   exactly as walking out does.
 - `dev flag <name>` — sets a story flag (`Player.story_flags`), e.g. `dev flag
-  suitors_cleared` to make Odysseus recruitable before the Suitors exist.
+  suitors_cleared` to make Odysseus recruitable without fighting the Suitors.
+  Emptying a room with `dev kill`, `dev remove`, `dev remove all` or `dev
+  clear room` sets that room's own cleared flag too, just like a real clear.
 - `dev unlock <direction>` — removes one locked exit from the current room.
 - `dev unlock all` — removes every locked exit from the current room.
   Both go through `Room.unlock_exit()`, the same permanent unlock as walking
@@ -141,7 +143,7 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `tower shield of ajax`, `field dressing`, `bow of paris`, `cup of kykeon`,
 `laestrygonian hide`, `antiphates' club`, `olive-wood stake`, `wheel of cheese`,
 `boar's-tusk helm`, `hoplon of the drowned`, `trident of the depths`,
-`kelp poultice`, `test spellbook`, `test healing tonic`, `test venom vial`.
+`kelp poultice`, `antinous' goblet`, `penelope's thread`, `test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
@@ -150,7 +152,7 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 Practice Chamber's respawning dummy), `shade of hector`, `shade of ajax`,
 `myrmidon soldier`, `shade of paris`, `laestrygonian`, `antiphates`, `polyphemus`,
 `polyphemus (blinded)`, `head of scylla`, `poseidon`, `hippocampus`,
-`poseidon (earth-shaker)`, `charybdis` (invulnerable - she can
+`poseidon (earth-shaker)`, `suitor`, `antinous`, `eurymachus`, `charybdis` (invulnerable - she can
 only be "beaten" by `dev kill` or the Narrow River puzzle), `test boss` — a dev-only,
 two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
@@ -160,7 +162,7 @@ useful for isolated testing without a full room/fight.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`, `nestor`, `circe` (a merchant -
-see the exchange recipe below).
+see the exchange recipe below), `penelope`.
 
 **Companions** (`dev spawn <name>`): `shade of achilles` — the real floor 5
 companion, spawned still needing his duel (`challenge shade of achilles`
@@ -183,9 +185,10 @@ now exist as real content too, Spells only partly:
 
 - **Companions.** Two real companions exist now: the Shade of Achilles, in
   Shadow of Army Camp (floor 5), recruited by beating him in a duel, and
-  Odysseus, in Shadow of Ithaca (floor 6), who won't join until the
-  `suitors_cleared` story flag is set. Nothing in the game sets it yet, so
-  **Odysseus needs `dev flag suitors_cleared`** for now. No `Reviver` is real content yet, so reviving a downed
+  Odysseus, in Shadow of Ithaca (floor 6), who joins once the Suitors in the
+  Throne Room are cleared (the `suitors_cleared` story flag) - real content,
+  no workaround needed. Penelope's Thread (Bedchamber, beyond the Suitors) is
+  the one real `LoyaltyToken`. No `Reviver` is real content yet, so reviving a downed
   companion still needs `dismiss` (which restores them) or a dev-added item.
   `test companion` remains useful as a companion with no duel, no
   `required_items`, and all three AI actions live.
@@ -504,6 +507,21 @@ exchange 1
 Xiphos and 20 gold for a Kelp Poultice. Equip the Xiphos first to see the
 "unequip it first" refusal; drop to under 20 gold to see the price refusal -
 neither changes anything. Offers never run out.
+
+**Try a loyalty token (Penelope's Thread):**
+```
+dev spawn test companion
+recruit test companion
+dev add penelope's thread
+dev spawn minotaur
+attack
+```
+Holding the Thread readies the companion's loyalty before the fight. The
+first hit that would down them leaves them on 1 HP instead (`"... should have
+fallen - but stays standing."`); a second one downs them normally. It re-arms
+after the fight ends. For the real route, clear the Throne Room (`dev clear
+room` sets `suitors_cleared` too), walk `west`, and `take penelope's thread
+from penelope`.
 
 **Try a ranged attack:**
 ```

@@ -9,8 +9,9 @@ from dungeon_crawler.items import Item
 
 @dataclass
 class Offer:
-    """One exchange: gold_cost gold, plus input_item (an item name) if set, for a fresh item from output_factory. A factory rather than an item,
-    so every exchange gives a new instance - the same reason next_phase_factory is a factory."""
+    """One exchange: gold_cost gold, plus the item input_factory builds if set (matched by name - see input_name), for a fresh item from
+    output_factory. Factories rather than items or names, so every exchange gives a new instance - the same reason next_phase_factory is a
+    factory - and the item asked for can never be misspelt."""
 
     gold_cost: int
     output_factory: Callable[[], Item]

@@ -365,7 +365,8 @@ def resolve_pending_defeats(player: Player, room: Room) -> str:
     every turn-ending action, so it covers attacks, casts, item use and poison ticks alike.
 
     Afterwards: combat continues only if a living enemy remains that is neither respawning nor invulnerable. The current target is kept if it's still alive (including
-    a boss phase handle_enemy_defeat() just targeted), otherwise it moves to the first survivor, or clears if none remain."""
+    a boss phase handle_enemy_defeat() just targeted), otherwise it moves to the first survivor, or clears if none remain. Last, apply_room_cleared_flag() sets the
+    room's cleared story flag if this sweep has just cleared it."""
     duel_message = protect_duel_loser(player, room)
     defeated = [enemy for enemy in room.enemies if not enemy.is_alive()]
     if not defeated:

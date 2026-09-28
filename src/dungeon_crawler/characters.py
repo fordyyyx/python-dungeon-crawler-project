@@ -249,7 +249,7 @@ class Character:
         return message
 
     def take_damage(self, amount: int, attacker: "Character | None" = None, ignore_armour: bool = False, armour_pierce: int = 0, melee: bool = False) -> tuple[int, str]:
-        """Apply any pending Defend/Brace reduction, then armour-reduced damage, handling Last Stand and Thorns along the way. Returns
+        """Apply any pending Defend/Brace reduction, then armour-reduced damage, handling Last Stand, a companion's loyalty (Companion.loyalty_ready - it survives on 1 HP once) and Thorns along the way. Returns
         (actual damage dealt, message) - message is empty if the target survived with nothing noteworthy to report. pending_damage_reduction
         is consumed (reset to 0) here regardless of whether it changed anything, since a brace only ever protects against the next hit taken.
         ignore_armour skips the armour subtraction (used by Double Strike's second hit); armour_pierce lowers the armour applied, never below 0

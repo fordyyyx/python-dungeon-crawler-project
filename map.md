@@ -32,9 +32,9 @@ Library of Athena {Athena - Friendly}
 * ascend -> Styx Crossing
 Armoury of Ares {Ares - Friendly}
 * east -> Library of Athena
-* south -> Trophy Room of Zeus [NOTE: hidden exit in actual code, add_hidden_exit(), required_intellect=3 — this plain-text notation has no way to mark that]
+* north -> Trophy Room of Zeus [NOTE: hidden exit in actual code, add_hidden_exit(), required_intellect=3 — this plain-text notation has no way to mark that]
 Trophy Room of Zeus {Zeus - Friendly}
-* north -> Armoury of Ares
+* south -> Armoury of Ares
 Hall of Hermes {Hermes - Friendly}
 * north -> Library of Athena
 * south -> Forge of Prometheus
@@ -134,17 +134,17 @@ Poseidon's Depths {Poseidon - Enemy} [NOTE: built - floor 6's boss: Poseidon, th
 * north -> Rocky Shore
 * east -> Narrow River
 * south -> Shadow of Ithaca
-Shadow of Ithaca {Odysseus - Companion} [NOTE: built - a ranged companion who gives advice; won't join until the 'suitors_cleared' story flag, which nothing sets yet]
+Shadow of Ithaca {Odysseus - Companion} [NOTE: built - a ranged companion who gives advice; joins once the Suitors are cleared ('suitors_cleared')]
 * north -> Poseidon's Depths
 * east -> Muddy Pigsty
 * south -> Throne Room of Odysseus
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 Muddy Pigsty {Circe - Friendly} [NOTE: built - the first merchant: six exchanges ('offers' / 'exchange <number>'), outgrown gear and weak consumables into Kelp Poultices and Cups of Kykeon]
 * west -> Shadow of Ithaca
-Throne Room of Odysseus {Suitors of Ithaca - Enemy}
+Throne Room of Odysseus {Antinous, Eurymachus, Suitor x3 - Enemy} [NOTE: built - the floor's last fight; guards 'west'; clearing it sets 'suitors_cleared', which lets Odysseus join]
 * north -> Shadow of Ithaca
 * west -> Bedchamber of Odysseus
-Bedchamber of Odysseus {Penelope - Friendly}
+Bedchamber of Odysseus {Penelope - Friendly} [NOTE: built - no trade; gives away Penelope's Thread, the first LoyaltyToken; has lines for Odysseus and Achilles]
 * east -> Throne Room of Odysseus
 * descend -> Chamber of the Oracle
 
@@ -245,14 +245,15 @@ River) are two parallel branches off Calm Waters, both leading to Poseidon's
 Depths, rather than one corridor through both - the player picks one, and the
 Depths link back to the other. Nestor's dialogue on floor 5 now describes
 this choice.
-Floor 6 is populated as far as Ithaca: Antiphates and a Laestrygonian in Bright
+Floor 6 is fully populated: Antiphates and a Laestrygonian in Bright
 Cave, the Sirens' bargain in Calm Waters (a room interaction, not an enemy),
 Polyphemus in his cavern, six Heads of Scylla guarding Rocky Shore's
 'south', Charybdis' puzzle guarding Narrow River's 'west', Poseidon's chain
 guarding the Depths' 'south', Odysseus (a companion) in Shadow of Ithaca, and
-Circe (the first merchant) in the Muddy Pigsty. Shadow of Pylos and Shadow of Ithaca have 'forge' shortcuts, so the
+Circe (the first merchant) in the Muddy Pigsty, the Suitors guarding the Throne
+Room's 'west', and Penelope in the Bedchamber. Shadow of Pylos and Shadow of Ithaca have 'forge' shortcuts, so the
 Forge now has five reciprocal exits.
-Every other floor 6 room (the Throne Room and Bedchamber), and every room on floors 7-9,
+Every room on floors 7-9
 remains an unpopulated shell - the per-room enemies/allies listed for them
 are the planned design, not built content. Finishing Floor 2's population (Prometheus' trade and Trophy
 Room of Zeus) and floors 6-9's population are all deferred to the "Populate all floors" roadmap item.

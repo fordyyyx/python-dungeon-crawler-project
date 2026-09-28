@@ -317,7 +317,7 @@ def create_hoplon_of_the_drowned() -> Armour:
     )
 
 def create_poseidon() -> Enemy:
-    """Create Poseidon - floor 6's boss in Poseidon's Depths, and the hardest fight in the game so far (see CLAUDE.md's difficulty ladder).
+    """Create Poseidon - floor 6's boss in Poseidon's Depths, and meant to be the hardest fight in the game so far.
     Phase 1: armoured, pierces armour with his trident (natural armour_pierce), and heals and braces readily - the sea is on his side. Its defeat
     brings two Hippocampi (next_wave_factories); once both fall, Poseidon (Earth-Shaker) appears. No rewards on this phase. Speaks to Poseidon's
     and Odysseus' descendants."""
@@ -404,7 +404,7 @@ def create_kelp_poultice() -> Consumable:
 def create_odysseus(home_room: Room | None = None) -> Companion:
     """Create Odysseus - the second recruitable companion, in Shadow of Ithaca, and the clever counterpart to Achilles: he fights at range
     (attack_type 'ranged', so evasive enemies can't dodge him) and answers 'advice' (gives_advice). Recruitable once the 'suitors_cleared'
-    story flag is set - the Suitors' room is responsible for setting it.
+    story flag is set - the Throne Room sets it when its Suitors are cleared (Room.cleared_story_flag).
 
     Levels are kept separately per companion, so Achilles will be several levels ahead by the time Odysseus can join. His level-1 stats are
     set to roughly match Achilles at the end of floor 6, so recruiting him later isn't a step backwards. home_room follows the same placeholder
@@ -467,8 +467,8 @@ def create_circe() -> Ally:
 
 def create_suitor() -> Enemy:
     """Create a Suitor - one of three nameless suitors in the Throne Room, alongside Antinous and Eurymachus. Individually the weakest enemy
-    on floor 6; the room's difficulty comes from five attackers at once, bringing it close to (but deliberately not above) Poseidon - see
-    CLAUDE.md's difficulty ladder. No item loot, since identical enemies can only carry identical items - but they're rich, so the gold adds up."""
+    on floor 6; the room's difficulty comes from five attackers at once, meant to bring it close to (but deliberately not above)
+    Poseidon. No item loot, since identical enemies can only carry identical items - but they're rich, so the gold adds up."""
     return Enemy(
         name="Suitor",
         hp=16,

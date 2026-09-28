@@ -122,7 +122,8 @@ def dismiss_companion(player: Player):
     return f"{companion.name} returns to {companion.home_room.name}."
 
 def talk_to(speaker, player: Player) -> str:
-    """The speaker's dialogue, preceded - the first time only - by any ancestry line matching the player's primary or secondary ancestry. Every
+    """The speaker's dialogue, preceded - the first time only - by any ancestry line matching the player's primary or secondary ancestry, and
+    by any companion line (Ally.companion_lines) for the companion in the player's party. Every
     place that shows ally or companion dialogue (the 'talk' command and auto-talk) goes through this rather than calling speaker.talk() directly,
     so the once-only rule lives in one place and talk() itself stays free of side effects."""
     lines = []

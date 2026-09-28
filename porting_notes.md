@@ -197,6 +197,10 @@ something occurs to you mid-build.
   own, would make "they level with you" legible.
 
 ## NPCs / Dialogue
+- **Penelope's reunion with Odysseus is the Odyssey's ending in miniature** - a one-off line in text, but a natural fit for
+  a short cutscene the first time the player brings him to the Bedchamber (`Ally.companion_lines`).
+- **A loyalty token saving a companion** (`LoyaltyToken`) wants a visible moment: the companion staggering, then
+  steadying, with the Thread glinting - and some always-visible marker that it's still ready this fight.
 - **Companion advice (`advice`) is a natural fit for a contextual bark** - Odysseus muttering a tip as you enter a room,
   or a portrait with a speech bubble on demand, rather than a typed command. Since it's built from the room's enemies,
   it could also drive small visual cues (a shield icon over a heavily armoured foe) for players who don't ask.
