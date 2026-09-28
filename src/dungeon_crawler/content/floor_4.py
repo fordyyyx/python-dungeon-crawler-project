@@ -23,6 +23,7 @@ def create_minotaur() -> Enemy:
         experience_reward=30,
         gold_reward=18,
         brace_amount=3,
+        article="the",
     )
 
 def create_labrys() -> Weapon:
@@ -59,7 +60,8 @@ def create_cyclops_eye() -> QuestItem:
     """Create the Cyclops' Eye quest item, the required trade item for Ares' reward - dropped by the Cyclops (floor 4, Cavern of the Cyclops)."""
     return QuestItem(
         name="Cyclops' Eye",
-        description="Still faintly warm and unsettlingly heavy for its size - Ares will know exactly what this cost you."
+        description="Still faintly warm and unsettlingly heavy for its size - Ares will know exactly what this cost you.",
+        article="the",
     )
 
 def create_petrified_guardian() -> Enemy:
@@ -125,6 +127,7 @@ def create_lamia() -> Enemy:
         experience_reward=18,
         gold_reward=10,
         has_lifesteal=True,
+        article="",
     )
 
 def create_lamias_fang() -> Weapon:
@@ -137,6 +140,7 @@ def create_lamias_fang() -> Weapon:
         weapon_class="piercing",
         armour_pierce=2,
         lifesteal=True,
+        article=""
     )
 
 def create_ember_wraith() -> Enemy:
@@ -174,6 +178,7 @@ def create_talos() -> Enemy:
         description="Impossibly large and impossibly quiet - each footstep lands like a verdict not a warning.",
         experience_reward=35,
         gold_reward=20,
+        article="",
     )
 
 def create_talos_bronze_plating() -> Armour:
@@ -184,6 +189,7 @@ def create_talos_bronze_plating() -> Armour:
         defence=6,
         max_durability=18,
         weight="heavy",
+        article="",
     )
 
 def create_medusa() -> Enemy:
@@ -205,6 +211,7 @@ def create_medusa() -> Enemy:
                 "\"Neither will I, if you stand in my way.\""
             ),
         },
+        article="",
     )
 
 def create_gorgon() -> Enemy:
@@ -238,7 +245,8 @@ def create_medusa_awakened() -> Enemy:
         has_petrifying_gaze=True,
         heal_amount=2,
         brace_amount=2,
-        caution_weight=1.2
+        caution_weight=1.2,
+        article="",
     )
 
 def create_serpents_kiss() -> Weapon:
@@ -250,6 +258,7 @@ def create_serpents_kiss() -> Weapon:
         damage=6,
         weapon_class="blade",
         poison_chance=0.15,
+        article="",
     )
 
 def build_floor_4() -> tuple[Room, dict[str, Room]]:

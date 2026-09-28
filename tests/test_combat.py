@@ -3,7 +3,8 @@ from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.combat import get_duel, restore_duel_hp, end_duel, protect_duel_loser, resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
+from dungeon_crawler.content import create_polyphemus, create_polyphemus_blinded, create_charybdis, create_poseidon
+from dungeon_crawler.combat import apply_room_cleared_flag, get_duel, restore_duel_hp, end_duel, protect_duel_loser, resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -3432,3 +3433,193 @@ def test_resolve_companion_and_enemy_turns_companion_still_acts_while_an_enemy_l
     enemy = Enemy(name="Goblin", hp=50, attack_damage=1)
     resolve_companion_and_enemy_turns(player, player.team, [enemy])
     assert enemy.hp < 50
+
+def test_resolve_companion_and_enemy_turns_a_blinded_enemy_can_miss(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    player = Player(name="Hero", hp=30)
+    enemy = Enemy(name="Cyclops", hp=30, attack_damage=5)
+    enemy.apply_status_effect(StatusEffect("Blinded", 0, 3, miss_chance=0.35))
+    result = resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    assert "Cyclops attacks Hero - but misses!" in result
+    assert player.hp == 30
+
+def test_resolve_companion_and_enemy_turns_reports_an_enemys_blindness_wearing_off(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    player = Player(name="Hero", hp=30)
+    enemy = Enemy(name="Cyclops", hp=30, attack_damage=5)
+    enemy.apply_status_effect(StatusEffect("Blinded", 0, 1, miss_chance=0.35))
+    result = resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    assert "Cyclops is no longer blinded." in result
+
+def test_handle_enemy_defeat_polyphemus_gives_way_to_his_blinded_phase():
+    room = Room("Cavern")
+    player = Player(name="Hero", hp=30)
+    polyphemus = create_polyphemus()
+    room.add_enemy(polyphemus)
+    polyphemus.hp = 0
+    handle_enemy_defeat(room, polyphemus, player)
+    assert [e.name for e in room.enemies] == ["Polyphemus (Blinded)"]
+    assert player.current_target is room.enemies[0]
+    assert player.experience == 0
+    assert room.items == []
+
+def test_handle_enemy_defeat_polyphemus_blinded_pays_out_and_drops_the_stake():
+    room = Room("Cavern")
+    player = Player(name="Hero", hp=30)
+    blinded = create_polyphemus_blinded()
+    room.add_enemy(blinded)
+    blinded.hp = 0
+    handle_enemy_defeat(room, blinded, player)
+    assert room.enemies == []
+    assert [item.name for item in room.items] == ["Olive-wood Stake"]
+    assert player.gold == 35
+
+def test_resolve_companion_and_enemy_turns_a_two_turn_blind_makes_two_enemy_attacks_miss(monkeypatch):
+    """Regression: the enemy's own start-of-turn tick used to count Blinded down before it attacked, so the stake's blind only ever
+    cost it one attack."""
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    player = Player(name="Hero", hp=30)
+    enemy = Enemy(name="Cyclops", hp=30, attack_damage=5)
+    enemy.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    rounds = [resolve_companion_and_enemy_turns(player, player.team, [enemy]) for _ in range(3)]
+    assert "but misses!" in rounds[0]
+    assert "but misses!" in rounds[1]
+    assert "Cyclops is no longer blinded." in rounds[1]
+    assert "but misses!" not in rounds[2]
+    assert player.hp == 25
+
+def test_resolve_pending_defeats_an_invulnerable_enemy_does_not_keep_combat_going():
+    room = Room("River")
+    room.add_enemy(create_charybdis())
+    goblin = Enemy(name="Goblin", hp=0)
+    room.add_enemy(goblin)
+    player = Player(name="Hero", hp=30)
+    player.in_combat = True
+    player.current_target = goblin
+    resolve_pending_defeats(player, room)
+    assert player.in_combat is False
+    assert player.current_target is None
+
+def test_resolve_pending_defeats_a_solved_charybdis_pays_out_and_leaves():
+    room = Room("River")
+    charybdis = create_charybdis()
+    room.add_enemy(charybdis)
+    player = Player(name="Hero", hp=30)
+    charybdis.hp = 0
+    message = resolve_pending_defeats(player, room)
+    assert room.enemies == []
+    assert [item.name for item in room.items] == ["Hoplon of the Drowned"]
+    assert player.gold == 25
+    assert "Charybdis sinks" in message
+
+def test_handle_target_command_refuses_an_invulnerable_enemy():
+    room = Room("River")
+    charybdis = create_charybdis()
+    room.add_enemy(charybdis)
+    player = Player(name="Hero", hp=30)
+    result = handle_target_command("target charybdis", room.enemies, player)
+    assert result == charybdis.invulnerable_message
+    assert player.current_target is None
+
+def test_resolve_companion_and_enemy_turns_a_ranged_companion_hits_an_evasive_enemy(monkeypatch):
+    """Companion.attack_type is passed through to attack() - Odysseus' arrows can't be dodged by melee evasion."""
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    room = Room("Troy")
+    player = Player(name="Hero", hp=30)
+    player.companion = Companion(name="Archer", hp=20, home_room=room, attack_damage=5, attack_type="ranged")
+    enemy = Enemy(name="Paris", hp=30, attack_damage=0, melee_dodge_chance=0.9)
+    resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    assert enemy.hp == 25
+
+def test_resolve_companion_and_enemy_turns_a_melee_companion_is_evaded(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    room = Room("Troy")
+    player = Player(name="Hero", hp=30)
+    player.companion = Companion(name="Brute", hp=20, home_room=room, attack_damage=5)
+    enemy = Enemy(name="Paris", hp=30, attack_damage=0, melee_dodge_chance=0.9)
+    resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    assert enemy.hp == 30
+
+def test_handle_combat_command_advice_works_mid_combat_without_ending_the_turn():
+    room = Room("Troy")
+    player = Player(name="Hero", hp=30)
+    player.companion = Companion(name="Sage", hp=20, home_room=room, gives_advice=True)
+    enemy = Enemy(name="Archer", hp=30, attack_damage=5, melee_dodge_chance=0.5)
+    room.add_enemy(enemy)
+    message = handle_combat_command("advice", player, enemy, player.team, room.enemies, room)
+    assert "Use a bow, or a spell." in message
+    assert player.hp == 30
+
+def test_poseidon_chain_runs_two_hippocampi_then_the_earth_shaker():
+    room = Room("Depths")
+    player = Player(name="Hero", hp=50)
+    poseidon = create_poseidon()
+    room.add_enemy(poseidon)
+    player.in_combat = True
+    player.current_target = poseidon
+    poseidon.hp = 0
+    resolve_pending_defeats(player, room)
+    assert [e.name for e in room.enemies] == ["Hippocampus", "Hippocampus"]
+    assert room.enemies[0] is not room.enemies[1]
+    for hippocampus in room.enemies:
+        hippocampus.hp = 0
+    resolve_pending_defeats(player, room)
+    assert [e.name for e in room.enemies] == ["Poseidon (Earth-Shaker)"]
+    assert [item.name for item in room.items] == ["Kelp Poultice", "Kelp Poultice"]
+    assert player.in_combat is True
+    room.enemies[0].hp = 0
+    resolve_pending_defeats(player, room)
+    assert room.enemies == []
+    assert "Trident of the Depths" in [item.name for item in room.items]
+    assert player.in_combat is False
+
+def flagged_room():
+    room = Room("Hall")
+    room.cleared_story_flag = "hall_cleared"
+    room.cleared_message = "The hall is quiet."
+    return room
+
+def test_apply_room_cleared_flag_sets_the_flag_and_returns_the_message_once():
+    room = flagged_room()
+    player = Player(name="Hero", hp=20)
+    assert apply_room_cleared_flag(room, player) == "The hall is quiet."
+    assert "hall_cleared" in player.story_flags
+    assert apply_room_cleared_flag(room, player) == ""
+
+def test_apply_room_cleared_flag_waits_while_an_enemy_lives():
+    room = flagged_room()
+    room.add_enemy(Enemy(name="Suitor", hp=5))
+    player = Player(name="Hero", hp=20)
+    assert apply_room_cleared_flag(room, player) == ""
+    assert player.story_flags == set()
+
+def test_apply_room_cleared_flag_ignores_a_respawning_enemy():
+    room = flagged_room()
+    room.add_enemy(Enemy(name="Dummy", hp=5, respawns=True))
+    assert apply_room_cleared_flag(room, Player(name="Hero", hp=20)) == "The hall is quiet."
+
+def test_apply_room_cleared_flag_waits_for_an_unsolved_invulnerable_enemy():
+    room = flagged_room()
+    room.add_enemy(Enemy(name="Whirlpool", hp=1, invulnerable=True))
+    assert apply_room_cleared_flag(room, Player(name="Hero", hp=20)) == ""
+
+def test_apply_room_cleared_flag_does_nothing_for_a_room_with_no_flag():
+    player = Player(name="Hero", hp=20)
+    assert apply_room_cleared_flag(Room("Hall"), player) == ""
+    assert player.story_flags == set()
+
+def test_resolve_pending_defeats_the_last_suitor_falling_sets_suitors_cleared():
+    room = Room("Throne Room")
+    room.cleared_story_flag = "suitors_cleared"
+    room.cleared_message = "The hall falls silent at last."
+    first, last = Enemy(name="Suitor", hp=0), Enemy(name="Suitor", hp=5)
+    room.add_enemy(first)
+    room.add_enemy(last)
+    player = Player(name="Hero", hp=30)
+    player.in_combat = True
+    resolve_pending_defeats(player, room)
+    assert "suitors_cleared" not in player.story_flags
+    last.hp = 0
+    message = resolve_pending_defeats(player, room)
+    assert "suitors_cleared" in player.story_flags
+    assert "The hall falls silent at last." in message

@@ -46,18 +46,45 @@ def test_status_effect_tick_heal_does_not_exceed_max_hp():
     effect.tick(character)
     assert character.hp == 10
 
-def test_status_effect_tick_with_zero_amount_takes_the_heal_branch():
-    """amount < 0 is the only damage condition - a zero-amount effect goes through the heal path
-    (healing 0), not the damage path."""
+def test_status_effect_tick_with_zero_amount_changes_no_hp_and_returns_nothing():
+    """A zero-amount effect (e.g. Blinded) neither damages nor heals, and stays quiet - it used to print 'recovers 0 HP' every round."""
     character = Character(name="Hero", hp=10, attack_damage=5)
     character.hp = 5
-    effect = StatusEffect("Neutral", 0, 2)
+    effect = StatusEffect("Blinded", 0, 2)
     message = effect.tick(character)
     assert character.hp == 5
-    assert message == "Hero recovers 0 HP from Neutral."
+    assert message == ""
+
+def test_status_effect_tick_with_zero_amount_still_counts_down():
+    effect = StatusEffect("Blinded", 0, 2)
+    effect.tick(Character(name="Hero", hp=10, attack_damage=5))
+    assert effect.duration == 1
+
+def test_status_effect_miss_chance_defaults_to_zero():
+    assert StatusEffect("Poison", -3, 4).miss_chance == 0.0
+
+def test_status_effect_stores_miss_chance():
+    assert StatusEffect("Blinded", 0, 2, miss_chance=0.3).miss_chance == 0.3
 
 def test_status_effect_tick_decrements_duration():
     character = Character(name="Hero", hp=20, attack_damage=5)
     effect = StatusEffect("Poison", -3, 4)
     effect.tick(character)
     assert effect.duration == 3
+
+def test_status_effect_counts_down_on_attack_for_a_pure_miss_chance_effect():
+    assert StatusEffect("Blinded", 0, 2, miss_chance=0.3).counts_down_on_attack is True
+
+def test_status_effect_does_not_count_down_on_attack_without_a_miss_chance():
+    assert StatusEffect("Neutral", 0, 2).counts_down_on_attack is False
+
+def test_status_effect_does_not_count_down_on_attack_when_it_also_changes_hp():
+    """A damaging effect still lasts a number of turns, even if it also adds a miss chance."""
+    assert StatusEffect("Smoke", -1, 2, miss_chance=0.3).counts_down_on_attack is False
+
+def test_status_effect_tick_leaves_an_attack_counted_effect_alone():
+    character = Character(name="Hero", hp=10, attack_damage=5)
+    effect = StatusEffect("Blinded", 0, 2, miss_chance=0.3)
+    assert effect.tick(character) == ""
+    assert effect.duration == 2
+    assert character.hp == 10

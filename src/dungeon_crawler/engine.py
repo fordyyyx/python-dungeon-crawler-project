@@ -5,31 +5,60 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
-from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines
+from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines, get_advice
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
 from dungeon_crawler.hints import show_hint
+from dungeon_crawler.exchange import list_offers, make_exchange
 
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
 PASSIVE_REGEN_CAP_FRACTION = 0.75
+RESERVED_COMMAND_WORDS: frozenset[str] = frozenset({
+    "north", "south", "east", "west", "up", "down", "ascend", "descend",
+    "look", "examine", "map", "fullmap", "world", "inventory", "stats", "skills", "learn", "advice", "offers", "exchange",
+    "take", "drop", "use", "equip", "unequip", "talk", "trade", "recruit", "dismiss", "challenge",
+    "attack", "cast", "target", "flee", "rest", "wait", "repair", "dummy",
+    "save", "load", "quit", "exit", "controls", "uncleared", "toggle", "dev", "developer",
+})
+"""The first word of every global command. Room interactions are checked before global commands so a room verb starting with one of these would
+silently override it."""
 
 
 def print_room(room: Room, player: Player):
-    """Display a room's name, description, contents, and occupants on entry.
+    """Display a room's name, description, any room interactions currently available, contents, and occupants on entry. Same-named enemies
+    are grouped onto one line ("Head of Scylla x6"), and each enemy is introduced with its own article (see Enemy.with_article()).
     Ally dialogue - or, with no ally present, a companion's - fires automatically here if player.auto_talk is enabled, and the room's exits
-    are listed if player.auto_map is. A companion who still requires a duel is announced as present, not as recruitable."""
+    are listed if player.auto_map is. A companion who still requires a duel is announced as present, not as recruitable. An invulnerable
+    enemy is shown by its description alone - no "blocks your path", no armour - and never triggers the combat hint."""
     print(f"{room.name}: {room.description}")
+
+    verbs = room.available_interactions(player)
+    if verbs:
+        print(f"(You could: {', '.join(verbs)})")
 
     if room.items:
         print(f"You see: {', '.join(item.name for item in room.items)}")
 
     if room.enemies:
-        enemy = room.enemies[0]
-        if enemy.has_been_fled_from:
-            print(f"The {enemy.name} is still here - it hasn't forgotten you either.")
-        else:
-            print(f"A {enemy.name} blocks your path! {enemy.description} [Armour {enemy.armour}]")
+        groups: dict[str, list] = {}
+        for enemy in room.enemies:
+            groups.setdefault(enemy.name, []).append(enemy)
+        for name, group in groups.items():
+            first = group[0]
+            if first.invulnerable:
+                print(first.description)
+                continue
+            count = len(group)
+            if first.has_been_fled_from:
+                if count == 1:
+                    print(f"{first.with_article(definite=True)} is still here - it hasn't forgotten you either.")
+                else:
+                    print(f"{name} x{count} are still here - they haven't forgotten you either.")
+            elif count == 1:
+                print(f"{first.with_article()} blocks your path! {first.description} [Armour {first.armour}]")
+            else:
+                print(f"{name} x{count} block your path! {first.description} [Armour {first.armour}]")
         for line in get_enemy_ancestry_lines(room, player) + get_rival_lines(room, player):
             print(f"\n{line}")
 
@@ -41,10 +70,10 @@ def print_room(room: Room, player: Player):
 
     if room.companions:
         companion = room.companions[0]
-        if companion.requires_duel:
-            print(f"{companion.name} is here. {companion.description}")
-        else:
+        if companion.can_be_recruited(player):
             print(f"{companion.name} could be recruited here. {companion.description}")
+        else:
+            print(f"{companion.name} is here. {companion.description}")
         if player.auto_talk and not room.allies:
             print("\n" + talk_to(room.companions[0], player))
 
@@ -52,7 +81,7 @@ def print_room(room: Room, player: Player):
         print("\nExits:\n" + display_local_exits(room, player))
 
     room_hints = []
-    if any(enemy.is_alive() and not enemy.respawns for enemy in room.enemies):
+    if any(enemy.is_alive() and not enemy.respawns and not enemy.invulnerable for enemy in room.enemies):
         room_hints.append(show_hint(player, "combat"))
     if room.is_forge:
         room_hints.append(show_hint(player, "forge"))
@@ -60,6 +89,8 @@ def print_room(room: Room, player: Player):
         room_hints.append(show_hint(player, "practice_chamber"))
     if any(enemy.is_alive() and enemy.melee_dodge_chance > 0 for enemy in room.enemies):
         room_hints.append(show_hint(player, "evasive"))
+    if room.available_interactions(player):
+        room_hints.append(show_hint(player, "room_interactions"))
     for hint in room_hints:
         if hint:
             print(f"\n{hint}")
@@ -95,6 +126,9 @@ def get_controls_text() -> str:
         "challenge <name> - duel a companion who won't join until you've beaten them; losing isn't a death, and your HP is restored afterwards\n"
         "repair <item> - repair an item to full durability (requires gold)\n"
         "dismiss - release your current companion, who returns home\n"
+        "advice - ask your companion what they make of the room (only some companions give advice; also works mid-combat)\n"
+        "offers - list what the merchant in this room will exchange, and for how much\n"
+        "exchange <number> - accept one of the merchant's offers, paying its gold (and handing over its item, if it asks for one)\n"
         "dummy set <stat> <value> - customise the practice dummy's stats (Practice Chamber only)\n"
         "skills - view your skill tree progress and available points\n"
         "learn <path> - spend a skill point (attack, defence, or abilities)\n"
@@ -192,12 +226,21 @@ def main() -> None:
                 skill_hint = show_hint(player, "skill_points")
                 if skill_hint:
                     print(skill_hint)
+            if not player.in_combat and player.companion is not None:
+                player.companion.loyalty_ready = player.has_loyalty_token()
             command = input("> ").strip().lower()
             print("\n\n")
 
             if command in ("quit", "exit"):
                 quit_requested = True
                 break
+
+            elif command in current_room.interactions and not player.in_combat:
+                interaction = current_room.interactions[command]
+                if interaction.is_available(player, current_room):
+                    print(interaction.handler(player, current_room))
+                else:
+                    print(interaction.unavailable_message)
 
             elif command == "save" and not player.in_combat:
                 if active_profile is None:
@@ -250,6 +293,7 @@ def main() -> None:
                 message, new_room = dev_tools.handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
                 print(message)
                 if new_room is not None:
+                    current_room.on_leave()
                     current_room = new_room
                     print_room(current_room, player)
 
@@ -351,6 +395,7 @@ def main() -> None:
                             shortcut_hint = show_hint(player, "forge_shortcut")
                             if shortcut_hint:
                                 print(shortcut_hint)
+                    current_room.on_leave()
                     current_room = current_room.exits[command]
                     player.visited_rooms.add(current_room.name)
                     regen_cap = int(player.max_hp * PASSIVE_REGEN_CAP_FRACTION)
@@ -376,18 +421,24 @@ def main() -> None:
             elif command == "look":
                 print_room(current_room, player)
 
+            elif command == "offers":
+                print(list_offers(current_room, player))
+
+            elif command == "exchange" or command.startswith("exchange "):
+                print(make_exchange(command.removeprefix("exchange").strip(), current_room, player))
+
             elif command == "uncleared":
                 print(get_uncleared_rooms(all_floors, player))
 
             elif command == "attack":
-                if current_room.enemies:
-                    if player.current_target is not None:
-                        enemy = player.current_target
-                    else:
-                        enemy = current_room.enemies[0]
+                attackable = [e for e in current_room.enemies if not e.invulnerable]
+                if attackable:
+                    enemy = next((e for e in attackable if e is player.current_target), attackable[0])
                     player.in_combat = True
                     player.current_target = enemy
                     print(resolve_attack_and_check_defeat(player, enemy, player.team, current_room.enemies, current_room))
+                elif current_room.enemies:
+                    print(current_room.enemies[0].invulnerable_message)
                 else:
                     print("There's nothing here to attack.")
 
@@ -418,12 +469,15 @@ def main() -> None:
                 try:
                     item = player.inventory.drop_item(item_name)
                     current_room.add_item(item)
-                    print(f"You drop the {item.name}")
+                    print(f"You drop {item.with_article(definite=True)}.")
                 except ValueError as e:
                     print(e)
 
             elif command == "stats":
                 print(player.get_stats())
+
+            elif command == "advice":
+                print(get_advice(current_room, player))
 
             elif command == "inventory":
                 print(player.get_inventory_display())

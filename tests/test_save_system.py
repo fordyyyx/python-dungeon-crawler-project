@@ -5,7 +5,7 @@ from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.character_creation import create_player
 from dungeon_crawler.dev_tools import ENEMY_REGISTRY
-from dungeon_crawler.content import build_world, create_shade_of_achilles, create_gorgon, create_medusa_awakened
+from dungeon_crawler.content import build_world, create_penelopes_thread, create_odysseus, create_poseidon, create_charybdis, create_polyphemus_blinded, create_antiphates_club, create_cyclops_eye, create_shade_of_achilles, create_gorgon, create_medusa_awakened
 from dungeon_crawler.combat import handle_enemy_defeat, resolve_pending_defeats
 from dungeon_crawler.items import Weapon, Armour
 from dungeon_crawler.status_effects import StatusEffect
@@ -128,7 +128,7 @@ def test_serialise_player_includes_active_effects():
     player = Player(name="Hero", hp=50)
     player.apply_status_effect(StatusEffect("Poison", -3, 4))
     data = serialise_player(player, Room("Chamber"))
-    assert data["active_effects"] == [{"name": "Poison", "amount": -3, "duration": 4}]
+    assert data["active_effects"] == [{"name": "Poison", "amount": -3, "duration": 4, "miss_chance": 0.0}]
 
 def test_serialise_player_includes_inventory_item_name_and_defaults():
     player = Player(name="Hero", hp=50)
@@ -172,7 +172,7 @@ def test_serialise_player_with_companion_includes_active_effects():
     companion.apply_status_effect(StatusEffect("Poison", -2, 3))
     player.companion = companion
     data = serialise_player(player, Room("Chamber"))
-    assert data["companion"]["active_effects"] == [{"name": "Poison", "amount": -2, "duration": 3}]
+    assert data["companion"]["active_effects"] == [{"name": "Poison", "amount": -2, "duration": 3, "miss_chance": 0.0}]
 
 # ---- player_from_save_data ----
 
@@ -1055,3 +1055,171 @@ def test_player_from_save_data_older_save_without_seen_lines_starts_empty():
     dungeon.add_room(Room("Chamber"))
     player, _ = player_from_save_data(base_player_data(), dungeon)
     assert player.seen_lines == set()
+
+def test_serialise_room_includes_its_flags_sorted():
+    room = Room("Shore")
+    room.flags = {"b_flag", "a_flag"}
+    assert serialise_room(room)["flags"] == ["a_flag", "b_flag"]
+
+def test_serialise_room_with_no_flags_returns_empty_list():
+    assert serialise_room(Room("Shore"))["flags"] == []
+
+def test_apply_room_data_restores_flags():
+    room = Room("Shore")
+    data = {"enemies": [], "items": [], "allies_traded": [], "flags": ["sirens_bargain_taken"]}
+    apply_room_data(room, data)
+    assert room.flags == {"sirens_bargain_taken"}
+
+def test_apply_room_data_without_flags_key_leaves_flags_alone():
+    """Older saves have no 'flags' key - a fresh room's (empty) flags stay as they are."""
+    room = Room("Shore")
+    data = {"enemies": [], "items": [], "allies_traded": []}
+    apply_room_data(room, data)
+    assert room.flags == set()
+
+def test_save_game_then_load_game_keeps_the_sirens_bargain_taken(monkeypatch, tmp_path):
+    """A taken bargain is permanent - reloading must not reopen the offer for a second helping of skill points."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, entrance, floors = build_world()
+    calm_waters = floors["floor_6"]["Calm Waters"]
+    player = Player(name="Hero", hp=20)
+    calm_waters.interactions["give in"].handler(player, calm_waters)
+    save_game(1, 1, player, calm_waters, dungeon)
+
+    fresh_dungeon, _, fresh_floors = build_world()
+    reloaded_player, reloaded_room = load_game(1, 1, fresh_dungeon)
+
+    assert reloaded_room is fresh_floors["floor_6"]["Calm Waters"]
+    assert reloaded_room.available_interactions(reloaded_player) == []
+    assert reloaded_player.max_hp == 15
+    assert reloaded_player.skill_tree.skill_points == 2
+
+def test_player_from_save_data_keeps_antiphates_club():
+    """Regression: the club's misspelt name didn't match its registry key, so every reload silently dropped it from the inventory."""
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(create_antiphates_club())
+    reloaded, _ = player_from_save_data(serialise_player(player, start), dungeon)
+    assert [item.name for item in reloaded.inventory.items] == ["Antiphates' Club"]
+
+def test_player_from_save_data_keeps_the_cyclops_eye():
+    """Regression: the registry key was "cyclops eye", so a reload dropped Ares' only trade item - and the Cyclops is its only source."""
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(create_cyclops_eye())
+    reloaded, _ = player_from_save_data(serialise_player(player, start), dungeon)
+    assert [item.name for item in reloaded.inventory.items] == ["Cyclops' Eye"]
+
+def test_serialise_player_includes_an_effects_miss_chance():
+    player = Player(name="Hero", hp=20)
+    player.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    assert serialise_player(player, Room("Chamber"))["active_effects"] == [{"name": "Blinded", "amount": 0, "duration": 2, "miss_chance": 0.3}]
+
+def test_player_from_save_data_restores_an_effects_miss_chance():
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    reloaded, _ = player_from_save_data(serialise_player(player, start), dungeon)
+    assert reloaded.active_effects[0].miss_chance == 0.3
+    assert reloaded.get_miss_chance("light") == 0.3
+
+def test_player_from_save_data_older_effect_without_miss_chance_defaults_to_zero():
+    dungeon, start, floors = build_world()
+    data = serialise_player(Player(name="Hero", hp=20), start)
+    data["active_effects"] = [{"name": "Poison", "amount": -3, "duration": 4}]
+    reloaded, _ = player_from_save_data(data, dungeon)
+    assert reloaded.active_effects[0].miss_chance == 0.0
+
+def test_companion_round_trip_keeps_an_effects_miss_chance():
+    companion = create_shade_of_achilles()
+    companion.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    reloaded = companion_from_save_data(serialise_companion(companion), None)
+    assert reloaded.active_effects[0].miss_chance == 0.3
+
+def test_companion_from_save_data_older_effect_without_miss_chance_defaults_to_zero():
+    data = serialise_companion(create_shade_of_achilles())
+    data["active_effects"] = [{"name": "Poison", "amount": -2, "duration": 3}]
+    assert companion_from_save_data(data, None).active_effects[0].miss_chance == 0.0
+
+def test_apply_room_data_rebuilds_polyphemus_blinded_still_blinded():
+    """Mid-fight, only phase 2 is left - a reload rebuilds it from ENEMY_REGISTRY, and its factory is what makes it blind again."""
+    dungeon, start, floors = build_world()
+    cavern = floors["floor_6"]["Cavern of Polyphemus"]
+    source = Room("Cavern of Polyphemus")
+    blinded = create_polyphemus_blinded()
+    blinded.hp = 20
+    source.add_enemy(blinded)
+    apply_room_data(cavern, serialise_room(source))
+    assert [e.name for e in cavern.enemies] == ["Polyphemus (Blinded)"]
+    assert cavern.enemies[0].hp == 20
+    assert cavern.enemies[0].get_miss_chance("light") == 0.35
+
+def test_apply_room_data_keeps_an_unsolved_charybdis_guarding_the_river():
+    dungeon, start, floors = build_world()
+    river = floors["floor_6"]["Narrow River"]
+    source = Room("Narrow River")
+    source.add_enemy(create_charybdis())
+    apply_room_data(river, serialise_room(source))
+    assert [e.name for e in river.enemies] == ["Charybdis"]
+    assert river.enemies[0].invulnerable is True
+
+def test_apply_room_data_a_solved_charybdis_stays_solved():
+    dungeon, start, floors = build_world()
+    river = floors["floor_6"]["Narrow River"]
+    apply_room_data(river, serialise_room(Room("Narrow River")))
+    assert river.enemies == []
+    assert river.available_interactions(Player(name="Hero", hp=20)) == []
+
+def test_serialise_room_never_saves_transient_state():
+    room = Room("Narrow River")
+    room.transient_state["charybdis"] = {"phase": 2, "position": "tree", "freed": False}
+    assert "transient_state" not in serialise_room(room)
+    assert all("charybdis" not in str(value) for value in serialise_room(room).values())
+
+def test_serialise_player_includes_story_flags_sorted():
+    player = Player(name="Hero", hp=20)
+    player.story_flags = {"b_flag", "a_flag"}
+    assert serialise_player(player, Room("Chamber"))["story_flags"] == ["a_flag", "b_flag"]
+
+def test_player_from_save_data_restores_story_flags():
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("suitors_cleared")
+    reloaded, _ = player_from_save_data(serialise_player(player, start), dungeon)
+    assert reloaded.story_flags == {"suitors_cleared"}
+
+def test_player_from_save_data_older_save_without_story_flags_starts_with_none():
+    dungeon, start, floors = build_world()
+    data = serialise_player(Player(name="Hero", hp=20), start)
+    del data["story_flags"]
+    reloaded, _ = player_from_save_data(data, dungeon)
+    assert reloaded.story_flags == set()
+
+def test_companion_round_trip_keeps_odysseus_ranged_and_advising():
+    odysseus = create_odysseus()
+    reloaded = companion_from_save_data(serialise_companion(odysseus), None)
+    assert reloaded.name == "Odysseus"
+    assert reloaded.attack_type == "ranged"
+    assert reloaded.gives_advice is True
+    assert reloaded.required_story_flag == "suitors_cleared"
+
+def test_apply_room_data_rebuilds_poseidons_hippocampi_still_gated_on_the_earth_shaker():
+    """Mid-wave save: the adds aren't in a fresh Depths, so they're rebuilt from ENEMY_REGISTRY and re-linked to the next phase."""
+    dungeon, start, floors = build_world()
+    depths = floors["floor_6"]["Poseidon's Depths"]
+    source = Room("Poseidon's Depths")
+    poseidon = create_poseidon()
+    source.add_enemy(poseidon)
+    player = Player(name="Hero", hp=50)
+    poseidon.hp = 0
+    resolve_pending_defeats(player, source)
+    apply_room_data(depths, serialise_room(source))
+    assert [e.name for e in depths.enemies] == ["Hippocampus", "Hippocampus"]
+    assert all(e.wave_gate_factory is ENEMY_REGISTRY["poseidon (earth-shaker)"] for e in depths.enemies)
+
+def test_player_from_save_data_keeps_penelopes_thread_as_a_loyalty_token():
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(create_penelopes_thread())
+    reloaded, _ = player_from_save_data(serialise_player(player, start), dungeon)
+    assert reloaded.has_loyalty_token() is True

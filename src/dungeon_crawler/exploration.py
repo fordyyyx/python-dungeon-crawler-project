@@ -13,7 +13,7 @@ def pick_up(room: Room, item_name: str, player: Player) -> str:
         if item.name.lower() == item_name.lower():
             player.inventory.add(item)
             room.remove_item(item)
-            return f"You take the {item.name}. {item.description}"
+            return f"You take {item.with_article(definite=True)}. {item.description}"
     return "That's not here."
 
 def take_all(room: Room, player: Player) -> str:
@@ -66,7 +66,7 @@ def trade_with_ally(ally: Ally, player: Player):
 
     player.inventory.add(ally.reward)
     ally.trade_completed = True
-    result = f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you the {ally.reward.name}."
+    result = f"{ally.name} nods, accepting each item in turn. \"You've done well.\" They hand you {ally.reward.with_article(definite=True)}."
     if ally.post_trade_message:
         result += f"\n\n{ally.post_trade_message}"
     return result
@@ -83,6 +83,8 @@ def recruit_companion(name: str, room: Room, player: Player) -> str:
         return f"There's no one named '{name}' here to recruit."
     if companion.requires_duel:
         return f"{companion.name} won't follow anyone who hasn't beaten them. Try 'challenge {companion.name.lower()}'."
+    if not companion.can_be_recruited(player):
+        return companion.recruit_blocked_message or f"{companion.name} isn't ready to join you yet."
 
     player_item_names = [item.name for item in player.inventory.items]
     missing = [item_name for item_name in companion.required_items if item_name not in player_item_names]
@@ -120,7 +122,7 @@ def dismiss_companion(player: Player):
     return f"{companion.name} returns to {companion.home_room.name}."
 
 def talk_to(speaker, player: Player) -> str:
-    """speaker's dialogue, preceded - the first time only - by any ancestry line matching the player's primary or secondary ancestry. Every
+    """The speaker's dialogue, preceded - the first time only - by any ancestry line matching the player's primary or secondary ancestry. Every
     place that shows ally or companion dialogue (the 'talk' command and auto-talk) goes through this rather than calling speaker.talk() directly,
     so the once-only rule lives in one place and talk() itself stays free of side effects."""
     lines = []
@@ -131,6 +133,13 @@ def talk_to(speaker, player: Player) -> str:
         if seen_key not in player.seen_lines:
             player.seen_lines.add(seen_key)
             lines.append(speaker.ancestry_lines[key])
+    companion = player.companion
+    if companion is not None:
+        companion_line = (getattr(speaker, "companion_lines", None) or {}).get(companion.name)
+        seen_key = f"companion:{speaker.name}:{companion.name}"
+        if companion_line and seen_key not in player.seen_lines:
+            player.seen_lines.add(seen_key)
+            lines.append(companion_line)
     lines.append(speaker.talk(player))
     return "\n\n".join(lines)
 
@@ -165,6 +174,36 @@ def get_enemy_ancestry_lines(room: Room, player: Player) -> list[str]:
                 lines.append(enemy.ancestry_lines[key])
     return lines
 
+def get_advice(room: Room, player: Player) -> str:
+    """Advice from the player's companion, if they give it (Companion.gives_advice). Built from the room itself rather than written per room, so
+    it stays correct on every floor and after any rebalance: each trait of the living enemies here produces one line, plus the room's own optional
+    advice (Room.advice) for anything the traits can't describe, like a puzzle."""
+    companion = player.companion
+    if companion is None or not companion.gives_advice:
+        return "You've no one to ask."
+
+    enemies = [e for e in room.enemies if e.is_alive() and not e.respawns]
+    fighting = [e for e in enemies if not e.invulnerable]
+    lines = []
+    if any(e.armour >= 3 for e in fighting):
+        lines.append("That armour's thick. Something that pierces it, or a few heavy blows, will do more than cutting at it.")
+    if any(e.melee_dodge_chance > 0 for e in fighting):
+        lines.append("You'll never catch that one up close. Use a bow, or a spell.")
+    if any(e.heal_amount > 0 for e in fighting):
+        lines.append("Give it time and it'll patch itself up. Hit hard and fast.")
+    if any(e.armour_pierce > 0 for e in fighting):
+        lines.append("Your armour won't count for much against that - don't trust it to save you.")
+    if len(fighting) >= 3:
+        lines.append("There are a lot of them. Something that hits more than one at once would earn its keep.")
+    if any(e.invulnerable for e in enemies) and not room.advice:
+        lines.append("You can't fight that. Look around - there'll be another way.")
+    if room.advice:
+        lines.append(room.advice)
+
+    if not lines:
+        return f"{companion.name} looks around. \"Nothing here worries me. Keep your eyes open anyway.\""
+    return "\n".join(f"{companion.name}: \"{line}\"" for line in lines)
+
 def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     """Whether direction requires an item player doesn't currently hold. An exit not in locked_exits is never locked."""
     if direction not in room.locked_exits:
@@ -173,7 +212,8 @@ def is_exit_locked(room: Room, direction: str, player: Player) -> bool:
     return required_item_name not in [item.name for item in player.inventory.items]
 
 def get_exit_guardian(room: Room, direction: str) -> Enemy | None:
-    """The first living, non-respawning enemy blocking 'direction', or None if the exit isn't guarded or nobody's left to guard it."""
+    """The first living, non-respawning enemy blocking 'direction', or None if the exit isn't guarded or nobody's left to guard it. An
+    invulnerable enemy counts, so Charybdis keeps her exit guarded until her puzzle is solved."""
     if direction not in room.guarded_exits:
         return None
     return next((e for e in room.enemies if e.is_alive() and not e.respawns), None)
@@ -241,7 +281,6 @@ def handle_examine(room: Room, player: Player) -> str:
     means content always shows, exactly as before - only rooms explicitly setting a higher threshold (e.g. the Trophy Room's entrance)
     are genuinely gated, reveal included, not just the flavour text. Intellect gated progress is allowed, since Intellect grows
     with every level with no cap - the guardrail is reachability, not avoidance of gating entirely."""
-
     if player.intellect < room.required_intellect:
         return "There's something here, but you can't quite make sense of it."
 
@@ -287,7 +326,7 @@ def check_equippable(item_name: str, player: Player) -> str | None:
     if item is None:
         return f"No item named '{item_name}' in inventory."
     if not isinstance(item, (Weapon, Armour)):
-        return f"You can't equip the {item.name}."
+        return f"You can't equip {item.with_article(definite=True)}."
     if item.equipped:
         return f"{item.name} is already equipped."
     return None

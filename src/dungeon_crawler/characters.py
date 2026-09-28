@@ -1,11 +1,13 @@
 """Character classes - Character, Player, Enemy, Ally - and the skill tree system (Skill, SkillPath, SkillTree) that lets a Player unlock permanent stat/ability upgrades."""
 
-from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem
+from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem, LoyaltyToken
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
 from textwrap import dedent
-from typing import Sequence, Callable
+from typing import Sequence, Callable, TYPE_CHECKING
+if TYPE_CHECKING:
+    from dungeon_crawler.exchange import Offer
 import random
 
 HEAVY_ATTACK_MULTIPLIER: float = 1.75
@@ -14,6 +16,9 @@ HEAVY_ATTACK_MISS_CHANCE: float = 0.4
 BLADE_HEAVY_MISS_MODIFIER: float = -0.1
 ARMOUR_WEIGHT_MISS_PENALTY: dict[str, float] = {"light": 0.0, "medium": 0.05, "heavy": 0.10}
 MAX_MISS_CHANCE: float = 0.95
+BLINDED_EFFECT_NAME: str = "Blinded"
+WEAPON_BLIND_MISS_CHANCE: float = 0.3
+WEAPON_BLIND_DURATION: int = 2
 WEAPON_LIFESTEAL_CAP: int = 3
 WEAPON_POISON_AMOUNT: int = -3
 WEAPON_POISON_DURATION: int = 3
@@ -109,10 +114,11 @@ class Character:
         return sum(ARMOUR_WEIGHT_MISS_PENALTY[piece.weight] for piece in pieces if piece is not None)
 
     def get_miss_chance(self, attack_type: str) -> float:
-        """The chance an attack of this type misses. Light and ranged attacks only miss through armour weight. Heavy attacks start at
-        HEAVY_ATTACK_MISS_CHANCE, are made more reliable by a blade (BLADE_HEAVY_MISS_MODIFIER), add the armour weight penalty, and are then halved
-        by Reckless Strength. Always clamped to 0 - MAX_MISS_CHANCE. Spells never call this - armour weight doesn't affect them."""
-        chance = self.armour_weight_penalty()
+        """The chance an attack of this type misses. Every attack type starts from the armour weight penalty plus every active effect's
+        miss_chance (e.g. Blinded), so light and ranged attacks only miss through those two. Heavy attacks then add HEAVY_ATTACK_MISS_CHANCE, are
+        made more reliable by a blade (BLADE_HEAVY_MISS_MODIFIER), and are then halved by Reckless Strength. Always clamped to 0 - MAX_MISS_CHANCE.
+        Spells never call this, so neither armour weight nor Blinded affects them."""
+        chance = self.armour_weight_penalty() + sum(effect.miss_chance for effect in self.active_effects)
         if attack_type == "heavy":
             chance += HEAVY_ATTACK_MISS_CHANCE
             weapon = self.equipped_melee_weapon
@@ -126,8 +132,9 @@ class Character:
         """Attack target once, then apply any follow-ups. attack_type picks the weapon slot: 'light' and 'heavy' use equipped_melee_weapon, 'ranged'
         uses equipped_ranged_weapon.
 
-        Miss: rolled first, against get_miss_chance(attack_type). A light/ranged attack only rolls at all if armour weight gives it a chance to miss,
-        so an unarmoured attacker never makes a random roll for it.
+        Miss: rolled first, against get_miss_chance(attack_type). A light/ranged attack only rolls at all if armour weight or an effect like Blinded
+        gives it a chance to miss, so an unarmoured, unaffected attacker never makes a random roll for it. Hit or miss, every attack then counts
+        down the effects that last a number of attacks (see _count_down_attack_effects()), and says if one wears off.
         Damage: attack_damage + weapon damage, +2 with Berserking at or below half HP. Heavy attacks multiply that by HEAVY_ATTACK_MULTIPLIER, or
         HEAVY_WEAPON_MULTIPLIER with a heavy-class weapon. Bull Rush adds a flat +3 after multiplier against a full HP target. The higher of the
         weapon's armour_pierce and this character's own natural armour_pierce is ignored from the target's armour. Light and heavy attacks
@@ -135,19 +142,34 @@ class Character:
         Follow-ups, in order: lifesteal (Character.has_lifesteal or the weapon's) heals half the damage dealt - a weapon's heal is capped at
         WEAPON_LIFESTEAL_CAP, innate lifesteal never is, and the two never stack (innate wins); cleave (a heavy weapon's signature,
         heavy attacks only) hits the first other living, non-respawning combatant in 'others' for half the swing's damage, whether or not the target
-        died. Then, only if the target survived: Petrifying Gaze (15%) and the weapon's own poison_chance each roll separately to poison it, and
-        Double Strike hits again for base_damage // 2, ignoring armour.
+        died. Then, only if the target survived: Petrifying Gaze (15%) and the weapon's own poison_chance each roll separately to poison it, the
+        weapon's blind_chance rolls to blind it, and Double Strike hits again for base_damage // 2, ignoring armour.
 
-        Enemy/Companion always calls this with the default ('light', no 'others') and never equip weapons or armour, so they never miss and never cleave."""
+        Enemy/Companion always calls this with the default ('light', no 'others') and never equip weapons or armour, so they never cleave, and only
+        miss while an effect such as Blinded gives them a miss chance (Polyphemus (Blinded) starts with one)."""
         weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
 
         is_melee = attack_type != "ranged"
 
         miss_chance = self.get_miss_chance(attack_type)
-        if miss_chance > 0 and random.random() < miss_chance:
+        missed = miss_chance > 0 and random.random() < miss_chance
+        worn_off = self._count_down_attack_effects()
+
+        if missed:
             if attack_type == "heavy":
-                return f"{self.name} swings a heavy blow at {target.name} - but misses!"
-            return f"{self.name} attacks {target.name} - but misses!"
+                message = f"{self.name} swings a heavy blow at {target.name} - but misses!"
+            else:
+                message = f"{self.name} attacks {target.name} - but misses!"
+        else:
+            message = self._land_attack(target, attack_type, others)
+
+        return "\n".join([message] + worn_off)
+
+    def _land_attack(self, target: "Character", attack_type: str, others: "Sequence[Character] | None") -> str:
+        """Everything that happens once an attack has hit - see attack(). Moved here unchanged so the countdown in attack() runs exactly once,
+        whichever way this returns."""
+        weapon = self.equipped_ranged_weapon if attack_type == "ranged" else self.equipped_melee_weapon
+        is_melee = attack_type != "ranged"
 
         weapon_bonus = weapon.damage if weapon is not None else 0
         base_damage = self.attack_damage + weapon_bonus
@@ -198,6 +220,10 @@ class Character:
         if weapon is not None and weapon.poison_chance > 0 and random.random() < weapon.poison_chance:
             message += f"\n{target.apply_status_effect(StatusEffect('Poison', WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION))}"
 
+        if weapon is not None and weapon.blind_chance > 0 and random.random() < weapon.blind_chance:
+            blind = StatusEffect(BLINDED_EFFECT_NAME, 0, WEAPON_BLIND_DURATION, miss_chance=WEAPON_BLIND_MISS_CHANCE)
+            message += f"\n{target.apply_status_effect(blind)}"
+
         if getattr(self, "has_double_strike", False):
             # second strike deals half of base_damage (weapon- and Berserking-inclusive, but before the heavy multiplier/Bull Rush), ignoring armour
             second_damage, second_death = target.take_damage(base_damage // 2, attacker=self, ignore_armour=True, melee=is_melee)
@@ -230,7 +256,11 @@ class Character:
         (a piercing weapon, or the attacker's natural pierce). melee=True - passed by attack() for light/heavy attacks and cleave - also lets
         melee_dodge_chance evade the hit, on the same roll as dodge_chance: below dodge_chance is an ordinary dodge, below the two combined is
         'stays just out of reach'. Spells and ranged attacks leave melee False. Every worn piece loses 1 durability per hit that isn't dodged. Any hit with amount > 0 that isn't dodged deals at
-        least MINIMUM_DAMAGE, however much brace/armour/Iron Hide would otherwise absorb - a 0-damage attacker still deals 0."""
+        least MINIMUM_DAMAGE, however much brace/armour/Iron Hide would otherwise absorb - a 0-damage attacker still deals 0. An invulnerable
+        enemy (Enemy.invulnerable) returns (0, its invulnerable_message) before any of this runs - no dodge roll, no wear, no damage."""
+        if getattr(self, "invulnerable", False):
+            return 0, getattr(self, "invulnerable_message", f"{self.name} can't be harmed.")
+
         roll = random.random()
         if roll < self.dodge_chance:
             return 0, f"{self.name} dodges the attack!"
@@ -258,6 +288,10 @@ class Character:
             return reduced, f"{self.name} refuses to fall, clinging to life at 1 HP."
 
         self.hp -= reduced
+        if self.hp <= 0 and getattr(self, "loyalty_ready", False):
+            self.hp = 1
+            self.loyalty_ready = False
+            return reduced, f"{self.name} should have fallen - but stays standing. They won't leave you."
         if self.hp < 0:
             self.hp = 0
 
@@ -285,17 +319,32 @@ class Character:
         return f"{self.name} is afflicted with {effect.name}."
 
     def tick_status_effects(self) -> list[str]:
-        """Apply one tick of every active effect, removing any that expire after this tick. Stops the moment a tick kills this character
-        - same 'stop once dead' precedent as resolve_combat_round() - appending on_death()'s message when that happens."""
+        """Apply one tick of every active effect, removing any that expire after this tick. An effect with no HP change ticks silently, and
+        one that lasts a number of attacks (Blinded) isn't counted down here at all - attack() does that. Stops the moment a tick kills this
+        character - same 'stop once dead' precedent as resolve_combat_round() - appending on_death()'s message when that happens."""
         messages = []
         for effect in list(self.active_effects):
             if not self.is_alive():
                 break
-            messages.append(effect.tick(self))
+            message = effect.tick(self)
+            if message:
+                messages.append(message)
             if effect.duration <= 0:
                 self.active_effects.remove(effect)
         if not self.is_alive():
             messages.append(self.on_death())
+        return messages
+
+    def _count_down_attack_effects(self) -> list[str]:
+        """Count down every effect that lasts a number of attacks (see StatusEffect.counts_down_on_attack), removing any that run out and
+        announcing them. Called once per attack(), after the miss roll, so the attack being made is always the one the effect applies to."""
+        messages = []
+        for effect in list(self.active_effects):
+            if effect.counts_down_on_attack:
+                effect.duration -= 1
+                if effect.duration <= 0:
+                    self.active_effects.remove(effect)
+                    messages.append(f"{self.name} is no longer {effect.name.lower()}.")
         return messages
 
     def is_alive(self) -> bool:
@@ -350,6 +399,10 @@ class Player(Character):
         """Whether print_room() lists the room's exits automatically on entry - toggled via 'toggle auto map', mirroring auto_talk."""
         self.seen_hints: set[str] = set()
         """Keys from hints.HINTS already shown in this save - see show_hint(). Saved, so a reload doesn't repeat hints."""
+        self.story_flags: set[str] = set()
+        """Things that have happened in the story, for content that depends on events elsewhere in the world - e.g. 'suitors_cleared',
+        which makes Odysseus recruitable. On the player rather than a room, because the content that checks a flag often lives far from
+        the room that sets it. Saved."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -472,6 +525,10 @@ class Player(Character):
         for name in self.spell_cooldowns:
             self.spell_cooldowns[name] -= 1
 
+    def has_loyalty_token(self) -> bool:
+        """Whether the player is holding a LoyaltyToken - see Companion.loyalty_ready."""
+        return any(isinstance(item, LoyaltyToken) for item in self.inventory.items)
+
     @property
     def team(self) -> list[Character]:
         """The player's active combat team - Player.self, plus Player.companion if one exists and is currently alive. A downed
@@ -485,7 +542,7 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None, ancestry_lines: dict[str, str] | None = None, melee_dodge_chance: float = 0.0, armour_pierce: int = 0):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None, ancestry_lines: dict[str, str] | None = None, melee_dodge_chance: float = 0.0, armour_pierce: int = 0, article: str = "a", invulnerable: bool = False, invulnerable_message: str = ""):
         """experience_reward and gold_reward are granted to the player (and the same experience to their companion) on this enemy's defeat,
         via handle_enemy_defeat() - see combat.py. defeat_effect runs on that same final defeat. melee_dodge_chance and armour_pierce are the
         Character fields of the same name (see there) - the Shade of Paris is the first enemy to set either.
@@ -529,6 +586,16 @@ class Enemy(Character):
         Same shape as Ally/Companion.ancestry_lines, but triggered on sight rather than by 'talk', since enemies can't be talked to."""
         self.melee_dodge_chance = melee_dodge_chance
         self.armour_pierce = armour_pierce
+        if article not in ("a", "the", ""):
+            raise ValueError(f"Unknown article '{article}' - must be 'a', 'the' or ''.")
+        self.article = article
+        """How this enemy is introduced: 'a' for an ordinary creature (becomes 'A' or 'An' automatically), 'the' for a unique figure known by a
+        title (the Minotaur, the Shade of Hector), or '' for a proper name (Antiphates, Polyphemus). See with_article()."""
+        self.invulnerable = invulnerable
+        """An enemy that can't be harmed or fought - a stand-in for something like Charybdis, where the room is solved another way (a room interaction)
+        and 'defeated' by setting its HP to 0. Still counts as a living enemy for guarded exits, so the way stays blocked until it's solved, but it
+        never starts combat and isn't targetable."""
+        self.invulnerable_message = invulnerable_message or f"{name} can't be harmed."
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""
@@ -538,11 +605,21 @@ class Enemy(Character):
             message += f"\nIt dropped: {item_names}"
         return message
 
+    def with_article(self, definite: bool = False) -> str:
+        """This enemy's name with the right article, capitalised to start a sentence. definite=True asks for the form used when the enemy has
+        already been met ('The Goblin is still here...'); a proper name never takes an article either way. 'An' is chosen by the first letter
+        alone, which is right for every current name but would need an exception for a name like 'Unicorn'."""
+        if self.article == "":
+            return self.name
+        if self.article == "the" or definite:
+            return f"The {self.name}"
+        return f"{'An' if self.name[0].lower() in 'aeiou' else 'A'} {self.name}"
+
 
 class Ally():
     """A non-combat NPC that can be talked to and traded with, per its required_items/reward data - never branched on by name, see CLAUDE.md."""
 
-    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str="", ancestry_lines: dict[str, str] | None = None):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str="", ancestry_lines: dict[str, str] | None = None, offers: "list[Offer] | None" = None, exchange_line: str = "", companion_lines: dict[str, str] | None = None):
         """Set up an ally's dialogue and starting inventory."""
         self.name = name
         self.description = description
@@ -559,6 +636,13 @@ class Ally():
         self.hint_traded = hint_traded
         self.ancestry_lines = ancestry_lines or {}
         """ANCESTRIES key -> a line said once to a player of that lineage, before their usual dialogue - see talk_to() (exploration.py)."""
+        self.offers = offers or []
+        """Exchanges this ally makes - see exchange.py. A merchant is simply an ally with offers."""
+        self.exchange_line = exchange_line
+        """A line of flavour shown on every completed exchange, e.g. Circe murmuring over an item."""
+        self.companion_lines = companion_lines or {}
+        """Companion name -> a line this ally says once, the first time they're spoken to with that companion in the player's party - see talk_to().
+        Keyed by name as content data; no code ever branches on a particular name."""
 
 
     def talk(self, player) -> str:
@@ -577,7 +661,7 @@ class Ally():
             if item_name.lower() == item.name.lower():
                 self.inventory.remove(item)
                 player.inventory.add(item)
-                return f"{self.name} gives you the {item.name}."
+                return f"{self.name} gives you {item.with_article(definite=True)}."
         return f"{self.name} does not have that item."
 
 class Companion(Character):
@@ -585,7 +669,7 @@ class Companion(Character):
     Companion IS a Character - it needs real combat stats to sit in Player.team and act via choose_companion_action() (combat.py),
     home_room is where a dismissed Companion reappears - see dismiss_companion()."""
 
-    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = "", ancestry_lines: dict[str, str] | None = None, rival_lines: dict[str, str] | None = None):
+    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = "", ancestry_lines: dict[str, str] | None = None, rival_lines: dict[str, str] | None = None, required_story_flag: str | None = None, recruit_blocked_message: str = "", attack_type: str = "light", gives_advice: bool = False):
         """required_items are what the player must hold to recruit this companion (see recruit_companion()) - mirrors Ally.required_items.
         aggression_weight/caution_weight/randomness_weight/brace_amount/heal_amount feed choose_companion_action()'s utility scoring (combat.py)
         - same shape and same defaults as Enemy's equivalent fields. hint/hint_recruitable are this companion's talk() lines, and
@@ -614,10 +698,23 @@ class Companion(Character):
         self.rival_lines = rival_lines or {}
         """Enemy name -> a line this companion says once, the first time they meet that enemy while in the player's party - see get_rival_lines()
         (exploration.py). Keyed by enemy name as content data; no code ever branches on a particular name."""
+        self.required_story_flag = required_story_flag
+        """If set, this companion can't be recruited until the player has this story flag (see Player.story_flags) - e.g. Odysseus waits for
+        'suitors_cleared'. Independent of requires_duel; a companion could need either, both or neither."""
+        self.recruit_blocked_message = recruit_blocked_message
+        self.attack_type = attack_type
+        """The attack this companion always makes: 'light' (melee), or 'ranged', which is never slowed by an enemy's melee_dodge_chance.
+        Odysseus is the first ranged companion."""
+        self.gives_advice = gives_advice
+        """Whether this companion answers the 'advice' command - see get_advice() (exploration.py)."""
+        self.loyalty_ready: bool = False
+        """Whether this companion will survive the next blow that would down them, staying on 1 HP. Set at the top of the game loop whenever
+        the player isn't in combat - to whether they hold a LoyaltyToken - so it's readied once per fight. Never saved: it's always recalculated
+        before the next fight can start."""
 
     def on_death(self) -> str:
-        """Companion-specific 'downed' message - distinct from a permanent death. Fires via the same take_damage()/on_death() mechanism
-        as Player/Enemy, but a Companion reaching 0 HP means downed-and-recoverable, not game-ending or gone for good."""
+        """Companion-specific 'downed' message - distinct from a permanent death. Fires through take_damage() exactly as it does for
+        Player/Enemy, but a Companion reaching 0 HP means downed-and-recoverable, not game-ending or gone for good."""
         return f"{self.name} is downed and can no longer fight - a Reviver can bring them back."
 
     @property
@@ -625,10 +722,15 @@ class Companion(Character):
         """Whether this companion still has to be beaten in a duel before they can be recruited."""
         return self.duel_enemy_factory is not None and not self.duel_won
 
+    def can_be_recruited(self, player) -> bool:
+        """Whether nothing stands in the way of recruiting this companion: no duel left to win, and any required story flag set."""
+        if self.requires_duel:
+            return False
+        return self.required_story_flag is None or self.required_story_flag in player.story_flags
+
     def talk(self, player) -> str:
-        """This companion's dialogue - the recruitable line once nothing stands in the way of recruiting them, otherwise the regular hint. Mirrors
-        Ally.talk()'s shape."""
-        if not self.requires_duel and self.hint_recruitable:
+        """This companion's dialogue - the recruitable line once nothing stands in the way of recruiting them, otherwise the regular hint."""
+        if self.can_be_recruited(player) and self.hint_recruitable:
             return self.hint_recruitable
         return self.hint if self.hint else f"{self.name} has nothing to say."
 

@@ -90,6 +90,9 @@ content getting in the way.
     names work too; the last three tokens are always `effect`, `amount`, and
     `duration`, so everything before them is the target name, however many
     words that is.
+  - It can't set a miss chance, so it **can't make Blinded** - `dev afflict
+    skeleton warrior blinded 0 2` just applies a silent effect that does
+    nothing. Use the Olive-wood Stake recipe below instead.
 
 ### Spells
 - `dev grant spell <name>` — grants a known spell straight to your spellbook
@@ -102,7 +105,10 @@ content getting in the way.
 ### Movement and world state
 - `dev teleport <room name>` — case-insensitive teleport to any room in the
   dungeon (including the dev test room), clearing your combat state on
-  arrival.
+  arrival. The room you leave resets its per-visit state (`Room.on_leave()`),
+  exactly as walking out does.
+- `dev flag <name>` — sets a story flag (`Player.story_flags`), e.g. `dev flag
+  suitors_cleared` to make Odysseus recruitable before the Suitors exist.
 - `dev unlock <direction>` — removes one locked exit from the current room.
 - `dev unlock all` — removes every locked exit from the current room.
   Both go through `Room.unlock_exit()`, the same permanent unlock as walking
@@ -127,20 +133,25 @@ case-insensitively):
 
 **Items** (`dev add <name>`): `wooden sword`, `wooden shield`, `dummy head`,
 `mentor's token`, `charon's coin`, `bronze xiphos`, `vial of ambrosia`,
-`bronze breastplate`, `small healing potion`, `cyclops eye`, `spear of ares`,
+`bronze breastplate`, `small healing potion`, `cyclops' eye`, `spear of ares`,
 `centaur's broken bow`, `skeleton bone`, `breastplate of athena`, `favour of
 hermes`, `weathered helm`, `vial of grave rot`, `harpy-fletched bow`, `tome of
 old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `sun-scorched dagger`, `talos' bronze plating`, `serpent's kiss`, `labrys`, `hector's helm`,
 `tower shield of ajax`, `field dressing`, `bow of paris`, `cup of kykeon`,
-`test spellbook`, `test healing tonic`, `test venom vial`.
+`laestrygonian hide`, `antiphates' club`, `olive-wood stake`, `wheel of cheese`,
+`boar's-tusk helm`, `hoplon of the drowned`, `trident of the depths`,
+`kelp poultice`, `test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
 `fanatic`, `lurker`, `petrified guardian`, `satyr`, `lamia`, `ember wraith`,
 `talos`, `medusa`, `gorgon`, `medusa (awakened)`, `practice enemy` (the
 Practice Chamber's respawning dummy), `shade of hector`, `shade of ajax`,
-`myrmidon soldier`, `shade of paris`, `test boss` — a dev-only,
+`myrmidon soldier`, `shade of paris`, `laestrygonian`, `antiphates`, `polyphemus`,
+`polyphemus (blinded)`, `head of scylla`, `poseidon`, `hippocampus`,
+`poseidon (earth-shaker)`, `charybdis` (invulnerable - she can
+only be "beaten" by `dev kill` or the Narrow River puzzle), `test boss` — a dev-only,
 two-phase boss (hp 1 throughout) whose first phase is gated behind a
 two-add wave, exercising `next_wave_factories`/`wave_gate_factory`/
 `next_phase_factory` end-to-end. `medusa`/`gorgon`/`medusa (awakened)` are
@@ -148,7 +159,8 @@ the real equivalent now (floor 4, Lair of Medusa) - `test boss` stays
 useful for isolated testing without a full room/fight.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
-`charon`, `athena`, `ares`, `hermes`, `prometheus`, `nestor`.
+`charon`, `athena`, `ares`, `hermes`, `prometheus`, `nestor`, `circe` (a merchant -
+see the exchange recipe below).
 
 **Companions** (`dev spawn <name>`): `shade of achilles` — the real floor 5
 companion, spawned still needing his duel (`challenge shade of achilles`
@@ -169,9 +181,11 @@ built and unit-tested, and are now genuinely reachable in a live `main()`
 run through dev tooling (see the recipes above and below), and all three
 now exist as real content too, Spells only partly:
 
-- **Companions.** One real companion exists now: the Shade of Achilles, in
-  Shadow of Army Camp (floor 5), recruited by beating him in a duel. He's the
-  only one, and no `Reviver` is real content yet, so reviving a downed
+- **Companions.** Two real companions exist now: the Shade of Achilles, in
+  Shadow of Army Camp (floor 5), recruited by beating him in a duel, and
+  Odysseus, in Shadow of Ithaca (floor 6), who won't join until the
+  `suitors_cleared` story flag is set. Nothing in the game sets it yet, so
+  **Odysseus needs `dev flag suitors_cleared`** for now. No `Reviver` is real content yet, so reviving a downed
   companion still needs `dismiss` (which restores them) or a dev-added item.
   `test companion` remains useful as a companion with no duel, no
   `required_items`, and all three AI actions live.
@@ -220,14 +234,22 @@ has nothing to trade." and never completes) - see roadmap.md's "Populate all
 floors." Athena, Ares, and Hermes all have real dialogue now, including a
 line for after their trade (`Ally.hint_traded`).
 
+Floor 6's first half is real content too, with no workaround needed: the
+giants in Bright Cave, the Sirens' bargain in Calm Waters (the first room
+interaction), Polyphemus and his blinded second phase in the Cavern of
+Polyphemus (the Olive-wood Stake he drops is the only real source of
+Blinded), the six Heads of Scylla in Rocky Shore, and Charybdis' puzzle in
+Narrow River - each route guards its way into Poseidon's Depths.
+
 Two more small things from the same playtesting pass: moving into a new
 room restores 1 HP while you're below three-quarters of max HP (`"You
 catch your breath as you move on."` - capped by a later balance pass, so
-pacing can't heal you to full), and there are three new `forge` shortcut exits straight
-back to the Forge of Prometheus from Prayer Room (floor 3), Stony Lair, and
-Maze of Pillars (floor 4) - no dev command needed for either, both are
-reachable through normal play. The Forge also has three reciprocal exits
-back out to those same rooms (`prayer room`/`stony lair`/`maze of pillars`),
+pacing can't heal you to full), and there are five `forge` shortcut exits straight
+back to the Forge of Prometheus from Prayer Room (floor 3), Stony Lair, Maze
+of Pillars (floor 4), Shadow of Pylos (floor 5) and Shadow of Ithaca (floor 6) - no dev command needed for either, both are
+reachable through normal play. The Forge also has five reciprocal exits
+back out to those same rooms (`prayer room`/`stony lair`/`maze of pillars`/
+`shadow of pylos`/`shadow of ithaca`),
 each locked until you've used the one-way `forge` exit from that room at
 least once - see the recipe below, and `CLAUDE.md`'s "Fast-travel locks"
 for how the enforcement works.
@@ -392,8 +414,8 @@ starts locked (`Room.fast_travel_locks`). `dev teleport prayer room` then
 `forge` moves you from Prayer Room straight to the Forge - real content, no
 dev command needed for that part - and prints `"The path back opens behind
 you."`, unlocking the reciprocal exit (`Room.exit_activations`). The final
-`prayer room` now succeeds. Stony Lair and Maze of Pillars (floor 4) work
-the same way.
+`prayer room` now succeeds. Stony Lair, Maze of Pillars (floor 4), Shadow of
+Pylos (floor 5) and Shadow of Ithaca (floor 6) work the same way.
 
 **Try a guarded exit:**
 ```
@@ -407,8 +429,81 @@ first."` - since the Labyrinth's `south` exit is guarded (`Room.guarded_exits`)
 while he lives. `west`/`east`/`ascend` stay open throughout. `dev clear room`
 empties the room with no loot; use `dev kill` instead if you want his Labrys
 drop and XP. Either way, the second `south` walks straight into Mossy Grove.
-Maze of Pillars (`south`, Talos), Overgrown Forest (`descend`, the Centaur) and
-Lair of Medusa (`descend`, the whole Medusa chain) work the same way.
+Maze of Pillars (`south`, Talos), Overgrown Forest (`descend`, the Centaur),
+Lair of Medusa (`descend`, the whole Medusa chain), floor 5's Hector, Ajax and
+Paris, and Rocky Shore (`south`, all six Heads of Scylla) work the same way.
+
+**Try blinding an enemy (the Olive-wood Stake):**
+```
+dev add olive-wood stake
+equip olive-wood stake
+dev spawn skeleton warrior
+attack
+attack
+```
+Each hit that doesn't kill has a 20% chance to blind (`"Skeleton Warrior is
+afflicted with Blinded."`). A blinded enemy has a 30% miss chance for its next
+two attacks - counted per attack, so a turn it spends bracing doesn't use any
+up - then `"... is no longer blinded."`. For a guaranteed blinded enemy, `dev
+spawn polyphemus (blinded)`: he starts at a 35% miss chance for the whole fight.
+
+**Try a room interaction (the Sirens' bargain):**
+```
+dev teleport calm waters
+listen
+give in
+listen
+```
+Entering shows `(You could: listen, give in, resist)` and, the first time, the
+`"room_interactions"` hint. `listen` changes nothing; `give in` grants 2 skill
+points for 5 max HP, permanently; after that every verb answers `"The Sirens
+are silent now."`, even after a save and reload (`Room.flags`). Interactions
+only work outside combat.
+
+**Solve Charybdis' puzzle:**
+```
+dev teleport narrow river
+attack
+climb
+watch
+watch
+let go
+row
+```
+`attack` is refused - Charybdis is invulnerable. The five verbs are the
+solution; after each, the whirlpool moves on a phase (still, swallowing,
+drained, spewing). Solving drops the Hoplon of the Drowned and opens `west`.
+Try a wrong move instead (e.g. `watch` straight away, then anything but `climb`
+while she swallows) to see the 12-damage failure and restart. Leaving the room
+- including by `dev teleport` - resets a half-finished attempt
+(`Room.on_leave()`). `dev kill` skips the puzzle and still gives her rewards.
+
+**Recruit Odysseus and ask his advice:**
+```
+dev teleport shadow of ithaca
+recruit odysseus
+dev flag suitors_cleared
+recruit odysseus
+dev teleport shadow of troy (south)
+advice
+```
+The first `recruit` is refused (`"Not while those men are still in my hall..."`).
+With the flag set he joins. `advice` in Paris' room points at a bow or a spell;
+in Narrow River or Calm Waters he adds the room's own line. His attacks are
+ranged, so Paris can't dodge them.
+
+**Exchange with a merchant (Circe):**
+```
+dev teleport muddy pigsty
+offers
+dev add bronze xiphos
+dev set gold 30
+exchange 1
+```
+`offers` lists her six exchanges with your gold. `exchange 1` takes the Bronze
+Xiphos and 20 gold for a Kelp Poultice. Equip the Xiphos first to see the
+"unequip it first" refusal; drop to under 20 gold to see the price refusal -
+neither changes anything. Offers never run out.
 
 **Try a ranged attack:**
 ```

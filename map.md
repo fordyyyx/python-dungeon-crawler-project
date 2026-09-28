@@ -45,6 +45,8 @@ Forge of Prometheus {Prometheus - Friendly}
 * prayer room -> Prayer Room [NOTE: reciprocal fast-travel shortcut, locked (Room.fast_travel_locks) until 'forge' is used from Prayer Room first, see CLAUDE.md's "Fast-travel locks"]
 * stony lair -> Stony Lair [NOTE: same fast-travel-lock mechanism as above, keyed to Stony Lair's own 'forge' exit]
 * maze of pillars -> Maze of Pillars [NOTE: same fast-travel-lock mechanism as above, keyed to Maze of Pillars' own 'forge' exit]
+* shadow of pylos -> Shadow of Pylos [NOTE: same fast-travel-lock mechanism, keyed to Shadow of Pylos' own 'forge' exit]
+* shadow of ithaca -> Shadow of Ithaca [NOTE: same fast-travel-lock mechanism, keyed to Shadow of Ithaca's own 'forge' exit]
 Practice Chamber {Practice Enemy - Enemy} [NOTE: is_practice_chamber=True; the enemy has respawns=True and resets on defeat instead of being removed]
 * west -> Forge of Prometheus
 
@@ -110,30 +112,34 @@ Shadow of Troy (South) {Shade of Paris - Enemy} [NOTE: built - evasive archer: 5
 Shadow of Pylos {Nestor - Friendly} [NOTE: built - advice, no trade; gives away a Cup of Kykeon]
 * west -> Shadow of Troy (South)
 * descend -> Bright Cave
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 
-Bright Cave {Laestrygonian - Enemy}
+Bright Cave {Antiphates, Laestrygonian - Enemy} [NOTE: built - two boulder-throwing giants with pierce 2; Antiphates drops his Club (heavy, 8), the Laestrygonian the Laestrygonian Hide (medium, 5 DEF); exit not guarded]
 * ascend -> Shadow of Pylos
 * south -> Calm Waters
-Calm Waters {Sirens - Enemy}
+Calm Waters {Sirens - room interaction} [NOTE: built - no enemy; 'listen' / 'give in' / 'resist', the Sirens' bargain: +2 skill points for -5 max HP, permanently. Also the fork - west (Scylla) and south (Charybdis) are two parallel routes to Poseidon's Depths; only one has to be passed, as Nestor's advice says]
 * north -> Bright Cave
 * east -> Cavern of Polyphemus
 * west -> Rocky Shore
-Cavern of Polyphemus {Polyphemus - Enemy}
-* west -> Calm Waters
-Rocky Shore {Scylla - Enemy}
-* east -> Calm Waters
 * south -> Narrow River
-Narrow River {Charybdis - Enemy}
-* north -> Rocky Shore
+Cavern of Polyphemus {Polyphemus - Enemy} [NOTE: built - optional two-phase fight; Polyphemus (Blinded) starts at a 35% miss chance and drops the Olive-wood Stake; two Wheels of Cheese on the floor]
+* west -> Calm Waters
+Rocky Shore {Head of Scylla ×6 - Enemy} [NOTE: built - six weak heads, guarding 'south'; the Boar's-Tusk Helm lies on the rocks]
+* east -> Calm Waters
 * south -> Poseidon's Depths
-Poseidon's Depths {Poseidon - Enemy}
-* north -> Narrow River
-* east -> Shadow of Ithaca
-Shadow of Ithaca {Odysseus - Friendly}
+Narrow River {Charybdis - Enemy (invulnerable)} [NOTE: built - a puzzle, not a fight: 'watch' / 'climb' / 'let go' / 'row' against the whirlpool's cycle; a mistake costs 12 HP. Guards 'west' until solved; drops the Hoplon of the Drowned]
+* north -> Calm Waters
 * west -> Poseidon's Depths
+Poseidon's Depths {Poseidon - Enemy} [NOTE: built - floor 6's boss: Poseidon, then two Hippocampi (Kelp Poultices), then Poseidon (Earth-Shaker), who drops the Trident of the Depths; guards 'south'. Both routes rejoin here, so the other monster stays reachable afterwards]
+* north -> Rocky Shore
+* east -> Narrow River
+* south -> Shadow of Ithaca
+Shadow of Ithaca {Odysseus - Companion} [NOTE: built - a ranged companion who gives advice; won't join until the 'suitors_cleared' story flag, which nothing sets yet]
+* north -> Poseidon's Depths
 * east -> Muddy Pigsty
 * south -> Throne Room of Odysseus
-Muddy Pigsty {Circe - Friendly}
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
+Muddy Pigsty {Circe - Friendly} [NOTE: built - the first merchant: six exchanges ('offers' / 'exchange <number>'), outgrown gear and weak consumables into Kelp Poultices and Cups of Kykeon]
 * west -> Shadow of Ithaca
 Throne Room of Odysseus {Suitors of Ithaca - Enemy}
 * north -> Shadow of Ithaca
@@ -234,7 +240,19 @@ duel first) in Shadow of Army Camp, then one encounter per room down the
 Shadow of Troy - Hector, Ajax, a pair of Myrmidons, and Paris - with Nestor
 in Shadow of Pylos before the descent. Hector, Ajax and Paris guard the way on;
 the Myrmidons' exit is deliberately left open.
-Every room on floors 6-9 remains an unpopulated shell - the per-room
-enemies/allies listed above for those floors are the planned design, not
-built content. Finishing Floor 2's population (Prometheus' trade and Trophy
+Floor 6's layout was reworked so Scylla (Rocky Shore) and Charybdis (Narrow
+River) are two parallel branches off Calm Waters, both leading to Poseidon's
+Depths, rather than one corridor through both - the player picks one, and the
+Depths link back to the other. Nestor's dialogue on floor 5 now describes
+this choice.
+Floor 6 is populated as far as Ithaca: Antiphates and a Laestrygonian in Bright
+Cave, the Sirens' bargain in Calm Waters (a room interaction, not an enemy),
+Polyphemus in his cavern, six Heads of Scylla guarding Rocky Shore's
+'south', Charybdis' puzzle guarding Narrow River's 'west', Poseidon's chain
+guarding the Depths' 'south', Odysseus (a companion) in Shadow of Ithaca, and
+Circe (the first merchant) in the Muddy Pigsty. Shadow of Pylos and Shadow of Ithaca have 'forge' shortcuts, so the
+Forge now has five reciprocal exits.
+Every other floor 6 room (the Throne Room and Bedchamber), and every room on floors 7-9,
+remains an unpopulated shell - the per-room enemies/allies listed for them
+are the planned design, not built content. Finishing Floor 2's population (Prometheus' trade and Trophy
 Room of Zeus) and floors 6-9's population are all deferred to the "Populate all floors" roadmap item.

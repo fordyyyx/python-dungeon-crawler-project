@@ -2,7 +2,8 @@
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.characters import Companion, Enemy, Ally
-from dungeon_crawler.items import Armour, Consumable, Weapon, StatusEffectItem
+from dungeon_crawler.items import Armour, Consumable, Weapon
+from .common import create_cup_of_kykeon
 
 def _grant_achilles_skill_point(player) -> str:
     """Achilles' duel reward - a free skill point."""
@@ -25,6 +26,7 @@ def create_shade_of_achilles_duellist() -> Enemy:
         caution_weight=0.8,
         armour_pierce=5,
         defeat_effect=_grant_achilles_skill_point,
+        article="the"
     )
     duellist.dodge_chance = 0.15
     return duellist
@@ -101,6 +103,7 @@ def create_shade_of_hector() -> Enemy:
         experience_reward=38,
         gold_reward=22,
         armour_pierce=3,
+        article="the",
     )
 
 def create_hectors_helm() -> Armour:
@@ -112,6 +115,7 @@ def create_hectors_helm() -> Armour:
         slot="helmet",
         weight="medium",
         max_durability=12,
+        article="",
     )
 
 def create_shade_of_ajax() -> Enemy:
@@ -128,6 +132,7 @@ def create_shade_of_ajax() -> Enemy:
         experience_reward=42,
         gold_reward=24,
         armour_pierce=3,
+        article="the",
     )
 
 def create_tower_shield_of_ajax() -> Armour:
@@ -140,6 +145,7 @@ def create_tower_shield_of_ajax() -> Armour:
         slot="shield",
         weight="heavy",
         max_durability=20,
+        article="the",
     )
 
 def create_myrmidon_soldier() -> Enemy:
@@ -184,6 +190,7 @@ def create_shade_of_paris() -> Enemy:
         gold_reward=30,
         melee_dodge_chance=0.5,
         armour_pierce=8,
+        article="the",
     )
 
 def create_bow_of_paris() -> Weapon:
@@ -196,6 +203,7 @@ def create_bow_of_paris() -> Weapon:
         slot="ranged",
         weapon_class="ranged",
         armour_pierce=2,
+        article="the",
     )
 
 def create_nestor() -> Ally:
@@ -208,24 +216,14 @@ def create_nestor() -> Ally:
             "\"A visitor! Sit, sit. You'll have come from Troy - everyone comes from Troy, eventually, I was there, you know. Ten "
             "years. I gave Agamemnon advice every single day, and he took it perhaps twice.\"\n\n"
             "\"So let me give you some, and you can do better than he did. Below here is the sea, and the sea doesn't fight fair. "
-            "You'll hear singing - lovely singing. Don't go towards it. Further on, the water narrows between two dangers, and you won't "
-            "slip past both. Choose the one that costs you something over the one that costs you everything.\"\n\n"
+            "You'll hear singing - lovely singing. Don't go towards it. Further on, the water splits between two dangers. You only need to pass "
+            "one of them to go on - choose the one that costs you something over the one that costs you everything. The other will still be there "
+            "afterwards, if you're the kind who can't leave a thing alone.\"\n\n"
             "He presses a cup into your hands. \"And take this with you - kykeon. It set Machaon back on his feet when an arrow had him "
             "down. Say 'take cup of kykeon from nestor'. And don't argue. Nobody ever wins an argument with me - they just stop having it.\""
         ),
         required_items=[],
         items=[create_cup_of_kykeon()],
-    )
-
-def create_cup_of_kykeon() -> StatusEffectItem:
-    """Create the Cup of Kykeon - a strong heal-over-time (Regen 4 for 4 turns, 16 HP in total). As a positive StatusEffectItem it's a free
-    action in combat. Given by Nestor in Shadow of Pylos, ahead of the descent to floor 6."""
-    return StatusEffectItem(
-        name="Cup of Kykeon",
-        description="Wine, barley, and grated goat's cheese - an odd mixture, but it warms you from the inside out.",
-        effect_name="Regen",
-        amount=4,
-        duration=4,
     )
 
 def build_floor_5() -> tuple[Room, dict[str, Room]]:
@@ -235,7 +233,7 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     shadow_of_troy_central = Room(name="Shadow of Troy (Central)", description="Rubble and broken spears cover the ground, the echo of old battle-cries fading in and out like a tide.")
     shadow_of_troy_alleyway = Room(name="Shadow of Troy (Alleyway)", description="A narrow gap between collapsed buildings, footsteps of the dead marching somewhere just out of view.")
     shadow_of_troy_south = Room(name="Shadow of Troy (South)", description="The last defensible ground before the walls fully give way, arrows frozen mid-fall around its edges.")
-    shadow_of_pylos = Room(name="Shadow of Pylos", description="A calmer scene than the rest of Troy — a modest hall, a fire, a place that remembers counsel more than war.")
+    shadow_of_pylos = Room(name="Shadow of Pylos", description="A calmer scene than the rest of Troy — a modest hall, a fire, a place that remembers counsel more than war. The fire burns with a heat that feels borrowed from somewhere else - say 'forge' if you feel the pull toward it.")
 
     shadow_of_army_camp.connect("south", shadow_of_troy_north)
     shadow_of_troy_north.connect("north", shadow_of_army_camp)

@@ -1,4 +1,5 @@
-from dungeon_crawler.world import Room, Map
+from dungeon_crawler.world import Room, Map, RoomInteraction
+from dungeon_crawler.characters import Player
 from dungeon_crawler.characters import Enemy, Ally, Companion
 from dungeon_crawler.content import create_hades, create_minotaur, create_chiron
 from dungeon_crawler.items import Weapon
@@ -356,3 +357,91 @@ def test_room_unlock_exit_on_an_unlocked_direction_does_nothing():
     room.lock_exit("east", "Wooden Sword")
     room.unlock_exit("west")
     assert room.locked_exits == {"east": "Wooden Sword"}
+
+def test_room_add_interaction_registers_the_verb():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "You listen.")
+    assert "listen" in room.interactions
+
+def test_room_interaction_handler_receives_the_player_and_room():
+    room = Room("Shore")
+    player = Player(name="Hero", hp=20)
+    seen = []
+    room.add_interaction("listen", lambda p, r: seen.append((p, r)) or "ok")
+    result = room.interactions["listen"].handler(player, room)
+    assert result == "ok"
+    assert seen[0][0] is player
+    assert seen[0][1] is room
+
+def test_room_add_interaction_without_is_available_is_always_available():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "")
+    assert room.interactions["listen"].is_available(Player(name="Hero", hp=20), room) is True
+
+def test_room_add_interaction_default_unavailable_message():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "")
+    assert room.interactions["listen"].unavailable_message == "Nothing happens."
+
+def test_room_add_interaction_keeps_a_custom_unavailable_message():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "", lambda player, room: False, "Silence.")
+    assert room.interactions["listen"].unavailable_message == "Silence."
+
+def test_room_available_interactions_lists_verbs_in_the_order_added():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "")
+    room.add_interaction("resist", lambda player, room: "")
+    assert room.available_interactions(Player(name="Hero", hp=20)) == ["listen", "resist"]
+
+def test_room_available_interactions_skips_an_unavailable_verb():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "", lambda player, room: False)
+    room.add_interaction("resist", lambda player, room: "")
+    assert room.available_interactions(Player(name="Hero", hp=20)) == ["resist"]
+
+def test_room_available_interactions_is_empty_with_no_interactions():
+    assert Room("Shore").available_interactions(Player(name="Hero", hp=20)) == []
+
+def test_room_available_interactions_checks_availability_against_this_room():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "", lambda player, room: "quiet" not in room.flags)
+    room.flags.add("quiet")
+    assert room.available_interactions(Player(name="Hero", hp=20)) == []
+
+def test_room_flags_start_empty():
+    assert Room("Shore").flags == set()
+
+def test_room_flags_are_not_shared_between_rooms():
+    a = Room("A")
+    b = Room("B")
+    a.flags.add("done")
+    assert b.flags == set()
+
+def test_room_interactions_are_not_shared_between_rooms():
+    a = Room("A")
+    b = Room("B")
+    a.add_interaction("listen", lambda player, room: "")
+    assert b.interactions == {}
+
+def test_room_interaction_defaults_to_always_available():
+    interaction = RoomInteraction(handler=lambda player, room: "")
+    assert interaction.is_available(Player(name="Hero", hp=20), Room("Shore")) is True
+    assert interaction.unavailable_message == "Nothing happens."
+
+def test_room_transient_state_starts_empty():
+    assert Room("River").transient_state == {}
+
+def test_room_transient_state_is_not_shared_between_rooms():
+    a = Room("A")
+    b = Room("B")
+    a.transient_state["puzzle"] = 1
+    assert b.transient_state == {}
+
+def test_room_advice_starts_empty():
+    assert Room("River").advice == ""
+
+def test_room_cleared_story_flag_defaults_to_none():
+    room = Room("Hall")
+    assert room.cleared_story_flag is None
+    assert room.cleared_message == ""

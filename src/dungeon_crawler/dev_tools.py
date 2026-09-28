@@ -7,12 +7,12 @@ from dungeon_crawler.items import Item, ARMOUR_SLOTS
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang, create_sunscorched_dagger, create_talos_bronze_plating, create_serpents_kiss, create_labrys, create_hectors_helm, create_tower_shield_of_ajax, create_field_dressing, create_bow_of_paris, create_cup_of_kykeon
-from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker, create_petrified_guardian, create_satyr, create_lamia, create_ember_wraith, create_talos, create_medusa, create_medusa_awakened, create_gorgon, create_practice_dummy, create_shade_of_hector, create_shade_of_ajax, create_myrmidon_soldier, create_shade_of_paris
-from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus, create_nestor
-from dungeon_crawler.content import create_shade_of_achilles
+from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_ambrosia, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang, create_sunscorched_dagger, create_talos_bronze_plating, create_serpents_kiss, create_labrys, create_hectors_helm, create_tower_shield_of_ajax, create_field_dressing, create_bow_of_paris, create_cup_of_kykeon, create_antiphates_club, create_laestrygonian_hide, create_wheel_of_cheese, create_olive_wood_stake, create_boars_tusk_helm, create_hoplon_of_the_drowned, create_trident_of_the_depths, create_kelp_poultice, create_antinous_goblet, create_penelopes_thread
+from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker, create_petrified_guardian, create_satyr, create_lamia, create_ember_wraith, create_talos, create_medusa, create_medusa_awakened, create_gorgon, create_practice_dummy, create_shade_of_hector, create_shade_of_ajax, create_myrmidon_soldier, create_shade_of_paris, create_laestrygonian, create_antiphates, create_polyphemus, create_polyphemus_blinded, create_head_of_scylla, create_charybdis, create_poseidon, create_hippocampus, create_poseidon_earth_shaker, create_suitor, create_antinous, create_eurymachus
+from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus, create_nestor, create_circe, create_penelope
+from dungeon_crawler.content import create_shade_of_achilles, create_odysseus
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
-from dungeon_crawler.combat import handle_enemy_defeat
+from dungeon_crawler.combat import handle_enemy_defeat, apply_room_cleared_flag
 
 # Every new create_*() item/enemy/ally/companion/spell function in the content/ package needs a matching line in the relevant
 # registry below (all five follow the same shape) - otherwise dev add/spawn/grant spell can't find it. See CLAUDE.md.
@@ -26,7 +26,7 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "vial of ambrosia": create_ambrosia,
     "bronze breastplate": create_bronze_breastplate,
     "small healing potion": create_small_healing_potion,
-    "cyclops eye": create_cyclops_eye,
+    "cyclops' eye": create_cyclops_eye,
     "spear of ares": create_spear_of_ares,
     "centaur's broken bow": create_centaurs_broken_bow,
     "skeleton bone": create_skeleton_bone,
@@ -51,6 +51,16 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "field dressing": create_field_dressing,
     "bow of paris": create_bow_of_paris,
     "cup of kykeon": create_cup_of_kykeon,
+    "laestrygonian hide": create_laestrygonian_hide,
+    "antiphates' club": create_antiphates_club,
+    "olive-wood stake": create_olive_wood_stake,
+    "wheel of cheese": create_wheel_of_cheese,
+    "boar's-tusk helm": create_boars_tusk_helm,
+    "hoplon of the drowned": create_hoplon_of_the_drowned,
+    "trident of the depths": create_trident_of_the_depths,
+    "kelp poultice": create_kelp_poultice,
+    "antinous' goblet": create_antinous_goblet,
+    "penelope's thread": create_penelopes_thread,
 }
 
 ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
@@ -79,6 +89,18 @@ ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
     "shade of ajax": create_shade_of_ajax,
     "myrmidon soldier": create_myrmidon_soldier,
     "shade of paris": create_shade_of_paris,
+    "laestrygonian": create_laestrygonian,
+    "antiphates": create_antiphates,
+    "polyphemus": create_polyphemus,
+    "polyphemus (blinded)": create_polyphemus_blinded,
+    "head of scylla": create_head_of_scylla,
+    "charybdis": create_charybdis,
+    "poseidon": create_poseidon,
+    "hippocampus": create_hippocampus,
+    "poseidon (earth-shaker)": create_poseidon_earth_shaker,
+    "suitor": create_suitor,
+    "antinous": create_antinous,
+    "eurymachus": create_eurymachus,
 }
 
 ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {
@@ -91,11 +113,14 @@ ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {
     "hermes": create_hermes,
     "prometheus": create_prometheus,
     "nestor": create_nestor,
+    "circe": create_circe,
+    "penelope": create_penelope,
 }
 
 COMPANION_REGISTRY: dict[str, Callable[[], Companion]] = {
     "test companion": create_test_companion,
     "shade of achilles": create_shade_of_achilles,
+    "odysseus": create_odysseus,
 }
 
 SPELL_REGISTRY: dict[str, Callable[[], Spell]] = {
@@ -186,14 +211,26 @@ def handle_dev_kill(player: Player, room: Room) -> str:
         return "[DEV] No enemy here to kill."
 
     enemy.hp = 0
-    handle_enemy_defeat(room, enemy, player)
-    player.in_combat = False
-    player.current_target = None
+    defeat_messages = handle_enemy_defeat(room, enemy, player)
+    cleared = apply_room_cleared_flag(room, player)
 
-    loot_text = f" Dropped: {', '.join(item.name for item in enemy.loot)}." if enemy.loot else ""
-    return f"[DEV] Killed {enemy.name}.{loot_text}"
+    survivors = [e for e in room.enemies if e.is_alive() and not e.respawns and not e.invulnerable]
+    if not survivors:
+        player.in_combat = False
+        player.current_target = None
+    elif player.in_combat:
+        if player.current_target is None or not player.current_target.is_alive():
+            player.current_target = survivors[0]
+    else:
+        player.current_target = None
 
-def handle_dev_remove(character_name: str, room: Room) -> str:
+    lines = [f"[DEV] Killed {enemy.name}."]
+    if enemy.loot:
+        lines[0] += f" Dropped: {', '.join(item.name for item in enemy.loot)}."
+    lines.extend(line for line in (defeat_messages, cleared) if line)
+    return "\n".join(lines)
+
+def handle_dev_remove(character_name: str, room: Room, player: Player) -> str:
     """Remove a single matching enemy or ally from room by name (first match only). Does not call handle_enemy_defeat() -
     no loot, XP, or gold; a dev removal is not a kill. See also handle_dev_remove_all() and handle_dev_clear_room()
     for the other two removal scopes - each is a distinct, deliberate scope, not interchangeable."""
@@ -201,14 +238,14 @@ def handle_dev_remove(character_name: str, room: Room) -> str:
     for enemy in room.enemies:
         if enemy.name.lower() == character_name:
             room.remove_enemy(enemy)
-            return f"[DEV] Removed {enemy.name}."
+            return _with_cleared_message(f"[DEV] Removed {enemy.name}.", room, player)
     for ally in room.allies:
         if ally.name.lower() == character_name:
             room.remove_ally(ally)
             return f"[DEV] Removed {ally.name}."
     return f"[DEV] No character named '{character_name}' found here."
 
-def handle_dev_remove_all(character_name: str, room: Room) -> str:
+def handle_dev_remove_all(character_name: str, room: Room, player: Player) -> str:
     """Remove every enemy/ally in room matching character_name. Does not call handle_enemy_defeat() - no loot, XP, or gold;
     a dev removal is not a kill. See also handle_dev_remove() (single instance) and handle_dev_clear_room() (everything)."""
     character_name = character_name.strip().lower()
@@ -223,9 +260,9 @@ def handle_dev_remove_all(character_name: str, room: Room) -> str:
             removed += 1
     if removed == 0:
         return f"[DEV] No character named '{character_name}' found here."
-    return f"[DEV] Removed {removed} instance(s) of '{character_name}'."
+    return _with_cleared_message(f"[DEV] Removed {removed} instance(s) of '{character_name}'.", room, player)
 
-def handle_dev_clear_room(room: Room) -> str:
+def handle_dev_clear_room(room: Room, player: Player) -> str:
     """Remove every enemy and ally in room, regardless of name. Does not call handle_enemy_defeat() - no loot, XP, or gold;
     a dev removal is not a kill. See also handle_dev_remove() (single instance) and handle_dev_remove_all() (all of one name)."""
     enemy_count = len(room.enemies)
@@ -234,7 +271,12 @@ def handle_dev_clear_room(room: Room) -> str:
         room.remove_enemy(enemy)
     for ally in list(room.allies):
         room.remove_ally(ally)
-    return f"[DEV] Cleared room: removed {enemy_count} enemies and {ally_count} allies."
+    return _with_cleared_message(f"[DEV] Cleared room: removed {enemy_count} enemies and {ally_count} allies.", room, player)
+
+def _with_cleared_message(message: str, room: Room, player: Player) -> str:
+    """Append the room's cleared message if a dev removal has just cleared it."""
+    cleared = apply_room_cleared_flag(room, player)
+    return f"{message}\n{cleared}" if cleared else message
 
 def handle_dev_afflict(target_name: str, effect_name: str, amount_str: str, duration_str: str, player: Player, room: Room) -> str:
     """Apply a StatusEffect directly to 'player', 'companion', or a named enemy in room - for testing DOT/HOT ticking without needing
@@ -342,13 +384,13 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
         return f"[DEV] No known character names {character_name}.", None
 
     if command.startswith("remove all "):
-        return handle_dev_remove_all(command.removeprefix("remove all "), room), None
+        return handle_dev_remove_all(command.removeprefix("remove all "), room, player), None
 
     if command.startswith("remove "):
-        return handle_dev_remove(command.removeprefix("remove "), room), None
+        return handle_dev_remove(command.removeprefix("remove "), room, player), None
 
     if command == "clear room":
-        return handle_dev_clear_room(room), None
+        return handle_dev_clear_room(room, player), None
 
     if command.startswith("afflict "):
         parts = command.removeprefix("afflict ").split()
@@ -408,6 +450,11 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
             return f"[DEV] Unlocked exit: {direction}.", None
         return f"[DEV] {direction} is not a locked exit here.", None
 
+    if command.startswith("flag "):
+        flag = command.removeprefix("flag ").strip()
+        player.story_flags.add(flag)
+        return f"[DEV] Story flag set: {flag}", None
+
     if command == "help":
         return (
             "[DEV] Commands: dev add <item>, dev set <stat> <n>\n"
@@ -416,7 +463,7 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
             "dev remove <character/all>, dev clear room\n"
             "dev afflict <target> <effect> <amount> <duration>\n"
             "dev kill <enemy>, dev teleport <room>, dev learn <skill>\n"
-            "dev grant spell <name>"
+            "dev grant spell <name>, dev flag <story flag>"
         ), None
 
     return f"[DEV] Unrecognised dev command: {command}. Try 'dev help'.", None

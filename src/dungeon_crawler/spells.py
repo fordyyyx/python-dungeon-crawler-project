@@ -9,6 +9,7 @@ class Spell:
 
     def __init__(self, name: str, description: str, mana_cost: int, damage: int = 0, heal_amount: int = 0, effect_name: str | None = None,
                  effect_amount: int = 0, effect_duration: int = 0):
+        """Store the spell's cost and each optional component - damage, a heal, and a status-effect template (effect_name/amount/duration)."""
         self.name = name
         self.description = description
         self.mana_cost = mana_cost

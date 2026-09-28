@@ -10,28 +10,30 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
 * One-off hints that explain a mechanic the first time it matters (your first fight, the forge, a guarded way forward, an unspent skill point) and then never repeat, even across saves
 * Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements (a door stays open once you've opened it) — some passages are hidden entirely until you stop and `examine` your surroundings, and the way forward past a floor's toughest foes stays barred until you've defeated them
+* Rooms with choices of their own — a few rooms offer something you can only do there, listed when you walk in (like a bargain that makes you stronger at a permanent price, or a whirlpool you can't fight - only outwit)
 * An Intellect stat, set by ancestry and grown through levelling, that unlocks additional flavour text and lore when examining — never anything required to progress
 * Turn-based, team-vs-team combat that locks you into an encounter — attack a chosen target, cast a spell, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
 * Multiple enemies at once, each deciding for itself whether to attack, defend, or heal via a utility-based AI (with a little randomness baked in, so it doesn't always play perfectly) — target a specific enemy by name, disambiguating with a number when more than one shares it
-* Recruitable companions who fight alongside you with the same AI-driven decision-making as enemies, and level up as you fight together — a downed companion isn't gone for good, and can be revived or simply dismissed home to recover
+* Recruitable companions who fight alongside you with the same AI-driven decision-making as enemies, and level up as you fight together — some fight at range, some will only join once you've done something for them, and some will tell you what they make of a room if you ask their `advice` — a downed companion isn't gone for good, and can be revived or simply dismissed home to recover
 * Duels — some companions won't follow you until you've beaten them in a fight of their own; losing a duel isn't a death, and your wounds fade once it's over
 * Your lineage is noticed — gods, monsters, and heroes of legend recognise their own descendants (and a companion has things to say about old rivals)
 * An optional toggleable auto-talk setting, so allies speak automatically on room entry rather than needing `talk` every time — and an auto-map setting that lists each room's exits the same way
 * An `uncleared` command that remembers every room you've visited and lists the ones you haven't finished with yet, plus any new rooms one step away that you haven't explored — without ever spoiling anything further out
 * Item pickup, inventory, use, and unequip — weapons occupy two slots (melee and ranged) and armour three (helmet, body, and shield), so a piece in each can be worn at once, only swapping within the same slot — though a two-handed weapon and a shield can't be used together
-* Weapon classes that play differently — blades make heavy attacks more reliable, two-handed heavy weapons hit hardest, and piercing weapons cut through armour — plus unique boss drops with their own tricks (a cleave that carries into a second enemy, a fang that drains life, a poisoned blade)
+* Weapon classes that play differently — blades make heavy attacks more reliable, two-handed heavy weapons hit hardest, and piercing weapons cut through armour — plus unique boss drops with their own tricks (a cleave that carries into a second enemy, a fang that drains life, a poisoned blade, a stake that blinds)
 * Armour weight — heavier armour protects more but makes every attack more likely to miss, with your exact miss chances shown in `stats`
 * Attack variety — light, heavy (bigger hit, a chance to miss entirely), and ranged (requires an equipped ranged weapon) attacks, chosen per turn
 * Armour durability that wears down as you take hits (shown in your inventory) and can be repaired for gold at the Forge of Prometheus — armour softens every blow, but never blocks one completely
-* Status effects — poison, flame, and heal-over-time tonics that tick each round, stacking by prolonging duration rather than piling up separate instances
+* Status effects — poison, flame, and heal-over-time tonics that tick each round, plus blindness that makes a foe's next attacks likely to miss, each stacking by prolonging its duration rather than piling up separate instances
 * Spellcasting — a learnable spellbook, a mana pool, and per-spell cooldowns; rest to recover mana between fights
 * Friendly NPCs with hints, conditional dialogue that changes before, during, and after a trade, and items to trade
 * A trading system that checks for both missing and still-equipped items
+* Merchants — trade gold, and sometimes gear you've outgrown, for something better (`offers` to see what's on offer, `exchange <number>` to accept)
 * Quest items — untradeable, undroppable, and displayed separately from regular gear
 * A branching skill tree (Attack and Defence paths of five escalating tiers each, plus an Abilities path) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience, which also raises your max HP
 * Gold, earned from defeating enemies, tracked separately from your core stats
 * Special combat abilities — Double Strike, Thorns, Last Stand, and Dodge
-* Enemies with loot drops, and with styles that ask for different answers — a heavily armoured wall, a brute with none, an archer who keeps out of melee reach
+* Enemies with loot drops, and with styles that ask for different answers — a heavily armoured wall, a brute with none, an archer who keeps out of melee reach, a six-headed monster that strikes from every side
 * Multi-stage boss fights — a defeated phase can transition seamlessly into the next, or first summon a wave of lesser foes that must all be cleared before the boss reveals what comes after them
 * A Practice Chamber (floor 2, by the Forge of Prometheus) with an infinitely-respawning, customisable dummy — freely test weapons/spells/potions with no mana cost or cooldowns while inside
 * A full save/load system — 3 profiles, 5 slots each, with a New Game / Load Game / Delete Save title screen, manual save/load commands mid-game, and autosave the first time you reach a new floor
@@ -96,6 +98,9 @@ pytest --cov=src/dungeon_crawler
 * `recruit <name>` - recruit a companion who joins your team in combat (requires specific items)
 * `challenge <name>` - duel a companion who won't join until you've beaten them; losing isn't a death, and your HP is restored afterwards
 * `dismiss` - release your current companion, who returns home
+* `advice` - ask your companion what they make of the room (only some companions give advice; also works mid-combat)
+* `offers` - list what the merchant in this room will exchange, and for how much
+* `exchange <number>` - accept one of the merchant's offers, paying its gold (and handing over its item, if it asks for one)
 * `repair <item>` - repair an item to full durability at a Forge (requires gold)
 * `dummy set <stat> <value>` - customise the practice dummy's stats (Practice Chamber only)
 * `rest` / `wait` - recover mana outside of combat
@@ -111,10 +116,11 @@ pytest --cov=src/dungeon_crawler
 ## Project structure
 * `characters.py` - `Character`, `Player`, `Enemy`, `Ally`, `Companion`, `Skill`, `SkillPath`, `SkillTree`
 * `items.py` - `Item`, `Weapon`, `Armour`, `Consumable`, `QuestItem`, `Inventory`, plus `Consumable`'s own subclasses `Reviver`, `StatusEffectItem`, `SpellBook`, `SkillPointReward`
-* `status_effects.py` - `StatusEffect` - the poison/flame/heal-over-time engine, ticked once per combat turn
+* `status_effects.py` - `StatusEffect` - the poison/flame/heal-over-time engine, ticked once per combat turn, plus blindness, which counts down per attack instead
 * `spells.py` - `Spell` - offensive/defensive/utility spellcasting
 * `hints.py` - the text of every one-off contextual hint, and the logic that shows each one only once per save
-* `world.py` - `Room`, `Map`
+* `exchange.py` - the exchange system: merchants' offers, and trading gold (and items) for new ones
+* `world.py` - `Room`, `Map`, and `RoomInteraction` (a verb that only works in one room)
 * `content/` - the actual game content: specific rooms, enemies, allies, and items, one module per floor, plus the ancestry options for character creation, dev-only test content, and `build_world()`
 * `combat.py` - combat resolution: team-vs-team turns, targeting, status-effect ticking, spellcasting, defeat handling, and fleeing
 * `exploration.py` - everything outside combat: picking up items, trading, recruiting/dismissing companions, repairing armour, examining, and the map
@@ -124,7 +130,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and floor 5's Shadow of Troy - home to the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the shades of Hector, Ajax and Paris. Planned additions include further floors drawing on the Iliad and Odyssey, with more named multi-stage bosses among them.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and floor 5's Shadow of Troy - home to the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the shades of Hector, Ajax and Paris - and the first half of floor 6's Odyssey: the Laestrygonian giants, the Sirens' bargain, the Cyclops Polyphemus, Scylla and Charybdis, Poseidon himself, Odysseus, a second companion, and Circe, the first merchant. Planned additions include the rest of the Odyssey and the floors beyond it, with more named multi-stage bosses among them.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

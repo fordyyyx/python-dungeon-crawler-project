@@ -81,7 +81,7 @@ def serialise_player(player: Player, current_room) -> dict:
         "skill_points": player.skill_tree.skill_points,
         "known_spells": [spell.name for spell in player.known_spells],
         "spell_cooldowns": dict(player.spell_cooldowns),
-        "active_effects": [{"name": e.name, "amount": e.amount, "duration": e.duration} for e in player.active_effects],
+        "active_effects": [{"name": e.name, "amount": e.amount, "duration": e.duration, "miss_chance": e.miss_chance} for e in player.active_effects],
         "inventory": [
             {"name": item.name, "equipped": item.equipped, "durability": getattr(item, "durability", None)} for item in player.inventory.items
         ],
@@ -93,6 +93,7 @@ def serialise_player(player: Player, current_room) -> dict:
         "ancestry_key": player.ancestry_key,
         "secondary_ancestry_key": player.secondary_ancestry_key,
         "seen_lines": sorted(player.seen_lines),
+        "story_flags": sorted(player.story_flags)
     }
 
 def _ancestry_key_for_label(label: str, field: str = "label") -> str | None:
@@ -137,7 +138,7 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
 
     player.known_spells = [s for s in (find_spell_by_name(n) for n in data["known_spells"]) if s is not None]
     player.spell_cooldowns = dict(data["spell_cooldowns"])
-    player.active_effects = [StatusEffect(e["name"], e["amount"], e["duration"]) for e in data["active_effects"]]
+    player.active_effects = [StatusEffect(e["name"], e["amount"], e["duration"], e.get("miss_chance", 0.0)) for e in data["active_effects"]]
 
     for item_data in data["inventory"]:
         item = find_item_by_name(item_data["name"])
@@ -162,6 +163,7 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
     player.auto_map = data.get("auto_map", False)
     player.visited_rooms = set(data.get("visited_rooms", []))
     player.seen_hints = set(data.get("seen_hints", []))
+    player.story_flags = set(data.get("story_flags", []))
 
     current_room = world.get_room(data["current_room"])
     if current_room is None:
@@ -179,7 +181,7 @@ def serialise_companion(companion) -> dict:
         "experience": companion.experience,
         "duel_won": companion.duel_won,
         "home_room": companion.home_room.name,
-        "active_effects": [{"name": e.name, "amount": e.amount, "duration": e.duration} for e in companion.active_effects],
+        "active_effects": [{"name": e.name, "amount": e.amount, "duration": e.duration, "miss_chance": e.miss_chance} for e in companion.active_effects],
     }
 
 def companion_from_save_data(data: dict, home_room: "Room | None"):
@@ -194,7 +196,7 @@ def companion_from_save_data(data: dict, home_room: "Room | None"):
     companion.duel_won = data.get("duel_won", False)
     if home_room is not None:
         companion.home_room = home_room
-    companion.active_effects = [StatusEffect(e["name"], e["amount"], e["duration"]) for e in data.get("active_effects", [])]
+    companion.active_effects = [StatusEffect(e["name"], e["amount"], e["duration"], e.get("miss_chance", 0.0)) for e in data.get("active_effects", [])]
     return companion
 
 
@@ -204,7 +206,8 @@ def serialise_room(room) -> dict:
     fresh build_world() alone would re-lock doors the player has already opened. unlocked_extras/locked_exits_removed are older,
     always-empty placeholders, kept only so existing saves keep the same shape. A wave add's wave_gate_factory can't be saved
     as a function, so it's stored as the name of the phase it would spawn, and re-linked through ENEMY_REGISTRY by apply_room_data().
-    Every companion still in the room is saved via serialise_companion(), so a won duel - or a recruited companion's absence - survives."""
+    Every companion still in the room is saved via serialise_companion(), so a won duel - or a recruited companion's absence - survives.
+    flags (the permanent changes a room interaction has made, e.g. the Sirens' bargain) are saved too, since build_world() starts them empty."""
     return {
         "enemies": [
             {
@@ -223,13 +226,14 @@ def serialise_room(room) -> dict:
         "fast_travel_locks": sorted(room.fast_travel_locks),
         "locked_exits": sorted(room.locked_exits),
         "companions": [serialise_companion(companion) for companion in room.companions],
+        "flags": sorted(room.flags),
     }
 
 def apply_room_data(room, data: dict) -> None:
     """Patch a freshly-built room to match its saved snapshot: restore the room's living enemies, replace the item list, mark completed
     trades, restore fast_travel_locks, unlock any locked exit the save no longer lists as locked, and replace the room's companions with
-    the saved ones (the last three only when the save has them - an older save without "locked_exits" or "companions" leaves what
-    build_world() made in place).
+    the saved ones, and restore the room's flags (the last four only when the save has them - an older save without "locked_exits",
+    "companions" or "flags" leaves what build_world() made in place).
 
     Enemies: each saved enemy first claims an unclaimed same-named enemy already in the fresh room (in order, so two same-named enemies
     each get their own saved HP), keeping the exact instance build_world() made - which matters for any enemy ENEMY_REGISTRY doesn't
@@ -285,6 +289,9 @@ def apply_room_data(room, data: dict) -> None:
             companion = companion_from_save_data(companion_data, room)
             if companion is not None:
                 room.add_companion(companion)
+
+    if "flags" in data:
+        room.flags = set(data["flags"])
 
 def serialise_world(world: Map) -> dict:
     """Snapshot every room in world."""

@@ -1,7 +1,8 @@
-from dungeon_crawler.content import create_shade_of_ajax, create_tower_shield_of_ajax, create_myrmidon_soldier, create_field_dressing, create_shade_of_paris, create_bow_of_paris, create_nestor, create_cup_of_kykeon, create_shade_of_hector, create_hectors_helm, create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
+from dungeon_crawler.content import create_suitor, create_antinous, create_eurymachus, create_antinous_goblet, create_penelope, create_penelopes_thread, create_circe, create_nestor, create_poseidon, create_hippocampus, create_poseidon_earth_shaker, create_trident_of_the_depths, create_kelp_poultice, create_odysseus, create_charybdis, create_hoplon_of_the_drowned, resolve_charybdis_action, CHARYBDIS_PHASES, create_polyphemus, create_polyphemus_blinded, create_olive_wood_stake, create_wheel_of_cheese, create_head_of_scylla, create_boars_tusk_helm, ANCESTRIES, create_laestrygonian, create_antiphates, create_laestrygonian_hide, create_antiphates_club, create_shade_of_ajax, create_tower_shield_of_ajax, create_myrmidon_soldier, create_field_dressing, create_shade_of_paris, create_bow_of_paris, create_nestor, create_cup_of_kykeon, create_shade_of_hector, create_hectors_helm, create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player, Companion, Enemy
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
+from dungeon_crawler.dev_tools import find_item_by_name
+from dungeon_crawler.items import LoyaltyToken, QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
 
 
 def test_create_minotaur_has_correct_stats():
@@ -1284,7 +1285,7 @@ def test_build_world_forge_of_prometheus_reciprocal_exits_start_fast_travel_lock
     dungeon, entrance, floors = build_world()
     forge = dungeon.get_room("Forge of Prometheus")
     assert forge is not None
-    assert forge.fast_travel_locks == {"prayer room", "stony lair", "maze of pillars"}
+    assert forge.fast_travel_locks == {"prayer room", "stony lair", "maze of pillars", "shadow of pylos", "shadow of ithaca"}
 
 def test_build_world_prayer_room_forge_exit_registers_activation_for_forge_of_prometheus():
     dungeon, entrance, floors = build_world()
@@ -1856,29 +1857,45 @@ def test_build_floor_6_rocky_shore_connects_to_calm_waters_via_east():
     start, rooms = build_floor_6()
     assert rooms["Rocky Shore"].get_exit("east") is rooms["Calm Waters"]
 
-def test_build_floor_6_rocky_shore_connects_to_narrow_river_via_south():
+def test_build_floor_6_calm_waters_connects_to_narrow_river_via_south():
     start, rooms = build_floor_6()
-    assert rooms["Rocky Shore"].get_exit("south") is rooms["Narrow River"]
+    assert rooms["Calm Waters"].get_exit("south") is rooms["Narrow River"]
 
-def test_build_floor_6_narrow_river_connects_to_rocky_shore_via_north():
+def test_build_floor_6_rocky_shore_connects_to_poseidons_depths_via_south():
     start, rooms = build_floor_6()
-    assert rooms["Narrow River"].get_exit("north") is rooms["Rocky Shore"]
+    assert rooms["Rocky Shore"].get_exit("south") is rooms["Poseidon's Depths"]
 
-def test_build_floor_6_narrow_river_connects_to_poseidons_depths_via_south():
+def test_build_floor_6_narrow_river_connects_to_calm_waters_via_north():
     start, rooms = build_floor_6()
-    assert rooms["Narrow River"].get_exit("south") is rooms["Poseidon's Depths"]
+    assert rooms["Narrow River"].get_exit("north") is rooms["Calm Waters"]
 
-def test_build_floor_6_poseidons_depths_connects_to_narrow_river_via_north():
+def test_build_floor_6_narrow_river_connects_to_poseidons_depths_via_west():
     start, rooms = build_floor_6()
-    assert rooms["Poseidon's Depths"].get_exit("north") is rooms["Narrow River"]
+    assert rooms["Narrow River"].get_exit("west") is rooms["Poseidon's Depths"]
 
-def test_build_floor_6_poseidons_depths_connects_to_shadow_of_ithaca_via_east():
+def test_build_floor_6_poseidons_depths_connects_to_rocky_shore_via_north():
     start, rooms = build_floor_6()
-    assert rooms["Poseidon's Depths"].get_exit("east") is rooms["Shadow of Ithaca"]
+    assert rooms["Poseidon's Depths"].get_exit("north") is rooms["Rocky Shore"]
 
-def test_build_floor_6_shadow_of_ithaca_connects_to_poseidons_depths_via_west():
+def test_build_floor_6_poseidons_depths_connects_to_narrow_river_via_east():
     start, rooms = build_floor_6()
-    assert rooms["Shadow of Ithaca"].get_exit("west") is rooms["Poseidon's Depths"]
+    assert rooms["Poseidon's Depths"].get_exit("east") is rooms["Narrow River"]
+
+def test_build_floor_6_poseidons_depths_connects_to_shadow_of_ithaca_via_south():
+    start, rooms = build_floor_6()
+    assert rooms["Poseidon's Depths"].get_exit("south") is rooms["Shadow of Ithaca"]
+
+def test_build_floor_6_shadow_of_ithaca_connects_to_poseidons_depths_via_north():
+    start, rooms = build_floor_6()
+    assert rooms["Shadow of Ithaca"].get_exit("north") is rooms["Poseidon's Depths"]
+
+def test_build_floor_6_scylla_and_charybdis_are_parallel_routes_to_poseidons_depths():
+    """Deliberate: Rocky Shore (Scylla) and Narrow River (Charybdis) each lead from Calm Waters to Poseidon's Depths on their own,
+    so only one has to be passed - matching Nestor's advice on floor 5."""
+    start, rooms = build_floor_6()
+    assert rooms["Rocky Shore"].get_exit("south") is rooms["Poseidon's Depths"]
+    assert rooms["Narrow River"].get_exit("west") is rooms["Poseidon's Depths"]
+    assert rooms["Narrow River"] not in rooms["Rocky Shore"].exits.values()
 
 def test_build_floor_6_shadow_of_ithaca_connects_to_muddy_pigsty_via_east():
     start, rooms = build_floor_6()
@@ -2373,3 +2390,724 @@ def test_build_floor_5_leaves_the_myrmidons_exit_unguarded():
     """Deliberate: the Myrmidons can be walked past, and skipping them means giving up their Field Dressings."""
     _, rooms = build_floor_5()
     assert rooms["Shadow of Troy (Alleyway)"].guarded_exits == set()
+
+def test_create_laestrygonian_has_correct_stats():
+    giant = create_laestrygonian()
+    assert giant.name == "Laestrygonian"
+    assert giant.hp == 30
+    assert giant.attack_damage == 12
+    assert giant.armour == 1
+    assert giant.armour_pierce == 2
+    assert giant.aggression_weight == 1.3
+
+def test_create_laestrygonian_drops_laestrygonian_hide():
+    assert [item.name for item in create_laestrygonian().loot] == ["Laestrygonian Hide"]
+
+def test_create_antiphates_has_correct_stats():
+    king = create_antiphates()
+    assert king.name == "Antiphates"
+    assert king.hp == 36
+    assert king.attack_damage == 13
+    assert king.armour == 2
+    assert king.armour_pierce == 2
+
+def test_create_antiphates_is_tougher_than_his_giant():
+    king = create_antiphates()
+    giant = create_laestrygonian()
+    assert king.hp > giant.hp
+    assert king.attack_damage > giant.attack_damage
+    assert king.experience_reward > giant.experience_reward
+
+def test_create_antiphates_drops_his_club():
+    loot = create_antiphates().loot
+    assert len(loot) == 1
+    assert isinstance(loot[0], Weapon)
+    assert loot[0].damage == 8
+
+def test_create_laestrygonian_hide_is_medium_body_armour():
+    hide = create_laestrygonian_hide()
+    assert isinstance(hide, Armour)
+    assert hide.slot == "body"
+    assert hide.weight == "medium"
+    assert hide.defence == 5
+    assert hide.max_durability == 14
+
+def test_create_antiphates_club_is_a_two_handed_heavy_weapon_without_cleave():
+    club = create_antiphates_club()
+    assert club.name == "Antiphates' Club"
+    assert club.weapon_class == "heavy"
+    assert club.two_handed is True
+    assert club.cleave is False
+    assert club.damage == 8
+
+def test_create_antiphates_club_out_damages_the_labrys():
+    assert create_antiphates_club().damage > create_labrys().damage
+
+def test_create_laestrygonian_builds_a_fresh_hide_each_time():
+    assert create_laestrygonian().loot[0] is not create_laestrygonian().loot[0]
+
+def test_build_floor_6_places_antiphates_and_a_laestrygonian_in_bright_cave():
+    _, rooms = build_floor_6()
+    assert [e.name for e in rooms["Bright Cave"].enemies] == ["Antiphates", "Laestrygonian"]
+
+def test_build_floor_6_calm_waters_offers_the_sirens_three_verbs():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    assert calm_waters.available_interactions(Player(name="Hero", hp=20)) == ["listen", "give in", "resist"]
+
+def test_build_floor_6_only_calm_waters_and_narrow_river_have_interactions():
+    _, rooms = build_floor_6()
+    assert [name for name, room in rooms.items() if room.interactions] == ["Calm Waters", "Narrow River"]
+
+def test_sirens_listen_changes_nothing():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    player = Player(name="Hero", hp=20)
+    calm_waters.interactions["listen"].handler(player, calm_waters)
+    assert player.skill_tree.skill_points == 0
+    assert player.max_hp == 20
+    assert calm_waters.flags == set()
+
+def test_sirens_listen_explains_how_to_accept_and_refuse():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    message = calm_waters.interactions["listen"].handler(Player(name="Hero", hp=20), calm_waters)
+    assert "'give in'" in message
+    assert "'resist'" in message
+    assert "+2 skill points" in message
+    assert "-5 max HP" in message
+
+def test_sirens_give_in_grants_two_skill_points_for_five_max_hp():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    player = Player(name="Hero", hp=20)
+    calm_waters.interactions["give in"].handler(player, calm_waters)
+    assert player.skill_tree.skill_points == 2
+    assert player.max_hp == 15
+
+def test_sirens_give_in_caps_current_hp_to_the_new_maximum():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    player = Player(name="Hero", hp=20)
+    calm_waters.interactions["give in"].handler(player, calm_waters)
+    assert player.hp == 15
+
+def test_sirens_give_in_leaves_hp_already_below_the_new_maximum_alone():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    player = Player(name="Hero", hp=20)
+    player.hp = 8
+    calm_waters.interactions["give in"].handler(player, calm_waters)
+    assert player.hp == 8
+
+def test_sirens_give_in_never_drops_max_hp_below_one():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    player = Player(name="Hero", hp=4)
+    calm_waters.interactions["give in"].handler(player, calm_waters)
+    assert player.max_hp == 1
+    assert player.hp == 1
+
+def test_sirens_give_in_reports_the_new_max_hp():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    message = calm_waters.interactions["give in"].handler(Player(name="Hero", hp=20), calm_waters)
+    assert "Max HP is now 15" in message
+
+def test_sirens_give_in_silences_every_verb():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    player = Player(name="Hero", hp=20)
+    calm_waters.interactions["give in"].handler(player, calm_waters)
+    assert "sirens_bargain_taken" in calm_waters.flags
+    assert calm_waters.available_interactions(player) == []
+
+def test_sirens_resist_changes_nothing_and_keeps_the_offer_open():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    player = Player(name="Hero", hp=20)
+    calm_waters.interactions["resist"].handler(player, calm_waters)
+    assert player.skill_tree.skill_points == 0
+    assert player.max_hp == 20
+    assert calm_waters.available_interactions(player) == ["listen", "give in", "resist"]
+
+def test_sirens_verbs_have_their_own_unavailable_messages():
+    _, rooms = build_floor_6()
+    calm_waters = rooms["Calm Waters"]
+    assert calm_waters.interactions["listen"].unavailable_message == "The Sirens are silent now."
+    assert calm_waters.interactions["give in"].unavailable_message == "The Sirens are silent now."
+    assert calm_waters.interactions["resist"].unavailable_message == "There's nothing left to resist."
+
+def test_build_world_shadow_of_pylos_connects_to_the_forge():
+    dungeon, entrance, floors = build_world()
+    assert floors["floor_5"]["Shadow of Pylos"].get_exit("forge") is floors["floor_2"]["Forge of Prometheus"]
+
+def test_build_world_shadow_of_ithaca_connects_to_the_forge():
+    dungeon, entrance, floors = build_world()
+    assert floors["floor_6"]["Shadow of Ithaca"].get_exit("forge") is floors["floor_2"]["Forge of Prometheus"]
+
+def test_build_world_forge_connects_back_to_shadow_of_pylos_and_shadow_of_ithaca():
+    dungeon, entrance, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    assert forge.get_exit("shadow of pylos") is floors["floor_5"]["Shadow of Pylos"]
+    assert forge.get_exit("shadow of ithaca") is floors["floor_6"]["Shadow of Ithaca"]
+
+def test_build_world_shadow_of_pylos_forge_exit_registers_activation_for_the_forge():
+    dungeon, entrance, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    assert floors["floor_5"]["Shadow of Pylos"].exit_activations["forge"] == (forge, "shadow of pylos")
+
+def test_build_world_shadow_of_ithaca_forge_exit_registers_activation_for_the_forge():
+    dungeon, entrance, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    assert floors["floor_6"]["Shadow of Ithaca"].exit_activations["forge"] == (forge, "shadow of ithaca")
+
+def test_build_world_pylos_and_ithaca_descriptions_point_at_the_forge_exit():
+    dungeon, entrance, floors = build_world()
+    assert "say 'forge'" in floors["floor_5"]["Shadow of Pylos"].description
+    assert "say 'forge'" in floors["floor_6"]["Shadow of Ithaca"].description
+
+def test_create_laestrygonian_hide_sits_between_athenas_breastplate_and_talos_plating():
+    defence = create_laestrygonian_hide().defence
+    assert create_breastplate_of_athena().defence < defence < create_talos_bronze_plating().defence
+
+def test_create_polyphemus_has_correct_stats():
+    polyphemus = create_polyphemus()
+    assert polyphemus.name == "Polyphemus"
+    assert polyphemus.hp == 42
+    assert polyphemus.attack_damage == 12
+    assert polyphemus.armour == 3
+    assert polyphemus.brace_amount == 4
+
+def test_create_polyphemus_rises_again_as_his_blinded_phase():
+    assert create_polyphemus().next_phase_factory is create_polyphemus_blinded
+
+def test_create_polyphemus_first_phase_carries_no_rewards():
+    """Only the final phase pays out - same as Medusa."""
+    polyphemus = create_polyphemus()
+    assert polyphemus.loot == []
+    assert polyphemus.experience_reward == 0
+    assert polyphemus.gold_reward == 0
+
+def test_create_polyphemus_greets_cyclops_and_poseidon_descendants():
+    lines = create_polyphemus().ancestry_lines
+    assert set(lines) == {"cyclops", "poseidon"}
+    assert set(lines) <= set(ANCESTRIES)
+
+def test_create_polyphemus_blinded_has_correct_stats():
+    blinded = create_polyphemus_blinded()
+    assert blinded.name == "Polyphemus (Blinded)"
+    assert blinded.hp == 36
+    assert blinded.attack_damage == 17
+    assert blinded.armour == 3
+    assert blinded.aggression_weight == 1.6
+    assert blinded.next_phase_factory is None
+
+def test_create_polyphemus_blinded_starts_blinded_for_the_whole_fight():
+    blinded = create_polyphemus_blinded()
+    assert [effect.name for effect in blinded.active_effects] == ["Blinded"]
+    assert blinded.active_effects[0].duration >= 100
+    assert blinded.get_miss_chance("light") == 0.35
+
+def test_create_polyphemus_blinded_pays_out_and_drops_the_stake():
+    blinded = create_polyphemus_blinded()
+    assert [item.name for item in blinded.loot] == ["Olive-wood Stake"]
+    assert blinded.experience_reward == 60
+    assert blinded.gold_reward == 35
+
+def test_create_polyphemus_blinded_builds_a_fresh_blindness_each_time():
+    assert create_polyphemus_blinded().active_effects[0] is not create_polyphemus_blinded().active_effects[0]
+
+def test_create_olive_wood_stake_is_a_blinding_piercing_weapon():
+    stake = create_olive_wood_stake()
+    assert stake.name == "Olive-wood Stake"
+    assert stake.weapon_class == "piercing"
+    assert stake.damage == 7
+    assert stake.armour_pierce == 3
+    assert stake.blind_chance == 0.2
+    assert stake.two_handed is False
+
+def test_create_wheel_of_cheese_is_a_free_eight_hp_heal():
+    cheese = create_wheel_of_cheese()
+    assert cheese.heal_amount == 8
+    assert cheese.ends_turn(Player(name="Hero", hp=20)) is False
+
+def test_create_head_of_scylla_has_correct_stats():
+    head = create_head_of_scylla()
+    assert head.name == "Head of Scylla"
+    assert head.hp == 12
+    assert head.attack_damage == 7
+    assert head.armour == 0
+    assert head.aggression_weight == 1.4
+
+def test_create_head_of_scylla_drops_no_items():
+    assert create_head_of_scylla().loot == []
+
+def test_create_boars_tusk_helm_is_a_heavy_helmet():
+    helm = create_boars_tusk_helm()
+    assert helm.name == "Boar's-Tusk Helm"
+    assert helm.slot == "helmet"
+    assert helm.weight == "heavy"
+    assert helm.defence == 3
+    assert helm.max_durability == 14
+
+def test_create_boars_tusk_helm_out_defends_hectors_helm():
+    assert create_boars_tusk_helm().defence > create_hectors_helm().defence
+
+def test_build_floor_6_places_polyphemus_and_two_wheels_of_cheese():
+    _, rooms = build_floor_6()
+    cavern = rooms["Cavern of Polyphemus"]
+    assert [e.name for e in cavern.enemies] == ["Polyphemus"]
+    assert [item.name for item in cavern.items] == ["Wheel of Cheese", "Wheel of Cheese"]
+    assert cavern.items[0] is not cavern.items[1]
+
+def test_build_floor_6_leaves_the_optional_cavern_unguarded():
+    _, rooms = build_floor_6()
+    assert rooms["Cavern of Polyphemus"].guarded_exits == set()
+
+def test_build_floor_6_places_six_separate_heads_of_scylla():
+    _, rooms = build_floor_6()
+    heads = rooms["Rocky Shore"].enemies
+    assert [e.name for e in heads] == ["Head of Scylla"] * 6
+    assert len({id(head) for head in heads}) == 6
+
+def test_build_floor_6_places_the_boars_tusk_helm_on_rocky_shore():
+    _, rooms = build_floor_6()
+    assert [item.name for item in rooms["Rocky Shore"].items] == ["Boar's-Tusk Helm"]
+
+def test_build_floor_6_scylla_guards_the_way_south():
+    _, rooms = build_floor_6()
+    assert rooms["Rocky Shore"].guarded_exits == {"south"}
+
+def test_titled_enemies_are_introduced_with_the():
+    for factory in (create_crypt_keeper, create_minotaur, create_shade_of_hector, create_shade_of_ajax, create_shade_of_paris,
+                    create_shade_of_achilles_duellist):
+        enemy = factory()
+        assert enemy.with_article() == f"The {enemy.name}", enemy.name
+
+def test_proper_named_enemies_take_no_article():
+    for factory in (create_lamia, create_talos, create_medusa, create_medusa_awakened, create_antiphates, create_polyphemus,
+                    create_polyphemus_blinded):
+        enemy = factory()
+        assert enemy.with_article() == enemy.name, enemy.name
+
+def charybdis_state():
+    return {"phase": 0, "position": "raft", "freed": False}
+
+def test_create_charybdis_is_an_invulnerable_placeholder():
+    charybdis = create_charybdis()
+    assert charybdis.name == "Charybdis"
+    assert charybdis.invulnerable is True
+    assert charybdis.hp == 1
+    assert charybdis.attack_damage == 0
+    assert charybdis.article == ""
+    assert charybdis.invulnerable_message == "You can't fight a whirlpool - you'll have to find another way past."
+
+def test_create_charybdis_carries_the_puzzles_rewards():
+    charybdis = create_charybdis()
+    assert [item.name for item in charybdis.loot] == ["Hoplon of the Drowned"]
+    assert charybdis.experience_reward == 50
+    assert charybdis.gold_reward == 25
+    assert "Charybdis sinks" in charybdis.defeat_effect(Player(name="Hero", hp=20))
+
+def test_create_hoplon_of_the_drowned_is_a_light_shield():
+    hoplon = create_hoplon_of_the_drowned()
+    assert hoplon.slot == "shield"
+    assert hoplon.weight == "light"
+    assert hoplon.defence == 2
+    assert hoplon.max_durability == 12
+
+def test_build_floor_6_places_charybdis_guarding_narrow_rivers_way_west():
+    _, rooms = build_floor_6()
+    assert [e.name for e in rooms["Narrow River"].enemies] == ["Charybdis"]
+    assert rooms["Narrow River"].guarded_exits == {"west"}
+
+def test_build_floor_6_narrow_river_offers_the_four_charybdis_verbs():
+    _, rooms = build_floor_6()
+    assert rooms["Narrow River"].available_interactions(Player(name="Hero", hp=20)) == ["watch", "climb", "let go", "row"]
+
+def test_build_floor_6_charybdis_verbs_fall_silent_once_she_is_gone():
+    _, rooms = build_floor_6()
+    river = rooms["Narrow River"]
+    river.enemies[0].hp = 0
+    assert river.available_interactions(Player(name="Hero", hp=20)) == []
+    assert river.interactions["row"].unavailable_message == "The water is calm now - Charybdis has let you pass."
+
+def test_charybdis_phases_run_still_swallowing_drained_spewing():
+    assert CHARYBDIS_PHASES == ("still", "swallowing", "drained", "spewing")
+
+def test_resolve_charybdis_action_the_myths_solution_solves_it():
+    """Climb while she swallows, hold on while she's drained, let go as she spews the raft back up, row while the water is still - with the
+    whirlpool advancing one phase after every action, exactly as the room's handler does."""
+    state = charybdis_state()
+    outcomes = []
+    for verb in ("climb", "watch", "watch", "let go", "row"):
+        outcome, _ = resolve_charybdis_action(verb, CHARYBDIS_PHASES[state["phase"]], state)
+        outcomes.append(outcome)
+        state["phase"] = (state["phase"] + 1) % len(CHARYBDIS_PHASES)
+    assert outcomes == ["ok", "ok", "ok", "ok", "solved"]
+
+def test_resolve_charybdis_action_climbing_puts_you_in_the_fig_tree():
+    state = charybdis_state()
+    outcome, _ = resolve_charybdis_action("climb", "swallowing", state)
+    assert outcome == "ok"
+    assert state["position"] == "tree"
+
+def test_resolve_charybdis_action_staying_on_the_raft_while_she_swallows_fails():
+    for verb in ("watch", "row", "let go"):
+        outcome, _ = resolve_charybdis_action(verb, "swallowing", charybdis_state())
+        assert outcome == "fail", verb
+
+def test_resolve_charybdis_action_letting_go_too_early_fails():
+    for phase in ("swallowing", "drained"):
+        state = charybdis_state()
+        state["position"] = "tree"
+        outcome, _ = resolve_charybdis_action("let go", phase, state)
+        assert outcome == "fail", phase
+
+def test_resolve_charybdis_action_letting_go_as_she_spews_frees_the_raft():
+    state = charybdis_state()
+    state["position"] = "tree"
+    outcome, _ = resolve_charybdis_action("let go", "spewing", state)
+    assert outcome == "ok"
+    assert state["position"] == "raft"
+    assert state["freed"] is True
+
+def test_resolve_charybdis_action_letting_go_on_still_water_drops_you_back_unfreed():
+    state = charybdis_state()
+    state["position"] = "tree"
+    resolve_charybdis_action("let go", "still", state)
+    assert state["position"] == "raft"
+    assert state["freed"] is False
+
+def test_resolve_charybdis_action_rowing_before_the_raft_is_freed_does_not_solve_it():
+    outcome, _ = resolve_charybdis_action("row", "still", charybdis_state())
+    assert outcome == "ok"
+
+def test_resolve_charybdis_action_rowing_freed_but_not_on_still_water_does_not_solve_it():
+    state = charybdis_state()
+    state["freed"] = True
+    outcome, _ = resolve_charybdis_action("row", "drained", state)
+    assert outcome == "ok"
+
+def test_resolve_charybdis_action_holding_on_in_the_tree_is_always_safe():
+    for phase in CHARYBDIS_PHASES:
+        state = charybdis_state()
+        state["position"] = "tree"
+        for verb in ("watch", "climb", "row"):
+            outcome, _ = resolve_charybdis_action(verb, phase, state)
+            assert outcome == "ok", (verb, phase)
+            assert state["position"] == "tree"
+
+def run_charybdis_verbs(river, player, verbs):
+    return [river.interactions[verb].handler(player, river) for verb in verbs]
+
+def test_charybdis_verb_advances_the_whirlpool_and_describes_it():
+    _, rooms = build_floor_6()
+    river = rooms["Narrow River"]
+    message = river.interactions["climb"].handler(Player(name="Hero", hp=30), river)
+    assert "fig tree" in message
+    assert "The sea begins to" in message
+    assert river.transient_state["charybdis"]["phase"] == 1
+
+def test_charybdis_verb_failure_deals_twelve_damage_and_restarts_the_puzzle():
+    _, rooms = build_floor_6()
+    river = rooms["Narrow River"]
+    player = Player(name="Hero", hp=30)
+    messages = run_charybdis_verbs(river, player, ["climb", "let go"])
+    assert player.hp == 18
+    assert "(You take 12 damage.)" in messages[-1]
+    assert "spits you back out" in messages[-1]
+    assert "charybdis" not in river.transient_state
+
+def test_charybdis_verb_failure_can_kill():
+    _, rooms = build_floor_6()
+    river = rooms["Narrow River"]
+    player = Player(name="Hero", hp=10)
+    messages = run_charybdis_verbs(river, player, ["climb", "let go"])
+    assert player.hp == 0
+    assert "The sea closes over you." in messages[-1]
+
+def test_charybdis_solving_the_puzzle_pays_out_and_opens_the_way():
+    _, rooms = build_floor_6()
+    river = rooms["Narrow River"]
+    player = Player(name="Hero", hp=30)
+    messages = run_charybdis_verbs(river, player, ["climb", "watch", "watch", "let go", "row"])
+    assert "Charybdis sinks" in messages[-1]
+    assert river.enemies == []
+    assert [item.name for item in river.items] == ["Hoplon of the Drowned"]
+    assert player.gold == 25
+    assert river.available_interactions(player) == []
+    assert "charybdis" not in river.transient_state
+
+def test_charybdis_clearing_transient_state_restarts_the_puzzle():
+    """main() clears it on leaving the room - a half-finished attempt never carries over."""
+    _, rooms = build_floor_6()
+    river = rooms["Narrow River"]
+    player = Player(name="Hero", hp=30)
+    river.interactions["climb"].handler(player, river)
+    river.transient_state.clear()
+    message = river.interactions["let go"].handler(player, river)
+    assert "You're not holding on to anything." in message
+    assert player.hp == 30
+
+def test_create_poseidon_has_correct_stats():
+    poseidon = create_poseidon()
+    assert poseidon.name == "Poseidon"
+    assert poseidon.hp == 48
+    assert poseidon.attack_damage == 13
+    assert poseidon.armour == 4
+    assert poseidon.armour_pierce == 3
+    assert poseidon.heal_amount == 8
+    assert poseidon.brace_amount == 4
+    assert poseidon.caution_weight == 1.4
+    assert poseidon.article == ""
+
+def test_create_poseidon_first_phase_carries_no_rewards():
+    poseidon = create_poseidon()
+    assert poseidon.loot == []
+    assert poseidon.experience_reward == 0
+    assert poseidon.gold_reward == 0
+
+def test_create_poseidon_rises_again_as_the_earth_shaker():
+    assert create_poseidon().next_phase_factory is create_poseidon_earth_shaker
+
+def test_create_poseidon_greets_his_own_and_odysseus_descendants():
+    lines = create_poseidon().ancestry_lines
+    assert set(lines) == {"poseidon", "odysseus"}
+    assert set(lines) <= set(ANCESTRIES)
+
+def test_create_hippocampus_has_correct_stats_and_drops_a_kelp_poultice():
+    hippocampus = create_hippocampus()
+    assert hippocampus.name == "Hippocampus"
+    assert hippocampus.hp == 14
+    assert hippocampus.attack_damage == 9
+    assert hippocampus.armour == 1
+    assert hippocampus.aggression_weight == 1.5
+    assert [item.name for item in hippocampus.loot] == ["Kelp Poultice"]
+
+def test_create_poseidon_earth_shaker_has_correct_stats():
+    shaker = create_poseidon_earth_shaker()
+    assert shaker.name == "Poseidon (Earth-Shaker)"
+    assert shaker.hp == 42
+    assert shaker.attack_damage == 16
+    assert shaker.armour == 3
+    assert shaker.armour_pierce == 3
+    assert shaker.heal_amount == 5
+    assert shaker.aggression_weight == 1.6
+    assert shaker.caution_weight == 0.8
+    assert shaker.article == ""
+    assert shaker.next_phase_factory is None
+
+def test_create_poseidon_earth_shaker_pays_out_and_drops_the_trident():
+    shaker = create_poseidon_earth_shaker()
+    assert [item.name for item in shaker.loot] == ["Trident of the Depths"]
+    assert shaker.experience_reward == 90
+    assert shaker.gold_reward == 50
+
+def test_create_trident_of_the_depths_pierces_and_cleaves():
+    trident = create_trident_of_the_depths()
+    assert trident.weapon_class == "piercing"
+    assert trident.damage == 8
+    assert trident.armour_pierce == 3
+    assert trident.cleave is True
+    assert trident.two_handed is False
+
+def test_create_kelp_poultice_is_a_free_twelve_hp_heal():
+    poultice = create_kelp_poultice()
+    assert poultice.heal_amount == 12
+    assert poultice.ends_turn(Player(name="Hero", hp=20)) is False
+
+def test_create_odysseus_has_correct_stats():
+    odysseus = create_odysseus()
+    assert odysseus.name == "Odysseus"
+    assert odysseus.hp == 36
+    assert odysseus.attack_damage == 11
+    assert odysseus.armour == 2
+    assert odysseus.brace_amount == 3
+    assert odysseus.heal_amount == 4
+
+def test_create_odysseus_fights_at_range_and_gives_advice():
+    odysseus = create_odysseus()
+    assert odysseus.attack_type == "ranged"
+    assert odysseus.gives_advice is True
+
+def test_create_odysseus_waits_for_the_suitors_to_be_cleared():
+    odysseus = create_odysseus()
+    player = Player(name="Hero", hp=20)
+    assert odysseus.required_story_flag == "suitors_cleared"
+    assert odysseus.can_be_recruited(player) is False
+    player.story_flags.add("suitors_cleared")
+    assert odysseus.can_be_recruited(player) is True
+
+def test_create_odysseus_has_no_duel_and_an_ancestry_line_for_his_own():
+    odysseus = create_odysseus()
+    assert odysseus.requires_duel is False
+    assert set(odysseus.ancestry_lines) == {"odysseus"}
+
+def test_create_odysseus_with_no_home_room_gets_a_placeholder():
+    assert create_odysseus().home_room.name == "Shadow of Ithaca"
+
+def test_build_floor_6_places_poseidon_guarding_the_depths():
+    _, rooms = build_floor_6()
+    depths = rooms["Poseidon's Depths"]
+    assert [e.name for e in depths.enemies] == ["Poseidon"]
+    assert depths.guarded_exits == {"south"}
+
+def test_build_floor_6_places_odysseus_at_home_in_ithaca():
+    _, rooms = build_floor_6()
+    ithaca = rooms["Shadow of Ithaca"]
+    assert [c.name for c in ithaca.companions] == ["Odysseus"]
+    assert ithaca.companions[0].home_room is ithaca
+
+def test_build_floor_6_gives_the_sirens_and_charybdis_rooms_their_own_advice():
+    _, rooms = build_floor_6()
+    assert "mast" in rooms["Calm Waters"].advice
+    assert "swallow" in rooms["Narrow River"].advice
+    assert [name for name, room in rooms.items() if room.advice] == ["Calm Waters", "Narrow River"]
+
+def test_create_poseidon_wave_is_built_from_factories():
+    """Regression: the wave was first written as [create_hippocampus(), create_hippocampus()] - two Enemy instances - so defeating
+    Poseidon's first phase crashed the game calling them."""
+    wave = create_poseidon().next_wave_factories
+    assert wave == [create_hippocampus, create_hippocampus]
+
+def test_odysseus_talk_changes_once_the_suitors_are_cleared():
+    odysseus = create_odysseus()
+    player = Player(name="Hero", hp=20)
+    assert "Twenty years" in odysseus.talk(player)
+    player.story_flags.add("suitors_cleared")
+    assert "recruit odysseus" in odysseus.talk(player)
+
+def test_create_circe_makes_six_offers():
+    offers = create_circe().offers
+    assert len(offers) == 6
+    assert [offer.describe() for offer in offers[:5]] == [
+        "Bronze Xiphos + 20 gold -> Kelp Poultice",
+        "Weathered Helm + 20 gold -> Kelp Poultice",
+        "Bronze Breastplate + 30 gold -> Cup of Kykeon",
+        "Harpy-fletched Bow + 30 gold -> Cup of Kykeon",
+        "Small Healing Potion + 10 gold -> Kelp Poultice",
+    ]
+
+def test_create_circe_has_nothing_to_trade():
+    circe = create_circe()
+    assert circe.required_items == []
+    assert circe.reward is None
+
+def test_create_circe_has_an_exchange_line_and_points_at_offers():
+    circe = create_circe()
+    assert circe.exchange_line != ""
+    assert "'offers'" in circe.hint
+
+def test_build_floor_6_places_circe_in_the_muddy_pigsty():
+    _, rooms = build_floor_6()
+    assert [a.name for a in rooms["Muddy Pigsty"].allies] == ["Circe"]
+
+def test_nestor_and_circe_share_the_cup_of_kykeon_factory():
+    """Used by two floors now, so it lives in content/common.py."""
+    nestor_cup = create_nestor().inventory.items[0]
+    circe_cup = next(o for o in create_circe().offers if o.output_name == "Cup of Kykeon").output_factory()
+    assert nestor_cup.name == circe_cup.name == "Cup of Kykeon"
+    assert nestor_cup is not circe_cup
+
+def test_every_circe_offer_asks_for_a_real_item():
+    """Regression: the Wineskin of Dionysus offer was spelt 'Wineskine', so it could never be accepted. Every input must be an item
+    ITEM_REGISTRY can build under that exact name."""
+    for offer in create_circe().offers:
+        item = find_item_by_name(offer.input_name)
+        assert item is not None, offer.input_name
+        assert item.name == offer.input_name
+
+def test_create_circe_sixth_offer_turns_the_wineskin_into_kykeon():
+    assert create_circe().offers[5].describe() == "Wineskin of Dionysus + 20 gold -> Cup of Kykeon"
+
+def test_possessive_named_items_take_no_article():
+    for factory in (create_mentors_token, create_charons_coin, create_lamias_fang, create_talos_bronze_plating, create_serpents_kiss,
+                    create_hectors_helm, create_antiphates_club):
+        item = factory()
+        assert item.with_article() == item.name, item.name
+
+def test_unique_titled_items_always_take_the():
+    for factory in (create_cyclops_eye, create_spear_of_ares, create_breastplate_of_athena, create_tower_shield_of_ajax, create_bow_of_paris,
+                    create_hoplon_of_the_drowned, create_trident_of_the_depths):
+        item = factory()
+        assert item.with_article() == f"the {item.name}", item.name
+
+def test_ordinary_items_take_a_or_an():
+    assert create_bronze_xiphos().with_article() == "a Bronze Xiphos"
+    assert create_olive_wood_stake().with_article() == "an Olive-wood Stake"
+
+def test_create_suitor_has_correct_stats():
+    suitor = create_suitor()
+    assert suitor.name == "Suitor"
+    assert (suitor.hp, suitor.attack_damage, suitor.armour) == (16, 8, 1)
+    assert suitor.loot == []
+    assert (suitor.experience_reward, suitor.gold_reward) == (14, 15)
+
+def test_create_antinous_is_an_aggressive_named_suitor_with_a_goblet():
+    antinous = create_antinous()
+    assert (antinous.hp, antinous.attack_damage, antinous.armour) == (24, 10, 2)
+    assert antinous.aggression_weight == 1.5
+    assert antinous.article == ""
+    assert [item.name for item in antinous.loot] == ["Antinous' Goblet"]
+    assert set(antinous.ancestry_lines) == {"odysseus"}
+
+def test_create_eurymachus_braces_and_heals():
+    eurymachus = create_eurymachus()
+    assert (eurymachus.hp, eurymachus.attack_damage, eurymachus.armour) == (22, 9, 2)
+    assert (eurymachus.brace_amount, eurymachus.heal_amount, eurymachus.caution_weight) == (3, 4, 1.3)
+    assert [item.name for item in eurymachus.loot] == ["Kelp Poultice"]
+
+def test_create_antinous_goblet_is_a_free_regen():
+    goblet = create_antinous_goblet()
+    assert (goblet.effect_name, goblet.amount, goblet.duration) == ("Regen", 5, 3)
+    assert goblet.ends_turn(Player(name="Hero", hp=20)) is False
+    assert goblet.with_article() == "Antinous' Goblet"
+
+def test_create_penelopes_thread_is_a_loyalty_token():
+    thread = create_penelopes_thread()
+    assert isinstance(thread, LoyaltyToken)
+    assert thread.with_article() == "Penelope's Thread"
+
+def test_create_penelope_gives_her_thread_and_has_nothing_to_trade():
+    penelope = create_penelope()
+    assert [item.name for item in penelope.inventory.items] == ["Penelope's Thread"]
+    assert penelope.required_items == []
+    assert penelope.reward is None
+    assert "take penelope's thread from penelope" in penelope.hint
+
+def test_create_penelope_has_lines_for_odysseus_and_achilles():
+    assert set(create_penelope().companion_lines) == {"Odysseus", "Shade of Achilles"}
+
+def test_penelopes_companion_lines_name_real_companions():
+    """Keyed by companion name - a renamed companion would silently lose its line."""
+    names = {create_odysseus().name, create_shade_of_achilles().name}
+    assert set(create_penelope().companion_lines) <= names
+
+def test_build_floor_6_places_the_suitors_in_the_throne_room_antinous_first():
+    _, rooms = build_floor_6()
+    assert [e.name for e in rooms["Throne Room of Odysseus"].enemies] == ["Antinous", "Eurymachus", "Suitor", "Suitor", "Suitor"]
+
+def test_build_floor_6_the_suitors_guard_the_way_to_the_bedchamber():
+    _, rooms = build_floor_6()
+    throne = rooms["Throne Room of Odysseus"]
+    assert throne.guarded_exits == {"west"}
+    assert throne.get_exit("west") is rooms["Bedchamber of Odysseus"]
+
+def test_build_floor_6_clearing_the_throne_room_sets_suitors_cleared():
+    _, rooms = build_floor_6()
+    throne = rooms["Throne Room of Odysseus"]
+    assert throne.cleared_story_flag == "suitors_cleared"
+    assert throne.cleared_message != ""
+
+def test_the_throne_rooms_flag_is_the_one_odysseus_waits_for():
+    _, rooms = build_floor_6()
+    assert rooms["Throne Room of Odysseus"].cleared_story_flag == create_odysseus().required_story_flag
+
+def test_build_floor_6_places_penelope_in_the_bedchamber():
+    _, rooms = build_floor_6()
+    assert [a.name for a in rooms["Bedchamber of Odysseus"].allies] == ["Penelope"]
+
+def test_penelopes_description_has_her_sitting_at_the_loom():
+    assert create_penelope().description.startswith("She sits at the loom")

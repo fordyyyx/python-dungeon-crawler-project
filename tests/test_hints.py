@@ -42,7 +42,7 @@ def test_show_hint_with_unknown_key_raises_key_error():
 
 def test_hints_defines_every_key_the_game_triggers():
     """Every show_hint() call site in engine.py uses one of these keys - a missing one would raise KeyError mid-game."""
-    assert set(HINTS) == {"combat", "passive_regen", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave", "evasive"}
+    assert set(HINTS) == {"combat", "passive_regen", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave", "evasive", "room_interactions"}
 
 def test_hints_all_have_non_empty_text():
     assert all(text.strip() for text in HINTS.values())
@@ -57,3 +57,8 @@ def test_evasive_hint_points_at_ranged_attacks_and_spells():
     """The hint must name the counters that actually bypass melee dodge - see take_damage()'s melee flag."""
     assert "Ranged" in HINTS["evasive"]
     assert "spells" in HINTS["evasive"]
+
+def test_combat_hint_does_not_claim_light_attacks_never_miss():
+    """Regression: the hint said "'attack light' never misses", untrue since armour weight added a miss chance to every attack."""
+    assert "never misses" not in HINTS["combat"]
+    assert "'stats'" in HINTS["combat"]

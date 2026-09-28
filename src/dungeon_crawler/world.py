@@ -1,4 +1,6 @@
 """World classes - Room (a single location with exits, items, enemies, and allies) and Map (the collection of all rooms, keyed by name)."""
+from dataclasses import dataclass
+from typing import Callable
 
 class Room:
     """A single location in the world - holds its own items/enemies/allies, and its exits (including locked and hidden ones) to other rooms."""
@@ -33,6 +35,23 @@ class Room:
         self._companions: list = []
         self.is_forge = is_forge
         self.is_practice_chamber = is_practice_chamber
+        self.interactions: dict[str, RoomInteraction] = {}
+        """Room-specific verbs -> RoomInteraction. Set at world-build time and never saved - like exits. Checked before global commands in main(),
+        so a verb must never clash with a core command."""
+        self.flags: set[str] = set()
+        """Permanent changes an interaction has made to this room (e.g. 'sirens_bargain_taken'). Saved, like fast_travel_locks."""
+        self.cleared_story_flag: str | None = None
+        """A story flag (player.story_flags) to set the first time this room has no living, non-respawning enemies left - e.g. the Throne
+        Room's 'suitors_cleared', which makes Odysseus recruitable. Checked after every defeat, so kill order never matters. Set at world-build
+        time and never saved; the flag it sets lives on the player, which is."""
+        self.cleared_message: str = ""
+        """Shown once, when cleared_story_flag is first set."""
+        self.transient_state: dict = {}
+        """Scratch state for the current visit only - e.g. how far through a puzzle the player is. Never saved, and cleared by on_leave() whenever the player
+        leaves the room - walking out or by dev teleport - so a half-finished puzzle always starts again from scratch."""
+        self.advice: str = ""
+        """An optional line an advice-giving companion adds in this room, for things get_advice() can't work out from the enemies - a puzzle, a
+        trap, a bargain. Set at world-build time; never saved."""
 
     def connect(self, direction: str, other_room: "Room") -> None:
         """Add a normal (unlocked, visible) exit from this room to other_room."""
@@ -108,6 +127,23 @@ class Room:
         self.hidden_exits.clear()
         return revealed
 
+    def add_interaction(self, verb: str, handler: Callable[...,str], is_available: Callable[..., bool] | None = None, unavailable_message: str = "Nothing happens.") -> None:
+        """Register a verb that only works in this room."""
+        self.interactions[verb] = RoomInteraction(
+            handler=handler,
+            is_available=is_available or (lambda player, room: True),
+            unavailable_message=unavailable_message,
+        )
+
+    def available_interactions(self, player) -> list[str]:
+        """The verbs that currently do something here, in the order they were added."""
+        return [verb for verb, interaction in self.interactions.items() if interaction.is_available(player, self)]
+
+    def on_leave(self) -> None:
+        """Called whenever the player leaves this room, by any route - walking out or dev teleport. Clears transient_state, so per-visit state
+        like a half-finished puzzle always starts fresh on the next visit."""
+        self.transient_state.clear()
+
     @property
     def items(self) -> list:
         """A copy of this room's items, safe to iterate without exposing the private list."""
@@ -150,3 +186,13 @@ class Map:
     def __len__(self) -> int:
         """Number of rooms currently on the map."""
         return len(self.rooms)
+
+@dataclass
+class RoomInteraction:
+    """A verb that only works in one room - see Room.add_interaction(). handler performs it and returns the message to show; is_available decides
+    whether it currently does anything (an unavailable verb isn't listed in the room, and does nothing if typed). Both receive (player, room).
+    Handlers live in each floor's content file, the same data-driven pattern as Enemy.defeat_effect."""
+
+    handler: Callable[..., str]
+    is_available: Callable[..., bool] = lambda player, room: True
+    unavailable_message: str = "Nothing happens."

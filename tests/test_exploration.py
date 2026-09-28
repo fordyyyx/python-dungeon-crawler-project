@@ -1,7 +1,8 @@
 from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon, Consumable
-from dungeon_crawler.exploration import talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
+from dungeon_crawler.content import create_circe
+from dungeon_crawler.exploration import get_advice, talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -1429,3 +1430,143 @@ def test_has_unfinished_trade_is_false_for_an_ally_with_only_gifts():
     """Nestor gives an item away but has no trade - he must never show up in 'uncleared'."""
     ally = Ally(name="Nestor", required_items=[], items=[Consumable(name="Cup", heal_amount=4)])
     assert has_unfinished_trade(ally) is False
+
+def advising_player(room):
+    player = Player(name="Hero", hp=30)
+    player.companion = Companion(name="Sage", hp=20, home_room=room, gives_advice=True)
+    return player
+
+def test_recruit_companion_is_blocked_by_a_missing_story_flag():
+    room = Room("Hall")
+    king = Companion(name="King", hp=10, home_room=room, required_story_flag="hall_cleared", recruit_blocked_message="Not yet, friend.")
+    room.add_companion(king)
+    player = Player(name="Hero", hp=20)
+    assert recruit_companion("king", room, player) == "Not yet, friend."
+    assert player.companion is None
+
+def test_recruit_companion_story_flag_block_has_a_default_message():
+    room = Room("Hall")
+    room.add_companion(Companion(name="King", hp=10, home_room=room, required_story_flag="hall_cleared"))
+    assert recruit_companion("king", room, Player(name="Hero", hp=20)) == "King isn't ready to join you yet."
+
+def test_recruit_companion_succeeds_once_the_story_flag_is_set():
+    room = Room("Hall")
+    king = Companion(name="King", hp=10, home_room=room, required_story_flag="hall_cleared")
+    room.add_companion(king)
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hall_cleared")
+    recruit_companion("king", room, player)
+    assert player.companion is king
+
+def test_get_advice_with_no_companion():
+    assert get_advice(Room("Hall"), Player(name="Hero", hp=20)) == "You've no one to ask."
+
+def test_get_advice_from_a_companion_who_gives_none():
+    room = Room("Hall")
+    player = Player(name="Hero", hp=20)
+    player.companion = Companion(name="Imp", hp=10, home_room=room)
+    assert get_advice(room, player) == "You've no one to ask."
+
+def test_get_advice_with_nothing_worrying():
+    room = Room("Hall")
+    assert get_advice(room, advising_player(room)) == 'Sage looks around. "Nothing here worries me. Keep your eyes open anyway."'
+
+def test_get_advice_on_thick_armour():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Wall", hp=10, armour=3))
+    assert get_advice(room, advising_player(room)) == 'Sage: "That armour\'s thick. Something that pierces it, or a few heavy blows, will do more than cutting at it."'
+
+def test_get_advice_on_an_evasive_enemy():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Archer", hp=10, melee_dodge_chance=0.5))
+    assert "Use a bow, or a spell." in get_advice(room, advising_player(room))
+
+def test_get_advice_on_a_healer():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Priest", hp=10, heal_amount=3))
+    assert "Hit hard and fast." in get_advice(room, advising_player(room))
+
+def test_get_advice_on_armour_pierce():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Spear", hp=10, armour_pierce=2))
+    assert "Your armour won't count for much" in get_advice(room, advising_player(room))
+
+def test_get_advice_on_three_or_more_enemies():
+    room = Room("Hall")
+    for _ in range(3):
+        room.add_enemy(Enemy(name="Head", hp=10))
+    assert "hits more than one at once" in get_advice(room, advising_player(room))
+
+def test_get_advice_two_enemies_is_not_a_crowd():
+    room = Room("Hall")
+    for _ in range(2):
+        room.add_enemy(Enemy(name="Head", hp=10))
+    assert "hits more than one" not in get_advice(room, advising_player(room))
+
+def test_get_advice_on_an_invulnerable_enemy_with_no_room_advice():
+    room = Room("River")
+    room.add_enemy(Enemy(name="Whirlpool", hp=1, armour=5, invulnerable=True))
+    message = get_advice(room, advising_player(room))
+    assert message == 'Sage: "You can\'t fight that. Look around - there\'ll be another way."'
+
+def test_get_advice_room_advice_replaces_the_generic_invulnerable_line():
+    room = Room("River")
+    room.add_enemy(Enemy(name="Whirlpool", hp=1, invulnerable=True))
+    room.advice = "Climb when she swallows."
+    assert get_advice(room, advising_player(room)) == 'Sage: "Climb when she swallows."'
+
+def test_get_advice_adds_room_advice_after_the_enemy_lines():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Wall", hp=10, armour=3))
+    room.advice = "Mind the stairs."
+    lines = get_advice(room, advising_player(room)).split("\n")
+    assert len(lines) == 2
+    assert lines[-1] == 'Sage: "Mind the stairs."'
+
+def test_get_advice_ignores_dead_and_respawning_enemies():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Corpse", hp=0, armour=5))
+    room.add_enemy(Enemy(name="Dummy", hp=10, armour=5, respawns=True))
+    assert "Nothing here worries me" in get_advice(room, advising_player(room))
+
+def test_get_uncleared_reasons_a_merchant_is_not_an_unfinished_trade():
+    room = Room("Pigsty")
+    room.add_ally(create_circe())
+    assert get_uncleared_reasons(room) == []
+
+def test_pick_up_names_a_proper_named_item_without_an_article():
+    room = Room("Lair")
+    room.add_item(Weapon(name="Lamia's Fang", description="Venomous.", damage=4, article=""))
+    player = Player(name="Hero", hp=20)
+    assert pick_up(room, "lamia's fang", player) == "You take Lamia's Fang. Venomous."
+
+def test_check_equippable_names_a_proper_named_item_without_an_article():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(QuestItem(name="Charon's Coin", description="", article=""))
+    assert check_equippable("charon's coin", player) == "You can't equip Charon's Coin."
+
+def test_talk_to_opens_with_a_companion_line_once():
+    penelope = Ally(name="Penelope", hint="Hello.", companion_lines={"Odysseus": "Is it you?"})
+    player = Player(name="Hero", hp=20)
+    player.companion = Companion(name="Odysseus", hp=10, home_room=Room("Ithaca"))
+    assert talk_to(penelope, player) == "Is it you?\n\nHello."
+    assert talk_to(penelope, player) == "Hello."
+    assert "companion:Penelope:Odysseus" in player.seen_lines
+
+def test_talk_to_with_no_companion_has_no_companion_line():
+    penelope = Ally(name="Penelope", hint="Hello.", companion_lines={"Odysseus": "Is it you?"})
+    assert talk_to(penelope, Player(name="Hero", hp=20)) == "Hello."
+
+def test_talk_to_with_a_companion_the_speaker_has_no_line_for():
+    """Regression: a missing companion line was appended as None, so talking to anyone else with a companion in the party crashed."""
+    nestor = Ally(name="Nestor", hint="Sit, sit.")
+    player = Player(name="Hero", hp=20)
+    player.companion = Companion(name="Odysseus", hp=10, home_room=Room("Ithaca"))
+    assert talk_to(nestor, player) == "Sit, sit."
+    assert player.seen_lines == set()
+
+def test_talk_to_with_a_companion_only_one_line_is_for():
+    penelope = Ally(name="Penelope", hint="Hello.", companion_lines={"Odysseus": "Is it you?"})
+    player = Player(name="Hero", hp=20)
+    player.companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    assert talk_to(penelope, player) == "Hello."

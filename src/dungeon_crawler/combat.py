@@ -9,7 +9,7 @@ import random
 
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.exploration import pick_up, check_equippable, take_all
+from dungeon_crawler.exploration import pick_up, check_equippable, take_all, get_advice
 from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
@@ -214,7 +214,7 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
         companion_action = choose_companion_action(player.companion, enemy_team)
         if companion_action == "attack":
             companion_target = choose_companion_target(player.companion, enemy_team)
-            messages.append(player.companion.attack(companion_target))
+            messages.append(player.companion.attack(companion_target, attack_type=player.companion.attack_type))
         elif companion_action == "defend":
             player.companion.pending_damage_reduction = player.companion.brace_amount
             messages.append(f"{player.companion.name} braces for incoming damage.")
@@ -337,7 +337,23 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
             if next_phase.description:
                 messages.append(next_phase.description)
 
+    cleared = apply_room_cleared_flag(room, player)
+    if cleared:
+        messages.append(cleared)
+
     return "\n".join(messages)
+
+def apply_room_cleared_flag(room: Room, player: Player) -> str:
+    """Set room.cleared_story_flag if the room has just been cleared - no living, non-respawning enemies left - and it isn't set already.
+    Returns room.cleared_message the one time it's set, otherwise ''. An unsolved invulnerable enemy still counts as living, so a room
+    guarded by a puzzle only counts as cleared once the puzzle is solved."""
+    flag = room.cleared_story_flag
+    if flag is None or flag in player.story_flags:
+        return ""
+    if any(enemy.is_alive() and not enemy.respawns for enemy in room.enemies):
+        return ""
+    player.story_flags.add(flag)
+    return room.cleared_message
 
 def resolve_pending_defeats(player: Player, room: Room) -> str:
     """Process every enemy in room that has died but hasn't been handled yet, then work out whether combat continues. Needs no before/after
@@ -348,7 +364,7 @@ def resolve_pending_defeats(player: Player, room: Room) -> str:
     Before any of that, protect_duel_loser() catches a player at 0 HP mid-duel, so losing a duel is never a death - this runs at the end of
     every turn-ending action, so it covers attacks, casts, item use and poison ticks alike.
 
-    Afterwards: combat continues only if a living, non-respawning enemy remains. The current target is kept if it's still alive (including
+    Afterwards: combat continues only if a living enemy remains that is neither respawning nor invulnerable. The current target is kept if it's still alive (including
     a boss phase handle_enemy_defeat() just targeted), otherwise it moves to the first survivor, or clears if none remain."""
     duel_message = protect_duel_loser(player, room)
     defeated = [enemy for enemy in room.enemies if not enemy.is_alive()]
@@ -361,7 +377,7 @@ def resolve_pending_defeats(player: Player, room: Room) -> str:
         if extras:
             messages.append(extras)
 
-    survivors = [enemy for enemy in room.enemies if enemy.is_alive() and not enemy.respawns]
+    survivors = [enemy for enemy in room.enemies if enemy.is_alive() and not enemy.respawns and not enemy.invulnerable]
     player.in_combat = bool(survivors)
     if not player.in_combat:
         player.current_target = None
@@ -445,7 +461,8 @@ def protect_duel_loser(player: Player, room: Room) -> str:
 def handle_target_command(command: str, enemy_team: list[Enemy], player: Player) -> str:
     """Handle 'target <name>' or 'target <name> <number>' - sets player.current_target to a matching, still-living, enemy in enemy_team.
     The trailing number disambiguates when two or more living enemies share a name; see get_enemy_display_name() for the matching
-    numbering shown in combat displays."""
+    numbering shown in combat displays. A name that only matches invulnerable enemies (Charybdis) can't be targeted - their
+    invulnerable_message is returned instead, and current_target is left alone."""
     argument = command.removeprefix("target ").strip()
     if not argument:
         return "Target who?"
@@ -459,6 +476,9 @@ def handle_target_command(command: str, enemy_team: list[Enemy], player: Player)
         name = argument
 
     same_named = [enemy for enemy in enemy_team if enemy.name.lower() == name.lower()]
+
+    if same_named and all(enemy.invulnerable for enemy in same_named):
+        return same_named[0].invulnerable_message
 
     if requested_number is not None:
         if not (1 <= requested_number <= len(same_named)):
@@ -506,8 +526,6 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
                 return f"{spell.name} is still on cooldown."
             if player.mana < spell.mana_cost:
                 return f"Not enough mana for {spell.name} ({spell.mana_cost} needed, {player.mana} available)."
-
-
 
         failure = spell.would_fail(player, target)
         if failure is not None:
@@ -585,6 +603,9 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
 
     if command == "stats":
         return player.get_stats()
+
+    if command == "advice":
+        return get_advice(room, player)
 
     if command == "skills":
         return player.get_skills_display()

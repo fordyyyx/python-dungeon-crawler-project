@@ -3,7 +3,8 @@ Player.seen_hints (see save_system.py). The text lives here rather than at the t
 
 HINTS: dict[str, str] = {
     "combat": (
-        "There's something here that wants a fight. 'attack light' never misses; 'attack heavy' hits much harder but can miss; "
+        "There's something here that wants a fight. 'attack light' is your reliable strike - it only misses if heavier armour weighs you "
+        "down ('stats' shows your miss chances); 'attack heavy' hits much harder but misses far more often; "
         "'attack ranged' needs a ranged weapon equipped; 'cast <spell>' uses mana. Drinking a healing item or grabbing loot with "
         "'take' doesn't cost your turn. 'flee' gets you out, at the risk of a parting blow."
     ),
@@ -24,6 +25,10 @@ HINTS: dict[str, str] = {
         "Some enemies are hard to reach in melee - light and heavy attacks will often miss them. Ranged attacks and spells always hit "
         "normally, so a bow or spell is worth trying."
     ),
+    "room_interactions": (
+        "Some rooms have things you can do that don't work anywhere else - they're listed in brackets under the room's description. "
+        "Type one exactly as shown to try it."
+    )
 }
 
 def show_hint(player, key: str) -> str:

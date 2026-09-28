@@ -27,6 +27,12 @@ something occurs to you mid-build.
   localise later.
 
 ## Combat
+- **Blindness wants to be seen on the enemy, not read in a log** - a bandage or clouded-eye overlay, wild swings that
+  visibly go wide, and a small counter of the attacks it has left (it counts attacks, not turns, so a turn-based pip
+  would mislead). Polyphemus (Blinded) is the showcase: huge, flailing at sounds, and terrifying when he connects.
+- **Groups of identical enemies** (`"Head of Scylla x6"`) are one line of text but want to be one creature in a visual
+  version where that's the fiction - six necks on one Scylla body, each with its own health bar - rather than six
+  unrelated sprites in a row.
 - **Melee evasion (the Shade of Paris) is the text version standing in for distance** - "stays just out of
   reach" is a positioning idea with no positions. A visual port can show it literally: the archer backing
   off or side-stepping on every evaded swing, arrows loosed from range, and a clear visual difference between
@@ -97,6 +103,14 @@ something occurs to you mid-build.
   wondering whether their action actually went through.
 
 ## World / Map
+- **Room interactions** (`Room.add_interaction()`, listed as `(You could: ...)` on entry) map onto clickable hotspots
+  or contextual buttons - the Sirens' bargain wants to be a choice on screen (listen / give in / resist) with its
+  permanent cost stated clearly before the click, since it can't be undone. Once taken, the hotspot should visibly
+  go dead (the Sirens fall silent) rather than simply disappearing.
+- **Charybdis is a timing puzzle in text, and an animated one in a visual port** - the whirlpool's four phases (still,
+  swallowing, drained, spewing) want to be seen, with the fig tree and raft as the only things the player can act on.
+  The text version advances one phase per typed verb; a real-time version would need a fair window per phase, or a
+  visible turn counter, so the solution stays about reading the sea rather than reflexes.
 - The room network (Room.exits as a dict) maps naturally onto a node-based
   or grid-based map screen — the existing `fullmap`/`world` traversal logic
   (stopping at locked exits) could drive what's actually drawn/revealed.
@@ -145,6 +159,9 @@ something occurs to you mid-build.
   would simply have by default.
 
 ## Items / Inventory
+- **Merchants (`offers`/`exchange`) want a trade screen**, not a numbered text list: the merchant's offers on one side,
+  the player's inventory on the other, with the item and gold each offer takes highlighted, and greyed-out offers the
+  player can't afford or lacks the item for. The same screen serves Circe's transformations and Charon's future shop.
 - Equip slots are a natural fit for a paper-doll style UI — weapons
   (melee/ranged) and armour (helmet/body/shield) now occupy five independent
   slots, so a paper doll would show five simultaneous equip points. The one
@@ -180,6 +197,9 @@ something occurs to you mid-build.
   own, would make "they level with you" legible.
 
 ## NPCs / Dialogue
+- **Companion advice (`advice`) is a natural fit for a contextual bark** - Odysseus muttering a tip as you enter a room,
+  or a portrait with a speech bubble on demand, rather than a typed command. Since it's built from the room's enemies,
+  it could also drive small visual cues (a shield icon over a heavily armoured foe) for players who don't ask.
 - `Ally.hint` / `hint_complete` are effectively dialogue nodes already —
   could map onto a simple dialogue-tree/text-box system fairly directly,
   since the conditional-hint logic (required_items check) already exists.

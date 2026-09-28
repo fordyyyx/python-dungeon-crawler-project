@@ -11,11 +11,15 @@ ARMOUR_WEIGHTS = ("light", "medium", "heavy")
 class Item(ABC):
     """Base class for anything that can sit in an Inventory; subclasses implement use() for what actually happens when it's used."""
 
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str = "", article: str = "a"):
         """Store this item's name and description; starts unequipped."""
-        self.name = name
-        self.description = description
-        self.equipped = False
+        if article not in ("a", "the", ""):
+            raise ValueError(f"Unknown article '{article}' - must be 'a', 'the', or ''.")
+
+        self.name: str = name
+        self.description: str = description
+        self.article: str = article
+        self.equipped: bool = False
 
     @abstractmethod
     def use(self, character) -> str:
@@ -25,6 +29,17 @@ class Item(ABC):
     def __repr__(self) -> str:
         """Debug representation showing the class name and item name."""
         return f"{self.__class__.__name__}(name={self.name!r})"
+
+    def with_article(self, definite: bool = False, capitalise: bool = False) -> str:
+        """This item's name with the right article - lower case by default, since items are almost always named mid-sentence ('Circe takes the
+        Bronze Xiphos'). definite=True gives 'the' for an ordinary item already mentioned; a name that takes no article never gets one."""
+        if self.article == "":
+            return self.name
+        if self.article == "the" or definite:
+            word = "the"
+        else:
+            word = "an" if self.name[0].lower() in "aeiou" else "a"
+        return f"{word.capitalize() if capitalise else word} {self.name}"
 
     def unequip(self, character) -> str:
         """Default no-op for items that can't be equipped; Weapon and Armour override this."""
@@ -50,12 +65,12 @@ class Weapon(Item):
 
     weapon_class decides how it fights: 'blade' lowers the heavy-attack miss chance, 'heavy' raises the heavy-attack multiplier but is two-handed
     (can't be used with a shield), 'piercing' ignores armour_pierce points of the target's armour, and 'ranged' is for the ranged slot. lifesteal,
-    poison_chance, and cleave are signature properties for unique boss drops. All of these are read from the equipped weapon during attack() -
+    poison_chance, blind_chance and cleave are signature properties for unique boss drops. All of these are read from the equipped weapon during attack() -
     never copied onto the character as ability flags, so unequipping can never wipe an ability granted by something else (e.g. an ancestry)."""
 
-    def __init__(self, name: str, description: str, damage: int, slot: str = "melee", weapon_class: str = "blade", armour_pierce: int = 0, lifesteal: bool = False, poison_chance: float = 0.0, cleave: bool = False):
+    def __init__(self, name: str, description: str, damage: int, slot: str = "melee", weapon_class: str = "blade", armour_pierce: int = 0, lifesteal: bool = False, poison_chance: float = 0.0, cleave: bool = False, blind_chance: float = 0.0, article: str = "a"):
         """Store the weapon's damage, slot, class, and any signature properties. Raises ValueError for an unknown weapon_class."""
-        super().__init__(name, description)
+        super().__init__(name, description, article)
         if weapon_class not in WEAPON_CLASSES:
             raise ValueError(f"Unknown weapon_class '{weapon_class}' - must be one of {WEAPON_CLASSES}.")
         self.damage = damage
@@ -65,6 +80,7 @@ class Weapon(Item):
         self.lifesteal = lifesteal
         self.poison_chance = poison_chance
         self.cleave = cleave
+        self.blind_chance = blind_chance
 
     @property
     def two_handed(self) -> bool:
@@ -82,6 +98,8 @@ class Weapon(Item):
             parts.append("lifesteal")
         if self.poison_chance:
             parts.append(f"{round(self.poison_chance * 100)}% poison")
+        if self.blind_chance:
+            parts.append(f"{round(self.blind_chance * 100)}% blind")
         if self.cleave:
             parts.append("cleave")
         parts.append(f"{self.damage} DMG")
@@ -126,9 +144,9 @@ class Armour(Item):
     weight ('light', 'medium', or 'heavy') adds a miss chance to every attack the wearer makes - see Character.get_miss_chance(). A shield can't
     be used with a two-handed weapon: equipping one unequips the other, whichever way around."""
 
-    def __init__(self, name: str, description: str, defence: int, slot: str = "body", max_durability: int = 10, weight: str = "light"):
+    def __init__(self, name: str, description: str, defence: int, slot: str = "body", max_durability: int = 10, weight: str = "light", article: str = "a"):
         """Store the armour bonus, slot, durability, and weight. Raises ValueError for an unknown slot or weight."""
-        super().__init__(name, description)
+        super().__init__(name, description, article)
         if slot not in ARMOUR_SLOTS:
             raise ValueError(f"Unknown armour slot '{slot}' - must be one of {ARMOUR_SLOTS}.")
         if weight not in ARMOUR_WEIGHTS:
@@ -179,9 +197,9 @@ class Armour(Item):
 class Consumable(Item):
     """A single-use item that heals HP on use; Inventory.use_item() removes it from the inventory afterwards."""
 
-    def __init__(self, name: str, description: str = "", heal_amount: int = 0):
+    def __init__(self, name: str, description: str = "", heal_amount: int = 0, article: str = "a"):
         """Store how much HP this consumable heals."""
-        super().__init__(name, description)
+        super().__init__(name, description, article)
         self.heal_amount = heal_amount
 
     def use(self, character) -> str:
@@ -244,9 +262,9 @@ class SkillPointReward(Consumable):
     every time, same pattern as Reviver/StatusEffectItem/SpellBook. Not just Favour of Hermes - this is a real bug fix at the class level,
     so it applied to every SkillPointReward that exists of gets created."""
 
-    def __init__(self, name: str, description: str, points: int = 1):
+    def __init__(self, name: str, description: str, points: int = 1, article: str = "a"):
         """Store how many skill points this item grants."""
-        super().__init__(name, description)
+        super().__init__(name, description, article=article)
         self.points = points
 
     def use(self, character) -> str:
@@ -255,18 +273,19 @@ class SkillPointReward(Consumable):
         return f"{character.name} gains {self.points} skill point(s) from {self.name}."
 
 class StatusEffectItem(Consumable):
-    """Applies a StatudEffect to the player (if amount is positive, a heal-over-time tonic) or to player.current_target (if negative,
+    """Applies a StatusEffect to the player (if amount is positive, a heal-over-time tonic) or to player.current_target (if negative,
     poison/flame) - reuses the existing target command as the way to aim an offensive one, per roadmap.md's decision, rather than a new
-    'use <item> on <target> syntax."""
-    def __init__(self, name: str, description: str, effect_name: str, amount: int, duration: int):
+    'use <item> on <target>' syntax."""
+
+    def __init__(self, name: str, description: str, effect_name: str, amount: int, duration: int, article: str = "a"):
         """Store what effect this item applies, and how strong/long it lasts."""
-        super().__init__(name, description)
+        super().__init__(name, description, article=article)
         self.effect_name = effect_name
         self.amount = amount
         self.duration = duration
 
     def use(self, character) -> str:
-        """Build a fresh StatusEffect on each use (so two uses aren't secretly sharing one mutable object) and apply it to self (healing)
+        """Build a fresh StatusEffect every time (so two uses aren't secretly sharing one mutable object) and apply it to self (healing)
         or current_target (offensive - raises ValueError with no target set or a dead one, caught by handle_combat_command()'s existing
         except ValueError, same as every other failed-action case)."""
         effect = StatusEffect(self.effect_name, self.amount, self.duration)
@@ -277,6 +296,8 @@ class StatusEffectItem(Consumable):
         return character.current_target.apply_status_effect(effect)
 
     def would_fail(self, character) -> str | None:
+        """Mirrors use()'s one failure - an offensive item with no living target - so it's refused before a turn is spent. A heal-over-time
+        is never blocked at full HP, since drinking one before a fight is a legitimate pre-buff."""
         if self.amount < 0 and (character.current_target is None or not character.current_target.is_alive()):
             return f"You need a target for {self.name} - try 'target <enemy>' first."
         return None
@@ -287,9 +308,10 @@ class StatusEffectItem(Consumable):
 
 class SpellBook(Consumable):
     """A single-use item that permanently teaches its spell. Already known - use() returns without consuming."""
-    def __init__(self, name: str, description: str, spell: Spell):
+
+    def __init__(self, name: str, description: str, spell: Spell, article: str = "a"):
         """Store the spell this book teaches."""
-        super().__init__(name, description)
+        super().__init__(name, description, article=article)
         self.spell = spell
 
     def use(self, character) -> str:
@@ -300,6 +322,7 @@ class SpellBook(Consumable):
         return f"{character.name} learns {self.spell.name}!"
 
     def would_fail(self, character) -> str | None:
+        """Mirrors use()'s failure - the spell is already known - so the book isn't consumed for nothing."""
         if any(known.name == self.spell.name for known in character.known_spells):
             return f"{character.name} already knows {self.spell.name}."
         return None
@@ -363,3 +386,8 @@ class Inventory:
     def __repr__(self) -> str:
         """Debug representation listing item names."""
         return f"Inventory({[item.name for item in self._items]})"
+
+class LoyaltyToken(QuestItem):
+    """A keepsake that makes the player's companion survive the first blow each fight that would down them, staying on 1 HP. Works simply by
+    being held - see player.has_loyalty_token() and Companion.loyalty_ready. A QuestItem, so it can't be dropped, traded or exchanged away.
+    Penelope's Thread is the first."""

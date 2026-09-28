@@ -30,6 +30,7 @@ def create_crypt_keeper() -> Enemy:
         description="Not a skeleton like the others - this one moves with purpose, tending to bones that were never meant to be disturbed.",
         experience_reward=12,
         gold_reward=6,
+        article="the",
     )
 
 def create_harpy() -> Enemy:
@@ -89,6 +90,7 @@ def create_tome_of_old_prayers() -> SpellBook:
         name="Tome of Old Prayers",
         description="Pages brittle with age, prayers scrawled in a hand that grew more frantic towards the end.",
         spell=create_prayer_bolt(),
+        article="the",
     )
 
 def create_harpy_fletched_bow() -> Weapon:
@@ -117,7 +119,8 @@ def create_centaurs_broken_bow() -> QuestItem:
     """Create the Centaur's Broken Bow quest item, the required trade item for Athena's reward - dropped by the Centaur (floor 3, Overgrown Forest)."""
     return QuestItem(
         name="Centaur's Broken Bow",
-        description="Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off."
+        description="Snapped clean at the riser - proof you closed the distance before it ever got a clean shot off.",
+        article="the",
     )
 
 def build_floor_3() -> tuple[Room, dict[str, Room]]:

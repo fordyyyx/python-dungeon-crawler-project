@@ -1,7 +1,8 @@
 from dungeon_crawler.characters import HP_PER_LEVEL, COMPANION_HP_PER_LEVEL, COMPANION_ATTACK_PER_LEVEL, STARTING_EXPERIENCE_TO_NEXT_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
-from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem
+from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem, LoyaltyToken
 from dungeon_crawler.world import Room
 from dungeon_crawler.status_effects import StatusEffect
+from dungeon_crawler.characters import BLINDED_EFFECT_NAME, WEAPON_BLIND_MISS_CHANCE, WEAPON_BLIND_DURATION
 
 def test_character_initialises_with_correct_stats():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -2595,3 +2596,331 @@ def test_attack_uses_the_weapons_pierce_when_it_beats_natural_pierce():
     target = Character(name="Hero", hp=100, attack_damage=5, armour=5)
     attacker.attack(target)
     assert target.hp == 92  # 10 - (5 - 3)
+
+def blinding_weapon(blind_chance=0.5):
+    return Weapon(name="Stake", description="", damage=1, blind_chance=blind_chance)
+
+def test_get_miss_chance_adds_an_active_effects_miss_chance():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    assert character.get_miss_chance("light") == 0.3
+
+def test_get_miss_chance_stacks_an_effect_on_top_of_armour_weight():
+    player = Player(name="Hero", hp=20)
+    helm = Armour(name="Helm", description="", defence=1, slot="helmet", weight="heavy")
+    player.inventory.add(helm)
+    helm.use(player)
+    player.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    assert round(player.get_miss_chance("ranged"), 2) == 0.4
+
+def test_get_miss_chance_heavy_includes_an_effects_miss_chance():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    assert round(character.get_miss_chance("heavy"), 2) == round(HEAVY_ATTACK_MISS_CHANCE + 0.3, 2)
+
+def test_attack_by_a_blinded_character_can_miss(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Enemy(name="Cyclops", hp=20, attack_damage=5)
+    attacker.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    target = Player(name="Hero", hp=20)
+    message = attacker.attack(target)
+    assert message == "Cyclops attacks Hero - but misses!"
+    assert target.hp == 20
+
+def test_attack_by_a_blinded_character_still_hits_when_the_roll_is_high(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Enemy(name="Cyclops", hp=20, attack_damage=5)
+    attacker.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    target = Player(name="Hero", hp=20)
+    attacker.attack(target)
+    assert target.hp == 15
+
+def test_attack_with_a_blinding_weapon_blinds_the_target(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    player = Player(name="Hero", hp=20)
+    stake = blinding_weapon()
+    player.inventory.add(stake)
+    stake.use(player)
+    target = Enemy(name="Goblin", hp=50)
+    message = player.attack(target)
+    blind = next(effect for effect in target.active_effects if effect.name == BLINDED_EFFECT_NAME)
+    assert blind.miss_chance == WEAPON_BLIND_MISS_CHANCE
+    assert blind.duration == WEAPON_BLIND_DURATION
+    assert blind.amount == 0
+    assert "Goblin is afflicted with Blinded." in message
+
+def test_attack_with_a_blinding_weapon_does_not_blind_on_a_failed_roll(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    player = Player(name="Hero", hp=20)
+    stake = blinding_weapon()
+    player.inventory.add(stake)
+    stake.use(player)
+    target = Enemy(name="Goblin", hp=50)
+    player.attack(target)
+    assert target.active_effects == []
+
+def test_attack_with_a_blinding_weapon_never_blinds_a_target_it_killed(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    player = Player(name="Hero", hp=20, attack_damage=50)
+    stake = blinding_weapon()
+    player.inventory.add(stake)
+    stake.use(player)
+    target = Enemy(name="Goblin", hp=5)
+    player.attack(target)
+    assert target.active_effects == []
+
+def test_attack_ranged_does_not_use_a_blinding_melee_weapon(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    player = Player(name="Hero", hp=20)
+    stake = blinding_weapon()
+    player.inventory.add(stake)
+    stake.use(player)
+    target = Enemy(name="Goblin", hp=50)
+    player.attack(target, "ranged")
+    assert target.active_effects == []
+
+def test_attack_blinding_an_already_blinded_target_prolongs_it(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    player = Player(name="Hero", hp=20)
+    stake = blinding_weapon()
+    player.inventory.add(stake)
+    stake.use(player)
+    target = Enemy(name="Goblin", hp=50)
+    player.attack(target)
+    player.attack(target)
+    assert len(target.active_effects) == 1
+    assert target.active_effects[0].duration == WEAPON_BLIND_DURATION * 2
+
+def test_tick_status_effects_leaves_an_attack_counted_effect_untouched():
+    """Blinded lasts a number of attacks, not turns - ticking must neither count it down nor announce anything."""
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    assert character.tick_status_effects() == []
+    assert character.active_effects[0].duration == 2
+
+def test_tick_status_effects_a_zero_amount_effect_with_no_miss_chance_counts_down_and_expires_silently():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Neutral", 0, 1))
+    assert character.tick_status_effects() == []
+    assert character.active_effects == []
+
+def test_tick_status_effects_does_not_announce_a_damaging_effect_wearing_off():
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Poison", -2, 1))
+    assert character.tick_status_effects() == ["Hero takes 2 damage from Poison."]
+
+def test_get_miss_chance_drops_back_once_blinded_wears_off(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    character = Character(name="Hero", hp=20, attack_damage=5)
+    character.apply_status_effect(StatusEffect("Blinded", 0, 1, miss_chance=0.3))
+    character.attack(Enemy(name="Goblin", hp=50))
+    assert character.get_miss_chance("light") == 0
+
+def test_attack_counts_down_blinded_on_a_hit(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Enemy(name="Cyclops", hp=20, attack_damage=5)
+    attacker.apply_status_effect(StatusEffect("Blinded", 0, 3, miss_chance=0.3))
+    attacker.attack(Player(name="Hero", hp=20))
+    assert attacker.active_effects[0].duration == 2
+
+def test_attack_counts_down_blinded_on_a_miss(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Enemy(name="Cyclops", hp=20, attack_damage=5)
+    attacker.apply_status_effect(StatusEffect("Blinded", 0, 3, miss_chance=0.3))
+    attacker.attack(Player(name="Hero", hp=20))
+    assert attacker.active_effects[0].duration == 2
+
+def test_attack_announces_blinded_wearing_off_after_the_attack(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Enemy(name="Cyclops", hp=20, attack_damage=5)
+    attacker.apply_status_effect(StatusEffect("Blinded", 0, 1, miss_chance=0.3))
+    message = attacker.attack(Player(name="Hero", hp=20))
+    assert message == "Cyclops attacks Hero - but misses!\nCyclops is no longer blinded."
+    assert attacker.active_effects == []
+
+def test_attack_a_two_attack_blind_affects_exactly_two_attacks(monkeypatch):
+    """Regression: Blinded used to count down on the enemy's own start-of-turn tick, before it attacked - so the stake's 2-turn blind was already
+    down to 1 at the first attack and gone by the second, and only ever made one attack miss."""
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Enemy(name="Cyclops", hp=20, attack_damage=5)
+    target = Player(name="Hero", hp=50)
+    attacker.apply_status_effect(StatusEffect("Blinded", 0, WEAPON_BLIND_DURATION, miss_chance=WEAPON_BLIND_MISS_CHANCE))
+    results = [attacker.attack(target) for _ in range(WEAPON_BLIND_DURATION + 1)]
+    assert all("but misses!" in result for result in results[:WEAPON_BLIND_DURATION])
+    assert "but misses!" not in results[-1]
+    assert target.hp == 45
+
+def test_attack_double_strike_counts_blinded_down_only_once(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=20, attack_damage=5)
+    attacker.has_double_strike = True
+    attacker.apply_status_effect(StatusEffect("Blinded", 0, 3, miss_chance=0.3))
+    attacker.attack(Enemy(name="Goblin", hp=50))
+    assert attacker.active_effects[0].duration == 2
+
+def test_attack_does_not_count_down_a_damaging_effect(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    attacker = Character(name="Hero", hp=20, attack_damage=5)
+    attacker.apply_status_effect(StatusEffect("Poison", -1, 3))
+    attacker.attack(Enemy(name="Goblin", hp=50))
+    assert attacker.active_effects[0].duration == 3
+
+def test_enemy_article_defaults_to_a():
+    assert Enemy(name="Goblin", hp=10).article == "a"
+
+def test_enemy_with_an_unknown_article_raises_value_error():
+    try:
+        Enemy(name="Goblin", hp=10, article="an")
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_enemy_with_article_a_introduces_with_a():
+    assert Enemy(name="Goblin", hp=10).with_article() == "A Goblin"
+
+def test_enemy_with_article_a_uses_an_before_a_vowel():
+    assert Enemy(name="Ember Wraith", hp=10).with_article() == "An Ember Wraith"
+
+def test_enemy_with_article_a_uses_the_once_already_met():
+    assert Enemy(name="Goblin", hp=10).with_article(definite=True) == "The Goblin"
+
+def test_enemy_with_article_the_always_uses_the():
+    minotaur = Enemy(name="Minotaur", hp=10, article="the")
+    assert minotaur.with_article() == "The Minotaur"
+    assert minotaur.with_article(definite=True) == "The Minotaur"
+
+def test_enemy_with_no_article_is_just_its_name():
+    polyphemus = Enemy(name="Polyphemus", hp=10, article="")
+    assert polyphemus.with_article() == "Polyphemus"
+    assert polyphemus.with_article(definite=True) == "Polyphemus"
+
+def test_enemy_invulnerable_defaults_to_false():
+    assert Enemy(name="Goblin", hp=10).invulnerable is False
+
+def test_enemy_invulnerable_message_defaults_to_cant_be_harmed():
+    assert Enemy(name="Whirlpool", hp=1, invulnerable=True).invulnerable_message == "Whirlpool can't be harmed."
+
+def test_enemy_keeps_a_custom_invulnerable_message():
+    enemy = Enemy(name="Whirlpool", hp=1, invulnerable=True, invulnerable_message="You can't fight water.")
+    assert enemy.invulnerable_message == "You can't fight water."
+
+def test_take_damage_on_an_invulnerable_enemy_deals_nothing():
+    enemy = Enemy(name="Whirlpool", hp=1, invulnerable=True, invulnerable_message="You can't fight water.")
+    damage, message = enemy.take_damage(50)
+    assert damage == 0
+    assert message == "You can't fight water."
+    assert enemy.hp == 1
+
+def test_attack_on_an_invulnerable_enemy_leaves_it_unharmed():
+    enemy = Enemy(name="Whirlpool", hp=1, invulnerable=True)
+    Player(name="Hero", hp=20, attack_damage=50).attack(enemy)
+    assert enemy.hp == 1
+
+def test_player_story_flags_start_empty():
+    assert Player(name="Hero", hp=20).story_flags == set()
+
+def test_companion_new_fields_default_to_an_ordinary_melee_companion():
+    companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    assert companion.required_story_flag is None
+    assert companion.recruit_blocked_message == ""
+    assert companion.attack_type == "light"
+    assert companion.gives_advice is False
+
+def test_companion_can_be_recruited_with_no_duel_and_no_story_flag():
+    assert Companion(name="Imp", hp=10, home_room=Room("Camp")).can_be_recruited(Player(name="Hero", hp=20)) is True
+
+def test_companion_cannot_be_recruited_while_a_duel_is_owed():
+    companion = Companion(name="Imp", hp=10, home_room=Room("Camp"), duel_enemy_factory=lambda: Enemy(name="Imp", hp=10))
+    assert companion.can_be_recruited(Player(name="Hero", hp=20)) is False
+
+def test_companion_cannot_be_recruited_without_its_story_flag():
+    companion = Companion(name="King", hp=10, home_room=Room("Hall"), required_story_flag="hall_cleared")
+    assert companion.can_be_recruited(Player(name="Hero", hp=20)) is False
+
+def test_companion_can_be_recruited_once_the_player_has_its_story_flag():
+    companion = Companion(name="King", hp=10, home_room=Room("Hall"), required_story_flag="hall_cleared")
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hall_cleared")
+    assert companion.can_be_recruited(player) is True
+
+def test_companion_needing_both_a_duel_and_a_flag_waits_for_the_duel_even_with_the_flag():
+    companion = Companion(name="King", hp=10, home_room=Room("Hall"), required_story_flag="hall_cleared",
+                          duel_enemy_factory=lambda: Enemy(name="King", hp=10))
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hall_cleared")
+    assert companion.can_be_recruited(player) is False
+
+def test_companion_ranged_attack_is_never_evaded_in_melee(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    archer = Companion(name="Archer", hp=10, home_room=Room("Camp"), attack_damage=5, attack_type="ranged")
+    target = Enemy(name="Paris", hp=30, melee_dodge_chance=0.9)
+    archer.attack(target, attack_type=archer.attack_type)
+    assert target.hp == 25
+
+def test_companion_talk_before_its_story_flag_returns_the_hint():
+    companion = Companion(name="King", hp=10, home_room=Room("Hall"), required_story_flag="hall_cleared", hint="Clear my hall.",
+                          hint_recruitable="Recruit me.")
+    assert companion.talk(Player(name="Hero", hp=20)) == "Clear my hall."
+
+def test_companion_talk_once_its_story_flag_is_set_returns_the_recruitable_line():
+    companion = Companion(name="King", hp=10, home_room=Room("Hall"), required_story_flag="hall_cleared", hint="Clear my hall.",
+                          hint_recruitable="Recruit me.")
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hall_cleared")
+    assert companion.talk(player) == "Recruit me."
+
+def test_ally_has_no_offers_by_default():
+    ally = Ally(name="Idler")
+    assert ally.offers == []
+    assert ally.exchange_line == ""
+
+def test_ally_give_item_names_a_proper_named_item_without_an_article():
+    ally = Ally(name="Mentor", items=[QuestItem(name="Mentor's Token", description="", article="")])
+    player = Player(name="Hero", hp=20)
+    assert ally.give_item("mentor's token", player) == "Mentor gives you Mentor's Token."
+
+def test_player_has_loyalty_token_false_without_one():
+    assert Player(name="Hero", hp=20).has_loyalty_token() is False
+
+def test_player_has_loyalty_token_true_while_holding_one():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(LoyaltyToken(name="Thread", description=""))
+    assert player.has_loyalty_token() is True
+
+def test_player_has_loyalty_token_ignores_an_ordinary_quest_item():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(QuestItem(name="Coin", description=""))
+    assert player.has_loyalty_token() is False
+
+def test_companion_loyalty_starts_unready():
+    assert Companion(name="Imp", hp=10, home_room=Room("Camp")).loyalty_ready is False
+
+def test_take_damage_ready_loyalty_saves_a_companion_at_one_hp():
+    companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    companion.loyalty_ready = True
+    damage, message = companion.take_damage(50)
+    assert companion.hp == 1
+    assert companion.loyalty_ready is False
+    assert message == "Imp should have fallen - but stays standing. They won't leave you."
+
+def test_take_damage_loyalty_only_saves_once():
+    companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    companion.loyalty_ready = True
+    companion.take_damage(50)
+    companion.take_damage(50)
+    assert companion.hp == 0
+
+def test_take_damage_a_non_lethal_hit_keeps_loyalty_ready():
+    companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    companion.loyalty_ready = True
+    companion.take_damage(3)
+    assert companion.hp == 7
+    assert companion.loyalty_ready is True
+
+def test_take_damage_without_loyalty_downs_the_companion():
+    companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    companion.take_damage(50)
+    assert companion.hp == 0
+
+def test_ally_companion_lines_default_to_empty():
+    assert Ally(name="Idler").companion_lines == {}

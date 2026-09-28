@@ -87,14 +87,16 @@ def create_charons_coin() -> QuestItem:
     """Create the Charon's Coin quest item - Chiron's trade reward, and the item required to unlock the descend exit to floor 1."""
     return QuestItem(
         name="Charon's Coin",
-        description="Cold and unnaturally heavy for its size — the ferryman won't so much as glance at you without it."
+        description="Cold and unnaturally heavy for its size — the ferryman won't so much as glance at you without it.",
+        article="",
     )
 
 def create_mentors_token() -> QuestItem:
     """Create the Mentor's Token quest item, one of Chiron's four required trade items."""
     return QuestItem(
         name="Mentor's Token",
-        description="A small carved token, worn smooth — Mentor's simple way of saying you've earned his approval."
+        description="A small carved token, worn smooth — Mentor's simple way of saying you've earned his approval.",
+        article="",
     )
 
 def build_floor_0() -> tuple[Room, dict[str, Room]]:

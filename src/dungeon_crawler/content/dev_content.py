@@ -44,7 +44,7 @@ def create_test_spell() -> Spell:
     )
 
 def create_test_spellbook() -> SpellBook:
-    """SpellBook teaching Test Bolt - lets 'dev add' place a real learnable item, rather than only 'dev grant spell'."""
+    """A SpellBook teaching Test Bolt - lets 'dev add' place a real learnable item, rather than only 'dev grant spell'."""
     return SpellBook(
         name="Test Spellbook",
         description="A dev-only spellbook. Reading it teaches Test Bolt.",

@@ -1,7 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.items import Weapon, Armour
-from dungeon_crawler.dev_tools import find_item_by_name, handle_dev_command, handle_dev_set, handle_dummy_set, find_enemy_by_name, find_ally_by_name, find_companion_by_name, find_spell_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, handle_dev_afflict, handle_dev_set_durability
+from dungeon_crawler.dev_tools import ITEM_REGISTRY, ENEMY_REGISTRY, ALLY_REGISTRY, COMPANION_REGISTRY, SPELL_REGISTRY, find_item_by_name, handle_dev_command, handle_dev_set, handle_dummy_set, find_enemy_by_name, find_ally_by_name, find_companion_by_name, find_spell_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, handle_dev_afflict, handle_dev_set_durability
 
 def test_find_item_by_name_returns_item_for_known_name():
     item = find_item_by_name("wooden sword")
@@ -207,7 +207,7 @@ def test_handle_dev_command_help_returns_help_text():
         "dev remove <character/all>, dev clear room\n"
         "dev afflict <target> <effect> <amount> <duration>\n"
         "dev kill <enemy>, dev teleport <room>, dev learn <skill>\n"
-        "dev grant spell <name>"
+        "dev grant spell <name>, dev flag <story flag>"
     )
 
 def test_handle_dev_command_unrecognised_command_returns_error_message():
@@ -682,7 +682,7 @@ def test_handle_dev_remove_removes_enemy_from_room():
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
     room.add_enemy(enemy)
 
-    message = handle_dev_remove("goblin", room)
+    message = handle_dev_remove("goblin", room, Player(name="hero", hp=100))
 
     assert message == "[DEV] Removed Goblin."
     assert enemy not in room.enemies
@@ -692,7 +692,7 @@ def test_handle_dev_remove_removes_ally_from_room():
     ally = Ally(name="Chiron")
     room.add_ally(ally)
 
-    message = handle_dev_remove("chiron", room)
+    message = handle_dev_remove("chiron", room, Player(name="hero", hp=100))
 
     assert message == "[DEV] Removed Chiron."
     assert ally not in room.allies
@@ -700,7 +700,7 @@ def test_handle_dev_remove_removes_ally_from_room():
 def test_handle_dev_remove_not_found_returns_message():
     room = Room("Arena")
 
-    message = handle_dev_remove("nonexistent", room)
+    message = handle_dev_remove("nonexistent", room, Player(name="hero", hp=100))
 
     assert message == "[DEV] No character named 'nonexistent' found here."
 
@@ -710,7 +710,7 @@ def test_handle_dev_remove_all_removes_every_matching_enemy():
     room.add_enemy(Enemy(name="Goblin", hp=10, attack_damage=5))
     room.add_enemy(Enemy(name="Other", hp=10, attack_damage=5))
 
-    message = handle_dev_remove_all("goblin", room)
+    message = handle_dev_remove_all("goblin", room, Player(name="hero", hp=100))
 
     assert message == "[DEV] Removed 2 instance(s) of 'goblin'."
     remaining_names = [enemy.name for enemy in room.enemies]
@@ -721,7 +721,7 @@ def test_handle_dev_remove_all_removes_matching_allies():
     room.add_ally(Ally(name="Chiron"))
     room.add_ally(Ally(name="Chiron"))
 
-    message = handle_dev_remove_all("chiron", room)
+    message = handle_dev_remove_all("chiron", room, Player(name="hero", hp=100))
 
     assert message == "[DEV] Removed 2 instance(s) of 'chiron'."
     assert room.allies == []
@@ -729,7 +729,7 @@ def test_handle_dev_remove_all_removes_matching_allies():
 def test_handle_dev_remove_all_not_found_returns_message():
     room = Room("Arena")
 
-    message = handle_dev_remove_all("nonexistent", room)
+    message = handle_dev_remove_all("nonexistent", room, Player(name="hero", hp=100))
 
     assert message == "[DEV] No character named 'nonexistent' found here."
 
@@ -738,7 +738,7 @@ def test_handle_dev_clear_room_removes_all_enemies_and_allies():
     room.add_enemy(Enemy(name="Goblin", hp=10, attack_damage=5))
     room.add_ally(Ally(name="Chiron"))
 
-    message = handle_dev_clear_room(room)
+    message = handle_dev_clear_room(room, Player(name="hero", hp=100))
 
     assert message == "[DEV] Cleared room: removed 1 enemies and 1 allies."
     assert room.enemies == []
@@ -747,7 +747,7 @@ def test_handle_dev_clear_room_removes_all_enemies_and_allies():
 def test_handle_dev_clear_room_with_empty_room_returns_zero_counts():
     room = Room("Arena")
 
-    message = handle_dev_clear_room(room)
+    message = handle_dev_clear_room(room, Player(name="hero", hp=100))
 
     assert message == "[DEV] Cleared room: removed 0 enemies and 0 allies."
 
@@ -1172,3 +1172,163 @@ def test_find_ally_by_name_finds_nestor():
     ally = find_ally_by_name("nestor")
     assert ally is not None
     assert ally.name == "Nestor"
+
+def test_find_enemy_by_name_finds_both_floor_6_giants():
+    for name in ("Laestrygonian", "Antiphates"):
+        enemy = find_enemy_by_name(name)
+        assert enemy is not None, name
+        assert enemy.name == name
+
+def test_find_item_by_name_finds_laestrygonian_hide():
+    item = find_item_by_name("laestrygonian hide")
+    assert item is not None
+    assert item.name == "Laestrygonian Hide"
+
+def test_find_item_by_name_finds_antiphates_club():
+    """Regression: the club was built as "Anthiphates' Club", so a lookup by its own name found nothing and a reload dropped it."""
+    item = find_item_by_name("Antiphates' Club")
+    assert item is not None
+    assert item.name == "Antiphates' Club"
+
+def test_every_enemy_registry_key_is_its_enemys_name():
+    """Saves rebuild enemies by name through this registry - a key that doesn't match the name loses the enemy on reload."""
+    for key, factory in ENEMY_REGISTRY.items():
+        assert factory().name.lower() == key, key
+
+def test_every_ally_registry_key_is_its_allys_name():
+    for key, factory in ALLY_REGISTRY.items():
+        assert factory().name.lower() == key, key
+
+def test_every_companion_registry_key_is_its_companions_name():
+    for key, factory in COMPANION_REGISTRY.items():
+        assert factory().name.lower() == key, key
+
+def test_every_spell_registry_key_is_its_spells_name():
+    for key, factory in SPELL_REGISTRY.items():
+        assert factory().name.lower() == key, key
+
+def test_every_item_registry_key_is_its_items_name():
+    """Regression: "cyclops eye" didn't match "Cyclops' Eye" (and "antiphates' club" didn't match "Anthiphates' Club"), so a reload lost the item."""
+    for key, factory in ITEM_REGISTRY.items():
+        assert factory().name.lower() == key, key
+
+def test_find_enemy_by_name_finds_every_new_floor_6_enemy():
+    for name in ("Polyphemus", "Polyphemus (Blinded)", "Head of Scylla"):
+        enemy = find_enemy_by_name(name)
+        assert enemy is not None, name
+        assert enemy.name == name
+
+def test_find_item_by_name_finds_every_new_floor_6_item():
+    for name in ("Olive-wood Stake", "Wheel of Cheese", "Boar's-Tusk Helm", "Antiphates' Club"):
+        item = find_item_by_name(name)
+        assert item is not None, name
+        assert item.name == name
+
+def test_find_enemy_by_name_finds_charybdis():
+    enemy = find_enemy_by_name("charybdis")
+    assert enemy is not None
+    assert enemy.invulnerable is True
+
+def test_find_item_by_name_finds_the_hoplon_of_the_drowned():
+    item = find_item_by_name("Hoplon of the Drowned")
+    assert item is not None
+    assert item.name == "Hoplon of the Drowned"
+
+def test_handle_dev_command_flag_sets_a_story_flag():
+    player = Player(name="Dev", hp=20)
+    message, new_room = handle_dev_command("flag suitors_cleared", player, Room("Hall"), Map())
+    assert "suitors_cleared" in player.story_flags
+    assert message == "[DEV] Story flag set: suitors_cleared"
+    assert new_room is None
+
+def test_find_companion_by_name_finds_odysseus():
+    companion = find_companion_by_name("odysseus")
+    assert companion is not None
+    assert companion.attack_type == "ranged"
+
+def test_handle_dev_command_help_lists_dev_flag():
+    message, new_room = handle_dev_command("help", Player(name="Dev", hp=20), Room("Hall"), Map())
+    assert "dev flag" in message
+
+def test_find_ally_by_name_finds_circe():
+    ally = find_ally_by_name("circe")
+    assert ally is not None
+    assert len(ally.offers) == 6
+
+def test_find_enemy_by_name_finds_the_suitors():
+    for name in ("Suitor", "Antinous", "Eurymachus"):
+        enemy = find_enemy_by_name(name)
+        assert enemy is not None, name
+        assert enemy.name == name
+
+def test_find_ally_by_name_finds_penelope():
+    ally = find_ally_by_name("penelope")
+    assert ally is not None
+    assert "Odysseus" in ally.companion_lines
+
+def cleared_flag_room():
+    room = Room("Hall")
+    room.cleared_story_flag = "hall_cleared"
+    room.cleared_message = "The hall is quiet."
+    return room
+
+def test_handle_dev_kill_clearing_a_room_sets_its_story_flag():
+    room = cleared_flag_room()
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    player = Player(name="hero", hp=100)
+    message = handle_dev_kill(player, room)
+    assert "hall_cleared" in player.story_flags
+    assert "The hall is quiet." in message
+
+def test_handle_dev_kill_keeps_combat_going_while_enemies_remain():
+    room = Room("Hall")
+    first, second = Enemy(name="Goblin", hp=10), Enemy(name="Orc", hp=10)
+    room.add_enemy(first)
+    room.add_enemy(second)
+    player = Player(name="hero", hp=100)
+    player.in_combat = True
+    player.current_target = first
+    handle_dev_kill(player, room)
+    assert player.in_combat is True
+    assert player.current_target is second
+
+def test_handle_dev_kill_the_last_enemy_ends_combat():
+    room = Room("Hall")
+    enemy = Enemy(name="Goblin", hp=10)
+    room.add_enemy(enemy)
+    player = Player(name="hero", hp=100)
+    player.in_combat = True
+    player.current_target = enemy
+    handle_dev_kill(player, room)
+    assert player.in_combat is False
+    assert player.current_target is None
+
+def test_handle_dev_remove_clearing_a_room_sets_its_story_flag():
+    room = cleared_flag_room()
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    player = Player(name="hero", hp=100)
+    assert handle_dev_remove("goblin", room, player) == "[DEV] Removed Goblin.\nThe hall is quiet."
+    assert "hall_cleared" in player.story_flags
+
+def test_handle_dev_remove_all_clearing_a_room_sets_its_story_flag():
+    room = cleared_flag_room()
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    player = Player(name="hero", hp=100)
+    handle_dev_remove_all("goblin", room, player)
+    assert "hall_cleared" in player.story_flags
+
+def test_handle_dev_clear_room_sets_its_story_flag():
+    room = cleared_flag_room()
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    player = Player(name="hero", hp=100)
+    assert "The hall is quiet." in handle_dev_clear_room(room, player)
+    assert "hall_cleared" in player.story_flags
+
+def test_handle_dev_remove_leaving_an_enemy_does_not_set_the_flag():
+    room = cleared_flag_room()
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    room.add_enemy(Enemy(name="Orc", hp=10))
+    player = Player(name="hero", hp=100)
+    assert handle_dev_remove("goblin", room, player) == "[DEV] Removed Goblin."
+    assert player.story_flags == set()

@@ -1,7 +1,8 @@
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon
-from dungeon_crawler.engine import print_room, get_controls_text, main
+from dungeon_crawler.engine import print_room, get_controls_text, main, RESERVED_COMMAND_WORDS
+from dungeon_crawler.content import build_world
 from dungeon_crawler.hints import HINTS
 
 def test_print_room_prints_name_and_description(capsys):
@@ -872,7 +873,7 @@ def test_main_forge_reciprocal_exit_blocked_until_activated_from_the_other_side(
 
     captured = capsys.readouterr()
     assert "You haven't opened this shortcut yet - reach it from the other side first." in captured.out
-    assert "Three faint doorways" in captured.out.split("You haven't opened")[-1]
+    assert "Faint doorways shimmer" in captured.out.split("You haven't opened")[-1]
 
 def test_main_using_forge_shortcut_unlocks_the_reciprocal_exit(monkeypatch, capsys, tmp_path):
     """Using Prayer Room's one-way 'forge' exit unlocks the Forge of Prometheus's reciprocal 'prayer room' exit,
@@ -1397,3 +1398,442 @@ def test_main_killing_the_last_enemy_with_achilles_in_the_party_does_not_crash(m
     captured = capsys.readouterr()
     assert "Shade of Achilles joins you." in captured.out
     assert captured.out.count("Shadow of Army Camp:") >= 2  # 'look' after the fight ran, so the game kept going
+
+def test_print_room_with_an_available_interaction_shows_the_room_interactions_hint(capsys):
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "")
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    captured = capsys.readouterr()
+    assert HINTS["room_interactions"] in captured.out
+
+def test_print_room_with_only_unavailable_interactions_does_not_show_the_hint():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "", lambda player, room: False)
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    assert "room_interactions" not in player.seen_hints
+
+def test_reserved_command_words_cover_every_listed_command():
+    """Room interactions are routed before global commands, so this set must know every real command's first word."""
+    firsts = {line.split(" - ")[0].split()[0] for line in get_controls_text().splitlines() if " - " in line}
+    assert firsts <= RESERVED_COMMAND_WORDS
+
+def test_no_room_interaction_verb_clashes_with_a_global_command_or_its_own_exits():
+    """A clashing verb would silently take over that command (or that exit) in its room."""
+    dungeon, entrance, floors = build_world()
+    for rooms in floors.values():
+        for room in rooms.values():
+            for verb in room.interactions:
+                assert verb.split()[0] not in RESERVED_COMMAND_WORDS, (room.name, verb)
+                assert verb not in room.exits, (room.name, verb)
+
+def test_main_sirens_give_in_then_the_offer_falls_silent(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport calm waters",
+        "listen",
+        "give in",
+        "listen",
+        "resist",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You let the song reach you." in captured.out
+    assert "(+2 skill points. Max HP is now 15.)" in captured.out
+    after = captured.out.split("Max HP is now 15.")[-1]
+    assert "The Sirens are silent now." in after
+    assert "There's nothing left to resist." in after
+    assert "You let the song reach you." not in after
+
+def test_main_room_interaction_does_nothing_mid_combat(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport calm waters",
+        "dev set hp 999",
+        "dev spawn gorgon",
+        "attack",
+        "give in",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "skill points. Max HP is now" not in captured.out
+
+def test_main_sirens_bargain_stays_taken_after_save_and_load(monkeypatch, capsys, tmp_path):
+    """Room flags round-trip through a real save and mid-game load, so the bargain can't be taken twice."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport calm waters",
+        "give in",
+        "save",
+        "load 1 1", "yes",
+        "give in",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert captured.out.count("Max HP is now 15") == 1
+    assert "The Sirens are silent now." in captured.out
+
+def test_print_room_lists_the_available_interactions(capsys):
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "")
+    room.add_interaction("resist", lambda player, room: "")
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "(You could: listen, resist)" in captured.out
+
+def test_print_room_does_not_list_an_unavailable_interaction(capsys):
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "", lambda player, room: False)
+    room.add_interaction("resist", lambda player, room: "")
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "(You could: resist)" in captured.out
+
+def test_print_room_with_no_available_interactions_prints_no_list(capsys):
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "", lambda player, room: False)
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "You could:" not in captured.out
+
+def test_print_room_groups_same_named_enemies_into_one_line(capsys):
+    room = Room("Shore")
+    for _ in range(3):
+        room.add_enemy(Enemy(name="Head", hp=10, description="Teeth.", armour=0))
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "Head x3 block your path! Teeth. [Armour 0]" in captured.out
+    assert captured.out.count("Teeth.") == 1
+
+def test_print_room_gives_each_differently_named_enemy_its_own_line(capsys):
+    room = Room("Cave")
+    room.add_enemy(Enemy(name="King", hp=10, description="Crowned.", armour=2))
+    room.add_enemy(Enemy(name="Giant", hp=10, description="Huge.", armour=1))
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "A King blocks your path! Crowned. [Armour 2]" in captured.out
+    assert "A Giant blocks your path! Huge. [Armour 1]" in captured.out
+    assert captured.out.index("King blocks") < captured.out.index("Giant blocks")
+
+def test_print_room_mixes_a_group_and_a_single_enemy(capsys):
+    room = Room("Lair")
+    room.add_enemy(Enemy(name="Gorgon", hp=10, description="Hissing."))
+    room.add_enemy(Enemy(name="Gorgon", hp=10, description="Hissing."))
+    room.add_enemy(Enemy(name="Medusa", hp=10, description="Stone-eyed."))
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "Gorgon x2 block your path!" in captured.out
+    assert "A Medusa blocks your path!" in captured.out
+
+def test_print_room_with_a_fled_group_prints_the_plural_re_encounter(capsys):
+    room = Room("Shore")
+    for _ in range(2):
+        head = Enemy(name="Head", hp=10)
+        head.has_been_fled_from = True
+        room.add_enemy(head)
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "Head x2 are still here - they haven't forgotten you either." in captured.out
+    assert "block your path" not in captured.out
+
+def test_print_room_introduces_a_titled_enemy_with_the(capsys):
+    room = Room("Labyrinth")
+    room.add_enemy(Enemy(name="Minotaur", hp=10, description="Horned.", article="the"))
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "The Minotaur blocks your path! Horned." in captured.out
+
+def test_print_room_introduces_a_proper_named_enemy_without_an_article(capsys):
+    room = Room("Cavern")
+    room.add_enemy(Enemy(name="Polyphemus", hp=10, description="Huge.", article=""))
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "Polyphemus blocks your path! Huge." in captured.out
+    assert "A Polyphemus" not in captured.out
+
+def test_print_room_uses_an_before_a_vowel(capsys):
+    room = Room("Expanse")
+    room.add_enemy(Enemy(name="Ember Wraith", hp=10, description="Smouldering."))
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "An Ember Wraith blocks your path!" in captured.out
+
+def test_print_room_a_fled_proper_named_enemy_takes_no_article(capsys):
+    room = Room("Lair")
+    medusa = Enemy(name="Medusa", hp=10, article="")
+    medusa.has_been_fled_from = True
+    room.add_enemy(medusa)
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "Medusa is still here - it hasn't forgotten you either." in captured.out
+    assert "The Medusa" not in captured.out
+
+def test_print_room_shows_an_invulnerable_enemy_by_its_description_alone(capsys):
+    room = Room("River")
+    room.add_enemy(Enemy(name="Whirlpool", hp=1, description="A mouth in the sea.", invulnerable=True))
+
+    print_room(room, Player(name="hero", hp=100))
+
+    captured = capsys.readouterr()
+    assert "A mouth in the sea." in captured.out
+    assert "blocks your path" not in captured.out
+    assert "[Armour" not in captured.out
+
+def test_print_room_with_only_an_invulnerable_enemy_shows_no_combat_hint():
+    room = Room("River")
+    room.add_enemy(Enemy(name="Whirlpool", hp=1, invulnerable=True))
+    player = Player(name="hero", hp=100)
+
+    print_room(room, player)
+
+    assert "combat" not in player.seen_hints
+
+def test_main_attacking_charybdis_is_refused_and_she_bars_the_way(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport narrow river",
+        "attack",
+        "west",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You can't fight a whirlpool - you'll have to find another way past." in captured.out
+    assert "Charybdis bars the way" in captured.out
+    assert "(You could: watch, climb, let go, row)" in captured.out
+
+def test_main_solving_charybdis_opens_the_way_west(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport narrow river",
+        "climb", "watch", "watch", "let go", "row",
+        "west",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Charybdis sinks" in captured.out
+    assert "Charybdis bars the way" not in captured.out
+    assert "Poseidon's Depths:" in captured.out
+
+def test_main_leaving_narrow_river_resets_a_half_finished_puzzle(monkeypatch, capsys, tmp_path):
+    """Up the fig tree, out, and back - the puzzle starts again on the raft, so 'let go' is harmless rather than a fall."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport narrow river",
+        "climb",
+        "north",
+        "south",
+        "let go",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "You're not holding on to anything." in captured.out
+    assert "(You take 12 damage.)" not in captured.out
+
+def test_main_advice_with_no_companion_says_so(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "developer mode", "basic", "ares", "floor_0", "advice", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    assert "You've no one to ask." in capsys.readouterr().out
+
+def test_main_odysseus_joins_once_the_suitors_are_cleared_and_gives_room_advice(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport shadow of ithaca",
+        "recruit odysseus",
+        "dev flag suitors_cleared",
+        "recruit odysseus",
+        "dev teleport narrow river",
+        "advice",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Not while those men are still in my hall" in captured.out
+    assert "Odysseus joins you." in captured.out
+    assert 'Odysseus: "When she starts to swallow, get above her.' in captured.out
+
+def test_get_controls_text_lists_advice():
+    assert "advice - " in get_controls_text()
+
+def test_main_offers_lists_circes_exchanges(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "offers",
+        "dev teleport muddy pigsty",
+        "offers",
+        "exchange 9",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "There's no one here to exchange with." in captured.out
+    assert "Circe's offers (you have 0 gold):" in captured.out
+    assert "1. Bronze Xiphos + 20 gold -> Kelp Poultice" in captured.out
+    assert "from 1 to 6" in captured.out
+
+def test_get_controls_text_lists_offers_and_exchange():
+    text = get_controls_text()
+    assert "offers - " in text
+    assert "exchange <number> - " in text
+
+def test_main_exchanging_gear_with_circe(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport muddy pigsty",
+        "dev add bronze xiphos",
+        "dev set gold 30",
+        "exchange 1",
+        "inventory",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Circe takes the Bronze Xiphos and 20 gold." in captured.out
+    assert "You receive: a Kelp Poultice." in captured.out
+    after = captured.out.split("You receive: a Kelp Poultice.")[-1]
+    assert "Kelp Poultice" in after
+    assert "Bronze Xiphos" not in after
+
+def test_main_bare_exchange_asks_for_a_number(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "developer mode", "basic", "ares", "floor_6", "dev teleport muddy pigsty", "exchange", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    assert "Choose an offer from 1 to 6 - say 'offers' to see them." in capsys.readouterr().out
+
+def test_main_clearing_the_throne_room_lets_odysseus_join(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport throne room of odysseus",
+        "dev set hp 999",
+        "dev set atk 999",
+        "attack", "attack", "attack", "attack", "attack",
+        "dev teleport shadow of ithaca",
+        "recruit odysseus",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "The hall falls silent at last." in captured.out
+    assert "Odysseus joins you." in captured.out
+
+def test_main_talking_with_a_companion_in_the_party_does_not_crash(monkeypatch, capsys, tmp_path):
+    """Regression: talk_to() appended a missing companion line as None, so this exact flow raised TypeError."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_5",
+        "dev spawn test companion",
+        "recruit test companion",
+        "dev teleport shadow of pylos",
+        "talk",
+        "toggle auto talk",
+        "dev teleport shadow of pylos",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert captured.out.count("A visitor! Sit, sit.") >= 2
+
+def test_main_taking_penelopes_thread_after_the_suitors(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_6",
+        "dev teleport throne room of odysseus",
+        "dev clear room",
+        "west",
+        "talk",
+        "take penelope's thread from penelope",
+        "inventory",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Bedchamber of Odysseus:" in captured.out
+    assert "Penelope gives you Penelope's Thread." in captured.out
+    assert "Penelope's Thread" in captured.out.split("Penelope gives you Penelope's Thread.")[-1]

@@ -64,6 +64,16 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     floor_2_rooms["Forge of Prometheus"].lock_fast_travel_exit("maze of pillars")
     floor_4_rooms["Maze of Pillars"].register_fast_travel_activation("forge", floor_2_rooms["Forge of Prometheus"], "maze of pillars")
 
+    floor_5_rooms["Shadow of Pylos"].connect("forge", floor_2_rooms["Forge of Prometheus"])
+    floor_2_rooms["Forge of Prometheus"].connect("shadow of pylos", floor_5_rooms["Shadow of Pylos"])
+    floor_2_rooms["Forge of Prometheus"].lock_fast_travel_exit("shadow of pylos")
+    floor_5_rooms["Shadow of Pylos"].register_fast_travel_activation("forge", floor_2_rooms["Forge of Prometheus"], "shadow of pylos")
+
+    floor_6_rooms["Shadow of Ithaca"].connect("forge", floor_2_rooms["Forge of Prometheus"])
+    floor_2_rooms["Forge of Prometheus"].connect("shadow of ithaca", floor_6_rooms["Shadow of Ithaca"])
+    floor_2_rooms["Forge of Prometheus"].lock_fast_travel_exit("shadow of ithaca")
+    floor_6_rooms["Shadow of Ithaca"].register_fast_travel_activation("forge", floor_2_rooms["Forge of Prometheus"], "shadow of ithaca")
+
     all_floors = {
         "floor_0": floor_0_rooms,
         "floor_1": floor_1_rooms,

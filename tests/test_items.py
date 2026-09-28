@@ -1,4 +1,4 @@
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward, LoyaltyToken
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.content import create_chipped_stone_aegis, create_labrys
 from dungeon_crawler.spells import Spell
@@ -1228,3 +1228,75 @@ def test_equipping_the_labrys_over_a_broken_aegis_leaves_armour_unchanged():
     player.take_damage(5)
     labrys.use(player)
     assert player.armour == 1
+
+def test_weapon_blind_chance_defaults_to_zero():
+    assert Weapon(name="Sword", description="", damage=3).blind_chance == 0.0
+
+def test_weapon_stores_blind_chance():
+    assert Weapon(name="Stake", description="", damage=3, blind_chance=0.2).blind_chance == 0.2
+
+def test_weapon_details_lists_blind_chance():
+    stake = Weapon(name="Stake", description="", damage=7, weapon_class="piercing", armour_pierce=3, blind_chance=0.2)
+    assert "20% blind" in stake.details()
+
+def test_weapon_details_leaves_out_blind_when_zero():
+    assert "blind" not in Weapon(name="Sword", description="", damage=3).details()
+
+def test_item_article_defaults_to_a():
+    assert Weapon(name="Sword", description="", damage=3).article == "a"
+
+def test_item_with_an_unknown_article_raises_value_error():
+    try:
+        Weapon(name="Sword", description="", damage=3, article="an")
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+
+def test_item_with_article_is_lower_case_by_default():
+    assert Weapon(name="Sword", description="", damage=3).with_article() == "a Sword"
+
+def test_item_with_article_uses_an_before_a_vowel():
+    assert Consumable(name="Elixir", description="", heal_amount=5).with_article() == "an Elixir"
+
+def test_item_with_article_definite_uses_the():
+    assert Weapon(name="Sword", description="", damage=3).with_article(definite=True) == "the Sword"
+
+def test_item_with_article_the_always_uses_the():
+    spear = Weapon(name="Spear of Ares", description="", damage=6, article="the")
+    assert spear.with_article() == "the Spear of Ares"
+    assert spear.with_article(definite=True) == "the Spear of Ares"
+
+def test_item_with_no_article_is_just_its_name():
+    fang = Weapon(name="Lamia's Fang", description="", damage=4, article="")
+    assert fang.with_article() == "Lamia's Fang"
+    assert fang.with_article(definite=True, capitalise=True) == "Lamia's Fang"
+
+def test_item_with_article_can_be_capitalised():
+    assert Weapon(name="Sword", description="", damage=3).with_article(capitalise=True) == "A Sword"
+    assert Weapon(name="Sword", description="", damage=3).with_article(definite=True, capitalise=True) == "The Sword"
+
+def test_every_item_subclass_accepts_an_article():
+    spell = Spell(name="Bolt", description="", mana_cost=1)
+    items = [
+        Weapon(name="W", description="", damage=1, article=""),
+        Armour(name="A", description="", defence=1, article=""),
+        Consumable(name="C", description="", heal_amount=1, article=""),
+        SkillPointReward(name="S", description="", article=""),
+        StatusEffectItem(name="E", description="", effect_name="Regen", amount=1, duration=1, article=""),
+        SpellBook(name="B", description="", spell=spell, article=""),
+    ]
+    assert all(item.article == "" for item in items)
+
+def test_loyalty_token_is_a_quest_item():
+    assert isinstance(LoyaltyToken(name="Thread", description=""), QuestItem)
+
+def test_loyalty_token_cannot_be_dropped():
+    player = Player(name="Hero", hp=20)
+    token = LoyaltyToken(name="Thread", description="")
+    player.inventory.add(token)
+    try:
+        player.inventory.drop_item("Thread")
+        assert False, "Expected a ValueError but none was raised"
+    except ValueError:
+        pass
+    assert token in player.inventory.items
