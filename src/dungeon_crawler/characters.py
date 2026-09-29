@@ -4,6 +4,7 @@ from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem, Lo
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
+from dungeon_crawler.exceptions import ActionRefused
 from textwrap import dedent
 from typing import Sequence, Callable, TYPE_CHECKING
 if TYPE_CHECKING:
@@ -811,9 +812,9 @@ class SkillPath:
         self.unlocked_count = 0
 
     def unlock_next(self, character) -> str:
-        """Apply and unlock this path's next skill in order. Raises ValueError if every skill in the path is already unlocked."""
+        """Apply and unlock this path's next skill in order. Raises ActionRefused if every skill in the path is already unlocked."""
         if self.unlocked_count >= len(self._skills):
-            raise ValueError(f"{self.name} path is fully unlocked")
+            raise ActionRefused(f"{self.name} path is fully unlocked.")
         skill = self._skills[self.unlocked_count]
         self.unlocked_count += 1
         return skill.apply(character)
@@ -860,12 +861,12 @@ class SkillTree:
         }
 
     def invest(self, path_name: str, character) -> str:
-        """Spend one skill point unlocking the next skill on path_name. Raises ValueError if no points are available or the path name doesn't exist."""
+        """Spend one skill point unlocking the next skill on path_name. Raises ActionRefused if no points are available or the path name doesn't exist."""
         if self.skill_points <= 0:
-            raise ValueError("No skill points available")
+            raise ActionRefused("No skill points available.")
         path = self.paths.get(path_name)
         if path is None:
-            raise ValueError(f"No such path: {path_name}")
+            raise ActionRefused(f"No such path: {path_name}.")
         message = path.unlock_next(character)
         self.skill_points -= 1
         return message

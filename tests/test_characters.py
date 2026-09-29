@@ -1,3 +1,4 @@
+from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.characters import HP_PER_LEVEL, COMPANION_HP_PER_LEVEL, COMPANION_ATTACK_PER_LEVEL, STARTING_EXPERIENCE_TO_NEXT_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
 from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem, LoyaltyToken
 from dungeon_crawler.world import Room
@@ -1568,8 +1569,8 @@ def test_skill_path_unlock_next_raises_error_when_fully_unlocked():
 
     try:
         path.unlock_next(character)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_skill_path_next_skill_returns_none_when_fully_unlocked():
@@ -1599,8 +1600,8 @@ def test_skill_tree_invest_raises_error_when_no_skill_points():
 
     try:
         skill_tree.invest("defence", character)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_skill_tree_invest_raises_error_for_invalid_path_name():
@@ -1610,8 +1611,8 @@ def test_skill_tree_invest_raises_error_for_invalid_path_name():
 
     try:
         skill_tree.invest("nonexistent", character)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_skill_tree_invest_decrements_skill_points():

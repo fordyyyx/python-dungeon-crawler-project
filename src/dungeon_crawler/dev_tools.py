@@ -13,6 +13,7 @@ from dungeon_crawler.content import create_chiron, create_mentor, create_wounded
 from dungeon_crawler.content import create_shade_of_achilles, create_odysseus
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat, apply_room_cleared_flag
+from dungeon_crawler.exceptions import ActionRefused
 
 # Every new create_*() item/enemy/ally/companion/spell function in the content/ package needs a matching line in the relevant
 # registry below (all five follow the same shape) - otherwise dev add/spawn/grant spell can't find it. See CLAUDE.md.
@@ -423,7 +424,7 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
         player.skill_tree.skill_points += 1
         try:
             return "[DEV] " + player.skill_tree.invest(path_name, player), None
-        except ValueError as e:
+        except ActionRefused as e:
             player.skill_tree.skill_points -= 1
             return f"[DEV] {e}", None
 

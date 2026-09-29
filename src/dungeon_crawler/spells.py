@@ -1,6 +1,7 @@
 """Spells - The one place that holds all things to do with spellcasting."""
 
 from dungeon_crawler.status_effects import StatusEffect
+from dungeon_crawler.exceptions import ActionRefused
 
 class Spell:
     """A known, castable spell - damage/heal_amount/effect are each optional (default 0/0/None), so a spell can be pure damage, pure heal
@@ -29,7 +30,7 @@ class Spell:
             messages.append(f"{caster.name} recovers {healed} HP.")
         if self.damage > 0:
             if target is None:
-                raise ValueError(f"You need a target for {self.name} - try 'target <enemy>' first.")
+                raise ActionRefused(f"You need a target for {self.name} - try 'target <enemy>' first.")
             dealt, death_message = target.take_damage(self.damage, attacker=caster)
             messages.append(f"{caster.name} casts {self.name} at {target.name} for {dealt} damage.")
             if death_message:
@@ -37,7 +38,7 @@ class Spell:
         if self.effect_name is not None:
             recipient = caster if self.effect_amount >= 0 else target
             if recipient is None:
-                raise ValueError(f"You need a target for {self.name} - try 'target <enemy>' first.")
+                raise ActionRefused(f"You need a target for {self.name} - try 'target <enemy>' first.")
             if recipient.is_alive():
                 effect = StatusEffect(self.effect_name, self.effect_amount, self.effect_duration)
                 messages.append(recipient.apply_status_effect(effect))

@@ -1,3 +1,4 @@
+from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward, LoyaltyToken
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.content import create_chipped_stone_aegis, create_labrys
@@ -528,8 +529,8 @@ def test_status_effect_item_use_with_negative_amount_and_no_target_raises_error(
 
     try:
         item.use(player)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_status_effect_item_use_with_negative_amount_and_dead_target_raises_error():
@@ -541,8 +542,8 @@ def test_status_effect_item_use_with_negative_amount_and_dead_target_raises_erro
 
     try:
         item.use(player)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_item_would_fail_defaults_to_none():
@@ -598,8 +599,8 @@ def test_status_effect_item_use_with_no_target_error_message():
 
     try:
         item.use(player)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError as e:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as e:
         assert str(e) == "You need a target for Vial of Poison - try 'target <enemy>' first."
 
 def test_status_effect_item_used_via_inventory_is_removed_after_use():
@@ -643,8 +644,8 @@ def test_spell_book_use_when_already_known_raises_error():
 
     try:
         book.use(player)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError as e:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as e:
         assert str(e) == "Hero already knows Firebolt."
 
 def test_spell_book_use_when_already_known_does_not_add_duplicate():
@@ -655,7 +656,7 @@ def test_spell_book_use_when_already_known_does_not_add_duplicate():
 
     try:
         book.use(player)
-    except ValueError:
+    except ActionRefused:
         pass
 
     assert len(player.known_spells) == 1
@@ -668,8 +669,8 @@ def test_spell_book_use_matches_already_known_by_name_not_object_identity():
 
     try:
         book.use(player)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_spell_book_would_fail_returns_none_when_not_known():
@@ -706,7 +707,7 @@ def test_spell_book_used_via_inventory_when_already_known_is_not_removed():
 
     try:
         player.inventory.use_item("Tome of Fire", player)
-    except ValueError:
+    except ActionRefused:
         pass
 
     assert book in player.inventory.items
@@ -800,8 +801,8 @@ def test_use_item_raises_error_when_item_not_found():
 
     try:
         player.inventory.use_item("Bronze Xiphos", player)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_inventory_drop_item_removes_item_from_inventory():
@@ -826,8 +827,8 @@ def test_inventory_drop_item_raises_error_when_equipped():
 
     try:
         player.inventory.drop_item("Bronze Xiphos")
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_inventory_drop_item_when_equipped_does_not_remove_it():
@@ -838,7 +839,7 @@ def test_inventory_drop_item_when_equipped_does_not_remove_it():
 
     try:
         player.inventory.drop_item("Bronze Xiphos")
-    except ValueError:
+    except ActionRefused:
         pass
     assert player.inventory.items == [sword]
 
@@ -849,8 +850,8 @@ def test_inventory_drop_item_raises_error_when_item_is_quest_item():
 
     try:
         player.inventory.drop_item("Bronze Key")
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_inventory_drop_item_does_not_remove_quest_item_when_blocked():
@@ -860,7 +861,7 @@ def test_inventory_drop_item_does_not_remove_quest_item_when_blocked():
 
     try:
         player.inventory.drop_item("Bronze Key")
-    except ValueError:
+    except ActionRefused:
         pass
     assert player.inventory.items == [key]
 
@@ -869,8 +870,8 @@ def test_inventory_drop_item_raises_error_when_item_not_found():
 
     try:
         player.inventory.drop_item("Bronze Xiphos")
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_inventory_len_returns_item_count():
@@ -922,8 +923,8 @@ def test_inventory_unequip_item_raises_error_when_item_not_found():
 
     try:
         player.inventory.unequip_item("Bronze Xiphos", player)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
 
 def test_inventory_unequip_item_matches_item_name_case_insensitively():
@@ -976,8 +977,8 @@ def test_inventory_use_item_raises_would_fail_message_for_reviver_with_no_compan
 
     try:
         hero.inventory.use_item("Ambrosia", hero)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError as error:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as error:
         assert str(error) == "Ambrosia has nothing to revive."
 
 def test_inventory_use_item_does_not_consume_reviver_that_would_fail():
@@ -991,7 +992,7 @@ def test_inventory_use_item_does_not_consume_reviver_that_would_fail():
 
     try:
         hero.inventory.use_item("Ambrosia", hero)
-    except ValueError:
+    except ActionRefused:
         pass
 
     assert reviver in hero.inventory.items
@@ -1003,7 +1004,7 @@ def test_inventory_use_item_does_not_consume_offensive_status_effect_item_with_n
 
     try:
         hero.inventory.use_item("Venom Vial", hero)
-    except ValueError:
+    except ActionRefused:
         pass
 
     assert vial in hero.inventory.items
@@ -1037,8 +1038,8 @@ def test_inventory_use_item_at_full_hp_raises_would_fail_message_for_healing_con
 
     try:
         hero.inventory.use_item("potion", hero)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError as error:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as error:
         assert str(error) == "hero is already at full health - potion would be wasted."
 
 def test_inventory_use_item_at_full_hp_does_not_consume_healing_consumable():
@@ -1048,7 +1049,7 @@ def test_inventory_use_item_at_full_hp_does_not_consume_healing_consumable():
 
     try:
         hero.inventory.use_item("potion", hero)
-    except ValueError:
+    except ActionRefused:
         pass
 
     assert potion in hero.inventory.items
@@ -1296,7 +1297,7 @@ def test_loyalty_token_cannot_be_dropped():
     player.inventory.add(token)
     try:
         player.inventory.drop_item("Thread")
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
         pass
     assert token in player.inventory.items

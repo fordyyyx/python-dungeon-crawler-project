@@ -10,6 +10,7 @@ import random
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.exploration import pick_up, check_equippable, take_all, get_advice
+from dungeon_crawler.exceptions import ActionRefused
 from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
@@ -615,7 +616,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         path_name = command.removeprefix("learn ").strip()
         try:
             return player.skill_tree.invest(path_name, player)
-        except ValueError as e:
+        except ActionRefused as e:
             return str(e)
 
     if command == "inventory":

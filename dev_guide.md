@@ -523,6 +523,15 @@ after the fight ends. For the real route, clear the Throne Room (`dev clear
 room` sets `suitors_cleared` too), walk `west`, and `take penelope's thread
 from penelope`.
 
+**Check that a damaged save is handled, not a crash:**
+Save a game normally, quit, then open `saves/profile_1/slot_1.json` in any
+editor and break it (delete the last few characters, or replace a number
+with `true`). On the title screen, Load Game lists the slot as `Damaged save -
+can't be loaded.`, and picking it prints the "can't be read" message and
+returns to the menu. Mid-game `load 1 1` does the same and leaves the current
+game running; Delete Save still removes it. (`SaveFileError` - see
+`CLAUDE.md`'s "Custom exceptions".)
+
 **Try a ranged attack:**
 ```
 dev add harpy-fletched bow

@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
+from dungeon_crawler.exceptions import ActionRefused
 
 WEAPON_CLASSES = ("blade", "heavy", "piercing", "ranged")
 ARMOUR_SLOTS = ("helmet", "body", "shield")
@@ -286,13 +287,13 @@ class StatusEffectItem(Consumable):
 
     def use(self, character) -> str:
         """Build a fresh StatusEffect every time (so two uses aren't secretly sharing one mutable object) and apply it to self (healing)
-        or current_target (offensive - raises ValueError with no target set or a dead one, caught by handle_combat_command()'s existing
-        except ValueError, same as every other failed-action case)."""
+        or current_target (offensive - raises ActionRefused with no target set or a dead one, caught by handle_combat_command()'s existing
+        except ActionRefused, same as every other failed-action case)."""
         effect = StatusEffect(self.effect_name, self.amount, self.duration)
         if self.amount >= 0:
             return character.apply_status_effect(effect)
         if character.current_target is None or not character.current_target.is_alive():
-            raise ValueError(f"You need a target for {self.name} - try 'target <enemy>' first.")
+            raise ActionRefused(f"You need a target for {self.name} - try 'target <enemy>' first.")
         return character.current_target.apply_status_effect(effect)
 
     def would_fail(self, character) -> str | None:
@@ -317,7 +318,7 @@ class SpellBook(Consumable):
     def use(self, character) -> str:
         """Add self.spell to character.known_spells, unless already known."""
         if any(known.name == self.spell.name for known in character.known_spells):
-            raise ValueError(f"{character.name} already knows {self.spell.name}.")
+            raise ActionRefused(f"{character.name} already knows {self.spell.name}.")
         character.known_spells.append(self.spell)
         return f"{character.name} learns {self.spell.name}!"
 
@@ -343,36 +344,37 @@ class Inventory:
         self._items.remove(item)
 
     def use_item(self, item_name: str, character) -> str:
-        """Use the named item on character, removing it from the inventory afterwards if it's a Consumable. Raises ValueError if no item with that name is present."""
+        """Use the named item on character, removing it from the inventory afterwards if it's a Consumable. Raises ActionRefused if no item with that name is present, or if
+        the item's would_fail() says using it would fail or be wasted."""
         for item in self._items:
             if item.name.lower() == item_name.lower():
                 failure = item.would_fail(character)
                 if failure is not None:
-                    raise ValueError(failure)
+                    raise ActionRefused(failure)
                 message = item.use(character)
                 if isinstance(item, Consumable):
                     self._items.remove(item)
                 return message
-        raise ValueError(f"No item named '{item_name}' in inventory.")
+        raise ActionRefused(f"No item named '{item_name}' in inventory.")
 
     def drop_item(self, item_name: str):
-        """Remove and return the named item, for dropping into a Room. Raises ValueError if the item is a QuestItem, is currently equipped, or isn't present."""
+        """Remove and return the named item, for dropping into a Room. Raises ActionRefused if the item is a QuestItem, is currently equipped, or isn't present."""
         for item in self._items:
             if item.name.lower() == item_name.lower():
                 if isinstance(item, QuestItem):
-                    raise ValueError(f"{item.name} is too important to drop.")
+                    raise ActionRefused(f"{item.name} is too important to drop.")
                 if item.equipped:
-                    raise ValueError(f"Cannot drop {item.name} while it is equipped.")
+                    raise ActionRefused(f"Cannot drop {item.name} while it is equipped.")
                 self._items.remove(item)
                 return item
-        raise ValueError(f"No item named {item_name} in inventory.")
+        raise ActionRefused(f"No item named '{item_name}' in inventory.")
 
     def unequip_item(self, item_name: str, character) -> str:
-        """Unequip the named item from character. Raises ValueError if no item with that name is present."""
+        """Unequip the named item from character. Raises ActionRefused if no item with that name is present."""
         for item in self.items:
             if item.name.lower() == item_name.lower():
                 return item.unequip(character)
-        raise ValueError(f"No item named {item_name} in inventory.")
+        raise ActionRefused(f"No item named {item_name} in inventory.")
 
     @property
     def items(self) -> list[Item]:

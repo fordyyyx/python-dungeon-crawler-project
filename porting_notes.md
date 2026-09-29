@@ -243,6 +243,8 @@ something occurs to you mid-build.
   text version's "you've already claimed that blood, try again" reprompt.
 
 ## Save / Load
+- A damaged save (`slot_summary()`'s "Damaged save - can't be loaded.") wants its own slot state in a save-slot picker - greyed
+  out with a warning icon and a delete option, rather than a slot that looks normal until it's chosen.
 - Profile/slot selection (3 profiles, 5 slots each) is a natural fit for a
   save-slot picker screen — `slot_summary()`'s one-line format (name, level,
   ancestry, current room) is already exactly what such a UI would show per

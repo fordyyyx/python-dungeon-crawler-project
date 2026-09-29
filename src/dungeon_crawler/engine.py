@@ -10,6 +10,7 @@ from dungeon_crawler.character_creation import choose_ancestry, choose_secondary
 from dungeon_crawler import save_system
 from dungeon_crawler.hints import show_hint
 from dungeon_crawler.exchange import list_offers, make_exchange
+from dungeon_crawler.exceptions import ActionRefused, SaveFileError
 
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
@@ -169,7 +170,11 @@ def main() -> None:
             if slot_num is None:
                 continue
             dungeon, _, all_floors = build_world()
-            player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
+            try:
+                player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
+            except SaveFileError as error:
+                print(error)
+                continue
             active_profile, active_slot = profile_num, slot_num
             break
 
@@ -273,10 +278,16 @@ def main() -> None:
                         print(f"There's no save in profile {profile_num}, slot {slot_num}.")
                     elif confirm("Loading will discard any unsaved progress since your last save. Continue?"):
                         # load_game() patches a *fresh* world - reusing the live one would keep state the save never had
-                        dungeon, _, all_floors = build_world()
-                        player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
-                        active_profile, active_slot = profile_num, slot_num
-                        print_room(current_room, player)
+                        fresh_dungeon, _, fresh_floors = build_world()
+                        try:
+                            loaded_player, loaded_room = save_system.load_game(profile_num, slot_num, fresh_dungeon)
+                        except SaveFileError as error:
+                            print(error)
+                        else:
+                            dungeon, all_floors = fresh_dungeon, fresh_floors
+                            player, current_room = loaded_player, loaded_room
+                            active_profile, active_slot = profile_num, slot_num
+                            print_room(current_room, player)
 
             elif command.startswith("challenge ") and not player.in_combat:
                 print(start_duel(command.removeprefix("challenge ").strip(), current_room, player))
@@ -446,7 +457,7 @@ def main() -> None:
                 item_name = command.removeprefix("use ").strip()
                 try:
                     print(player.inventory.use_item(item_name, player))
-                except ValueError as e:
+                except ActionRefused as e:
                     print(e)
 
             elif command.startswith("equip "):
@@ -461,7 +472,7 @@ def main() -> None:
                 item_name = command.removeprefix("unequip ").strip()
                 try:
                     print(player.inventory.unequip_item(item_name, player))
-                except ValueError as e:
+                except ActionRefused as e:
                     print(e)
 
             elif command.startswith("drop "):
@@ -470,7 +481,7 @@ def main() -> None:
                     item = player.inventory.drop_item(item_name)
                     current_room.add_item(item)
                     print(f"You drop {item.with_article(definite=True)}.")
-                except ValueError as e:
+                except ActionRefused as e:
                     print(e)
 
             elif command == "stats":
@@ -523,7 +534,7 @@ def main() -> None:
                 path_name = command.removeprefix("learn ").strip()
                 try:
                     print(player.skill_tree.invest(path_name, player))
-                except ValueError as e:
+                except ActionRefused as e:
                     print(e)
 
 
@@ -534,9 +545,14 @@ def main() -> None:
             return
 
         if active_profile is not None and confirm("You have died. Reload your last save?"):
-            dungeon, _, all_floors = build_world()
-            player, current_room = save_system.load_game(active_profile, active_slot, dungeon)
-            continue
+            fresh_dungeon, _, fresh_floors = build_world()
+            try:
+                player, current_room = save_system.load_game(active_profile, active_slot, fresh_dungeon)
+            except SaveFileError as error:
+                print(error)
+            else:
+                dungeon, all_floors = fresh_dungeon, fresh_floors
+                continue
 
         print("\nYou have died.")
         break

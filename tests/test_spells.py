@@ -1,3 +1,4 @@
+from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.characters import Character
 from dungeon_crawler.spells import Spell
 
@@ -57,8 +58,8 @@ def test_spell_cast_damage_with_no_target_raises_error():
 
     try:
         spell.cast(caster, None)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError as e:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as e:
         assert str(e) == "You need a target for Firebolt - try 'target <enemy>' first."
 
 def test_spell_cast_damage_appends_death_message_when_target_dies():
@@ -91,8 +92,8 @@ def test_spell_cast_with_negative_effect_amount_and_no_target_raises_error():
 
     try:
         spell.cast(caster, None)
-        assert False, "Expected a ValueError but none was raised"
-    except ValueError as e:
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as e:
         assert str(e) == "You need a target for Blight - try 'target <enemy>' first."
 
 def test_spell_cast_builds_a_fresh_effect_object_each_cast():

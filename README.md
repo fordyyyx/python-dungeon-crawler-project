@@ -37,7 +37,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Enemies with loot drops, and with styles that ask for different answers — a heavily armoured wall, a brute with none, an archer who keeps out of melee reach, a six-headed monster that strikes from every side
 * Multi-stage boss fights — a defeated phase can transition seamlessly into the next, or first summon a wave of lesser foes that must all be cleared before the boss reveals what comes after them
 * A Practice Chamber (floor 2, by the Forge of Prometheus) with an infinitely-respawning, customisable dummy — freely test weapons/spells/potions with no mana cost or cooldowns while inside
-* A full save/load system — 3 profiles, 5 slots each, with a New Game / Load Game / Delete Save title screen, manual save/load commands mid-game, and autosave the first time you reach a new floor
+* A full save/load system — 3 profiles, 5 slots each, with a New Game / Load Game / Delete Save title screen, manual save/load commands mid-game, and autosave the first time you reach a new floor — a damaged save is reported in the slot list rather than crashing the game, and saves are written safely so a crash mid-save can't corrupt one
 * Win/lose conditions — dying offers a reload from your last save rather than always ending the game outright
 
 ## Design Highlights
@@ -126,6 +126,7 @@ pytest --cov=src/dungeon_crawler
 * `combat.py` - combat resolution: team-vs-team turns, targeting, status-effect ticking, spellcasting, defeat handling, and fleeing
 * `exploration.py` - everything outside combat: picking up items, trading, recruiting/dismissing companions, repairing armour, examining, and the map
 * `character_creation.py` - ancestry selection and building the player character, plus the title screen and every save/load prompt
+* `exceptions.py` - the game's own exceptions: a refused player action, and a save that can't be read
 * `save_system.py` - the save/load system: profile and slot management, JSON persistence for player state and a full per-room snapshot of the world
 * `dev_tools.py` - the developer command set (not part of the standard game)
 * `engine.py` - the game loop and top-level command routing

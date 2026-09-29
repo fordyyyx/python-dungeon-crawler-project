@@ -1736,7 +1736,7 @@ def test_handle_combat_command_learn_with_no_skill_points_returns_error_message(
 
     message = handle_combat_command("learn defence", player, enemy, [player], [enemy], room)
 
-    assert message == "No skill points available"
+    assert message == "No skill points available."
 
 def test_handle_combat_command_inventory_returns_inventory_display():
     player = Player(name="Hero", hp=50, attack_damage=10)

@@ -17,10 +17,16 @@ from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.items import Armour
 from dungeon_crawler.dev_tools import find_item_by_name, find_spell_by_name, find_companion_by_name, find_enemy_by_name, ENEMY_REGISTRY
 from dungeon_crawler.character_creation import ANCESTRIES
+from dungeon_crawler.exceptions import SaveFileError
 
 PROFILE_LIMIT = 3
 SAVE_SLOTS_PER_PROFILE = 5
 SAVES_DIR = "saves"
+SAVE_READ_ERRORS = (UnicodeDecodeError, KeyError, TypeError, ValueError, AttributeError)
+"""Everything a damaged save can raise while being read and rebuilt. ValueError covers json.JSONDecodeError (a subclass of it) and
+player_from_save_data()'s own unknown-room error. KeyError is a missing field; TypeError is a field of the wrong kind, such as a list where
+a dictionary was expected; AttributeError is a field of the wrong kind that gets a method called on it, such as a true/false where
+a name was expected."""
 
 ABILITY_FLAG_NAMES = [
     "has_double_strike", "has_last_stand", "has_thorns", "has_reckless_strength", "has_measured_casting", "has_swift_feet",
@@ -51,11 +57,13 @@ def slot_summary(profile_num: int, slot_num: int) -> str | None:
     or None if the slot is empty. Reads the raw JSON directly - does not reconstruct a Player."""
     if not slot_exists(profile_num, slot_num):
         return None
-    with open(slot_path(profile_num, slot_num), "r") as f:
-        data = json.load(f)
-    p = data["player"]
-    return f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']}"
-
+    try:
+        with open(slot_path(profile_num, slot_num), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        p = data["player"]
+        return f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']}"
+    except SAVE_READ_ERRORS:
+        return "Damaged save - can't be loaded."
 
 def serialise_player(player: Player, current_room) -> dict:
     """Snapshot Player's full state - not a delta, since there's only ever one Player and no baseline to diff against."""
@@ -311,17 +319,37 @@ def save_game(profile_num: int, slot_num: int, player: Player, current_room, wor
     an occupied slot; this function itself always overwrites unconditionally)."""
     ensure_profile_dir(profile_num)
     data = {"player": serialise_player(player, current_room), "world": serialise_world(world)}
-    with open(slot_path(profile_num, slot_num), "w") as f:
-        json.dump(data, f, indent=2)
+    path = slot_path(profile_num, slot_num)
+    temp_path = path + ".tmp"
+    try:
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        os.replace(temp_path, path)
+    except BaseException:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
+
+def _damaged_save_message(profile_num :int, slot_num: int) -> str:
+    return (
+        f"Profile {profile_num}, slot {slot_num} can't be read - the save may be damaged. "
+        "You can remove it with Delete Save on the title screen."
+    )
 
 def load_game(profile_num: int, slot_num: int, world: Map) -> tuple[Player, Room]:
     """Reconstruct a Player from profile_num/slot_num, patching world (already built fresh via build_world()) to match. Raises FileNotFoundError
-    if the slot is empty - the caller is responsible for checking slot_exists() first and showing a friendly message instead of letting this
-    propagate."""
-    with open(slot_path(profile_num, slot_num), "r") as f:
-        data = json.load(f)
-    apply_world_data(world, data["world"])
-    return player_from_save_data(data["player"], world)
+    if the slot is empty - the caller is responsible for checking slot_exists() first. Raises SaveFileError if the file exists but can't be read
+    or rebuilt; the original error is chained with 'from', so it's still visible when debugging.
+
+    world may be left partly patched if loading fails part-way, so callers must build a fresh world for every load, and discard it if loading
+    raises."""
+    try:
+        with open(slot_path(profile_num, slot_num), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        apply_world_data(world, data["world"])
+        return player_from_save_data(data["player"], world)
+    except SAVE_READ_ERRORS as error:
+        raise SaveFileError(_damaged_save_message(profile_num, slot_num)) from error
 
 def delete_save(profile_num: int, slot_num: int) -> bool:
     """Delete one save slot. Returns False if there was nothing to delete."""

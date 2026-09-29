@@ -10,6 +10,7 @@ from dungeon_crawler.combat import handle_enemy_defeat, resolve_pending_defeats
 from dungeon_crawler.items import Weapon, Armour
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
+from dungeon_crawler.exceptions import SaveFileError, ActionRefused
 from dungeon_crawler.save_system import (
     slot_path, ensure_profile_dir, slot_exists, slot_summary,
     serialise_player, player_from_save_data, serialise_companion, companion_from_save_data,
@@ -1223,3 +1224,132 @@ def test_player_from_save_data_keeps_penelopes_thread_as_a_loyalty_token():
     player.inventory.add(create_penelopes_thread())
     reloaded, _ = player_from_save_data(serialise_player(player, start), dungeon)
     assert reloaded.has_loyalty_token() is True
+
+def write_raw_save(tmp_path, profile, slot, content):
+    """Write content straight into a slot's file, bypassing save_game() - for simulating a damaged save."""
+    ensure_profile_dir(profile)
+    mode = "wb" if isinstance(content, bytes) else "w"
+    with open(slot_path(profile, slot), mode) as f:
+        f.write(content)
+
+def valid_save_data(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    save_game(1, 1, Player(name="Hero", hp=20), start, dungeon)
+    with open(slot_path(1, 1), encoding="utf-8") as f:
+        return json.load(f)
+
+def assert_load_refused(profile=1, slot=1):
+    dungeon, _, _ = build_world()
+    try:
+        load_game(profile, slot, dungeon)
+        assert False, "Expected a SaveFileError but none was raised"
+    except SaveFileError as error:
+        return error
+
+def test_save_file_error_is_neither_a_refusal_nor_a_value_error():
+    """Nothing that handles ActionRefused or ValueError should catch a damaged save by accident."""
+    assert not issubclass(SaveFileError, ActionRefused)
+    assert not issubclass(SaveFileError, ValueError)
+
+def test_load_game_malformed_json_raises_save_file_error(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_raw_save(tmp_path, 1, 1, '{"player": {"name": "Hero"')
+    error = assert_load_refused()
+    assert isinstance(error.__cause__, json.JSONDecodeError)
+
+def test_load_game_damaged_save_message_names_the_slot_and_the_fix(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_raw_save(tmp_path, 2, 3, "not json at all")
+    assert str(assert_load_refused(2, 3)) == (
+        "Profile 2, slot 3 can't be read - the save may be damaged. You can remove it with Delete Save on the title screen."
+    )
+
+def test_load_game_an_empty_file_raises_save_file_error(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_raw_save(tmp_path, 1, 1, "")
+    assert_load_refused()
+
+def test_load_game_undecodable_bytes_raise_save_file_error(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_raw_save(tmp_path, 1, 1, b"\xff\xfe\x00garbage")
+    assert isinstance(assert_load_refused().__cause__, UnicodeDecodeError)
+
+def test_load_game_a_missing_section_raises_save_file_error(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    del data["world"]
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    assert isinstance(assert_load_refused().__cause__, KeyError)
+
+def test_load_game_a_field_of_the_wrong_kind_raises_save_file_error(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    data["player"] = ["not", "a", "dictionary"]
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    assert isinstance(assert_load_refused().__cause__, TypeError)
+
+def test_load_game_an_unknown_room_raises_save_file_error(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    data["player"]["current_room"] = "Nowhere At All"
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    assert isinstance(assert_load_refused().__cause__, ValueError)
+
+def test_load_game_an_empty_slot_still_raises_file_not_found(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    try:
+        load_game(1, 1, build_world()[0])
+        assert False, "Expected a FileNotFoundError but none was raised"
+    except FileNotFoundError:
+        pass
+
+def test_slot_summary_of_a_damaged_save_says_so(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_raw_save(tmp_path, 1, 1, "{broken")
+    assert slot_summary(1, 1) == "Damaged save - can't be loaded."
+
+def test_slot_summary_of_a_save_missing_its_player_says_so(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_raw_save(tmp_path, 1, 1, json.dumps({"world": {}}))
+    assert slot_summary(1, 1) == "Damaged save - can't be loaded."
+
+def test_delete_save_removes_a_damaged_save(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_raw_save(tmp_path, 1, 1, "{broken")
+    assert delete_save(1, 1) is True
+    assert slot_exists(1, 1) is False
+
+def test_save_game_leaves_no_temporary_file_behind(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    save_game(1, 1, Player(name="Hero", hp=20), start, dungeon)
+    assert os.listdir(os.path.dirname(slot_path(1, 1))) == ["slot_1.json"]
+
+def test_save_game_a_failed_write_keeps_the_previous_save(monkeypatch, tmp_path):
+    """Saves are written to a temporary file then swapped in - a crash part-way through can't damage the save already there."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    save_game(1, 1, Player(name="Before", hp=20), start, dungeon)
+
+    def fail_part_way(*args, **kwargs):
+        raise OSError("disk full")
+    monkeypatch.setattr("dungeon_crawler.save_system.json.dump", fail_part_way)
+    try:
+        save_game(1, 1, Player(name="After", hp=20), start, dungeon)
+        assert False, "Expected an OSError but none was raised"
+    except OSError:
+        pass
+
+    monkeypatch.undo()
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    reloaded, _ = load_game(1, 1, build_world()[0])
+    assert reloaded.name == "Before"
+    assert os.listdir(os.path.dirname(slot_path(1, 1))) == ["slot_1.json"]
+
+def test_load_game_a_field_that_gets_a_method_called_on_it_raises_save_file_error(monkeypatch, tmp_path):
+    """Regression: a saved enemy's wave_gate stored as true raised an uncaught AttributeError ('bool' has no .lower()) - it wasn't in
+    SAVE_READ_ERRORS, so a corrupted save like this still crashed the game."""
+    data = valid_save_data(monkeypatch, tmp_path)
+    room = next(r for r in data["world"].values() if r["enemies"])
+    room["enemies"][0]["wave_gate"] = True
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    assert isinstance(assert_load_refused().__cause__, AttributeError)
+

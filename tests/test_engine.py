@@ -1837,3 +1837,45 @@ def test_main_taking_penelopes_thread_after_the_suitors(monkeypatch, capsys, tmp
     assert "Bedchamber of Odysseus:" in captured.out
     assert "Penelope gives you Penelope's Thread." in captured.out
     assert "Penelope's Thread" in captured.out.split("Penelope gives you Penelope's Thread.")[-1]
+
+def write_damaged_save(tmp_path, profile, slot):
+    folder = tmp_path / f"profile_{profile}"
+    folder.mkdir(exist_ok=True)
+    (folder / f"slot_{slot}.json").write_text('{"player": {"name": "Hero"', encoding="utf-8")
+
+def test_main_loading_a_damaged_save_from_the_title_screen_does_not_crash(monkeypatch, capsys, tmp_path):
+    """Regression: a damaged save raised an uncaught JSONDecodeError and ended the game."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_damaged_save(tmp_path, 1, 1)
+    responses = iter(["2", "1", "1", "4"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Damaged save - can't be loaded." in captured.out
+    assert "Profile 1, slot 1 can't be read - the save may be damaged." in captured.out
+
+def test_main_mid_game_load_of_a_damaged_save_keeps_the_current_game(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_damaged_save(tmp_path, 1, 2)
+    responses = iter(["1", "1", "1", "developer mode", "basic", "ares", "floor_0", "load 1 2", "yes", "look", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    after = captured.out.split("Profile 1, slot 2 can't be read")[-1]
+    assert "Chamber of Chiron:" in after
+
+def test_main_dying_with_a_damaged_save_ends_the_game_cleanly(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    write_damaged_save(tmp_path, 1, 1)
+    responses = iter(["1", "1", "1", "yes", "developer mode", "basic", "ares", "floor_0", "dev set hp 0", "yes"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "Profile 1, slot 1 can't be read" in captured.out
+    assert "You have died." in captured.out
