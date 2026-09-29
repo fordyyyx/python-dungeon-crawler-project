@@ -180,18 +180,24 @@ def create_wheel_of_cheese() -> Consumable:
 def create_head_of_scylla() -> Enemy:
     """Create a Head of Scylla - six are placed in Rocky Shore, one per head in the myth, guarding the route south to Poseidon's Depths.
     Individually weak, but six attacks a round make it the fight where armour matters most: every point is subtracted from six separate hits
-    (though each still deals at least MINIMUM_DAMAGE). No armour of its own, so cleave and Twin Strike are strong here. No item loot
-    - six identical heads can only drop identical items, so the room's reward is the Boar's-Tusk Helm on the rocks instead."""
-    return Enemy(
+    (though each still deals at least MINIMUM_DAMAGE). Each head strikes blindly through the spray - a lasting 30% miss chance, applied as a
+    status effect the way Polyphemus (Blinded) is. Without it, an armour-stacked player took the minimum from every one of about 21 bites and
+    was worn down by the count alone; head HP, attack and aggression made no difference, since the player one-shots each head. Named apart
+    from BLINDED_EFFECT_NAME, so the Olive-wood Stake's blind stacks on top instead of just prolonging it. No armour of its own, so cleave and
+    Twin Strike are strong here. No item loot - six identical heads can only drop identical items, so the room's reward is the Boar's-Tusk
+    Helm on the rocks instead."""
+    head = Enemy(
         name="Head of Scylla",
         hp=12,
-        attack_damage=7,
+        attack_damage=6,
         armour=0,
-        description="A long, scaled neck ending in a mouth with three rows of teeth. It isn't alone - it never is.",
+        description="A long, scaled neck ending in a mouth with three rows of teeth, snapping blindly through the spray at anything that moves. It isn't alone - it never is.",
         experience_reward=12,
         gold_reward=5,
         aggression_weight=1.4,
     )
+    head.apply_status_effect(StatusEffect("Blind", 0, 999, miss_chance=0.3))
+    return head
 
 def create_boars_tusk_helm() -> Armour:
     """Create the Boar's-Tusk Helm - the first heavy helmet (3 defence), completing the helmet choices: the Weathered Helm (light, 1),

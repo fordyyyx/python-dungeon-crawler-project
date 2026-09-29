@@ -1,11 +1,17 @@
 from dungeon_crawler.content import create_suitor, create_antinous, create_eurymachus, create_antinous_goblet, create_penelope, create_penelopes_thread, create_circe, create_nestor, create_poseidon, create_hippocampus, create_poseidon_earth_shaker, create_trident_of_the_depths, create_kelp_poultice, create_odysseus, create_charybdis, create_hoplon_of_the_drowned, resolve_charybdis_action, CHARYBDIS_PHASES, create_polyphemus, create_polyphemus_blinded, create_olive_wood_stake, create_wheel_of_cheese, create_head_of_scylla, create_boars_tusk_helm, ANCESTRIES, create_laestrygonian, create_antiphates, create_laestrygonian_hide, create_antiphates_club, create_shade_of_ajax, create_tower_shield_of_ajax, create_myrmidon_soldier, create_field_dressing, create_shade_of_paris, create_bow_of_paris, create_nestor, create_cup_of_kykeon, create_shade_of_hector, create_hectors_helm, create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player, Companion, Enemy
 from dungeon_crawler.world import Room
-from dungeon_crawler.exploration import talk_to, get_story_gate
+from dungeon_crawler.exploration import talk_to, get_story_gate, display_local_exits
 from dungeon_crawler.dialogue import continue_dialogue
+from dungeon_crawler.combat import resolve_pending_defeats
+from dungeon_crawler.content import create_cerberus, create_cerberus_two_heads, create_cerberus_last_head, create_aconite_fangs, create_hide_of_cerberus, create_restless_shade, create_hades_helm_of_darkness, create_hades_companion, create_bident_of_hades, HADES_SPARED, HADES_DEFEATED
+from dungeon_crawler.content import create_typhon, create_serpent_of_typhon, create_typhon_storm_unleashed, create_serpent_venom, create_storm_of_ash, create_heart_of_typhon, TYPHON_DEFEATED
+from dungeon_crawler.exploration import floor_traits
+from dungeon_crawler.items import Trophy
 from dungeon_crawler.content import create_oracle, create_tiresias, create_persephone, create_pomegranate, ORACLE_TWIST, ORACLE_PHRASES, ORACLE_NOTHING_STRANGE, PROMISED_MERCY, REFUSED_MERCY
 from dungeon_crawler.dev_tools import find_item_by_name, ALLY_REGISTRY
 from dungeon_crawler.items import LoyaltyToken, QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
+from dungeon_crawler.status_effects import StatusEffect
 
 
 def test_create_minotaur_has_correct_stats():
@@ -441,17 +447,17 @@ def test_create_skeleton_bone_is_a_quest_item():
 def test_create_hades_has_correct_stats():
     hades = create_hades()
     assert hades.name == "Hades"
-    assert hades.hp == 60
+    assert hades.hp == 83
     assert hades.attack_damage == 15
     assert hades.armour == 5
-    assert len(hades.loot) == 1
-    assert hades.experience_reward == 80
-    assert hades.gold_reward == 55
+    assert hades.heal_amount == 6
+    assert hades.brace_amount == 5
 
-def test_create_hades_drops_ambrosia():
+def test_create_hades_first_phase_gives_no_rewards():
     hades = create_hades()
-    message = hades.on_death()
-    assert "Vial of Ambrosia" in message
+    assert hades.loot == []
+    assert hades.experience_reward == 0
+    assert hades.gold_reward == 0
 
 def test_create_bronze_xiphos_has_correct_damage_and_description():
     sword = create_bronze_xiphos()
@@ -1288,7 +1294,10 @@ def test_build_world_forge_of_prometheus_reciprocal_exits_start_fast_travel_lock
     dungeon, entrance, floors = build_world()
     forge = dungeon.get_room("Forge of Prometheus")
     assert forge is not None
-    assert forge.fast_travel_locks == {"prayer room", "stony lair", "maze of pillars", "shadow of pylos", "shadow of ithaca"}
+    assert forge.fast_travel_locks == {
+        "prayer room", "stony lair", "maze of pillars", "shadow of pylos", "shadow of ithaca",
+        "bedchamber of persephone", "gate of cerberus", "tartarus",
+    }
 
 def test_build_world_prayer_room_forge_exit_registers_activation_for_forge_of_prometheus():
     dungeon, entrance, floors = build_world()
@@ -2281,7 +2290,7 @@ def test_create_shade_of_ajax_has_correct_stats():
     ajax = create_shade_of_ajax()
     assert ajax.name == "Shade of Ajax"
     assert ajax.hp == 46
-    assert ajax.attack_damage == 14
+    assert ajax.attack_damage == 12
     assert ajax.armour_pierce == 3
     assert ajax.armour == 1
     assert ajax.experience_reward == 42
@@ -2639,7 +2648,7 @@ def test_create_head_of_scylla_has_correct_stats():
     head = create_head_of_scylla()
     assert head.name == "Head of Scylla"
     assert head.hp == 12
-    assert head.attack_damage == 7
+    assert head.attack_damage == 6
     assert head.armour == 0
     assert head.aggression_weight == 1.4
 
@@ -3116,12 +3125,12 @@ def test_penelopes_description_has_her_sitting_at_the_loom():
     assert create_penelope().description.startswith("She sits at the loom")
 
 def _tiresias_and_player():
-    """The world-wired Tiresias, and a player who has reached floor 7 (floor 8 below has no enemies yet), carries a heal, and has a
-    companion - so none of his warnings apply."""
+    """The world-wired Tiresias, and a player who has reached floor 8 (Tartarus below is concealed, so there's no floor to weigh them
+    against), carries a heal, and has a companion - so none of his warnings apply."""
     dungeon, start, floors = build_world()
     tiresias = floors["floor_7"]["Shadow of Thebes"].allies[0]
     player = Player(name="Hero", hp=20)
-    player.visited_floors = {"floor_7"}
+    player.visited_floors = {"floor_8"}
     player.inventory.add(create_small_healing_potion())
     player.companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
     return tiresias, player
@@ -3211,11 +3220,11 @@ def test_oracle_ask_ahead_with_no_notable_traits_sees_only_strength():
     player.visited_floors = {"floor_0"}
     assert _ask(chamber, "ask ahead", player) == f'"{ORACLE_NOTHING_STRANGE}"\n(2 prophecies remain.)'
 
-def test_oracle_ask_ahead_with_no_enemies_below_is_not_spent():
-    """Floor 8 has no enemies placed yet, so from floor 7 there's nothing to foretell."""
+def test_oracle_ask_ahead_with_nothing_below_is_not_spent():
+    """From floor 8 the floor below is Tartarus - concealed until Hades falls, so there's nothing she'll name."""
     chamber = _oracle_chamber()
     player = Player(name="Hero", hp=20)
-    player.visited_floors = {"floor_7"}
+    player.visited_floors = {"floor_8"}
     message = _ask(chamber, "ask ahead", player)
     assert "(That prophecy was not spent.)" in message
     assert chamber.flags == set()
@@ -3492,3 +3501,382 @@ def test_persephone_thinking_it_over_leaves_the_descent_shut():
     continue_dialogue("2", bedchamber, player)
     continue_dialogue("3", bedchamber, player)
     assert get_story_gate(bedchamber, "descend", player) is not None
+
+# ---- floor 8: Cerberus ----
+
+def test_floor_8_story_flag_names():
+    """Both are saved in Player.story_flags - and 'hades_defeated' is what un-conceals Tartarus - so the spellings are pinned."""
+    assert HADES_SPARED == "hades_spared"
+    assert HADES_DEFEATED == "hades_defeated"
+
+def test_create_cerberus_is_a_bracing_wall_with_no_rewards():
+    cerberus = create_cerberus()
+    assert (cerberus.name, cerberus.hp, cerberus.attack_damage, cerberus.armour) == ("Cerberus", 75, 13, 5)
+    assert cerberus.brace_amount == 5
+    assert cerberus.loot == []
+    assert cerberus.experience_reward == 0
+    assert cerberus.with_article() == "Cerberus"
+
+def test_create_cerberus_leads_to_two_heads_then_the_last_head():
+    two_heads = create_cerberus().next_phase_factory()
+    last_head = two_heads.next_phase_factory()
+    assert two_heads.name == "Cerberus (Two Heads)"
+    assert last_head.name == "Cerberus (Last Head)"
+    assert last_head.next_phase_factory is None
+
+def test_create_cerberus_two_heads_hits_hardest_with_less_armour():
+    two_heads = create_cerberus_two_heads()
+    assert (two_heads.hp, two_heads.attack_damage, two_heads.armour) == (68, 17, 3)
+    assert two_heads.aggression_weight == 1.6
+    assert two_heads.loot == []
+
+def test_create_cerberus_last_head_has_the_rewards():
+    last_head = create_cerberus_last_head()
+    assert (last_head.hp, last_head.attack_damage, last_head.armour) == (60, 15, 3)
+    assert last_head.experience_reward == 110
+    assert last_head.gold_reward == 60
+    assert [item.name for item in last_head.loot] == ["Hide of Cerberus"]
+
+def test_create_cerberus_last_head_bites_with_the_aconite_fangs():
+    """A natural weapon: equipped, never in the loot, adding only its poison chance."""
+    last_head = create_cerberus_last_head()
+    fangs = last_head.equipped_melee_weapon
+    assert fangs is not None
+    assert fangs.name == "Aconite Fangs"
+    assert fangs not in last_head.loot
+
+def test_create_aconite_fangs_add_no_damage_only_poison():
+    fangs = create_aconite_fangs()
+    assert fangs.damage == 0
+    assert fangs.poison_chance == 0.35
+
+def test_create_hide_of_cerberus_is_the_best_body_armour():
+    hide = create_hide_of_cerberus()
+    assert (hide.defence, hide.slot, hide.weight, hide.max_durability) == (7, "body", "heavy", 22)
+    assert hide.with_article() == "the Hide of Cerberus"
+
+def test_cerberus_last_head_defeat_fully_restores_player_and_revives_companion():
+    player = Player(name="Hero", hp=30)
+    player.hp = 3
+    player.companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    player.companion.hp = 0
+    message = create_cerberus_last_head().defeat_effect(player)
+    assert player.hp == 30
+    assert player.companion.hp == 10
+    assert "Imp stands straighter too" in message
+
+def test_cerberus_last_head_defeat_without_a_companion():
+    player = Player(name="Hero", hp=30)
+    player.hp = 3
+    message = create_cerberus_last_head().defeat_effect(player)
+    assert player.hp == 30
+    assert "stands straighter" not in message
+
+# ---- floor 8: Hades ----
+
+def test_create_hades_brings_three_restless_shades_then_the_helm():
+    hades = create_hades()
+    adds = [factory() for factory in hades.next_wave_factories]
+    assert [add.name for add in adds] == ["Restless Shade"] * 3
+    assert hades.next_phase_factory().name == "Hades (Helm of Darkness)"
+
+def test_create_restless_shade_drops_ambrosia():
+    shade = create_restless_shade()
+    assert (shade.hp, shade.attack_damage, shade.armour) == (15, 9, 1)
+    assert [item.name for item in shade.loot] == ["Vial of Ambrosia"]
+    assert (shade.experience_reward, shade.gold_reward) == (10, 3)
+
+def test_create_hades_helm_of_darkness_is_evasive_and_piercing():
+    helm = create_hades_helm_of_darkness()
+    assert (helm.hp, helm.attack_damage, helm.armour) == (83, 18, 4)
+    assert helm.melee_dodge_chance == 0.4
+    assert helm.armour_pierce == 2
+    assert (helm.experience_reward, helm.gold_reward) == (150, 80)
+    assert [item.name for item in helm.loot] == ["Bident of Hades"]
+
+def test_create_hades_helm_of_darkness_yields_on_promised_mercy():
+    helm = create_hades_helm_of_darkness()
+    assert helm.yield_condition_flag == PROMISED_MERCY
+    assert helm.yield_companion_factory is create_hades_companion
+    assert helm.yield_result_flag == HADES_SPARED
+
+def test_create_bident_of_hades_pierces_and_drains():
+    bident = create_bident_of_hades()
+    assert (bident.damage, bident.weapon_class, bident.armour_pierce) == (10, "piercing", 4)
+    assert bident.lifesteal is True
+    assert bident.with_article() == "the Bident of Hades"
+
+def test_create_hades_companion_has_a_placeholder_home_by_default():
+    hades = create_hades_companion()
+    assert (hades.name, hades.hp, hades.attack_damage, hades.armour) == ("Hades", 40, 12, 4)
+    assert (hades.heal_amount, hades.brace_amount) == (3, 4)
+    assert hades.home_room.name == "Hall of Hades"
+
+def test_create_hades_companion_uses_a_given_home_room():
+    hall = Room("Hall of Hades")
+    assert create_hades_companion(hall).home_room is hall
+
+def test_create_hades_companion_can_be_recruited_straight_away():
+    assert create_hades_companion().can_be_recruited(Player(name="Hero", hp=20)) is True
+
+def test_hades_reveal_when_spared_is_his_own_explanation():
+    player = Player(name="Hero", hp=30)
+    player.hp = 2
+    player.story_flags.add(HADES_SPARED)
+    message = create_hades_helm_of_darkness().defeat_effect(player)
+    assert message.startswith("Hades drops to one knee")
+    assert "Typhon" in message
+    assert message.endswith("(You are fully restored.)")
+    assert player.hp == 30
+
+def test_hades_reveal_when_killed_is_understood_too_late():
+    player = Player(name="Hero", hp=30)
+    player.hp = 2
+    player.companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    player.companion.hp = 1
+    message = create_hades_helm_of_darkness().defeat_effect(player)
+    assert message.startswith("Hades falls, and the floor of the hall shudders")
+    assert "too late" in message
+    assert player.hp == 30
+    assert player.companion.hp == 10
+
+# ---- floor 8: placement ----
+
+def test_build_floor_8_places_cerberus_guarding_the_way_south():
+    start, rooms = build_floor_8()
+    gate = rooms["Gate of Cerberus"]
+    assert [enemy.name for enemy in gate.enemies] == ["Cerberus"]
+    assert "south" in gate.guarded_exits
+
+def test_build_floor_8_places_hades_and_his_cleared_flag():
+    start, rooms = build_floor_8()
+    hall = rooms["Hall of Hades"]
+    assert [enemy.name for enemy in hall.enemies] == ["Hades"]
+    assert hall.cleared_story_flag == HADES_DEFEATED
+
+def test_build_world_guards_the_stair_to_tartarus():
+    dungeon, start, floors = build_world()
+    assert "descend" in floors["floor_8"]["Hall of Hades"].guarded_exits
+
+def _fight_through_hades(player):
+    """Defeat every phase and wave in the Hall of Hades the way combat would - HP to 0, then the normal defeat sweep. Returns the hall and
+    everything the sweeps said."""
+    dungeon, start, floors = build_world()
+    hall = floors["floor_8"]["Hall of Hades"]
+    player.in_combat = True
+    messages = []
+    while hall.enemies:
+        for enemy in hall.enemies:
+            enemy.hp = 0
+        messages.append(resolve_pending_defeats(player, hall))
+    return hall, "\n".join(messages)
+
+def test_sparing_hades_leaves_him_recruitable_in_his_hall():
+    player = Player(name="Hero", hp=30)
+    player.story_flags.add(PROMISED_MERCY)
+    hall, messages = _fight_through_hades(player)
+    assert [c.name for c in hall.companions] == ["Hades"]
+    assert hall.companions[0].home_room is hall
+    assert {HADES_SPARED, HADES_DEFEATED} <= player.story_flags
+    assert "Hades drops to one knee" in messages
+
+def test_killing_hades_leaves_no_companion():
+    player = Player(name="Hero", hp=30)
+    player.story_flags.add(REFUSED_MERCY)
+    hall, messages = _fight_through_hades(player)
+    assert hall.companions == []
+    assert HADES_SPARED not in player.story_flags
+    assert HADES_DEFEATED in player.story_flags
+    assert "understand - too late" in messages
+
+def test_hades_drops_the_bident_and_pays_either_way():
+    player = Player(name="Hero", hp=30)
+    player.story_flags.add(PROMISED_MERCY)
+    hall, messages = _fight_through_hades(player)
+    assert "Bident of Hades" in [item.name for item in hall.items]
+    assert [item.name for item in hall.items].count("Vial of Ambrosia") == 3
+    assert player.gold == 80 + 3 * 3
+
+def test_defeating_hades_reveals_tartarus():
+    player = Player(name="Hero", hp=30)
+    hall, messages = _fight_through_hades(player)
+    assert get_story_gate(hall, "descend", player) is None
+    assert "Tartarus" in display_local_exits(hall, player)
+
+def test_oracle_from_floor_7_foretells_floor_8():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.seen_lines.add("opening:Oracle")
+    player.visited_floors = {"floor_7"}
+    message = _ask(chamber, "ask ahead", player)
+    assert f'"{ORACLE_PHRASES["heavy_armour"]}"' in message
+    assert f'"{ORACLE_PHRASES["evasive"]}"' in message
+    assert message.endswith("(2 prophecies remain.)")
+
+# ---- floor 9: Typhon ----
+
+def test_typhon_defeated_flag_name():
+    """Saved in Player.story_flags, and what triggers the true ending - so the spelling is pinned."""
+    assert TYPHON_DEFEATED == "typhon_defeated"
+
+def test_create_typhon_is_the_armoured_first_phase_with_no_rewards():
+    typhon = create_typhon()
+    assert (typhon.name, typhon.hp, typhon.attack_damage, typhon.armour) == ("Typhon", 90, 20, 5)
+    assert typhon.armour_pierce == 3
+    assert typhon.brace_amount == 6
+    assert typhon.loot == []
+    assert typhon.experience_reward == 0
+    assert typhon.with_article() == "Typhon"
+
+def test_create_typhon_wave_is_four_factories_building_separate_serpents():
+    """Regression: the wave was written as [create_serpent_of_typhon()] * 4 - one Enemy, not four factories - so defeating the first phase
+    raised TypeError and ended the game, and Tiresias/the Oracle crashed describing floor 9 once Hades had fallen."""
+    serpents = [factory() for factory in create_typhon().next_wave_factories]
+    assert [serpent.name for serpent in serpents] == ["Serpent of Typhon"] * 4
+    assert len({id(serpent) for serpent in serpents}) == 4
+
+def test_create_typhon_leads_to_storm_unleashed():
+    assert create_typhon().next_phase_factory().name == "Typhon (Storm Unleashed)"
+
+def test_create_serpent_of_typhon_drops_ambrosia_and_pays():
+    serpent = create_serpent_of_typhon()
+    assert (serpent.hp, serpent.attack_damage, serpent.armour) == (18, 10, 2)
+    assert (serpent.experience_reward, serpent.gold_reward) == (20, 10)
+    assert [item.name for item in serpent.loot] == ["Vial of Ambrosia"]
+
+def test_create_serpent_of_typhon_bites_with_its_venom():
+    serpent = create_serpent_of_typhon()
+    assert serpent.equipped_melee_weapon.name == "Serpent Venom"
+    assert serpent.equipped_melee_weapon not in serpent.loot
+
+def test_create_serpent_venom_adds_only_poison():
+    venom = create_serpent_venom()
+    assert venom.damage == 0
+    assert venom.poison_chance == 0.3
+
+def test_create_typhon_storm_unleashed_is_the_hardest_fight():
+    storm = create_typhon_storm_unleashed()
+    assert (storm.hp, storm.attack_damage, storm.armour, storm.armour_pierce) == (110, 24, 4, 4)
+    assert storm.melee_dodge_chance == 0.25
+    assert storm.heal_amount == 8
+    assert (storm.experience_reward, storm.gold_reward) == (250, 150)
+    assert [item.name for item in storm.loot] == ["Heart of Typhon"]
+    assert storm.next_phase_factory is None
+
+def test_create_typhon_storm_unleashed_blinds_with_the_storm_of_ash():
+    storm = create_typhon_storm_unleashed()
+    assert storm.equipped_melee_weapon.name == "Storm of Ash"
+    assert storm.equipped_melee_weapon not in storm.loot
+
+def test_create_storm_of_ash_adds_only_blindness():
+    ash = create_storm_of_ash()
+    assert ash.damage == 0
+    assert ash.blind_chance == 0.3
+
+def test_create_heart_of_typhon_is_a_trophy():
+    heart = create_heart_of_typhon()
+    assert isinstance(heart, Trophy)
+    assert heart.with_article() == "the Heart of Typhon"
+
+def test_build_floor_9_places_typhon_concealed_until_hades_falls():
+    start, rooms = build_floor_9()
+    tartarus = rooms["Tartarus"]
+    assert [enemy.name for enemy in tartarus.enemies] == ["Typhon"]
+    assert tartarus.concealed_until == HADES_DEFEATED
+    assert tartarus.cleared_story_flag == TYPHON_DEFEATED
+
+def test_defeating_typhon_sets_the_flag_and_leaves_the_loot():
+    dungeon, start, floors = build_world()
+    tartarus = floors["floor_9"]["Tartarus"]
+    player = Player(name="Hero", hp=30)
+    player.in_combat = True
+    while tartarus.enemies:
+        for enemy in tartarus.enemies:
+            enemy.hp = 0
+        resolve_pending_defeats(player, tartarus)
+    assert TYPHON_DEFEATED in player.story_flags
+    assert [item.name for item in tartarus.items] == ["Vial of Ambrosia"] * 4 + ["Heart of Typhon"]
+    assert player.gold == 4 * 10 + 150
+
+def test_floor_traits_of_tartarus_expand_every_phase_and_wave():
+    start, rooms = build_floor_9()
+    assert floor_traits(rooms) == ["heavy_armour", "evasive", "heals", "pierces", "numerous"]
+
+def test_tiresias_warns_about_tartarus_once_hades_has_fallen():
+    """Regression for the wave crash: the reading has to expand Typhon's wave."""
+    tiresias, player = _tiresias_and_player()
+    player.story_flags.add(HADES_DEFEATED)
+    assert "Your blade will skid off what waits below." in tiresias.talk(player)
+
+def test_oracle_foretells_tartarus_once_hades_has_fallen():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.seen_lines.add("opening:Oracle")
+    player.visited_floors = {"floor_8"}
+    player.story_flags.add(HADES_DEFEATED)
+    message = _ask(chamber, "ask ahead", player)
+    assert f'"{ORACLE_PHRASES["numerous"]}"' in message
+    assert chamber.flags == {"prophecy:ahead:floor_9"}
+
+def test_hades_companion_has_a_rival_line_for_typhon():
+    assert "Typhon" in create_hades_companion().rival_lines
+
+# ---- the late forge shortcuts ----
+
+LATE_FORGE_ROOMS = (("floor_7", "Bedchamber of Persephone"), ("floor_8", "Gate of Cerberus"), ("floor_9", "Tartarus"))
+
+def test_build_world_late_rooms_have_a_forge_shortcut():
+    dungeon, start, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    for floor_key, name in LATE_FORGE_ROOMS:
+        assert floors[floor_key][name].get_exit("forge") is forge, name
+
+def test_build_world_forge_reciprocal_exits_lead_back_to_the_late_rooms():
+    dungeon, start, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    for floor_key, name in LATE_FORGE_ROOMS:
+        assert forge.get_exit(name.lower()) is floors[floor_key][name], name
+
+def test_build_world_using_a_late_forge_shortcut_opens_the_way_back():
+    dungeon, start, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    for floor_key, name in LATE_FORGE_ROOMS:
+        assert floors[floor_key][name].exit_activations["forge"] == (forge, name.lower()), name
+
+def test_forge_does_not_list_the_tartarus_shortcut_until_hades_falls():
+    dungeon, start, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    player = Player(name="Hero", hp=20)
+    assert "tartarus" not in display_local_exits(forge, player)
+    player.story_flags.add(HADES_DEFEATED)
+    assert "tartarus -> Sealed Shortcut" in display_local_exits(forge, player)
+
+def test_late_forge_rooms_mention_the_shortcut_in_their_description():
+    dungeon, start, floors = build_world()
+    for floor_key, name in LATE_FORGE_ROOMS:
+        assert "say 'forge'" in floors[floor_key][name].description, name
+
+def test_head_of_scylla_strikes_wildly():
+    """The heads are six attacks a round, but each misses 30% of the time - so armour-stacked players, who take the minimum from every bite,
+    aren't simply worn down by the count of bites."""
+    assert create_head_of_scylla().get_miss_chance("light") == 0.3
+
+def test_head_of_scylla_miss_chance_lasts_the_whole_fight():
+    head = create_head_of_scylla()
+    for _ in range(20):
+        head.attack(Player(name="Hero", hp=200))
+    assert head.get_miss_chance("light") == 0.3
+
+def test_head_of_scylla_miss_is_not_the_blinded_effect():
+    """A separate effect, so the Olive-wood Stake's Blinded stacks on top of it rather than just prolonging it."""
+    head = create_head_of_scylla()
+    assert [effect.name for effect in head.active_effects] != ["Blinded"]
+
+def test_head_of_scylla_blinded_by_the_stake_misses_more_often():
+    head = create_head_of_scylla()
+    head.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
+    assert round(head.get_miss_chance("light"), 2) == 0.6
+
+def test_rocky_shore_heads_all_strike_wildly():
+    start, rooms = build_floor_6()
+    assert [e.get_miss_chance("light") for e in rooms["Rocky Shore"].enemies] == [0.3] * 6

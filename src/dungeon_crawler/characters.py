@@ -25,6 +25,9 @@ WEAPON_LIFESTEAL_CAP: int = 3
 WEAPON_POISON_AMOUNT: int = -3
 WEAPON_POISON_DURATION: int = 3
 MINIMUM_DAMAGE: int = 1
+MINIMUM_DAMAGE_FRACTION: float = 0.1
+"""However much armour a target has, any hit that lands deals at least this fraction of its incoming damage (rounded), and never less than
+MINIMUM_DAMAGE. Keeps heavy hits meaningful against the very high armour possible late in the game, while weak hits behave as before."""
 HP_PER_LEVEL: int = 2
 COMPANION_HP_PER_LEVEL: int = 2
 COMPANION_ATTACK_PER_LEVEL: int = 1
@@ -258,7 +261,7 @@ class Character:
         (a piercing weapon, or the attacker's natural pierce). melee=True - passed by attack() for light/heavy attacks and cleave - also lets
         melee_dodge_chance evade the hit, on the same roll as dodge_chance: below dodge_chance is an ordinary dodge, below the two combined is
         'stays just out of reach'. Spells and ranged attacks leave melee False. Every worn piece loses 1 durability per hit that isn't dodged. Any hit with amount > 0 that isn't dodged deals at
-        least MINIMUM_DAMAGE, however much brace/armour/Iron Hide would otherwise absorb - a 0-damage attacker still deals 0. An invulnerable
+        least max(MINIMUM_DAMAGE, round(amount * MINIMUM_DAMAGE_FRACTION)), however much brace/armour/Iron Hide would otherwise absorb - a 0-damage attacker still deals 0. An invulnerable
         enemy (Enemy.invulnerable) returns (0, its invulnerable_message) before any of this runs - no dodge roll, no wear, no damage."""
         if getattr(self, "invulnerable", False):
             return 0, getattr(self, "invulnerable_message", f"{self.name} can't be harmed.")
@@ -276,7 +279,8 @@ class Character:
         if self.has_iron_hide:
             reduced = max(0, reduced - 1)
         if amount > 0:
-            reduced = max(MINIMUM_DAMAGE, reduced)
+            minimum = max(MINIMUM_DAMAGE, round(amount * MINIMUM_DAMAGE_FRACTION))
+            reduced = max(minimum, reduced)
 
         for piece in (self.equipped_helmet, self.equipped_body, self.equipped_shield):
             if piece is not None and piece.durability > 0:
@@ -544,7 +548,7 @@ class Player(Character):
 class Enemy(Character):
     """A hostile Character with loot, and optionally a boss phase transition via next_phase_factory."""
 
-    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None, ancestry_lines: dict[str, str] | None = None, melee_dodge_chance: float = 0.0, armour_pierce: int = 0, article: str = "a", invulnerable: bool = False, invulnerable_message: str = ""):
+    def __init__(self, name: str, hp: int, description: str ="", attack_damage: int = 5, loot: list[Item] | None = None, armour: int = 0, next_phase_factory = None, next_wave_factories: list | None = None, wave_gate_factory = None, experience_reward=0, gold_reward=0, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int = 0, respawns: bool = False, has_lifesteal: bool = False, has_petrifying_gaze: bool = False, defeat_effect: "Callable[[Player], str] | None" = None, ancestry_lines: dict[str, str] | None = None, melee_dodge_chance: float = 0.0, armour_pierce: int = 0, article: str = "a", invulnerable: bool = False, invulnerable_message: str = "", yield_condition_flag: str | None = None, yield_companion_factory: "Callable[[], Companion] | None" = None, yield_result_flag: str | None = None):
         """experience_reward and gold_reward are granted to the player (and the same experience to their companion) on this enemy's defeat,
         via handle_enemy_defeat() - see combat.py. defeat_effect runs on that same final defeat. melee_dodge_chance and armour_pierce are the
         Character fields of the same name (see there) - the Shade of Paris is the first enemy to set either.
@@ -598,6 +602,13 @@ class Enemy(Character):
         and 'defeated' by setting its HP to 0. Still counts as a living enemy for guarded exits, so the way stays blocked until it's solved, but it
         never starts combat and isn't targetable."""
         self.invulnerable_message = invulnerable_message or f"{name} can't be harmed."
+        self.yield_condition_flag = yield_condition_flag
+        self.yield_companion_factory = yield_companion_factory
+        self.yield_result_flag = yield_result_flag
+        """The yield mechanic: if the player has yield_condition_flag when this enemy is finally defeated, it yields instead of dying - it still
+        leaves the room and still gives its XP, gold, and loot, but a companion built by yield_companion_factory takes its place, recruitable,
+        with this room as its home. yield_result_flag, if set, records that it happened. Checked at the moment of defeat, not at creation, since
+        the world is built before the player has made any choices. Hades is the first to use it."""
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""

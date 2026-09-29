@@ -1,4 +1,4 @@
-"""Assembles every floor into one Map via build_world(). Seperated from __init__.py to avoid name collision with dungeon_crawler.world (Room/Map)
+"""Assembles every floor into one Map via build_world(). Separated from __init__.py to avoid name collision with dungeon_crawler.world (Room/Map)
 - purely a naming convenience, not a meaningful split."""
 
 from dungeon_crawler.world import Room, Map
@@ -15,7 +15,10 @@ from .floor_9 import build_floor_9
 from .dev_content import build_blank_test_room
 
 def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
-    """Assemble every floor into one Map, wire the inter-floor descend/ascend exits between them, and add the dev-only test room. Returns (the full map, floor 0's starting room, every floor's rooms keyed by floor name then room name)."""
+    """Assemble every floor into one Map and wire everything that crosses floors: the inter-floor descend/ascend exits (with the guards on
+    Overgrown Forest, Lair of Medusa and Hall of Hades, and Persephone's story gate), the one-way 'forge' shortcuts to the Forge of Prometheus
+    from eight rooms on floors 3-9 with their locked reciprocal exits, and the floor 7 seers (wire_floor_7_seers()). Then adds the dev-only
+    test room. Returns (the full map, floor 0's starting room, every floor's rooms keyed by floor name then room name)."""
     dungeon = Map()
 
     floor_0_start, floor_0_rooms = build_floor_0()
@@ -47,6 +50,7 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     floor_7_rooms["Bedchamber of Persephone"].connect("descend", floor_8_rooms["Gate of Cerberus"])
     floor_8_rooms["Gate of Cerberus"].connect("ascend", floor_7_rooms["Bedchamber of Persephone"])
     floor_8_rooms["Hall of Hades"].connect("descend", floor_9_rooms["Tartarus"])
+    floor_8_rooms["Hall of Hades"].guard_exit("descend")
     floor_9_rooms["Tartarus"].connect("ascend", floor_8_rooms["Hall of Hades"])
 
     floor_7_rooms["Bedchamber of Persephone"].gate_exit(
@@ -98,6 +102,18 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     }
 
     wire_floor_7_seers(all_floors)
+
+    forge = floor_2_rooms["Forge of Prometheus"]
+    for floor_key, room_name, exit_name in (
+        ("floor_7", "Bedchamber of Persephone", "bedchamber of persephone"),
+        ("floor_8", "Gate of Cerberus", "gate of cerberus"),
+        ("floor_9", "Tartarus", "tartarus"),
+    ):
+        room = all_floors[floor_key][room_name]
+        room.connect("forge", forge)
+        forge.connect(exit_name, room)
+        forge.lock_fast_travel_exit(exit_name)
+        room.register_fast_travel_activation("forge", forge, exit_name)
 
     for floor_key, floor_rooms in all_floors.items():
         for room in floor_rooms.values():

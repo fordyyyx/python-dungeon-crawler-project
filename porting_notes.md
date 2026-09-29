@@ -30,6 +30,9 @@ something occurs to you mid-build.
 - **Blindness wants to be seen on the enemy, not read in a log** - a bandage or clouded-eye overlay, wild swings that
   visibly go wide, and a small counter of the attacks it has left (it counts attacks, not turns, so a turn-based pip
   would mislead). Polyphemus (Blinded) is the showcase: huge, flailing at sounds, and terrifying when he connects.
+- **Typhon's Storm of Ash is the first thing that blinds the *player*** - that wants to be felt on screen (ash
+  across the view, a darkened vignette) with the same attacks-left counter, since the text version only shows it
+  as a raised miss chance in `stats`.
 - **Groups of identical enemies** (`"Head of Scylla x6"`) are one line of text but want to be one creature in a visual
   version where that's the fiction - six necks on one Scylla body, each with its own health bar - rather than six
   unrelated sprites in a row.
@@ -200,6 +203,13 @@ something occurs to you mid-build.
   own, would make "they level with you" legible.
 
 ## NPCs / Dialogue
+- **The ending wants a screen of its own**, not a block of text between two `=====` lines: a short cutscene
+  over the empty (or shared) throne, then the "Return to title / Continue exploring" choice as two buttons.
+  It's autosaved before the choice, so the port can safely treat it as a checkpoint. The true ending (Typhon)
+  is the same shape - and its closing nod to Zeus is a natural lead-in to the Trophy Room.
+- **A yielding boss (Hades) is the natural cutscene moment of the whole game** - the fight stops, he
+  kneels, and the same character model steps over into the party, rather than a corpse and a separate
+  companion appearing. The two reveal texts map onto two versions of that scene.
 - **Penelope's reunion with Odysseus is the Odyssey's ending in miniature** - a one-off line in text, but a natural fit for
   a short cutscene the first time the player brings him to the Bedchamber (`Ally.companion_lines`).
 - **A loyalty token saving a companion** (`LoyaltyToken`) wants a visible moment: the companion staggering, then

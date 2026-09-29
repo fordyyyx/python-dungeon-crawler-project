@@ -393,3 +393,8 @@ class LoyaltyToken(QuestItem):
     """A keepsake that makes the player's companion survive the first blow each fight that would down them, staying on 1 HP. Works simply by
     being held - see player.has_loyalty_token() and Companion.loyalty_ready. A QuestItem, so it can't be dropped, traded or exchanged away.
     Penelope's Thread is the first."""
+
+class Trophy(QuestItem):
+    """A trophy from a great victory, for the Trophy Room of Zeus. Deliberately minimal for now: a QuestItem, so it can't be dropped, traded or
+    exchanged away. The Trophy Room (roadmap) will give trophies their purpose - placing them, and Zeus' New Game+ once all are placed. Typhon's
+    is the first; other bosses gain theirs when the Trophy Room is designed."""

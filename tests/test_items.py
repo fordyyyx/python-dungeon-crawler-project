@@ -1,5 +1,5 @@
 from dungeon_crawler.exceptions import ActionRefused
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward, LoyaltyToken
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward, LoyaltyToken, Trophy
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.content import create_chipped_stone_aegis, create_labrys
 from dungeon_crawler.spells import Spell
@@ -1356,3 +1356,19 @@ def test_inventory_unequip_item_finds_an_item_after_others():
     sword.use(hero)
     inventory.unequip_item("sword", hero)
     assert hero.equipped_melee_weapon is None
+
+def test_trophy_is_a_quest_item():
+    assert isinstance(Trophy(name="Heart", description=""), QuestItem)
+
+def test_trophy_cannot_be_dropped():
+    inventory = Inventory()
+    inventory.add(Trophy(name="Heart", description=""))
+    try:
+        inventory.drop_item("heart")
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
+        pass
+    assert len(inventory) == 1
+
+def test_trophy_takes_an_article():
+    assert Trophy(name="Heart of Typhon", description="", article="the").with_article() == "the Heart of Typhon"

@@ -322,6 +322,17 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         if player.companion is not None:
             messages.append(player.companion.gain_experience(enemy.experience_reward))
 
+    if (
+        enemy.yield_condition_flag is not None
+        and enemy.yield_condition_flag in player.story_flags
+        and enemy.yield_companion_factory is not None
+    ):
+        companion = enemy.yield_companion_factory()
+        companion.home_room = room
+        room.add_companion(companion)
+        if enemy.yield_result_flag is not None:
+            player.story_flags.add(enemy.yield_result_flag)
+
     if enemy.defeat_effect is not None:
         messages.append(enemy.defeat_effect(player))
 

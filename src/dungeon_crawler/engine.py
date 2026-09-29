@@ -2,7 +2,7 @@
 
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.content import build_world
+from dungeon_crawler.content import build_world, HADES_SPARED, HADES_DEFEATED, TYPHON_DEFEATED
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines, get_advice, is_exit_concealed, get_story_gate
@@ -16,6 +16,8 @@ from dungeon_crawler.dialogue import continue_dialogue
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
 PASSIVE_REGEN_CAP_FRACTION = 0.75
+ENDING_SHOWN = "ending_shown"
+TRUE_ENDING_SHOWN = "true_ending_shown"
 RESERVED_COMMAND_WORDS: frozenset[str] = frozenset({
     "north", "south", "east", "west", "up", "down", "ascend", "descend",
     "look", "examine", "map", "fullmap", "world", "inventory", "stats", "skills", "learn", "advice", "offers", "exchange",
@@ -144,425 +146,501 @@ def get_controls_text() -> str:
         "quit / exit - quit the game"
     )
 
+def ending_text(player: Player) -> str:
+    """The ending, shown once when Hades falls. Differs slightly depending on whether he was spared."""
+    if HADES_SPARED in player.story_flags:
+        body = (
+            "Hades doesn't go back to his throne. He stands beside you instead, looking out over a hall he hasn't truly seen in an age. Across the "
+            "Underworld, the dead begin to move again - slowly, then with purpose - towards judgement at last.\n\n"
+            "\"Far above, they'll call this a victory,\" he says quietly. \"Let them.\" He turns towards the dark stair. \"Whenever you're "
+            "ready. He won't wait for long.\""
+        )
+    else:
+        body = (
+            "The throne of bone stands empty. Across the Underworld, the dead begin to move again - slowly, then with purpose - towards "
+            "judgement at last. Far above, the gods will call it a victory.\n\n"
+            "Below, something vast turns over in the dark, and doesn't go back to sleep."
+        )
+    return (
+        "\n\n========================\n\n"
+        f"{body}\n\n"
+        "The story is over. The Underworld isn't finished with you yet.\n\n"
+        "========================\n"
+    )
+
+def choose_after_ending() -> str:
+    """Ask the player what to do after the ending - 'title' or 'continue'."""
+    print("1. Return to the title screen\n2. Continue exploring\n")
+    while True:
+        choice = input("> ").strip()
+        if choice == "1":
+            return "title"
+        if choice == "2":
+            return "continue"
+        print("Choose 1 or 2.")
+
+def true_ending_text(player: Player) -> str:
+    """The true ending, shown once when Typhon falls. Points the player towards Zeus and the Trophy Room without naming what waits there."""
+    if HADES_SPARED in player.story_flags:
+        opening = (
+            "Typhon falls - not all at once, but the way a mountain falls, slowly, and then completely. Hades stands at the edge of the chasm "
+            "a long time before he speaks. \"It's done,\" he says at last. \"For good, this time. Go home. I'll take it from here.\""
+        )
+    else:
+        opening = (
+            "Typhon falls - not all at once, but the way a mountain falls, slowly, and then completely. The chasm is quiet for the first time "
+            "in an age. Whatever Hades spent himself holding back, you've finished."
+        )
+    return (
+        "\n\n========================\n\n"
+        f"{opening}\n\n"
+        "Far above, on Olympus, a god who once fought Typhon himself - and only barely won - has been watching. He keeps a room for trophies "
+        "like the one that just fell to the floor, and he'll want to see this one.\n\n"
+        "This is the true ending.\n\n"
+        "========================\n"
+    )
+
+ENDINGS = [
+    (HADES_DEFEATED, ENDING_SHOWN, ending_text),
+    (TYPHON_DEFEATED, TRUE_ENDING_SHOWN, true_ending_text)
+]
+"""(flag that triggers it, flag recording it's been shown, text). Checked after every command - see main()."""
 
 def main() -> None:
     """Run the game from name entry through to the player quitting or dying: developer-mode activation, ancestry
     selection, world construction, then the read-command/dispatch loop. Top-level command routing only - each
     branch calls straight into combat.py/exploration.py/dev_tools.py/characters.py for the actual behaviour."""
-    active_profile: int | None = None
-    active_slot: int | None = None
-
     while True:
-        action = choose_title_screen_action()
+        active_profile: int | None = None
+        active_slot: int | None = None
 
-        if action == "quit":
-            return
+        while True:
+            action = choose_title_screen_action()
 
-        if action == "delete":
-            profile_num = choose_profile()
-            slot_num = choose_occupied_slot(profile_num)
-            if slot_num is not None and confirm(f"Delete profile {profile_num}, slot {slot_num}?"):
-                save_system.delete_save(profile_num, slot_num)
-                print("Deleted.")
-            continue
+            if action == "quit":
+                return
 
-        if action == "load":
-            profile_num = choose_profile()
-            slot_num = choose_occupied_slot(profile_num)
-            if slot_num is None:
+            if action == "delete":
+                profile_num = choose_profile()
+                slot_num = choose_occupied_slot(profile_num)
+                if slot_num is not None and confirm(f"Delete profile {profile_num}, slot {slot_num}?"):
+                    save_system.delete_save(profile_num, slot_num)
+                    print("Deleted.")
                 continue
-            dungeon, _, all_floors = build_world()
-            try:
-                player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
-            except SaveFileError as error:
-                print(error)
-                continue
-            active_profile, active_slot = profile_num, slot_num
-            break
 
-        profile_num = choose_profile()
-        slot_num = choose_slot(profile_num)
-        if save_system.slot_exists(profile_num, slot_num):
-            if not confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?"):
-                continue
-        active_profile, active_slot = profile_num, slot_num
-
-        print("What is your name, hero?")
-        name = input("> ").strip() or "Hero"
-
-        starting_floor_key = "floor_0"
-        dev_mode_requested = name.lower() == "developer mode"
-        if dev_mode_requested:
-            print("[DEV] Developer mode activated.")
-            name = "Dev"
-
-        ancestry_key = choose_ancestry()
-        secondary_ancestry_key = choose_secondary_ancestry(ancestry_key)
-        player = create_player(name, ancestry_key, secondary_ancestry_key)
-        player.dev_mode = dev_mode_requested
-
-        dungeon, current_room, all_floors = build_world()
-
-        if player.dev_mode:
-            print("\n[DEV] Which floor should you start on?")
-            for floor_key in all_floors:
-                print(f"  {floor_key}")
-            while True:
-                choice = input("> ").strip().lower()
-                if choice in all_floors:
-                    starting_floor_key = choice
-                    break
-                print("[DEV] Unknown floor. Try again.")
-
-        current_floor_rooms = all_floors[starting_floor_key]
-        if starting_floor_key != "floor_0":
-            current_room = next(iter(current_floor_rooms.values()))
-        break
-
-    while True:
-        starting_floor = find_floor_for_room(current_room, all_floors)
-        if starting_floor is not None:
-            player.visited_floors.add(starting_floor)
-            player.visited_rooms.add(current_room.name)
-        print_room(current_room, player)
-        print("\nNot sure where to start? Try talking to whoever is in the room with you.")
-
-        quit_requested = False
-        while player.is_alive():
-            if player.skill_tree.skill_points > 0:
-                skill_hint = show_hint(player, "skill_points")
-                if skill_hint:
-                    print(skill_hint)
-            if not player.in_combat and player.companion is not None:
-                player.companion.loyalty_ready = player.has_loyalty_token()
-            command = input("> ").strip().lower()
-            print("\n\n")
-
-            if command in ("quit", "exit"):
-                quit_requested = True
+            if action == "load":
+                profile_num = choose_profile()
+                slot_num = choose_occupied_slot(profile_num)
+                if slot_num is None:
+                    continue
+                dungeon, _, all_floors = build_world()
+                try:
+                    player, current_room = save_system.load_game(profile_num, slot_num, dungeon)
+                except SaveFileError as error:
+                    print(error)
+                    continue
+                active_profile, active_slot = profile_num, slot_num
                 break
 
-            elif command in current_room.interactions and not player.in_combat:
-                interaction = current_room.interactions[command]
-                if interaction.is_available(player, current_room):
-                    print(interaction.handler(player, current_room))
-                else:
-                    print(interaction.unavailable_message)
+            profile_num = choose_profile()
+            slot_num = choose_slot(profile_num)
+            if save_system.slot_exists(profile_num, slot_num):
+                if not confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?"):
+                    continue
+            active_profile, active_slot = profile_num, slot_num
 
-            elif command == "save" and not player.in_combat:
-                if active_profile is None:
-                    print("No active save slot - use 'save <profile> <slot>' first.")
-                else:
-                    save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
-                    print(f"Saved to profile {active_profile}, slot {active_slot}")
+            print("What is your name, hero?")
+            name = input("> ").strip() or "Hero"
 
-            elif command.startswith("save ") and not player.in_combat:
-                parts = command.removeprefix("save ").split()
-                if len(parts) != 2 or not all(p.isdigit() for p in parts):
-                    print("Usage: save <profile> <slot>")
-                else:
-                    profile_num, slot_num = int(parts[0]), int(parts[1])
-                    proceed = True
-                    if save_system.slot_exists(profile_num, slot_num):
-                        proceed = confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?")
-                    if proceed:
-                        save_system.save_game(profile_num, slot_num, player, current_room, dungeon)
-                        active_profile, active_slot = profile_num, slot_num
-                        print(f"Saved to profile {profile_num}, slot {slot_num}.")
+            starting_floor_key = "floor_0"
+            dev_mode_requested = name.lower() == "developer mode"
+            if dev_mode_requested:
+                print("[DEV] Developer mode activated.")
+                name = "Dev"
 
-            elif command.startswith("load ") and not player.in_combat:
-                parts = command.removeprefix("load ").split()
-                if len(parts) != 2 or not all(p.isdigit() for p in parts):
-                    print("Usage: load <profile> <slot>")
-                else:
-                    profile_num, slot_num = int(parts[0]), int(parts[1])
-                    if not save_system.slot_exists(profile_num, slot_num):
-                        print(f"There's no save in profile {profile_num}, slot {slot_num}.")
-                    elif confirm("Loading will discard any unsaved progress since your last save. Continue?"):
-                        # load_game() patches a *fresh* world - reusing the live one would keep state the save never had
-                        fresh_dungeon, _, fresh_floors = build_world()
-                        try:
-                            loaded_player, loaded_room = save_system.load_game(profile_num, slot_num, fresh_dungeon)
-                        except SaveFileError as error:
-                            print(error)
-                        else:
-                            dungeon, all_floors = fresh_dungeon, fresh_floors
-                            player, current_room = loaded_player, loaded_room
-                            active_profile, active_slot = profile_num, slot_num
-                            print_room(current_room, player)
+            ancestry_key = choose_ancestry()
+            secondary_ancestry_key = choose_secondary_ancestry(ancestry_key)
+            player = create_player(name, ancestry_key, secondary_ancestry_key)
+            player.dev_mode = dev_mode_requested
 
-            elif command.startswith("challenge ") and not player.in_combat:
-                print(start_duel(command.removeprefix("challenge ").strip(), current_room, player))
+            dungeon, current_room, all_floors = build_world()
 
-            elif command == "controls":
-                print(get_controls_text())
+            if player.dev_mode:
+                print("\n[DEV] Which floor should you start on?")
+                for floor_key in all_floors:
+                    print(f"  {floor_key}")
+                while True:
+                    choice = input("> ").strip().lower()
+                    if choice in all_floors:
+                        starting_floor_key = choice
+                        break
+                    print("[DEV] Unknown floor. Try again.")
 
-            elif command == "developer mode":
-                player.dev_mode = not player.dev_mode
+            current_floor_rooms = all_floors[starting_floor_key]
+            if starting_floor_key != "floor_0":
+                current_room = next(iter(current_floor_rooms.values()))
+            break
 
-            # checked ahead of the in_combat branch below (not nested inside the exploration-only path) so dev commands
-            # always work regardless of combat state - this was a real bug once, see CLAUDE.md
-            elif command.startswith("dev ") and player.dev_mode:
-                message, new_room = dev_tools.handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
-                print(message)
-                if new_room is not None:
-                    current_room.on_leave()
-                    current_room = new_room
-                    print_room(current_room, player)
+        while True:
+            return_to_title = False
+            starting_floor = find_floor_for_room(current_room, all_floors)
+            if starting_floor is not None:
+                player.visited_floors.add(starting_floor)
+                player.visited_rooms.add(current_room.name)
+            print_room(current_room, player)
+            print("\nNot sure where to start? Try talking to whoever is in the room with you.")
 
-            elif command.startswith("target "):
-                print(handle_target_command(command, current_room.enemies, player))
+            quit_requested = False
+            while player.is_alive():
+                if player.skill_tree.skill_points > 0:
+                    skill_hint = show_hint(player, "skill_points")
+                    if skill_hint:
+                        print(skill_hint)
+                if not player.in_combat and player.companion is not None:
+                    player.companion.loyalty_ready = player.has_loyalty_token()
+                command = input("> ").strip().lower()
+                print("\n\n")
 
-            elif command.startswith("dummy set "):
-                parts = command.removeprefix("dummy set ").split(" ", 1)
-                if len(parts) != 2:
-                    print("[Practice] Usage: dummy set <stat> <value>")
-                else:
-                    dummy = next((enemy for enemy in current_room.enemies if enemy.respawns), None)
-                    if dummy is None:
-                        print("There's no practice dummy here.")
+                if command in ("quit", "exit"):
+                    quit_requested = True
+                    break
+
+                elif command in current_room.interactions and not player.in_combat:
+                    interaction = current_room.interactions[command]
+                    if interaction.is_available(player, current_room):
+                        print(interaction.handler(player, current_room))
                     else:
-                        print(dev_tools.handle_dummy_set(parts[0], parts[1], dummy))
+                        print(interaction.unavailable_message)
 
-            elif player.in_combat:
-                if player.current_target is not None:
-                    print(handle_combat_command(command, player, player.current_target, player.team, current_room.enemies, current_room))
-                else:
-                    # defensive fallback - in_combat and current_target should always be set/cleared together;
-                    # this only fires if that invariant is ever broken elsewhere
-                    player.in_combat = False
-                    print("You are no longer in combat.")
+                elif command == "save" and not player.in_combat:
+                    if active_profile is None:
+                        print("No active save slot - use 'save <profile> <slot>' first.")
+                    else:
+                        save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
+                        print(f"Saved to profile {active_profile}, slot {active_slot}")
 
-            elif command == "examine":
-                print(handle_examine(current_room, player))
+                elif command.startswith("save ") and not player.in_combat:
+                    parts = command.removeprefix("save ").split()
+                    if len(parts) != 2 or not all(p.isdigit() for p in parts):
+                        print("Usage: save <profile> <slot>")
+                    else:
+                        profile_num, slot_num = int(parts[0]), int(parts[1])
+                        proceed = True
+                        if save_system.slot_exists(profile_num, slot_num):
+                            proceed = confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?")
+                        if proceed:
+                            save_system.save_game(profile_num, slot_num, player, current_room, dungeon)
+                            active_profile, active_slot = profile_num, slot_num
+                            print(f"Saved to profile {profile_num}, slot {slot_num}.")
 
-            elif command in ("rest", "wait"):
-                restored = min(REST_MANA_AMOUNT, player.max_mana - player.mana)
-                player.mana += restored
-                print(f"{player.name} rests and recovers {restored} mana.")
+                elif command.startswith("load ") and not player.in_combat:
+                    parts = command.removeprefix("load ").split()
+                    if len(parts) != 2 or not all(p.isdigit() for p in parts):
+                        print("Usage: load <profile> <slot>")
+                    else:
+                        profile_num, slot_num = int(parts[0]), int(parts[1])
+                        if not save_system.slot_exists(profile_num, slot_num):
+                            print(f"There's no save in profile {profile_num}, slot {slot_num}.")
+                        elif confirm("Loading will discard any unsaved progress since your last save. Continue?"):
+                            # load_game() patches a *fresh* world - reusing the live one would keep state the save never had
+                            fresh_dungeon, _, fresh_floors = build_world()
+                            try:
+                                loaded_player, loaded_room = save_system.load_game(profile_num, slot_num, fresh_dungeon)
+                            except SaveFileError as error:
+                                print(error)
+                            else:
+                                dungeon, all_floors = fresh_dungeon, fresh_floors
+                                player, current_room = loaded_player, loaded_room
+                                active_profile, active_slot = profile_num, slot_num
+                                print_room(current_room, player)
 
-            elif command.startswith("repair "):
-                item_name = command.removeprefix("repair ").strip()
-                print(repair_item(item_name, player, current_room))
+                elif command.startswith("challenge ") and not player.in_combat:
+                    print(start_duel(command.removeprefix("challenge ").strip(), current_room, player))
 
-            elif command.startswith("examine "):
-                item_name = command.removeprefix("examine ").strip()
-                item = next((i for i in current_room.items if i.name.lower() == item_name.lower()), None)
-                if item is None:
-                    item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
-                if item is not None:
-                    print(f"{item.name}: {item.description}")
-                else:
-                    print("You don't see that here.")
+                elif command == "controls":
+                    print(get_controls_text())
 
-            elif command == "toggle auto talk":
-                player.auto_talk = not player.auto_talk
-                status = "on" if player.auto_talk else "off"
-                print(f"Auto-talk is now {status}.")
+                elif command == "developer mode":
+                    player.dev_mode = not player.dev_mode
 
-            elif command == "toggle auto map":
-                player.auto_map = not player.auto_map
-                status = "on" if player.auto_map else "off"
-                print(f"Auto-map is now {status}.")
+                # checked ahead of the in_combat branch below (not nested inside the exploration-only path) so dev commands
+                # always work regardless of combat state - this was a real bug once, see CLAUDE.md
+                elif command.startswith("dev ") and player.dev_mode:
+                    message, new_room = dev_tools.handle_dev_command(command.removeprefix("dev ").strip(), player, current_room, dungeon)
+                    print(message)
+                    if new_room is not None:
+                        current_room.on_leave()
+                        current_room = new_room
+                        print_room(current_room, player)
 
-            elif command == "take all":
-                print(take_all(current_room, player))
+                elif command.startswith("target "):
+                    print(handle_target_command(command, current_room.enemies, player))
 
-            elif command.startswith("take all from "):
-                ally_name = command.removeprefix("take all from ").strip()
-                ally = next((a for a in current_room.allies if a.name.lower() == ally_name.lower()), None)
-                if ally is not None:
-                    print(take_all_from_ally(ally, player))
-                else:
-                    print("There is no one here by that name.")
+                elif command.startswith("dummy set "):
+                    parts = command.removeprefix("dummy set ").split(" ", 1)
+                    if len(parts) != 2:
+                        print("[Practice] Usage: dummy set <stat> <value>")
+                    else:
+                        dummy = next((enemy for enemy in current_room.enemies if enemy.respawns), None)
+                        if dummy is None:
+                            print("There's no practice dummy here.")
+                        else:
+                            print(dev_tools.handle_dummy_set(parts[0], parts[1], dummy))
 
-            elif command.startswith("take ") and " from " not in command:
-                item_name = command.removeprefix("take ").strip()
-                print(pick_up(current_room, item_name, player))
+                elif player.in_combat:
+                    if player.current_target is not None:
+                        print(handle_combat_command(command, player, player.current_target, player.team, current_room.enemies, current_room))
+                    else:
+                        # defensive fallback - in_combat and current_target should always be set/cleared together;
+                        # this only fires if that invariant is ever broken elsewhere
+                        player.in_combat = False
+                        print("You are no longer in combat.")
 
-            elif command == "map":
-                print(display_local_exits(current_room, player))
+                elif command == "examine":
+                    print(handle_examine(current_room, player))
 
-            elif command in ("fullmap", "world"):
-                print(display_map(current_room, player))
+                elif command in ("rest", "wait"):
+                    restored = min(REST_MANA_AMOUNT, player.max_mana - player.mana)
+                    player.mana += restored
+                    print(f"{player.name} rests and recovers {restored} mana.")
 
-            elif command in current_room.exits and not is_exit_concealed(current_room, command, player):
-                guardian = get_exit_guardian(current_room, command)
-                if command in current_room.fast_travel_locks:
-                    print("You haven't opened this shortcut yet - reach it from the other side first.")
-                elif is_exit_locked(current_room, command, player):
-                    required = current_room.locked_exits[command]
-                    print(f"That way is locked. You need the {required} first.")
-                elif guardian is not None:
-                    print(f"{guardian.name} bars the way - you'll have to deal with it first.")
-                    guard_hint = show_hint(player, "guarded_exit")
-                    if guard_hint:
-                        print(guard_hint)
-                elif (gate := get_story_gate(current_room, command, player)) is not None:
-                    print(gate.blocked_message)
-                else:
-                    current_room.unlock_exit(command)
-                    if command in current_room.exit_activations:
-                        unlock_room, unlock_direction = current_room.exit_activations[command]
-                        if unlock_direction in unlock_room.fast_travel_locks:
-                            unlock_room.fast_travel_locks.discard(unlock_direction)
-                            print("The path back opens behind you.")
-                            shortcut_hint = show_hint(player, "forge_shortcut")
-                            if shortcut_hint:
-                                print(shortcut_hint)
-                    current_room.on_leave()
-                    current_room = current_room.exits[command]
-                    player.visited_rooms.add(current_room.name)
-                    regen_cap = int(player.max_hp * PASSIVE_REGEN_CAP_FRACTION)
-                    if player.hp < regen_cap:
-                        player.hp = min(player.max_hp, player.hp + PASSIVE_REGEN_PER_MOVE)
-                        print(f"You catch your breath as you move on. (+{PASSIVE_REGEN_PER_MOVE} HP)")
-                        regen_hint = show_hint(player, "passive_regen")
-                        if regen_hint:
-                            print(regen_hint)
-                    found_floor = find_floor_for_room(current_room, all_floors)
-                    if found_floor is not None:
-                        current_floor_rooms = all_floors[found_floor]
-                        if found_floor not in player.visited_floors:
-                            player.visited_floors.add(found_floor)
-                            if active_profile is not None:
-                                save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
-                                print("(autosaved)")
-                                autosave_hint = show_hint(player, "autosave")
-                                if autosave_hint:
-                                    print(autosave_hint)
-                    print_room(current_room, player)
+                elif command.startswith("repair "):
+                    item_name = command.removeprefix("repair ").strip()
+                    print(repair_item(item_name, player, current_room))
 
-            elif command == "look":
-                print_room(current_room, player)
+                elif command.startswith("examine "):
+                    item_name = command.removeprefix("examine ").strip()
+                    item = next((i for i in current_room.items if i.name.lower() == item_name.lower()), None)
+                    if item is None:
+                        item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
+                    if item is not None:
+                        print(f"{item.name}: {item.description}")
+                    else:
+                        print("You don't see that here.")
 
-            elif command == "offers":
-                print(list_offers(current_room, player))
+                elif command == "toggle auto talk":
+                    player.auto_talk = not player.auto_talk
+                    status = "on" if player.auto_talk else "off"
+                    print(f"Auto-talk is now {status}.")
 
-            elif command == "exchange" or command.startswith("exchange "):
-                print(make_exchange(command.removeprefix("exchange").strip(), current_room, player))
+                elif command == "toggle auto map":
+                    player.auto_map = not player.auto_map
+                    status = "on" if player.auto_map else "off"
+                    print(f"Auto-map is now {status}.")
 
-            elif command == "uncleared":
-                print(get_uncleared_rooms(all_floors, player))
+                elif command == "take all":
+                    print(take_all(current_room, player))
 
-            elif command == "attack":
-                attackable = [e for e in current_room.enemies if not e.invulnerable]
-                if attackable:
-                    enemy = next((e for e in attackable if e is player.current_target), attackable[0])
-                    player.in_combat = True
-                    player.current_target = enemy
-                    print(resolve_attack_and_check_defeat(player, enemy, player.team, current_room.enemies, current_room))
-                elif current_room.enemies:
-                    print(current_room.enemies[0].invulnerable_message)
-                else:
-                    print("There's nothing here to attack.")
-
-            elif command.startswith("use "):
-                item_name = command.removeprefix("use ").strip()
-                try:
-                    print(player.inventory.use_item(item_name, player))
-                except ActionRefused as e:
-                    print(e)
-
-            elif command.startswith("equip "):
-                item_name = command.removeprefix("equip ").strip()
-                error = check_equippable(item_name, player)
-                if error is not None:
-                    print(error)
-                else:
-                    print(player.inventory.use_item(item_name, player))
-
-            elif command.startswith("unequip "):
-                item_name = command.removeprefix("unequip ").strip()
-                try:
-                    print(player.inventory.unequip_item(item_name, player))
-                except ActionRefused as e:
-                    print(e)
-
-            elif command.startswith("drop "):
-                item_name = command.removeprefix("drop ").strip()
-                try:
-                    item = player.inventory.drop_item(item_name)
-                    current_room.add_item(item)
-                    print(f"You drop {item.with_article(definite=True)}.")
-                except ActionRefused as e:
-                    print(e)
-
-            elif command == "stats":
-                print(player.get_stats())
-
-            elif command == "advice":
-                print(get_advice(current_room, player))
-
-            elif command == "inventory":
-                print(player.get_inventory_display())
-
-            elif command == "talk":
-                if current_room.allies:
-                    print(talk_to(current_room.allies[0], player, current_room))
-                elif current_room.companions:
-                    print(talk_to(current_room.companions[0], player, current_room))
-                else:
-                    print("There's no one here to talk to.")
-
-            elif command == "say" or command.startswith("say "):
-                print(continue_dialogue(command.removeprefix("say").strip(), current_room, player))
-
-            elif command.startswith("take ") and " from " in command:
-                parts = command.removeprefix("take ").split(" from ")
-                if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
-                    print("Try: take <item> from <ally>")
-                else:
-                    item_name, ally_name = parts
-                    ally = next((a for a in current_room.allies if a.name.lower() == ally_name.strip().lower()), None)
+                elif command.startswith("take all from "):
+                    ally_name = command.removeprefix("take all from ").strip()
+                    ally = next((a for a in current_room.allies if a.name.lower() == ally_name.lower()), None)
                     if ally is not None:
-                        print(ally.give_item(item_name.strip(), player))
+                        print(take_all_from_ally(ally, player))
                     else:
                         print("There is no one here by that name.")
 
-            elif command == "trade":
-                if current_room.allies:
-                    ally = current_room.allies[0]
-                    print(trade_with_ally(ally, player))
+                elif command.startswith("take ") and " from " not in command:
+                    item_name = command.removeprefix("take ").strip()
+                    print(pick_up(current_room, item_name, player))
+
+                elif command == "map":
+                    print(display_local_exits(current_room, player))
+
+                elif command in ("fullmap", "world"):
+                    print(display_map(current_room, player))
+
+                elif command in current_room.exits and not is_exit_concealed(current_room, command, player):
+                    guardian = get_exit_guardian(current_room, command)
+                    if command in current_room.fast_travel_locks:
+                        print("You haven't opened this shortcut yet - reach it from the other side first.")
+                    elif is_exit_locked(current_room, command, player):
+                        required = current_room.locked_exits[command]
+                        print(f"That way is locked. You need the {required} first.")
+                    elif guardian is not None:
+                        print(f"{guardian.name} bars the way - you'll have to deal with it first.")
+                        guard_hint = show_hint(player, "guarded_exit")
+                        if guard_hint:
+                            print(guard_hint)
+                    elif (gate := get_story_gate(current_room, command, player)) is not None:
+                        print(gate.blocked_message)
+                    else:
+                        current_room.unlock_exit(command)
+                        if command in current_room.exit_activations:
+                            unlock_room, unlock_direction = current_room.exit_activations[command]
+                            if unlock_direction in unlock_room.fast_travel_locks:
+                                unlock_room.fast_travel_locks.discard(unlock_direction)
+                                print("The path back opens behind you.")
+                                shortcut_hint = show_hint(player, "forge_shortcut")
+                                if shortcut_hint:
+                                    print(shortcut_hint)
+                        current_room.on_leave()
+                        current_room = current_room.exits[command]
+                        player.visited_rooms.add(current_room.name)
+                        regen_cap = int(player.max_hp * PASSIVE_REGEN_CAP_FRACTION)
+                        if player.hp < regen_cap:
+                            player.hp = min(player.max_hp, player.hp + PASSIVE_REGEN_PER_MOVE)
+                            print(f"You catch your breath as you move on. (+{PASSIVE_REGEN_PER_MOVE} HP)")
+                            regen_hint = show_hint(player, "passive_regen")
+                            if regen_hint:
+                                print(regen_hint)
+                        found_floor = find_floor_for_room(current_room, all_floors)
+                        if found_floor is not None:
+                            current_floor_rooms = all_floors[found_floor]
+                            if found_floor not in player.visited_floors:
+                                player.visited_floors.add(found_floor)
+                                if active_profile is not None:
+                                    save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
+                                    print("(autosaved)")
+                                    autosave_hint = show_hint(player, "autosave")
+                                    if autosave_hint:
+                                        print(autosave_hint)
+                        print_room(current_room, player)
+
+                elif command == "look":
+                    print_room(current_room, player)
+
+                elif command == "offers":
+                    print(list_offers(current_room, player))
+
+                elif command == "exchange" or command.startswith("exchange "):
+                    print(make_exchange(command.removeprefix("exchange").strip(), current_room, player))
+
+                elif command == "uncleared":
+                    print(get_uncleared_rooms(all_floors, player))
+
+                elif command == "attack":
+                    attackable = [e for e in current_room.enemies if not e.invulnerable]
+                    if attackable:
+                        enemy = next((e for e in attackable if e is player.current_target), attackable[0])
+                        player.in_combat = True
+                        player.current_target = enemy
+                        print(resolve_attack_and_check_defeat(player, enemy, player.team, current_room.enemies, current_room))
+                    elif current_room.enemies:
+                        print(current_room.enemies[0].invulnerable_message)
+                    else:
+                        print("There's nothing here to attack.")
+
+                elif command.startswith("use "):
+                    item_name = command.removeprefix("use ").strip()
+                    try:
+                        print(player.inventory.use_item(item_name, player))
+                    except ActionRefused as e:
+                        print(e)
+
+                elif command.startswith("equip "):
+                    item_name = command.removeprefix("equip ").strip()
+                    error = check_equippable(item_name, player)
+                    if error is not None:
+                        print(error)
+                    else:
+                        print(player.inventory.use_item(item_name, player))
+
+                elif command.startswith("unequip "):
+                    item_name = command.removeprefix("unequip ").strip()
+                    try:
+                        print(player.inventory.unequip_item(item_name, player))
+                    except ActionRefused as e:
+                        print(e)
+
+                elif command.startswith("drop "):
+                    item_name = command.removeprefix("drop ").strip()
+                    try:
+                        item = player.inventory.drop_item(item_name)
+                        current_room.add_item(item)
+                        print(f"You drop {item.with_article(definite=True)}.")
+                    except ActionRefused as e:
+                        print(e)
+
+                elif command == "stats":
+                    print(player.get_stats())
+
+                elif command == "advice":
+                    print(get_advice(current_room, player))
+
+                elif command == "inventory":
+                    print(player.get_inventory_display())
+
+                elif command == "talk":
+                    if current_room.allies:
+                        print(talk_to(current_room.allies[0], player, current_room))
+                    elif current_room.companions:
+                        print(talk_to(current_room.companions[0], player, current_room))
+                    else:
+                        print("There's no one here to talk to.")
+
+                elif command == "say" or command.startswith("say "):
+                    print(continue_dialogue(command.removeprefix("say").strip(), current_room, player))
+
+                elif command.startswith("take ") and " from " in command:
+                    parts = command.removeprefix("take ").split(" from ")
+                    if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+                        print("Try: take <item> from <ally>")
+                    else:
+                        item_name, ally_name = parts
+                        ally = next((a for a in current_room.allies if a.name.lower() == ally_name.strip().lower()), None)
+                        if ally is not None:
+                            print(ally.give_item(item_name.strip(), player))
+                        else:
+                            print("There is no one here by that name.")
+
+                elif command == "trade":
+                    if current_room.allies:
+                        ally = current_room.allies[0]
+                        print(trade_with_ally(ally, player))
+                    else:
+                        print("There is no one here to trade with.")
+
+                elif command.startswith("recruit "):
+                    name = command.removeprefix("recruit ").strip()
+                    print(recruit_companion(name, current_room, player))
+
+                elif command == "dismiss":
+                    print(dismiss_companion(player))
+
+                elif command == "skills":
+                    print(player.get_skills_display())
+
+                elif command.startswith("learn "):
+                    path_name = command.removeprefix("learn ").strip()
+                    try:
+                        print(player.skill_tree.invest(path_name, player))
+                    except ActionRefused as e:
+                        print(e)
                 else:
-                    print("There is no one here to trade with.")
+                    print("Nothing happens.")
 
-            elif command.startswith("recruit "):
-                name = command.removeprefix("recruit ").strip()
-                print(recruit_companion(name, current_room, player))
+                outcome = None
+                for trigger, shown, text in ENDINGS:
+                    if trigger in player.story_flags and shown not in player.story_flags:
+                        player.story_flags.add(shown)
+                        print(text(player))
+                        if active_profile is not None:
+                            save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
+                            print("(autosaved)")
+                        outcome = choose_after_ending()
+                        break
+                if outcome == "title":
+                    return_to_title = True
+                    break
 
-            elif command == "dismiss":
-                print(dismiss_companion(player))
+            if return_to_title:
+                break
 
-            elif command == "skills":
-                print(player.get_skills_display())
+            if quit_requested:
+                return
 
-            elif command.startswith("learn "):
-                path_name = command.removeprefix("learn ").strip()
+            if active_profile is not None and confirm("You have died. Reload your last save?"):
+                fresh_dungeon, _, fresh_floors = build_world()
                 try:
-                    print(player.skill_tree.invest(path_name, player))
-                except ActionRefused as e:
-                    print(e)
+                    player, current_room = save_system.load_game(active_profile, active_slot, fresh_dungeon)
+                except SaveFileError as error:
+                    print(error)
+                else:
+                    dungeon, all_floors = fresh_dungeon, fresh_floors
+                    continue
 
-
-            else:
-                print("Nothing happens.")
-
-        if quit_requested:
-            return
-
-        if active_profile is not None and confirm("You have died. Reload your last save?"):
-            fresh_dungeon, _, fresh_floors = build_world()
-            try:
-                player, current_room = save_system.load_game(active_profile, active_slot, fresh_dungeon)
-            except SaveFileError as error:
-                print(error)
-            else:
-                dungeon, all_floors = fresh_dungeon, fresh_floors
-                continue
-
-        print("\nYou have died.")
-        break
+            print("\nYou have died.")
+            break
 
 if __name__ == "__main__":
     main()

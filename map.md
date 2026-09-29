@@ -47,6 +47,9 @@ Forge of Prometheus {Prometheus - Friendly}
 * maze of pillars -> Maze of Pillars [NOTE: same fast-travel-lock mechanism as above, keyed to Maze of Pillars' own 'forge' exit]
 * shadow of pylos -> Shadow of Pylos [NOTE: same fast-travel-lock mechanism, keyed to Shadow of Pylos' own 'forge' exit]
 * shadow of ithaca -> Shadow of Ithaca [NOTE: same fast-travel-lock mechanism, keyed to Shadow of Ithaca's own 'forge' exit]
+* bedchamber of persephone -> Bedchamber of Persephone [NOTE: same fast-travel-lock mechanism, keyed to the Bedchamber's own 'forge' exit]
+* gate of cerberus -> Gate of Cerberus [NOTE: same fast-travel-lock mechanism, keyed to the Gate's own 'forge' exit]
+* tartarus -> Tartarus [NOTE: same fast-travel-lock mechanism, keyed to Tartarus' own 'forge' exit - and not listed at all until 'hades_defeated', since Tartarus is concealed]
 Practice Chamber {Practice Enemy - Enemy} [NOTE: is_practice_chamber=True; the enemy has respawns=True and resets on defeat instead of being removed]
 * west -> Forge of Prometheus
 
@@ -100,7 +103,7 @@ Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable a
 Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 32 HP / 9 ATK / 5 armour / pierce 3, drops Hector's Helm; guards 'south']
 * north -> Shadow of Army Camp
 * south -> Shadow of Troy (Central)
-Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 14 ATK / 1 armour / pierce 3, drops the Tower Shield of Ajax; guards 'west']
+Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 12 ATK / 1 armour / pierce 3, drops the Tower Shield of Ajax; guards 'west']
 * north -> Shadow of Troy (North)
 * west -> Shadow of Troy (Alleyway)
 Shadow of Troy (Alleyway) {Myrmidon Soldier ×2 - Enemy} [NOTE: built - a pair, 9 ATK / pierce 2, each dropping a Field Dressing; 'south' deliberately unguarded - skipping them costs the dressings]
@@ -124,7 +127,7 @@ Calm Waters {Sirens - room interaction} [NOTE: built - no enemy; 'listen' / 'giv
 * south -> Narrow River
 Cavern of Polyphemus {Polyphemus - Enemy} [NOTE: built - optional two-phase fight; Polyphemus (Blinded) starts at a 35% miss chance and drops the Olive-wood Stake; two Wheels of Cheese on the floor]
 * west -> Calm Waters
-Rocky Shore {Head of Scylla ×6 - Enemy} [NOTE: built - six weak heads, guarding 'south'; the Boar's-Tusk Helm lies on the rocks]
+Rocky Shore {Head of Scylla ×6 - Enemy} [NOTE: built - six weak heads, each striking blindly (30% miss), guarding 'south'; the Boar's-Tusk Helm lies on the rocks]
 * east -> Calm Waters
 * south -> Poseidon's Depths
 Narrow River {Charybdis - Enemy (invulnerable)} [NOTE: built - a puzzle, not a fight: 'watch' / 'climb' / 'let go' / 'row' against the whirlpool's cycle; a mistake costs 12 HP. Guards 'west' until solved; drops the Hoplon of the Drowned]
@@ -157,16 +160,19 @@ Shadow of Thebes {Tiresias - Friendly} [NOTE: built - free, unlimited readings o
 Bedchamber of Persephone {Persephone - Friendly} [NOTE: built - the first branching dialogue ('say <number>'); gives a Pomegranate (full heal) once, and asks the player to spare Hades - 'promised_mercy' or 'refused_mercy'; which one isn't read by anything yet]
 * north -> Shadow of Thebes
 * descend -> Gate of Cerberus [NOTE: story-gated - shut until the player answers Persephone either way]
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 
-Gate of Cerberus {Cerberus - Enemy}
+Gate of Cerberus {Cerberus - Enemy} [NOTE: built - three phases (Cerberus, Two Heads, Last Head); the last head poisons, fully restores the player on defeat and drops the Hide of Cerberus; guards 'south']
 * ascend -> Bedchamber of Persephone
 * south -> Hall of Hades
-Hall of Hades {Hades - Enemy}
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
+Hall of Hades {Hades - Enemy} [NOTE: built - Hades, three Restless Shades (Vials of Ambrosia), then Hades (Helm of Darkness), who drops the Bident of Hades; with 'promised_mercy' he yields and stays as a recruitable companion. Clearing the Hall sets 'hades_defeated' and shows the ending]
 * north -> Gate of Cerberus
-* descend -> Tartarus [NOTE: concealed - not listed or usable until the 'hades_defeated' story flag, which nothing sets yet]
+* descend -> Tartarus [NOTE: concealed until 'hades_defeated', and guarded by the Hades chain]
 
-Tartarus {Typhon - Enemy} [NOTE: concealed until 'hades_defeated' - see CLAUDE.md's "Concealed rooms"]
+Tartarus {Typhon - Enemy} [NOTE: built - concealed until 'hades_defeated'. Typhon, four Serpents of Typhon (poison, Vials of Ambrosia), then Typhon (Storm Unleashed), who blinds and drops the Heart of Typhon (a Trophy). Clearing it sets 'typhon_defeated' and shows the true ending]
 * ascend -> Hall of Hades
+* forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 
 ---
 FLOOR ASSIGNMENTS (confirmed):
@@ -251,13 +257,16 @@ Polyphemus in his cavern, six Heads of Scylla guarding Rocky Shore's
 'south', Charybdis' puzzle guarding Narrow River's 'west', Poseidon's chain
 guarding the Depths' 'south', Odysseus (a companion) in Shadow of Ithaca, and
 Circe (the first merchant) in the Muddy Pigsty, the Suitors guarding the Throne
-Room's 'west', and Penelope in the Bedchamber. Shadow of Pylos and Shadow of Ithaca have 'forge' shortcuts, so the
-Forge now has five reciprocal exits.
+Room's 'west', and Penelope in the Bedchamber. Shadow of Pylos and Shadow of Ithaca have 'forge' shortcuts, as do
+Persephone's Bedchamber, the Gate of Cerberus and Tartarus - so the Forge has
+eight reciprocal exits.
 Floor 7 is populated, with no enemies: the Oracle in the Chamber of the Oracle,
 Tiresias in Shadow of Thebes, and Persephone in her Bedchamber, whose 'descend'
 stays shut until the player answers her request (a story gate).
-Tartarus (floor 9) is concealed until the 'hades_defeated' story flag.
-Every room on floors 8-9
-remains an unpopulated shell - the per-room enemies/allies listed for them
-are the planned design, not built content. Finishing Floor 2's population (Prometheus' trade and Trophy
-Room of Zeus) and floors 8-9's population are all deferred to the "Populate all floors" roadmap item.
+Floor 8 is populated: Cerberus in the Gate of Cerberus, guarding 'south', and
+Hades' chain in the Hall of Hades - the story's end.
+Floor 9 is populated: Tartarus, concealed until the 'hades_defeated' story
+flag (which clearing the Hall sets), holds Typhon - the post-game and the true
+ending. Every floor now has its content (roadmap.md's "Populate all floors" is
+complete); only Floor 2's Prometheus' trade and Trophy Room of Zeus remain, and
+both are planned under other roadmap items (hardcore mode and the Trophy room).

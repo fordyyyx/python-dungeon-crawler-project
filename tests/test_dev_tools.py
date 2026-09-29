@@ -1133,20 +1133,35 @@ def test_handle_dev_command_set_durability_dispatches_the_shield_slot():
     assert shield.durability == 4
     assert message == "[DEV] Aegis durability set to 4/10."
 
-def test_find_enemy_by_name_does_not_know_the_achilles_duel_form():
-    """The duel form only exists via start_duel() - registering it under the companion's name made 'dev spawn' pick it over the companion."""
-    assert find_enemy_by_name("shade of achilles") is None
+def test_find_enemy_by_name_finds_the_achilles_duel_form():
+    """Registered under the companion's name - 'dev spawn' gives the duellist, 'dev spawn companion' the companion."""
+    enemy = find_enemy_by_name("shade of achilles")
+    assert enemy is not None
+    assert enemy.name == "Shade of Achilles"
+    assert enemy.hp == 50
 
-def test_handle_dev_command_spawn_shade_of_achilles_adds_the_companion():
+def test_handle_dev_command_spawn_shade_of_achilles_adds_the_duellist():
     player = Player(name="hero", hp=100)
     room = Room("Arena")
-    dungeon = Map()
+    handle_dev_command("spawn shade of achilles", player, room, Map())
+    assert [e.name for e in room.enemies] == ["Shade of Achilles"]
+    assert room.companions == []
 
-    message, _ = handle_dev_command("spawn shade of achilles", player, room, dungeon)
+def test_handle_dev_command_spawn_companion_shade_of_achilles_adds_the_companion():
+    player = Player(name="hero", hp=100)
+    room = Room("Arena")
+
+    message, _ = handle_dev_command("spawn companion shade of achilles", player, room, Map())
 
     assert [c.name for c in room.companions] == ["Shade of Achilles"]
+    assert room.companions[0].home_room is room
     assert room.enemies == []
     assert message == "[DEV] Spawned Shade of Achilles. Use 'recruit Shade of Achilles' to add them to your team."
+
+def test_handle_dev_command_spawn_companion_with_an_unknown_name():
+    message, room_change = handle_dev_command("spawn companion nobody", Player(name="hero", hp=100), Room("Arena"), Map())
+    assert message == "[DEV] No companion named 'nobody'."
+    assert room_change is None
 
 def test_find_item_by_name_finds_hectors_helm():
     item = find_item_by_name("hector's helm")

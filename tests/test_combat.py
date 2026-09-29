@@ -1,6 +1,6 @@
 from dungeon_crawler.characters import Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver
+from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver, QuestItem
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.content import create_polyphemus, create_polyphemus_blinded, create_charybdis, create_poseidon
@@ -3623,3 +3623,81 @@ def test_resolve_pending_defeats_the_last_suitor_falling_sets_suitors_cleared():
     message = resolve_pending_defeats(player, room)
     assert "suitors_cleared" in player.story_flags
     assert "The hall falls silent at last." in message
+
+# ---- the yield mechanic ----
+
+def _yielding_enemy(result_flag="imp_spared", factory=True, **kwargs):
+    def make_companion():
+        return Companion(name="Imp", hp=8, home_room=Room("Elsewhere"))
+    return Enemy(name="Imp", hp=5, yield_condition_flag="spared", yield_companion_factory=make_companion if factory else None,
+                 yield_result_flag=result_flag, **kwargs)
+
+def test_handle_enemy_defeat_yielding_enemy_leaves_a_companion_at_home_in_the_room():
+    room = Room("Hall")
+    enemy = _yielding_enemy()
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("spared")
+    enemy.hp = 0
+    handle_enemy_defeat(room, enemy, player)
+    assert room.enemies == []
+    assert [c.name for c in room.companions] == ["Imp"]
+    assert room.companions[0].home_room is room
+    assert "imp_spared" in player.story_flags
+
+def test_handle_enemy_defeat_yield_still_grants_rewards_and_loot():
+    room = Room("Hall")
+    token = QuestItem(name="Token", description="")
+    enemy = _yielding_enemy(experience_reward=10, gold_reward=7, loot=[token])
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("spared")
+    enemy.hp = 0
+    handle_enemy_defeat(room, enemy, player)
+    assert player.gold == 7
+    assert player.experience == 10
+    assert token in room.items
+
+def test_handle_enemy_defeat_without_the_condition_flag_does_not_yield():
+    room = Room("Hall")
+    enemy = _yielding_enemy()
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    enemy.hp = 0
+    handle_enemy_defeat(room, enemy, player)
+    assert room.companions == []
+    assert "imp_spared" not in player.story_flags
+
+def test_handle_enemy_defeat_yield_with_no_factory_does_nothing():
+    room = Room("Hall")
+    enemy = _yielding_enemy(factory=False)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("spared")
+    enemy.hp = 0
+    handle_enemy_defeat(room, enemy, player)
+    assert room.companions == []
+    assert "imp_spared" not in player.story_flags
+
+def test_handle_enemy_defeat_yield_without_a_result_flag_adds_no_flag():
+    room = Room("Hall")
+    enemy = _yielding_enemy(result_flag=None)
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("spared")
+    enemy.hp = 0
+    handle_enemy_defeat(room, enemy, player)
+    assert len(room.companions) == 1
+    assert player.story_flags == {"spared"}
+
+def test_handle_enemy_defeat_yield_happens_before_the_defeat_effect():
+    """The defeat_effect can tell which way it went - Hades' reveal reads 'hades_spared'."""
+    seen = []
+    enemy = _yielding_enemy(defeat_effect=lambda player: seen.append("imp_spared" in player.story_flags) or "")
+    room = Room("Hall")
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("spared")
+    enemy.hp = 0
+    handle_enemy_defeat(room, enemy, player)
+    assert seen == [True]

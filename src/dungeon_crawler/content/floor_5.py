@@ -125,7 +125,7 @@ def create_shade_of_ajax() -> Enemy:
     return Enemy(
         name="Shade of Ajax",
         hp=46,
-        attack_damage=14,
+        attack_damage=12,
         armour=1,
         loot=[create_tower_shield_of_ajax()],
         description="Head and shoulders above every other shade on the field, he fights like a landslide - no footwork, no feints, just weight.",

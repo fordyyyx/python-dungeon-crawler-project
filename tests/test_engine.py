@@ -1,7 +1,8 @@
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon
-from dungeon_crawler.engine import print_room, get_controls_text, main, RESERVED_COMMAND_WORDS
+from dungeon_crawler.engine import print_room, get_controls_text, main, RESERVED_COMMAND_WORDS, ending_text, choose_after_ending, true_ending_text, ENDINGS
+from dungeon_crawler import save_system
 from dungeon_crawler.content import build_world
 from dungeon_crawler.hints import HINTS
 
@@ -554,7 +555,7 @@ def test_main_dummy_set_routing_smoke_test(monkeypatch, capsys, tmp_path):
 def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_path):
     """Scripted playthrough covering the tail end of main(): the inner while loop exits once the player
     dies, the reload prompt fires (an active profile/slot is always set by this point), and declining it
-    prints the game-over message and ends main() entirely."""
+    prints the game-over message and returns to the title screen."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
         "1", "1", "1",
@@ -566,6 +567,7 @@ def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_pa
         "dev spawn skeleton warrior",
         "attack",
         "no",  # decline "Reload your last save?"
+        "4",  # quit from the title screen
     ])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
 
@@ -575,6 +577,7 @@ def test_main_player_death_ends_game_loop_smoke_test(monkeypatch, capsys, tmp_pa
     assert "Dev has fallen. Game Over." in captured.out
     assert "Dev has died. Game over." not in captured.out
     assert "You have died." in captured.out
+    assert "Load Game" in captured.out.split("You have died.")[-1]
 
 def test_main_player_death_accepting_reload_restores_the_save_and_continues_playing(monkeypatch, capsys, tmp_path):
     """Accepting the 'Reload your last save?' prompt loads the active slot (saved at full HP before the
@@ -1872,7 +1875,7 @@ def test_main_mid_game_load_of_a_damaged_save_keeps_the_current_game(monkeypatch
 def test_main_dying_with_a_damaged_save_ends_the_game_cleanly(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     write_damaged_save(tmp_path, 1, 1)
-    responses = iter(["1", "1", "1", "yes", "developer mode", "basic", "ares", "floor_0", "dev set hp 0", "yes"])
+    responses = iter(["1", "1", "1", "yes", "developer mode", "basic", "ares", "floor_0", "dev set hp 0", "yes", "4"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
 
     main()
@@ -1919,8 +1922,14 @@ def test_main_descend_to_a_concealed_tartarus_does_nothing(monkeypatch, capsys, 
     assert "Tartarus" not in after
 
 def test_main_descend_to_tartarus_once_hades_is_defeated(monkeypatch, capsys, tmp_path):
-    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport hall of hades", "dev flag hades_defeated", "descend"])
+    """Clearing the Hall sets 'hades_defeated' (its cleared_story_flag), which shows the ending - '2' carries on exploring."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport hall of hades", "dev clear room", "2", "descend"])
     assert "Tartarus:" in out.split("Hall of Hades:")[-1]
+
+def test_main_hades_guards_the_stair_even_with_the_flag(monkeypatch, capsys, tmp_path):
+    """With 'hades_defeated' set by hand but Hades still standing, the unconcealed stair is guarded."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport hall of hades", "dev flag hades_defeated", "2", "descend"])
+    assert "Hades bars the way - you'll have to deal with it first." in out
 
 def test_main_say_outside_a_conversation(monkeypatch, capsys, tmp_path):
     out = _run(monkeypatch, capsys, tmp_path, ["say 1"])
@@ -1953,3 +1962,107 @@ def test_main_persephone_bars_the_descent_until_her_question_is_answered(monkeyp
     blocked, after = out.split("(Talk to Persephone.)", 1)
     assert "Gate of Cerberus:" not in blocked.split("Bedchamber of Persephone:")[-1]
     assert "Gate of Cerberus:" in after
+
+# ---- the ending ----
+
+HADES_KILLS = ["dev teleport hall of hades", "dev kill", "dev kill", "dev kill", "dev kill", "dev kill"]
+
+def test_ending_text_when_hades_was_spared():
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hades_spared")
+    text = ending_text(player)
+    assert "Hades doesn't go back to his throne. He stands beside you instead" in text
+    assert "\"Whenever you're ready. He won't wait for long.\"" in text
+    assert "The throne of bone stands empty." not in text
+    assert "The story is over." in text
+
+def test_ending_text_when_hades_died():
+    text = ending_text(Player(name="Hero", hp=20))
+    assert "The throne of bone stands empty." in text
+    assert "Below, something vast turns over in the dark, and doesn't go back to sleep." in text
+    assert "Hades doesn't go back to his throne" not in text
+
+def test_choose_after_ending_returns_title_for_one(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "1")
+    assert choose_after_ending() == "title"
+
+def test_choose_after_ending_returns_continue_for_two(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "2")
+    assert choose_after_ending() == "continue"
+
+def test_choose_after_ending_asks_again_after_an_invalid_answer(monkeypatch, capsys):
+    answers = iter(["3", "", "2"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(answers))
+    result = choose_after_ending()
+    assert result == "continue"
+    assert capsys.readouterr().out.count("Choose 1 or 2.") == 2
+
+def test_main_ending_shows_as_soon_as_hades_falls(monkeypatch, capsys, tmp_path):
+    """Regression: the ending check sat outside the command loop, so it only ran once the player quit or died."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag promised_mercy"] + HADES_KILLS + ["2", "look"])
+    after_kills = out.split("Hades drops to one knee")[-1]
+    assert after_kills.index("The story is over.") < after_kills.index("Hall of Hades:")
+    assert "Hades doesn't go back to his throne." in after_kills
+
+def test_main_ending_with_hades_killed_uses_the_other_closing(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, HADES_KILLS + ["2"])
+    assert "Below, something vast turns over in the dark" in out
+    assert "Hades doesn't go back to his throne" not in out
+
+def test_main_ending_is_only_shown_once(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, HADES_KILLS + ["2", "look", "look"])
+    assert out.count("The story is over.") == 1
+
+def test_main_ending_continue_keeps_playing_without_a_stray_message(monkeypatch, capsys, tmp_path):
+    """Regression: the check first split the command chain, so every command then printed 'Nothing happens.'."""
+    out = _run(monkeypatch, capsys, tmp_path, HADES_KILLS + ["2", "look"])
+    after_ending = out.split("The story is over.")[-1]
+    assert "Hall of Hades:" in after_ending
+    assert "Nothing happens." not in after_ending
+
+def test_main_ending_can_return_to_the_title_screen(monkeypatch, capsys, tmp_path):
+    """Regression: 'Return to the title screen' used to just end main(), since the title screen loop had already been left."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "developer mode", "basic", "ares", "floor_0"] + HADES_KILLS + ["1", "4"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    main()
+    after_ending = capsys.readouterr().out.split("The story is over.")[-1]
+    assert "Load Game" in after_ending
+
+def test_main_ending_autosaves_with_the_ending_seen(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, HADES_KILLS + ["2"])
+    player, _ = save_system.load_game(1, 1, build_world()[0])
+    assert "(autosaved)" in out.split("The story is over.")[-1]
+    assert {"hades_defeated", "ending_shown"} <= player.story_flags
+
+# ---- the true ending ----
+
+TYPHON_KILLS = ["dev teleport tartarus"] + ["dev kill"] * 6
+
+def test_true_ending_text_when_hades_was_spared():
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hades_spared")
+    text = true_ending_text(player)
+    assert "\"It's done,\" he says at last." in text
+    assert "This is the true ending." in text
+
+def test_true_ending_text_when_hades_died():
+    text = true_ending_text(Player(name="Hero", hp=20))
+    assert "Whatever Hades spent himself holding back, you've finished." in text
+    assert "he says at last" not in text
+
+def test_endings_are_checked_story_first():
+    assert [(trigger, shown) for trigger, shown, text in ENDINGS] == [
+        ("hades_defeated", "ending_shown"), ("typhon_defeated", "true_ending_shown"),
+    ]
+
+def test_main_true_ending_shows_as_soon_as_typhon_falls(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hades_defeated", "2"] + TYPHON_KILLS + ["2", "look"])
+    after_ending = out.split("This is the true ending.")[-1]
+    assert out.count("This is the true ending.") == 1
+    assert "Tartarus:" in after_ending
+
+def test_main_true_ending_autosaves_with_it_seen(monkeypatch, capsys, tmp_path):
+    _run(monkeypatch, capsys, tmp_path, ["dev flag hades_defeated", "2"] + TYPHON_KILLS + ["2"])
+    player, _ = save_system.load_game(1, 1, build_world()[0])
+    assert {"typhon_defeated", "true_ending_shown"} <= player.story_flags

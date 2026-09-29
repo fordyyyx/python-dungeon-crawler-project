@@ -1395,3 +1395,39 @@ def test_save_and_load_keeps_the_oracles_spent_prophecies(monkeypatch, tmp_path)
     load_game(1, 1, fresh)
 
     assert fresh_floors["floor_7"]["Chamber of the Oracle"].flags == {"prophecy:ahead:floor_6"}
+
+def test_save_and_load_keeps_a_spared_hades_in_his_hall(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    hall = floors["floor_8"]["Hall of Hades"]
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("promised_mercy")
+    while hall.enemies:
+        for enemy in hall.enemies:
+            enemy.hp = 0
+        resolve_pending_defeats(player, hall)
+    save_game(1, 1, player, hall, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    reloaded, room = load_game(1, 1, fresh)
+
+    fresh_hall = fresh_floors["floor_8"]["Hall of Hades"]
+    assert fresh_hall.enemies == []
+    assert [c.name for c in fresh_hall.companions] == ["Hades"]
+    assert fresh_hall.companions[0].home_room is fresh_hall
+    assert "hades_spared" in reloaded.story_flags
+
+def test_save_and_load_keeps_the_heads_of_scylla_striking_wildly(monkeypatch, tmp_path):
+    """Enemy effects aren't saved, so the miss chance has to come back from the heads' factory - a reload mid-route mustn't make them sure-footed."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    rocky_shore = floors["floor_6"]["Rocky Shore"]
+    rocky_shore.enemies[0].hp = 4
+    save_game(1, 1, Player(name="Hero", hp=20), rocky_shore, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    load_game(1, 1, fresh)
+
+    heads = fresh_floors["floor_6"]["Rocky Shore"].enemies
+    assert heads[0].hp == 4
+    assert [head.get_miss_chance("light") for head in heads] == [0.3] * 6

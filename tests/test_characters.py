@@ -1,9 +1,9 @@
 from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.characters import HP_PER_LEVEL, COMPANION_HP_PER_LEVEL, COMPANION_ATTACK_PER_LEVEL, STARTING_EXPERIENCE_TO_NEXT_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
-from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem, LoyaltyToken
+from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem, LoyaltyToken, Consumable
 from dungeon_crawler.world import Room
 from dungeon_crawler.status_effects import StatusEffect
-from dungeon_crawler.characters import BLINDED_EFFECT_NAME, WEAPON_BLIND_MISS_CHANCE, WEAPON_BLIND_DURATION
+from dungeon_crawler.characters import BLINDED_EFFECT_NAME, WEAPON_BLIND_MISS_CHANCE, WEAPON_BLIND_DURATION, MINIMUM_DAMAGE, MINIMUM_DAMAGE_FRACTION
 
 def test_character_initialises_with_correct_stats():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -331,7 +331,7 @@ def test_take_damage_with_pending_damage_reduction_exceeding_damage_still_deals_
     character = Character(name="Hero", hp=30, attack_damage=5)
     character.pending_damage_reduction = 20
     character.take_damage(10)
-    assert character.hp == 29
+    assert character.hp == 30 - max(MINIMUM_DAMAGE, round(10 * MINIMUM_DAMAGE_FRACTION))
 
 def test_take_damage_with_pending_damage_reduction_is_still_consumed_when_it_fully_blocks_the_hit():
     character = Character(name="Hero", hp=30, attack_damage=5)
@@ -2957,3 +2957,62 @@ def test_ally_talk_never_includes_the_opening_line():
     """The opening line is consumed by talk_to() (exploration.py), never by talk() itself."""
     ally = Ally(name="Seer", hint="Hello.", opening_line="At last.")
     assert ally.talk(Player(name="Hero", hp=20)) == "Hello."
+
+def test_enemy_has_no_yield_by_default():
+    enemy = Enemy(name="Imp", hp=5)
+    assert enemy.yield_condition_flag is None
+    assert enemy.yield_companion_factory is None
+    assert enemy.yield_result_flag is None
+
+def test_enemy_stores_its_yield_fields():
+    def factory():
+        return Companion(name="Imp", hp=5, home_room=Room("Camp"))
+    enemy = Enemy(name="Imp", hp=5, yield_condition_flag="spared", yield_companion_factory=factory, yield_result_flag="imp_spared")
+    assert enemy.yield_condition_flag == "spared"
+    assert enemy.yield_companion_factory is factory
+    assert enemy.yield_result_flag == "imp_spared"
+
+def test_inventory_display_shows_an_item_with_no_details_by_name_alone():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(Consumable(name="Potion", heal_amount=5))
+    display = player.get_inventory_display()
+    assert "Potion" in display
+    assert "Potion -" not in display
+
+def test_ally_give_item_finds_an_item_after_others():
+    player = Player(name="Hero", hp=20)
+    key = QuestItem(name="Old Key", description="")
+    coin = QuestItem(name="Coin", description="")
+    ally = Ally(name="Keeper", items=[key, coin])
+    ally.give_item("coin", player)
+    assert coin in player.inventory.items
+    assert ally.inventory.items == [key]
+
+def test_minimum_damage_fraction_is_a_fraction():
+    assert 0 < MINIMUM_DAMAGE_FRACTION < 1
+
+def test_take_damage_a_big_hit_against_huge_armour_deals_its_fractional_minimum():
+    """However much armour a target has, a landed hit deals at least MINIMUM_DAMAGE_FRACTION of its incoming damage."""
+    character = Character(name="Hero", hp=200, attack_damage=5, armour=500)
+    damage, _ = character.take_damage(100)
+    assert damage == round(100 * MINIMUM_DAMAGE_FRACTION)
+    assert damage > MINIMUM_DAMAGE
+
+def test_take_damage_a_weak_hit_against_huge_armour_still_deals_minimum_damage():
+    """A hit too small for the fraction to reach MINIMUM_DAMAGE deals MINIMUM_DAMAGE, as before the fraction existed."""
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=500)
+    damage, _ = character.take_damage(1)
+    assert damage == MINIMUM_DAMAGE
+
+def test_take_damage_the_fractional_minimum_never_raises_a_hit_armour_barely_touches():
+    character = Character(name="Hero", hp=100, attack_damage=5, armour=1)
+    damage, _ = character.take_damage(40)
+    assert damage == 39
+
+def test_take_damage_fractional_minimum_is_not_applied_to_a_dodged_hit(monkeypatch):
+    monkeypatch.setattr("dungeon_crawler.characters.random.random", lambda: 0.0)
+    character = Character(name="Hero", hp=30, attack_damage=5, armour=500)
+    character.dodge_chance = 0.5
+    damage, _ = character.take_damage(100)
+    assert damage == 0
+    assert character.hp == 30
