@@ -993,8 +993,8 @@ def test_main_take_all_from_ally_then_equip_gears_up_from_the_wounded_soldier(mo
     assert "Dev equips Bronze Xiphos (melee, +3 DMG)." in captured.out
 
 def test_main_uncleared_reports_only_visited_rooms_with_something_left(monkeypatch, capsys, tmp_path):
-    """Walk past the Shade in Fields of Asphodel without fighting it - 'uncleared' then reports it, hints at Styx
-    Crossing's hidden exit without naming the direction, and lists the Library of Athena (one open step below Styx
+    """Walk past the Shade in Fields of Asphodel without fighting it - 'uncleared' then reports it, notes that hidden
+    ways remain without naming the room or direction, and lists the Library of Athena (one open step below Styx
     Crossing) as undiscovered - while the hidden Sunken Vault is never named."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
@@ -1012,7 +1012,8 @@ def test_main_uncleared_reports_only_visited_rooms_with_something_left(monkeypat
     captured = capsys.readouterr()
     report = captured.out.split("Floor 1:")[-1]
     assert "    Fields of Asphodel - enemies remain" in report
-    assert "    Styx Crossing - something here is worth a closer look" in report
+    assert "Styx Crossing -" not in report
+    assert report.rstrip().endswith("Hidden ways remain somewhere on the floors you've reached.")
     assert "Floor 2:\n    Library of Athena - undiscovered" in report
     assert "Sunken Vault" not in report
 
@@ -1879,3 +1880,76 @@ def test_main_dying_with_a_damaged_save_ends_the_game_cleanly(monkeypatch, capsy
     captured = capsys.readouterr()
     assert "Profile 1, slot 1 can't be read" in captured.out
     assert "You have died." in captured.out
+
+def test_main_talking_to_persephone_starts_her_branching_dialogue(monkeypatch, capsys, tmp_path):
+    """Regression: main() called talk_to() without the room, so Persephone had 'nothing to say', never gave the Pomegranate, and 'say'
+    always answered that there was no conversation."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev teleport bedchamber of persephone",
+        "talk",
+        "say 1",
+        "quit",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    captured = capsys.readouterr()
+    assert "(You receive a Pomegranate.)" in captured.out
+    assert "    1. Ask why Hades stopped judging the dead" in captured.out
+    assert "(Answer with 'say <number>'.)" in captured.out
+    assert "He hasn't stopped caring for them." in captured.out
+    assert "Persephone has nothing to say." not in captured.out
+    assert "You're not in a conversation." not in captured.out
+
+def _run(monkeypatch, capsys, tmp_path, commands):
+    """Start a dev-mode game on floor 0, run commands, quit, and return everything printed."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "developer mode", "basic", "ares", "floor_0"] + commands + ["quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    main()
+    return capsys.readouterr().out
+
+def test_main_descend_to_a_concealed_tartarus_does_nothing(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport hall of hades", "descend"])
+    after = out.split("Hall of Hades:")[-1]
+    assert "Nothing happens." in after
+    assert "Tartarus" not in after
+
+def test_main_descend_to_tartarus_once_hades_is_defeated(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport hall of hades", "dev flag hades_defeated", "descend"])
+    assert "Tartarus:" in out.split("Hall of Hades:")[-1]
+
+def test_main_say_outside_a_conversation(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["say 1"])
+    assert "You're not in a conversation." in out
+
+def test_main_walking_away_from_persephone_ends_the_conversation(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport bedchamber of persephone", "talk", "north", "south", "say 1"])
+    assert out.rstrip().split("\n")[-1] == "You're not in a conversation."
+
+def test_main_ask_ahead_routes_to_the_oracle(monkeypatch, capsys, tmp_path):
+    """Floor 0 is the deepest reached, so she foretells floor 1 - which has no notable traits."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport chamber of the oracle", "ask ahead"])
+    assert "Below, there is only strength against strength." in out
+    assert "(2 prophecies remain.)" in out
+
+def test_reserved_command_words_include_say():
+    """'say' answers a conversation, so no room interaction may start with it."""
+    assert "say" in RESERVED_COMMAND_WORDS
+
+def test_main_persephone_bars_the_descent_until_her_question_is_answered(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev teleport bedchamber of persephone",
+        "descend",
+        "talk",
+        "say 2",
+        "say 1",
+        "say 1",
+        "descend",
+    ])
+    blocked, after = out.split("(Talk to Persephone.)", 1)
+    assert "Gate of Cerberus:" not in blocked.split("Bedchamber of Persephone:")[-1]
+    assert "Gate of Cerberus:" in after

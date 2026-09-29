@@ -143,7 +143,7 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `tower shield of ajax`, `field dressing`, `bow of paris`, `cup of kykeon`,
 `laestrygonian hide`, `antiphates' club`, `olive-wood stake`, `wheel of cheese`,
 `boar's-tusk helm`, `hoplon of the drowned`, `trident of the depths`,
-`kelp poultice`, `antinous' goblet`, `penelope's thread`, `test spellbook`, `test healing tonic`, `test venom vial`.
+`kelp poultice`, `antinous' goblet`, `penelope's thread`, `pomegranate`, `test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
@@ -162,7 +162,11 @@ useful for isolated testing without a full room/fight.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`, `nestor`, `circe` (a merchant -
-see the exchange recipe below), `penelope`.
+see the exchange recipe below), `penelope`, `oracle`, `tiresias`, `persephone`. A spawned
+`oracle` or `tiresias` is the *unwired* version - the Oracle's questions are room
+interactions of the Chamber of the Oracle, and Tiresias' readings are attached by
+`build_world()` - so spawned, Tiresias only has a placeholder line. Teleport to the
+real floor 7 rooms to test them (see the recipe below).
 
 **Companions** (`dev spawn <name>`): `shade of achilles` — the real floor 5
 companion, spawned still needing his duel (`challenge shade of achilles`
@@ -237,12 +241,20 @@ has nothing to trade." and never completes) - see roadmap.md's "Populate all
 floors." Athena, Ares, and Hermes all have real dialogue now, including a
 line for after their trade (`Ally.hint_traded`).
 
-Floor 6's first half is real content too, with no workaround needed: the
+Floor 6 is all real content too, with no workaround needed: the
 giants in Bright Cave, the Sirens' bargain in Calm Waters (the first room
 interaction), Polyphemus and his blinded second phase in the Cavern of
 Polyphemus (the Olive-wood Stake he drops is the only real source of
 Blinded), the six Heads of Scylla in Rocky Shore, and Charybdis' puzzle in
-Narrow River - each route guards its way into Poseidon's Depths.
+Narrow River - each route guards its way into Poseidon's Depths - then
+Poseidon, Odysseus, Circe, the Suitors and Penelope. Floor 7's Oracle,
+Tiresias and Persephone (and her Pomegranate) are real content as well.
+
+Two floor 7-9 things **can't** be reached through normal play yet: Tartarus
+is concealed until the `hades_defeated` story flag, which nothing sets (Hades
+isn't placed) - use `dev flag hades_defeated`; and while Persephone's
+`promised_mercy`/`refused_mercy` choice already opens the stair to floor 8
+(either answer does), *which* one you gave doesn't change anything yet.
 
 Two more small things from the same playtesting pass: moving into a new
 room restores 1 HP while you're below three-quarters of max HP (`"You
@@ -522,6 +534,49 @@ fallen - but stays standing."`); a second one downs them normally. It re-arms
 after the fight ends. For the real route, clear the Throne Room (`dev clear
 room` sets `suitors_cleared` too), walk `west`, and `take penelope's thread
 from penelope`.
+
+**Talk to floor 7's seers, and hold a branching conversation:**
+Start a dev game on `floor_5` (the starting-floor prompt), so the deepest
+floor reached is 5 and the Oracle has floor 6 to foretell - `dev teleport`
+never adds to `visited_floors`, only walking does.
+```
+dev teleport chamber of the oracle
+talk
+ask ahead
+ask ahead
+ask secrets
+dev teleport shadow of thebes
+talk
+dev teleport bedchamber of persephone
+talk
+say 2
+say 1
+talk
+```
+The first `talk` opens with the twist prophecy (once only). `ask ahead` lists
+floor 6's traits and "(2 prophecies remain.)"; asking again isn't spent. `ask
+secrets` only finds something on floors you've reached - start on `floor_2` for
+Styx Crossing and the Armoury of Ares (with a low-intellect warning). Tiresias'
+reading changes with your kit: try it with and without a bow, a healing item or
+`dev spawn test companion` + `recruit test companion`. Persephone gives the
+Pomegranate, `say 2` asks her request, `say 1` promises (`promised_mercy`), and the
+last `talk` no longer offers it. Try `descend` before answering: it's story-gated
+(`map` shows "Persephone is waiting for your answer", `uncleared` "a decision to
+make") - either answer opens it, "think about it" doesn't, and `dev flag
+promised_mercy` skips the conversation. Walking out mid-conversation ends it - `say 1`
+afterwards says you're not in one.
+
+**Open the way to Tartarus:**
+```
+dev teleport hall of hades
+map
+descend
+dev flag hades_defeated
+map
+descend
+```
+Without the flag, `map` doesn't list `descend` and `descend` does nothing - the
+room is concealed, not guarded. With it, Tartarus appears and you can go down.
 
 **Check that a damaged save is handled, not a crash:**
 Save a game normally, quit, then open `saves/profile_1/slot_1.json` in any

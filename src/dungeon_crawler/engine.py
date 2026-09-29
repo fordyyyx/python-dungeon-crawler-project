@@ -5,12 +5,13 @@ from dungeon_crawler.world import Room, Map
 from dungeon_crawler.content import build_world
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
-from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines, get_advice
+from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines, get_advice, is_exit_concealed, get_story_gate
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
 from dungeon_crawler.hints import show_hint
 from dungeon_crawler.exchange import list_offers, make_exchange
 from dungeon_crawler.exceptions import ActionRefused, SaveFileError
+from dungeon_crawler.dialogue import continue_dialogue
 
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
@@ -18,7 +19,7 @@ PASSIVE_REGEN_CAP_FRACTION = 0.75
 RESERVED_COMMAND_WORDS: frozenset[str] = frozenset({
     "north", "south", "east", "west", "up", "down", "ascend", "descend",
     "look", "examine", "map", "fullmap", "world", "inventory", "stats", "skills", "learn", "advice", "offers", "exchange",
-    "take", "drop", "use", "equip", "unequip", "talk", "trade", "recruit", "dismiss", "challenge",
+    "take", "drop", "use", "equip", "unequip", "talk", "trade", "recruit", "dismiss", "challenge", "say",
     "attack", "cast", "target", "flee", "rest", "wait", "repair", "dummy",
     "save", "load", "quit", "exit", "controls", "uncleared", "toggle", "dev", "developer",
 })
@@ -67,7 +68,7 @@ def print_room(room: Room, player: Player):
         ally = room.allies[0]
         print(f"{ally.name} is here. {ally.description}")
         if player.auto_talk:
-            print("\n" + talk_to(room.allies[0], player))
+            print("\n" + talk_to(room.allies[0], player, room))
 
     if room.companions:
         companion = room.companions[0]
@@ -76,7 +77,7 @@ def print_room(room: Room, player: Player):
         else:
             print(f"{companion.name} is here. {companion.description}")
         if player.auto_talk and not room.allies:
-            print("\n" + talk_to(room.companions[0], player))
+            print("\n" + talk_to(room.companions[0], player, room))
 
     if player.auto_map:
         print("\nExits:\n" + display_local_exits(room, player))
@@ -110,6 +111,7 @@ def get_controls_text() -> str:
         "toggle auto map - map displays automatically on room entry\n"
         "uncleared - display visited rooms that are not yet cleared and reachable rooms not yet discovered\n"
         "talk - talk to an ally or companion in the room\n"
+        "say <number> - answer in a conversation, choosing one of the numbered options\n"
         "toggle auto talk - allies speak automatically on room entry\n"
         "attack / attack light / attack heavy / attack ranged - attack an enemy in the room (locks you into combat); heavy hits harder but can miss, ranged needs an equipped ranged weapon\n"
         "target <name> - set your attack target; add a number if enemies share a name (e.g. target harpies 2)\n"
@@ -384,7 +386,7 @@ def main() -> None:
             elif command in ("fullmap", "world"):
                 print(display_map(current_room, player))
 
-            elif command in current_room.exits:
+            elif command in current_room.exits and not is_exit_concealed(current_room, command, player):
                 guardian = get_exit_guardian(current_room, command)
                 if command in current_room.fast_travel_locks:
                     print("You haven't opened this shortcut yet - reach it from the other side first.")
@@ -396,6 +398,8 @@ def main() -> None:
                     guard_hint = show_hint(player, "guarded_exit")
                     if guard_hint:
                         print(guard_hint)
+                elif (gate := get_story_gate(current_room, command, player)) is not None:
+                    print(gate.blocked_message)
                 else:
                     current_room.unlock_exit(command)
                     if command in current_room.exit_activations:
@@ -495,11 +499,14 @@ def main() -> None:
 
             elif command == "talk":
                 if current_room.allies:
-                    print(talk_to(current_room.allies[0], player))
+                    print(talk_to(current_room.allies[0], player, current_room))
                 elif current_room.companions:
-                    print(talk_to(current_room.companions[0], player))
+                    print(talk_to(current_room.companions[0], player, current_room))
                 else:
                     print("There's no one here to talk to.")
+
+            elif command == "say" or command.startswith("say "):
+                print(continue_dialogue(command.removeprefix("say").strip(), current_room, player))
 
             elif command.startswith("take ") and " from " in command:
                 parts = command.removeprefix("take ").split(" from ")

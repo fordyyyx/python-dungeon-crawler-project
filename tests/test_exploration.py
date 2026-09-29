@@ -2,7 +2,8 @@ from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon, Consumable
 from dungeon_crawler.content import create_circe
-from dungeon_crawler.exploration import get_advice, talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms
+from dungeon_crawler.exploration import get_advice, talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms, enemy_traits, encounter_enemies, floor_traits, next_floor_key, is_room_concealed, is_exit_concealed, HIDDEN_WAYS_NOTE, take_opening_line, get_story_gate
+from dungeon_crawler.dialogue import DialogueNode, DialogueOption
 
 def test_pick_up_adds_item_to_inventory():
     room = Room("Armoury")
@@ -934,12 +935,11 @@ def test_get_uncleared_reasons_ignores_dead_and_respawning_enemies():
     room.add_enemy(Enemy(name="Practice Enemy", hp=20, respawns=True))
     assert get_uncleared_reasons(room) == []
 
-def test_get_uncleared_reasons_hints_at_hidden_exit_without_naming_direction():
+def test_get_uncleared_reasons_does_not_count_a_hidden_exit():
+    """A hidden exit is reported once for the whole report (get_uncleared_rooms()), never against the room it's in."""
     room = Room("Styx Crossing")
     room.add_hidden_exit("down", Room("Sunken Vault"))
-    reasons = get_uncleared_reasons(room)
-    assert reasons == ["something here is worth a closer look"]
-    assert "down" not in reasons[0]
+    assert get_uncleared_reasons(room) == []
 
 def test_get_uncleared_rooms_lists_only_visited_uncleared_rooms_grouped_by_floor():
     grove = Room("Mossy Grove")
@@ -969,19 +969,19 @@ def test_get_uncleared_rooms_with_everything_cleared_returns_all_clear_message()
     player = Player(name="Hero", hp=20)
     player.visited_rooms = {"Stony Lair"}
     floors = {"floor_4": {"Stony Lair": Room("Stony Lair")}}
-    assert get_uncleared_rooms(floors, player) == "Every room you've visited has been cleared."
+    assert get_uncleared_rooms(floors, player) == "Nothing left to find - every room you can reach has been cleared."
 
 def test_get_uncleared_rooms_joins_multiple_reasons_for_one_room():
     room = Room("Styx Crossing")
     room.add_enemy(Enemy(name="Shade", hp=7))
-    room.add_hidden_exit("down", Room("Sunken Vault"))
+    room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
     player = Player(name="Hero", hp=20)
     player.visited_rooms = {"Styx Crossing"}
     floors = {"floor_1": {"Styx Crossing": room}}
 
     result = get_uncleared_rooms(floors, player)
 
-    assert result == "Floor 1:\n    Styx Crossing - enemies remain, something here is worth a closer look"
+    assert result == "Floor 1:\n    Styx Crossing - enemies remain, items left behind"
 
 # ---- has_unfinished_trade ----
 
@@ -1033,8 +1033,7 @@ def test_get_uncleared_reasons_lists_every_reason_in_order():
     room.add_enemy(Enemy(name="Shade", hp=7))
     room.add_item(Consumable(name="Small Healing Potion", heal_amount=5))
     room.add_ally(Ally(name="Hermes", required_items=["Skeleton Bone"], reward=QuestItem(name="Favour", description="")))
-    room.add_hidden_exit("down", Room("Vault"))
-    assert get_uncleared_reasons(room) == ["enemies remain", "items left behind", "an unfinished trade", "something here is worth a closer look"]
+    assert get_uncleared_reasons(room) == ["enemies remain", "items left behind", "an unfinished trade"]
 
 # ---- get_undiscovered_rooms ----
 
@@ -1321,40 +1320,40 @@ def _hero(primary: str | None = None, secondary: str | None = None) -> Player:
 def test_talk_to_without_a_matching_ancestry_line_is_just_the_usual_dialogue():
     ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
     player = _hero("ares")
-    assert talk_to(ally, player) == ally.talk(player)
+    assert talk_to(ally, player, Room("Hall")) == ally.talk(player)
 
 def test_talk_to_prepends_the_ancestry_line_the_first_time():
     ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
     player = _hero("athena")
-    assert talk_to(ally, player) == "Mine, then.\n\n" + ally.talk(player)
+    assert talk_to(ally, player, Room("Hall")) == "Mine, then.\n\n" + ally.talk(player)
 
 def test_talk_to_only_shows_the_ancestry_line_once():
     ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
     player = _hero("athena")
-    talk_to(ally, player)
-    assert talk_to(ally, player) == ally.talk(player)
+    talk_to(ally, player, Room("Hall"))
+    assert talk_to(ally, player, Room("Hall")) == ally.talk(player)
 
 def test_talk_to_matches_the_secondary_ancestry_too():
     ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
     player = _hero("ares", "athena")
-    assert talk_to(ally, player).startswith("Mine, then.")
+    assert talk_to(ally, player, Room("Hall")).startswith("Mine, then.")
 
 def test_talk_to_shows_both_lines_when_both_ancestries_match():
     ally = Ally(name="Oracle", hint="Hm.", ancestry_lines={"ares": "War.", "athena": "Wisdom."})
     player = _hero("ares", "athena")
-    assert talk_to(ally, player) == "War.\n\nWisdom.\n\n" + ally.talk(player)
+    assert talk_to(ally, player, Room("Hall")) == "War.\n\nWisdom.\n\n" + ally.talk(player)
 
 def test_talk_to_records_the_line_as_seen():
     ally = Ally(name="Athena", hint="Listen.", ancestry_lines={"athena": "Mine, then."})
     player = _hero("athena")
-    talk_to(ally, player)
+    talk_to(ally, player, Room("Hall"))
     assert "ancestry:Athena:athena" in player.seen_lines
 
 def test_talk_to_works_for_companions():
     room = Room("Camp")
     companion = Companion(name="Imp", hp=10, home_room=room, hint="Hi.", ancestry_lines={"ares": "Kin."})
     player = _hero("ares")
-    assert talk_to(companion, player) == "Kin.\n\nHi."
+    assert talk_to(companion, player, Room("Hall")) == "Kin.\n\nHi."
 
 # ---- get_rival_lines ----
 
@@ -1549,24 +1548,341 @@ def test_talk_to_opens_with_a_companion_line_once():
     penelope = Ally(name="Penelope", hint="Hello.", companion_lines={"Odysseus": "Is it you?"})
     player = Player(name="Hero", hp=20)
     player.companion = Companion(name="Odysseus", hp=10, home_room=Room("Ithaca"))
-    assert talk_to(penelope, player) == "Is it you?\n\nHello."
-    assert talk_to(penelope, player) == "Hello."
+    assert talk_to(penelope, player, Room("Hall")) == "Is it you?\n\nHello."
+    assert talk_to(penelope, player, Room("Hall")) == "Hello."
     assert "companion:Penelope:Odysseus" in player.seen_lines
 
 def test_talk_to_with_no_companion_has_no_companion_line():
     penelope = Ally(name="Penelope", hint="Hello.", companion_lines={"Odysseus": "Is it you?"})
-    assert talk_to(penelope, Player(name="Hero", hp=20)) == "Hello."
+    assert talk_to(penelope, Player(name="Hero", hp=20), Room("Hall")) == "Hello."
 
 def test_talk_to_with_a_companion_the_speaker_has_no_line_for():
     """Regression: a missing companion line was appended as None, so talking to anyone else with a companion in the party crashed."""
     nestor = Ally(name="Nestor", hint="Sit, sit.")
     player = Player(name="Hero", hp=20)
     player.companion = Companion(name="Odysseus", hp=10, home_room=Room("Ithaca"))
-    assert talk_to(nestor, player) == "Sit, sit."
+    assert talk_to(nestor, player, Room("Hall")) == "Sit, sit."
     assert player.seen_lines == set()
 
 def test_talk_to_with_a_companion_only_one_line_is_for():
     penelope = Ally(name="Penelope", hint="Hello.", companion_lines={"Odysseus": "Is it you?"})
     player = Player(name="Hero", hp=20)
     player.companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
-    assert talk_to(penelope, player) == "Hello."
+    assert talk_to(penelope, player, Room("Hall")) == "Hello."
+
+def test_get_advice_healing_enemy_line_wording():
+    """Regression: the line first read "they'll patch themself up"."""
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Priest", hp=10, heal_amount=4))
+    assert get_advice(room, advising_player(room)) == 'Sage: "Give it time and they\'ll patch themselves up. Hit hard and fast."'
+
+# ---- pick_up ----
+
+def test_pick_up_finds_an_item_after_others():
+    room = Room("Hall")
+    sword = Weapon(name="Sword", description="", damage=3)
+    potion = Consumable(name="Potion", heal_amount=5)
+    room.add_item(sword)
+    room.add_item(potion)
+    player = Player(name="Hero", hp=20)
+    pick_up(room, "potion", player)
+    assert potion in player.inventory.items
+    assert room.items == [sword]
+
+# ---- talk_to with a branching dialogue ----
+
+def test_talk_to_a_speaker_with_dialogue_starts_it_in_the_room():
+    room = Room("Bedchamber")
+    queen = Ally(name="Queen", hint="Unused.", dialogue={"start": DialogueNode(text="Well?", options=[DialogueOption("Leave", None)])})
+    room.add_ally(queen)
+    message = talk_to(queen, Player(name="Hero", hp=20), room)
+    assert message == "Well?\n    1. Leave\n(Answer with 'say <number>'.)"
+    assert room.transient_state["dialogue"] == ("Queen", "start")
+
+# ---- concealed rooms ----
+
+def _concealed_pair():
+    hall = Room("Hall of Hades")
+    tartarus = Room("Tartarus")
+    tartarus.concealed_until = "hades_defeated"
+    hall.connect("descend", tartarus)
+    return hall, tartarus
+
+def test_is_room_concealed_false_by_default():
+    assert is_room_concealed(Room("Hall"), Player(name="Hero", hp=20)) is False
+
+def test_is_room_concealed_true_without_the_flag():
+    hall, tartarus = _concealed_pair()
+    assert is_room_concealed(tartarus, Player(name="Hero", hp=20)) is True
+
+def test_is_room_concealed_false_once_the_player_has_the_flag():
+    hall, tartarus = _concealed_pair()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hades_defeated")
+    assert is_room_concealed(tartarus, player) is False
+
+def test_is_exit_concealed_true_for_an_exit_to_a_concealed_room():
+    hall, tartarus = _concealed_pair()
+    assert is_exit_concealed(hall, "descend", Player(name="Hero", hp=20)) is True
+
+def test_is_exit_concealed_false_for_a_direction_with_no_exit():
+    hall, tartarus = _concealed_pair()
+    assert is_exit_concealed(hall, "north", Player(name="Hero", hp=20)) is False
+
+def test_display_local_exits_hides_an_exit_to_a_concealed_room():
+    hall, tartarus = _concealed_pair()
+    hall.connect("north", Room("Gate of Cerberus"))
+    assert display_local_exits(hall, Player(name="Hero", hp=20)) == "north -> Gate of Cerberus"
+
+def test_display_local_exits_with_only_concealed_exits_says_there_are_none():
+    hall, tartarus = _concealed_pair()
+    assert display_local_exits(hall, Player(name="Hero", hp=20)) == "There are no exits from this room."
+
+def test_display_local_exits_shows_a_revealed_room_once_the_flag_is_set():
+    hall, tartarus = _concealed_pair()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hades_defeated")
+    assert display_local_exits(hall, player) == "descend -> Tartarus"
+
+def test_display_map_never_names_a_concealed_room():
+    hall, tartarus = _concealed_pair()
+    assert "Tartarus" not in display_map(hall, Player(name="Hero", hp=20))
+
+def test_get_undiscovered_rooms_skips_a_concealed_room():
+    hall, tartarus = _concealed_pair()
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Hall of Hades"}
+    assert get_undiscovered_rooms(_one_floor(hall, tartarus), player) == set()
+
+# ---- get_uncleared_rooms: hidden ways ----
+
+def test_get_uncleared_rooms_ends_with_the_hidden_ways_note():
+    styx = Room("Styx Crossing")
+    styx.add_hidden_exit("down", Room("Sunken Vault"))
+    fields = Room("Fields of Asphodel")
+    fields.add_enemy(Enemy(name="Shade", hp=7))
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing", "Fields of Asphodel"}
+    player.visited_floors = {"floor_1"}
+    result = get_uncleared_rooms(_one_floor(styx, fields), player)
+    assert result == "Floor 1:\n    Fields of Asphodel - enemies remain\n" + HIDDEN_WAYS_NOTE
+
+def test_get_uncleared_rooms_all_cleared_but_hidden_ways_remain():
+    styx = Room("Styx Crossing")
+    styx.add_hidden_exit("down", Room("Sunken Vault"))
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+    player.visited_floors = {"floor_1"}
+    result = get_uncleared_rooms(_one_floor(styx), player)
+    assert result == "Every room you can reach has been cleared - but hidden ways remain somewhere on the floors you've reached."
+
+def test_get_uncleared_rooms_ignores_hidden_exits_on_floors_not_reached():
+    styx = Room("Styx Crossing")
+    styx.add_hidden_exit("down", Room("Sunken Vault"))
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Styx Crossing"}
+    assert get_uncleared_rooms(_one_floor(styx), player) == "Nothing left to find - every room you can reach has been cleared."
+
+def test_get_uncleared_rooms_ignores_hidden_exits_in_a_concealed_room():
+    vault = Room("Vault")
+    vault.concealed_until = "secret"
+    vault.add_hidden_exit("down", Room("Deeper"))
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_1"}
+    assert get_uncleared_rooms(_one_floor(vault), player) == "Nothing left to find - every room you can reach has been cleared."
+
+# ---- enemy_traits ----
+
+def test_enemy_traits_of_no_enemies_is_empty():
+    assert enemy_traits([]) == []
+
+def test_enemy_traits_finds_heavy_armour_at_three():
+    assert enemy_traits([Enemy(name="Guard", hp=10, armour=3)]) == ["heavy_armour"]
+
+def test_enemy_traits_ignores_armour_below_three():
+    assert enemy_traits([Enemy(name="Guard", hp=10, armour=2)]) == []
+
+def test_enemy_traits_finds_evasive_heals_and_pierces():
+    archer = Enemy(name="Archer", hp=10, melee_dodge_chance=0.5, armour_pierce=2)
+    priest = Enemy(name="Priest", hp=10, heal_amount=3)
+    assert enemy_traits([archer, priest]) == ["evasive", "heals", "pierces"]
+
+def test_enemy_traits_numerous_needs_three_fighting_enemies():
+    two = [Enemy(name="Imp", hp=5), Enemy(name="Imp", hp=5)]
+    three = two + [Enemy(name="Imp", hp=5)]
+    assert enemy_traits(two) == []
+    assert enemy_traits(three) == ["numerous"]
+
+def test_enemy_traits_invulnerable_enemy_is_a_puzzle_not_a_fighter():
+    whirlpool = Enemy(name="Whirlpool", hp=1, armour=5, invulnerable=True)
+    others = [Enemy(name="Imp", hp=5), Enemy(name="Imp", hp=5)]
+    assert enemy_traits([whirlpool] + others) == ["puzzle"]
+
+def test_enemy_traits_ignores_dead_and_respawning_enemies():
+    dead = Enemy(name="Guard", hp=10, armour=5)
+    dead.hp = 0
+    dummy = Enemy(name="Dummy", hp=10, armour=5, respawns=True)
+    assert enemy_traits([dead, dummy]) == []
+
+def test_enemy_traits_are_listed_in_trait_order():
+    many = [Enemy(name="Imp", hp=5, heal_amount=1) for _ in range(3)]
+    whirlpool = Enemy(name="Whirlpool", hp=1, invulnerable=True)
+    guard = Enemy(name="Guard", hp=10, armour=4)
+    assert enemy_traits([whirlpool] + many + [guard]) == ["heavy_armour", "heals", "numerous", "puzzle"]
+
+# ---- encounter_enemies / floor_traits ----
+
+def test_encounter_enemies_of_a_plain_enemy_is_just_itself():
+    imp = Enemy(name="Imp", hp=5)
+    assert encounter_enemies(imp) == [imp]
+
+def test_encounter_enemies_includes_wave_adds_and_the_next_phase():
+    boss = Enemy(name="Boss", hp=5, next_wave_factories=[lambda: Enemy(name="Add", hp=1)], next_phase_factory=lambda: Enemy(name="Boss (Risen)", hp=5))
+    names = [enemy.name for enemy in encounter_enemies(boss)]
+    assert names == ["Boss", "Add", "Boss (Risen)"]
+
+def test_encounter_enemies_stops_at_its_depth_limit():
+    def endless():
+        return Enemy(name="Hydra", hp=5, next_phase_factory=endless)
+    assert len(encounter_enemies(endless())) == 4
+
+def test_floor_traits_counts_a_later_boss_phase():
+    lair = Room("Lair")
+    lair.add_enemy(Enemy(name="Boss", hp=5, next_phase_factory=lambda: Enemy(name="Boss (Risen)", hp=5, heal_amount=4)))
+    assert floor_traits({"Lair": lair}) == ["heals"]
+
+def test_floor_traits_numerous_is_judged_per_room():
+    rooms = {}
+    for name in ("A", "B", "C"):
+        rooms[name] = Room(name)
+        rooms[name].add_enemy(Enemy(name="Imp", hp=5))
+    assert floor_traits(rooms) == []
+
+def test_floor_traits_combines_every_room_in_trait_order():
+    armoury = Room("Armoury")
+    armoury.add_enemy(Enemy(name="Guard", hp=10, armour=3))
+    archery = Room("Range")
+    archery.add_enemy(Enemy(name="Archer", hp=10, melee_dodge_chance=0.5))
+    assert floor_traits({"Range": archery, "Armoury": armoury}) == ["heavy_armour", "evasive"]
+
+# ---- next_floor_key ----
+
+def test_next_floor_key_with_no_floors_reached_is_none():
+    floors = {"floor_0": {"A": Room("A")}, "floor_1": {"B": Room("B")}}
+    assert next_floor_key(floors, Player(name="Hero", hp=20)) is None
+
+def test_next_floor_key_is_the_floor_below_the_deepest_reached():
+    floors = {f"floor_{n}": {f"R{n}": Room(f"R{n}")} for n in range(4)}
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_0", "floor_2"}
+    assert next_floor_key(floors, player) == "floor_3"
+
+def test_next_floor_key_below_the_last_floor_is_none():
+    floors = {"floor_0": {"A": Room("A")}}
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_0"}
+    assert next_floor_key(floors, player) is None
+
+def test_next_floor_key_skips_a_floor_that_is_entirely_concealed():
+    hidden = Room("Tartarus")
+    hidden.concealed_until = "hades_defeated"
+    floors = {"floor_8": {"Hall": Room("Hall")}, "floor_9": {"Tartarus": hidden}}
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_8"}
+    assert next_floor_key(floors, player) is None
+
+# ---- take_opening_line ----
+
+def test_take_opening_line_returns_the_line_the_first_time():
+    player = Player(name="Hero", hp=20)
+    seer = Ally(name="Seer", opening_line="I knew you would come.")
+    assert take_opening_line(seer, player) == "I knew you would come."
+    assert "opening:Seer" in player.seen_lines
+
+def test_take_opening_line_is_empty_once_heard():
+    player = Player(name="Hero", hp=20)
+    seer = Ally(name="Seer", opening_line="I knew you would come.")
+    take_opening_line(seer, player)
+    assert take_opening_line(seer, player) == ""
+
+def test_take_opening_line_with_no_line_records_nothing():
+    player = Player(name="Hero", hp=20)
+    assert take_opening_line(Ally(name="Idler"), player) == ""
+    assert player.seen_lines == set()
+
+def test_take_opening_line_works_for_a_speaker_without_the_attribute():
+    """Companions have no opening_line - talk_to() calls this for them too."""
+    companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    assert take_opening_line(companion, Player(name="Hero", hp=20)) == ""
+
+def test_talk_to_opens_with_the_opening_line_before_an_ancestry_line():
+    player = Player(name="Hero", hp=20)
+    player.ancestry_key = "athena"
+    seer = Ally(name="Seer", hint="Hello.", opening_line="At last.", ancestry_lines={"athena": "Owl-eyed one."})
+    assert talk_to(seer, player, Room("Hall")) == "At last.\n\nOwl-eyed one.\n\nHello."
+
+# ---- story gates ----
+
+def _gated_stair():
+    bedchamber = Room("Bedchamber")
+    gate_room = Room("Gate of Cerberus")
+    bedchamber.connect("descend", gate_room)
+    bedchamber.gate_exit("descend", ("promised", "refused"), blocked_message="Not yet.", map_label="she is waiting")
+    return bedchamber, gate_room
+
+def test_get_story_gate_is_none_for_an_ungated_exit():
+    bedchamber, gate_room = _gated_stair()
+    bedchamber.connect("north", Room("Hall"))
+    assert get_story_gate(bedchamber, "north", Player(name="Hero", hp=20)) is None
+
+def test_get_story_gate_returns_the_gate_without_any_of_its_flags():
+    bedchamber, gate_room = _gated_stair()
+    assert get_story_gate(bedchamber, "descend", Player(name="Hero", hp=20)) is bedchamber.story_gates["descend"]
+
+def test_get_story_gate_opens_for_the_first_flag():
+    bedchamber, gate_room = _gated_stair()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("promised")
+    assert get_story_gate(bedchamber, "descend", player) is None
+
+def test_get_story_gate_opens_for_any_one_of_its_flags():
+    bedchamber, gate_room = _gated_stair()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("refused")
+    assert get_story_gate(bedchamber, "descend", player) is None
+
+def test_display_local_exits_labels_a_story_gated_exit():
+    bedchamber, gate_room = _gated_stair()
+    assert display_local_exits(bedchamber, Player(name="Hero", hp=20)) == "descend -> Gate of Cerberus (she is waiting)"
+
+def test_display_local_exits_drops_the_label_once_the_gate_opens():
+    bedchamber, gate_room = _gated_stair()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("promised")
+    assert display_local_exits(bedchamber, player) == "descend -> Gate of Cerberus"
+
+def test_display_map_labels_a_story_gate_and_does_not_map_past_it():
+    bedchamber, gate_room = _gated_stair()
+    gate_room.connect("south", Room("Hall of Hades"))
+    result = display_map(bedchamber, Player(name="Hero", hp=20))
+    assert "  descend -> Gate of Cerberus (she is waiting)" in result
+    assert "Hall of Hades" not in result
+
+def test_get_undiscovered_rooms_skips_a_story_gated_exit():
+    bedchamber, gate_room = _gated_stair()
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Bedchamber"}
+    assert get_undiscovered_rooms(_one_floor(bedchamber, gate_room), player) == set()
+
+def test_get_uncleared_rooms_reports_a_decision_still_to_make():
+    bedchamber, gate_room = _gated_stair()
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Bedchamber"}
+    assert get_uncleared_rooms(_one_floor(bedchamber, gate_room), player) == "Floor 1:\n    Bedchamber - a decision to make"
+
+def test_get_uncleared_rooms_stops_reporting_the_decision_once_made():
+    bedchamber, gate_room = _gated_stair()
+    player = Player(name="Hero", hp=20)
+    player.visited_rooms = {"Bedchamber"}
+    player.story_flags.add("refused")
+    assert get_uncleared_rooms(_one_floor(bedchamber, gate_room), player) == "Floor 1:\n    Gate of Cerberus - undiscovered"

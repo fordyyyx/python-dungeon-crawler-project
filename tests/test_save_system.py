@@ -1353,3 +1353,45 @@ def test_load_game_a_field_that_gets_a_method_called_on_it_raises_save_file_erro
     write_raw_save(tmp_path, 1, 1, json.dumps(data))
     assert isinstance(assert_load_refused().__cause__, AttributeError)
 
+def test_player_from_save_data_ignores_an_unknown_skill_path(monkeypatch, tmp_path):
+    """A path renamed or removed since the save was made is skipped, not a crash."""
+    data = valid_save_data(monkeypatch, tmp_path)
+    data["player"]["skill_tree"]["Forgotten Arts"] = 2
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    player, _ = load_game(1, 1, build_world()[0])
+    assert "Forgotten Arts" not in player.skill_tree.paths
+
+def test_apply_room_data_skips_a_companion_the_registry_does_not_know():
+    room = Room("Camp")
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": [],
+                           "companions": [{"name": "Nobody Known", "hp": 5, "duel_won": False, "home_room": "Camp", "active_effects": []}]})
+    assert room.companions == []
+
+def test_save_game_that_fails_before_writing_anything_still_raises(monkeypatch, tmp_path):
+    """If even the temporary file can't be opened there's nothing to clean up - the error still reaches the caller."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+
+    def refuse_to_open(*args, **kwargs):
+        raise PermissionError("read-only")
+    monkeypatch.setattr("builtins.open", refuse_to_open)
+    try:
+        save_game(1, 1, Player(name="Hero", hp=20), start, dungeon)
+        assert False, "Expected a PermissionError but none was raised"
+    except PermissionError:
+        pass
+
+def test_save_and_load_keeps_the_oracles_spent_prophecies(monkeypatch, tmp_path):
+    """Her prophecies are counted from the chamber's flags, which are saved - so a reload can't refill them."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    chamber = floors["floor_7"]["Chamber of the Oracle"]
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_5"}
+    chamber.interactions["ask ahead"].handler(player, chamber)
+    save_game(1, 1, player, chamber, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    load_game(1, 1, fresh)
+
+    assert fresh_floors["floor_7"]["Chamber of the Oracle"].flags == {"prophecy:ahead:floor_6"}

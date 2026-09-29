@@ -9,7 +9,7 @@ from .floor_3 import build_floor_3
 from .floor_4 import build_floor_4
 from .floor_5 import build_floor_5
 from .floor_6 import build_floor_6
-from .floor_7 import build_floor_7
+from .floor_7 import build_floor_7, wire_floor_7_seers, PROMISED_MERCY, REFUSED_MERCY
 from .floor_8 import build_floor_8
 from .floor_9 import build_floor_9
 from .dev_content import build_blank_test_room
@@ -49,6 +49,16 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
     floor_8_rooms["Hall of Hades"].connect("descend", floor_9_rooms["Tartarus"])
     floor_9_rooms["Tartarus"].connect("ascend", floor_8_rooms["Hall of Hades"])
 
+    floor_7_rooms["Bedchamber of Persephone"].gate_exit(
+        "descend",
+        (PROMISED_MERCY, REFUSED_MERCY),
+        blocked_message=(
+            "Persephone rises as you reach the stair. \"Not yet. There's something I need to ask of you before you go down to him.\" "
+            "(Talk to Persephone.)"
+        ),
+        map_label="Persephone is waiting for your answer",
+    )
+
     floor_3_rooms["Prayer Room"].connect("forge", floor_2_rooms["Forge of Prometheus"])
     floor_2_rooms["Forge of Prometheus"].connect("prayer room", floor_3_rooms["Prayer Room"])
     floor_2_rooms["Forge of Prometheus"].lock_fast_travel_exit("prayer room")
@@ -86,6 +96,8 @@ def build_world() -> tuple[Map, Room, dict[str, dict[str, Room]]]:
         "floor_8": floor_8_rooms,
         "floor_9": floor_9_rooms,
     }
+
+    wire_floor_7_seers(all_floors)
 
     for floor_key, floor_rooms in all_floors.items():
         for room in floor_rooms.values():

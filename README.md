@@ -9,8 +9,10 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Character creation — name your hero, choose a primary ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs), then a second, different figure for a passive secondary gift — a distinct ability rather than more stats (heavy attacks that miss half as often, spells that never go on cooldown, a guaranteed clean escape, and more)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
 * One-off hints that explain a mechanic the first time it matters (your first fight, the forge, a guarded way forward, an unspent skill point) and then never repeat, even across saves
-* Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements (a door stays open once you've opened it) — some passages are hidden entirely until you stop and `examine` your surroundings, and the way forward past a floor's toughest foes stays barred until you've defeated them
+* Explore a connected, multi-floor map of rooms, gated by locked exits and item requirements (a door stays open once you've opened it) — some passages are hidden entirely until you stop and `examine` your surroundings, and the way forward past a floor's toughest foes stays barred until you've defeated them — or, once, until you've given someone an answer
 * Rooms with choices of their own — a few rooms offer something you can only do there, listed when you walk in (like a bargain that makes you stronger at a permanent price, or a whirlpool you can't fight - only outwit)
+* Conversations that branch — some characters talk *with* you rather than at you: pick an answer with `say <number>`, and a choice made there is final, and remembered
+* Seers who look ahead — an Oracle who will answer three questions and no more (what waits on the floor below, or which hidden passage you walked straight past), and a blind prophet who tells you, every time you ask, what you're not ready for
 * An Intellect stat, set by ancestry and grown through levelling, that unlocks additional flavour text and lore when examining — never anything required to progress
 * Turn-based, team-vs-team combat that locks you into an encounter — attack a chosen target, cast a spell, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
 * Multiple enemies at once, each deciding for itself whether to attack, defend, or heal via a utility-based AI (with a little randomness baked in, so it doesn't always play perfectly) — target a specific enemy by name, disambiguating with a number when more than one shares it
@@ -81,8 +83,9 @@ pytest --cov=src/dungeon_crawler
 * `map` - show the exits available from your current room
 * `fullmap` / `world` - show every reachable room on the current floor
 * `toggle auto map` - list the exits automatically every time you enter a room
-* `uncleared` - list the rooms you've visited that aren't cleared yet (enemies, items left behind, an unfinished trade, or a hidden passage worth a closer look), plus reachable rooms you haven't discovered yet
+* `uncleared` - list the rooms you've visited that aren't cleared yet (enemies, items left behind, an unfinished trade, or a decision still to make), plus reachable rooms you haven't discovered yet, and a reminder if hidden passages remain somewhere on the floors you've reached
 * `talk` - talk to an ally or companion in the room
+* `say <number>` - answer in a conversation, choosing one of the numbered options
 * `toggle auto talk` - allies speak automatically on room entry, without needing `talk` each time
 * `attack` / `attack light` / `attack heavy` / `attack ranged` - attack an enemy in the room; this locks you into combat until every enemy is defeated or you flee. Heavy hits harder but can miss entirely; ranged requires an equipped ranged weapon
 * `target <name>` - set your attack target, persisting across rounds; if two or more enemies share a name, add a number (e.g. `target harpies 2`)
@@ -121,6 +124,7 @@ pytest --cov=src/dungeon_crawler
 * `spells.py` - `Spell` - offensive/defensive/utility spellcasting
 * `hints.py` - the text of every one-off contextual hint, and the logic that shows each one only once per save
 * `exchange.py` - the exchange system: merchants' offers, and trading gold (and items) for new ones
+* `dialogue.py` - branching conversations: nodes, numbered options, and the choices they record
 * `world.py` - `Room`, `Map`, and `RoomInteraction` (a verb that only works in one room)
 * `content/` - the actual game content: specific rooms, enemies, allies, and items, one module per floor, plus the ancestry options for character creation, dev-only test content, and `build_world()`
 * `combat.py` - combat resolution: team-vs-team turns, targeting, status-effect ticking, spellcasting, defeat handling, and fleeing
@@ -132,7 +136,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and floor 5's Shadow of Troy - home to the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the shades of Hector, Ajax and Paris - and the first half of floor 6's Odyssey: the Laestrygonian giants, the Sirens' bargain, the Cyclops Polyphemus, Scylla and Charybdis, Poseidon himself, Odysseus, a second companion, Circe, the first merchant, and the Suitors in Odysseus' own hall - floor 6 is now complete. Planned additions include the rest of the Odyssey and the floors beyond it, with more named multi-stage bosses among them.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and floor 5's Shadow of Troy - home to the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the shades of Hector, Ajax and Paris - and the first half of floor 6's Odyssey: the Laestrygonian giants, the Sirens' bargain, the Cyclops Polyphemus, Scylla and Charybdis, Poseidon himself, Odysseus, a second companion, Circe, the first merchant, and the Suitors in Odysseus' own hall - floor 6 is now complete - and floor 7's seers: the Oracle of Delphi, the blind prophet Tiresias, and Persephone, the first character you hold a real conversation with. Planned additions include the final descent to Hades and what lies beyond him, with more named multi-stage bosses among them.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

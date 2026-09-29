@@ -5,6 +5,7 @@ from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
 from dungeon_crawler.exceptions import ActionRefused
+from dungeon_crawler.dialogue import DialogueNode
 from textwrap import dedent
 from typing import Sequence, Callable, TYPE_CHECKING
 if TYPE_CHECKING:
@@ -620,7 +621,7 @@ class Enemy(Character):
 class Ally():
     """A non-combat NPC that can be talked to and traded with, per its required_items/reward data - never branched on by name, see CLAUDE.md."""
 
-    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str="", ancestry_lines: dict[str, str] | None = None, offers: "list[Offer] | None" = None, exchange_line: str = "", companion_lines: dict[str, str] | None = None):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str="", ancestry_lines: dict[str, str] | None = None, offers: "list[Offer] | None" = None, exchange_line: str = "", companion_lines: dict[str, str] | None = None, dialogue_function: "Callable[[Player], str] | None" = None, dialogue: "dict[str, DialogueNode] | None" = None, opening_line: str = ""):
         """Set up an ally's dialogue and starting inventory."""
         self.name = name
         self.description = description
@@ -644,10 +645,20 @@ class Ally():
         self.companion_lines = companion_lines or {}
         """Companion name -> a line this ally says once, the first time they're spoken to with that companion in the player's party - see talk_to().
         Keyed by name as content data; no code ever branches on a particular name."""
-
+        self.dialogue_function = dialogue_function
+        """If set, talk() returns this function's result instead of the fixed hints - dialogue generated from the player's state (Tiresias'
+        readings, the Oracle's greeting). Fixed hints still work as before for every ally without one."""
+        self.dialogue = dialogue or {}
+        """A branching conversation (node id -> DialogueNode, see dialogue.py), started at 'start' by talk_to() instead of talk(). Empty for
+        every ally without one; Persephone is the first."""
+        self.opening_line = opening_line
+        """A line said once, the first time the player interacts with this ally - see take_opening_line() (exploration.py). Handled outside
+        talk(), which must stay free of side effects."""
 
     def talk(self, player) -> str:
-        """Return this ally's dialogue - the completed-trade line takes priority, then the completed-hint if the player already holds every required item, otherwise the regular hint."""
+        """Return this ally's dialogue - dialogue_function's result if it has one, otherwise the completed-trade line takes priority, then the completed-hint if the player already holds every required item, otherwise the regular hint."""
+        if self.dialogue_function is not None:
+            return self.dialogue_function(player)
         if self.trade_completed:
             return self.hint_traded or self.hint_complete or self.hint
         if self.required_items:

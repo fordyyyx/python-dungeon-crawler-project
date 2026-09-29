@@ -1,4 +1,4 @@
-from dungeon_crawler.world import Room, Map, RoomInteraction
+from dungeon_crawler.world import Room, Map, RoomInteraction, StoryGate
 from dungeon_crawler.characters import Player
 from dungeon_crawler.characters import Enemy, Ally, Companion
 from dungeon_crawler.content import create_hades, create_minotaur, create_chiron
@@ -445,3 +445,24 @@ def test_room_cleared_story_flag_defaults_to_none():
     room = Room("Hall")
     assert room.cleared_story_flag is None
     assert room.cleared_message == ""
+
+def test_room_is_not_concealed_by_default():
+    assert Room("Hall").concealed_until is None
+
+def test_room_on_leave_clears_transient_state():
+    room = Room("Bedchamber")
+    room.transient_state["dialogue"] = ("Persephone", "start")
+    room.on_leave()
+    assert room.transient_state == {}
+
+def test_room_has_no_story_gates_by_default():
+    assert Room("Hall").story_gates == {}
+
+def test_room_gate_exit_stores_a_story_gate_for_that_direction():
+    room = Room("Bedchamber")
+    room.gate_exit("descend", ("promised", "refused"), blocked_message="Not yet.", map_label="waiting")
+    gate = room.story_gates["descend"]
+    assert isinstance(gate, StoryGate)
+    assert gate.required_flags == ("promised", "refused")
+    assert gate.blocked_message == "Not yet."
+    assert gate.map_label == "waiting"

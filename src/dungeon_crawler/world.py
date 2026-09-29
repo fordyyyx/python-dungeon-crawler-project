@@ -47,11 +47,20 @@ class Room:
         self.cleared_message: str = ""
         """Shown once, when cleared_story_flag is first set."""
         self.transient_state: dict = {}
-        """Scratch state for the current visit only - e.g. how far through a puzzle the player is. Never saved, and cleared by on_leave() whenever the player
+        """Scratch state for the current visit only - e.g. how far through a puzzle the player is, or where they are in a conversation. Never saved, and cleared by on_leave() whenever the player
         leaves the room - walking out or by dev teleport - so a half-finished puzzle always starts again from scratch."""
         self.advice: str = ""
         """An optional line an advice-giving companion adds in this room, for things get_advice() can't work out from the enemies - a puzzle, a
         trap, a bargain. Set at world-build time; never saved."""
+        self.concealed_until: str | None = None
+        """A story flag the player must have before this room exists as far as they can tell. Until then, exits leading here are hidden from
+        every exit list and map, can't be used ('descend' behaves as though there's nothing there), and nothing - uncleared, the Oracle,
+        Tiresias - mentions it. Set at world-build time and never saved; the flag lives on the player, which is. Tartarus uses it to keep the
+        real finale secret until Hades falls."""
+        self.story_gates: dict[str, StoryGate] = {}
+        """direction -> StoryGate. A fourth kind of blocked exit, alongside locked_exits (items), guarded_exits (enemies) and
+        fast_travel_locks (shortcuts): shut until the player has made some story decision."""
+
 
     def connect(self, direction: str, other_room: "Room") -> None:
         """Add a normal (unlocked, visible) exit from this room to other_room."""
@@ -81,6 +90,10 @@ class Room:
     def guard_exit(self, direction: str) -> None:
         """Block 'direction' until every living, non-respawning enemy in this room is defeated."""
         self.guarded_exits.add(direction)
+
+    def gate_exit(self, direction: str, required_flags: tuple[str, ...], blocked_message: str, map_label: str) -> None:
+        """Shut 'direction' until the player has any one of required_flags."""
+        self.story_gates[direction] = StoryGate(required_flags, blocked_message, map_label)
 
     def add_item(self, item):
         """Add item to this room."""
@@ -196,3 +209,13 @@ class RoomInteraction:
     handler: Callable[..., str]
     is_available: Callable[..., bool] = lambda player, room: True
     unavailable_message: str = "Nothing happens."
+
+@dataclass
+class StoryGate:
+    """An exit that stays shut until the player has any one of required_flags (see Player.story_flags). blocked_message is shown when they
+    try it; map_label appears beside the exit in exit lists and maps. Set at world-build time and never saved - the flags it checks live on
+    the player, which are."""
+
+    required_flags: tuple[str, ...]
+    blocked_message: str
+    map_label: str

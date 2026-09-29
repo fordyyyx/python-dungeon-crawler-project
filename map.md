@@ -148,24 +148,24 @@ Bedchamber of Odysseus {Penelope - Friendly} [NOTE: built - no trade; gives away
 * east -> Throne Room of Odysseus
 * descend -> Chamber of the Oracle
 
-Chamber of the Oracle {Oracle of Delphi - Friendly}
+Chamber of the Oracle {Oracle of Delphi - Friendly} [NOTE: built - the twist prophecy once, then three prophecies: 'ask ahead' (the next floor's traits) / 'ask secrets' (a hidden exit on a floor already reached)]
 * ascend -> Bedchamber of Odysseus
 * south -> Shadow of Thebes
-Shadow of Thebes {Tiresias - Friendly}
+Shadow of Thebes {Tiresias - Friendly} [NOTE: built - free, unlimited readings of what the player isn't ready for on the floor below]
 * north -> Chamber of the Oracle
 * south -> Bedchamber of Persephone
-Bedchamber of Persephone {Persephone - Friendly}
+Bedchamber of Persephone {Persephone - Friendly} [NOTE: built - the first branching dialogue ('say <number>'); gives a Pomegranate (full heal) once, and asks the player to spare Hades - 'promised_mercy' or 'refused_mercy'; which one isn't read by anything yet]
 * north -> Shadow of Thebes
-* descend -> Gate of Cerberus
+* descend -> Gate of Cerberus [NOTE: story-gated - shut until the player answers Persephone either way]
 
 Gate of Cerberus {Cerberus - Enemy}
 * ascend -> Bedchamber of Persephone
 * south -> Hall of Hades
 Hall of Hades {Hades - Enemy}
 * north -> Gate of Cerberus
-* descend -> Tartarus
+* descend -> Tartarus [NOTE: concealed - not listed or usable until the 'hades_defeated' story flag, which nothing sets yet]
 
-Tartarus {Typhon - Enemy}
+Tartarus {Typhon - Enemy} [NOTE: concealed until 'hades_defeated' - see CLAUDE.md's "Concealed rooms"]
 * ascend -> Hall of Hades
 
 ---
@@ -253,7 +253,11 @@ guarding the Depths' 'south', Odysseus (a companion) in Shadow of Ithaca, and
 Circe (the first merchant) in the Muddy Pigsty, the Suitors guarding the Throne
 Room's 'west', and Penelope in the Bedchamber. Shadow of Pylos and Shadow of Ithaca have 'forge' shortcuts, so the
 Forge now has five reciprocal exits.
-Every room on floors 7-9
+Floor 7 is populated, with no enemies: the Oracle in the Chamber of the Oracle,
+Tiresias in Shadow of Thebes, and Persephone in her Bedchamber, whose 'descend'
+stays shut until the player answers her request (a story gate).
+Tartarus (floor 9) is concealed until the 'hades_defeated' story flag.
+Every room on floors 8-9
 remains an unpopulated shell - the per-room enemies/allies listed for them
 are the planned design, not built content. Finishing Floor 2's population (Prometheus' trade and Trophy
-Room of Zeus) and floors 6-9's population are all deferred to the "Populate all floors" roadmap item.
+Room of Zeus) and floors 8-9's population are all deferred to the "Populate all floors" roadmap item.

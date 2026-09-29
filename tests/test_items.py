@@ -1301,3 +1301,58 @@ def test_loyalty_token_cannot_be_dropped():
     except ActionRefused:
         pass
     assert token in player.inventory.items
+
+def test_weapon_unequip_leaves_a_different_weapon_in_its_slot_alone():
+    """Guards against a stale equipped flag clearing whatever now occupies the slot."""
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    stale = Weapon(name="Old Sword", description="", damage=2)
+    current = Weapon(name="New Sword", description="", damage=5)
+    current.use(hero)
+    stale.equipped = True
+    stale.unequip(hero)
+    assert hero.equipped_melee_weapon is current
+    assert stale.equipped is False
+
+def test_armour_unequip_leaves_a_different_piece_in_its_slot_alone():
+    """Guards against a stale equipped flag clearing whatever now occupies the slot."""
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    stale = Armour(name="Old Plate", description="", defence=1)
+    current = Armour(name="New Plate", description="", defence=4)
+    current.use(hero)
+    stale.equipped = True
+    stale.unequip(hero)
+    assert hero.equipped_body is current
+    assert hero.armour == 4
+
+def test_inventory_use_item_finds_an_item_after_others():
+    hero = Character(name="Hero", hp=5, attack_damage=10)
+    hero.max_hp = 20
+    inventory = Inventory()
+    sword = Weapon(name="Sword", description="", damage=3)
+    potion = Consumable(name="Potion", heal_amount=5)
+    inventory.add(sword)
+    inventory.add(potion)
+    inventory.use_item("potion", hero)
+    assert hero.hp == 10
+    assert inventory.items == [sword]
+
+def test_inventory_drop_item_finds_an_item_after_others():
+    inventory = Inventory()
+    sword = Weapon(name="Sword", description="", damage=3)
+    potion = Consumable(name="Potion", heal_amount=5)
+    inventory.add(sword)
+    inventory.add(potion)
+    dropped = inventory.drop_item("potion")
+    assert dropped is potion
+    assert inventory.items == [sword]
+
+def test_inventory_unequip_item_finds_an_item_after_others():
+    hero = Character(name="Hero", hp=100, attack_damage=10)
+    inventory = Inventory()
+    potion = Consumable(name="Potion", heal_amount=5)
+    sword = Weapon(name="Sword", description="", damage=3)
+    inventory.add(potion)
+    inventory.add(sword)
+    sword.use(hero)
+    inventory.unequip_item("sword", hero)
+    assert hero.equipped_melee_weapon is None

@@ -1,21 +1,24 @@
 Read CLAUDE.md for project context. Generate tests for each of these
 files, in this order, one at a time:
 characters.py, items.py, world.py, content/ (the whole package), combat.py,
-exploration.py, exchange.py, character_creation.py, save_system.py,
-dev_tools.py, engine.py, status_effects.py, spells.py, hints.py
+exploration.py, exchange.py, dialogue.py, character_creation.py,
+save_system.py, dev_tools.py, engine.py, status_effects.py, spells.py, hints.py
 
 (The engine.py reorganisation is complete, status effects/spells, the
-save/load system, one-off contextual hints (hints.py) and the exchange
-system (exchange.py - offers, merchants, Circe) are built, and content.py
+save/load system, one-off contextual hints (hints.py), the exchange
+system (exchange.py - offers, merchants, Circe) and branching dialogue
+(dialogue.py - Persephone's conversation) are built, and content.py
 is now a content/ package - this is the full current module list.
-exceptions.py also exists but holds only a docstring, so there's nothing in
-it to test. Add new files to the list as future roadmap items introduce
+exceptions.py also exists, but holds only the two exception classes
+(ActionRefused, SaveFileError) - they're tested where they're raised, and
+test_save_system.py already checks their hierarchy, so it has no test file
+of its own. Add new files to the list as future roadmap items introduce
 them, e.g. skills.py, achievements.py, difficulty.py - none of these exist
 yet. Charon's shop is planned to reuse exchange.py rather than get a
 shop.py of its own.)
 
 For each file, use its matching test file under tests/ (exchange.py ->
-tests/test_exchange.py). The content/
+tests/test_exchange.py, dialogue.py -> tests/test_dialogue.py). The content/
 package (one module per floor, plus common.py, dev_content.py,
 ancestries.py and world_builder.py) is still covered by the single
 tests/test_content.py - every name is re-exported from

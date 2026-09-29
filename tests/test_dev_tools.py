@@ -1,5 +1,7 @@
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
+from dungeon_crawler.dev_tools import find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all
+from dungeon_crawler.content import build_world, create_test_boss
 from dungeon_crawler.items import Weapon, Armour
 from dungeon_crawler.dev_tools import ITEM_REGISTRY, ENEMY_REGISTRY, ALLY_REGISTRY, COMPANION_REGISTRY, SPELL_REGISTRY, find_item_by_name, handle_dev_command, handle_dev_set, handle_dummy_set, find_enemy_by_name, find_ally_by_name, find_companion_by_name, find_spell_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, handle_dev_afflict, handle_dev_set_durability
 
@@ -1332,3 +1334,50 @@ def test_handle_dev_remove_leaving_an_enemy_does_not_set_the_flag():
     player = Player(name="hero", hp=100)
     assert handle_dev_remove("goblin", room, player) == "[DEV] Removed Goblin."
     assert player.story_flags == set()
+
+
+def test_find_room_by_name_ci_finds_a_room_that_is_not_first():
+    dungeon, start, floors = build_world()
+    assert find_room_by_name_ci(dungeon, "BEDCHAMBER OF PERSEPHONE") is floors["floor_7"]["Bedchamber of Persephone"]
+
+def test_handle_dev_remove_picks_the_matching_enemy_after_others():
+    room = Room("Hall")
+    imp = Enemy(name="Imp", hp=5)
+    ogre = Enemy(name="Ogre", hp=5)
+    room.add_enemy(imp)
+    room.add_enemy(ogre)
+    handle_dev_remove("ogre", room, Player(name="Hero", hp=20))
+    assert room.enemies == [imp]
+
+def test_handle_dev_remove_picks_the_matching_ally_after_others():
+    room = Room("Hall")
+    nestor = Ally(name="Nestor")
+    circe = Ally(name="Circe")
+    room.add_ally(nestor)
+    room.add_ally(circe)
+    handle_dev_remove("circe", room, Player(name="Hero", hp=20))
+    assert room.allies == [nestor]
+
+def test_handle_dev_remove_all_leaves_characters_with_other_names():
+    room = Room("Hall")
+    ogre = Enemy(name="Ogre", hp=5)
+    nestor = Ally(name="Nestor")
+    room.add_enemy(Enemy(name="Imp", hp=5))
+    room.add_enemy(ogre)
+    room.add_ally(nestor)
+    room.add_ally(Ally(name="Imp"))
+    handle_dev_remove_all("imp", room, Player(name="Hero", hp=20))
+    assert room.enemies == [ogre]
+    assert room.allies == [nestor]
+
+def test_handle_dev_kill_on_a_boss_keeps_combat_on_its_first_add():
+    room = Room("Arena")
+    boss = create_test_boss()
+    room.add_enemy(boss)
+    player = Player(name="Hero", hp=20)
+    player.in_combat = True
+    player.current_target = boss
+    handle_dev_kill(player, room)
+    assert player.in_combat is True
+    assert player.current_target is room.enemies[0]
+    assert player.current_target.name == "Test Add"

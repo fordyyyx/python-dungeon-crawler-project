@@ -1,11 +1,23 @@
 """Room and item interactions - everything outside of combat: picking up and dropping items, trading with allies,
-examining surroundings, and map/movement helpers."""
+examining surroundings, map/movement helpers (including locked, guarded, story-gated and concealed exits), talking and companion
+advice, and the enemy-trait analysis shared by Odysseus' advice and the floor 7 seers."""
 
 from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.items import Armour, Weapon
-from dungeon_crawler.world import Room
+from dungeon_crawler.world import Room, StoryGate
+from dungeon_crawler.dialogue import start_dialogue
 
 REPAIR_COST_PER_POINT = 2
+TRAIT_ORDER = ("heavy_armour", "evasive", "heals", "pierces", "numerous", "puzzle")
+ODYSSEUS_ADVICE = {
+    "heavy_armour": "That armour's thick. Something that pierces it, or a few heavy blows, will do more than cutting at it.",
+    "evasive": "You'll never catch that one up close. Use a bow, or a spell.",
+    "heals": "Give it time and they'll patch themselves up. Hit hard and fast.",
+    "pierces": "Your armour won't count for much against them - don't trust it to save you.",
+    "numerous": "There are a lot of them. Something that hits more than one at once would earn its keep.",
+    "puzzle": "You can't fight that. Look around - there'll be another way.",
+}
+HIDDEN_WAYS_NOTE = "Hidden ways remain somewhere on the floors you've reached."
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     """Move the named item from room into player's inventory. Returns an error message if no matching item is present."""
@@ -121,12 +133,26 @@ def dismiss_companion(player: Player):
     player.companion = None
     return f"{companion.name} returns to {companion.home_room.name}."
 
-def talk_to(speaker, player: Player) -> str:
-    """The speaker's dialogue, preceded - the first time only - by any ancestry line matching the player's primary or secondary ancestry, and
-    by any companion line (Ally.companion_lines) for the companion in the player's party. Every
+def take_opening_line(speaker, player: Player) -> str:
+    """The speaker's opening line the first time only, recording it in seen_lines - '' if there isn't one, or it's already been heard. The one
+    place once-only opening lines are consumed, shared by talk_to() and any room interaction that should also count as a first meeting."""
+    line = getattr(speaker, "opening_line", "")
+    key = f"opening:{speaker.name}"
+    if not line or key in player.seen_lines:
+        return ""
+    player.seen_lines.add(key)
+    return line
+
+def talk_to(speaker, player: Player, room: Room) -> str:
+    """The speaker's dialogue, preceded - the first time only - by their opening_line (take_opening_line()), then any ancestry line matching
+    the player's primary or secondary ancestry, then any companion line (Ally.companion_lines) for the companion in the player's party. A
+    speaker with a branching dialogue (Ally.dialogue) starts it in room instead of calling talk() - which is why room is needed. Every
     place that shows ally or companion dialogue (the 'talk' command and auto-talk) goes through this rather than calling speaker.talk() directly,
     so the once-only rule lives in one place and talk() itself stays free of side effects."""
     lines = []
+    opening = take_opening_line(speaker, player)
+    if opening:
+        lines.append(opening)
     for key in (player.ancestry_key, player.secondary_ancestry_key):
         if key is None or key not in speaker.ancestry_lines:
             continue
@@ -141,7 +167,10 @@ def talk_to(speaker, player: Player) -> str:
         if companion_line and seen_key not in player.seen_lines:
             player.seen_lines.add(seen_key)
             lines.append(companion_line)
-    lines.append(speaker.talk(player))
+    if getattr(speaker, "dialogue", None):
+        lines.append(start_dialogue(speaker, room, player))
+    else:
+        lines.append(speaker.talk(player))
     return "\n\n".join(lines)
 
 def get_rival_lines(room: Room, player: Player) -> list[str]:
@@ -185,19 +214,7 @@ def get_advice(room: Room, player: Player) -> str:
 
     enemies = [e for e in room.enemies if e.is_alive() and not e.respawns]
     fighting = [e for e in enemies if not e.invulnerable]
-    lines = []
-    if any(e.armour >= 3 for e in fighting):
-        lines.append("That armour's thick. Something that pierces it, or a few heavy blows, will do more than cutting at it.")
-    if any(e.melee_dodge_chance > 0 for e in fighting):
-        lines.append("You'll never catch that one up close. Use a bow, or a spell.")
-    if any(e.heal_amount > 0 for e in fighting):
-        lines.append("Give it time and it'll patch itself up. Hit hard and fast.")
-    if any(e.armour_pierce > 0 for e in fighting):
-        lines.append("Your armour won't count for much against that - don't trust it to save you.")
-    if len(fighting) >= 3:
-        lines.append("There are a lot of them. Something that hits more than one at once would earn its keep.")
-    if any(e.invulnerable for e in enemies) and not room.advice:
-        lines.append("You can't fight that. Look around - there'll be another way.")
+    lines = [ODYSSEUS_ADVICE[trait] for trait in enemy_traits(room.enemies) if not (trait == "puzzle" and room.advice)]
     if room.advice:
         lines.append(room.advice)
 
@@ -219,33 +236,45 @@ def get_exit_guardian(room: Room, direction: str) -> Enemy | None:
         return None
     return next((e for e in room.enemies if e.is_alive() and not e.respawns), None)
 
+def get_story_gate(room: Room, direction: str, player: Player) -> StoryGate | None:
+    """The story gate still shutting 'direction', or None if there isn't one or the player already has one of its flags."""
+    gate = room.story_gates.get(direction)
+    if gate is None or any(flag in player.story_flags for flag in gate.required_flags):
+        return None
+    return gate
+
 def display_local_exits(room: Room, player: Player) -> str:
     """Format only the current room's own exits - 'Locked Door' in place of the destination for an item-locked exit, the destination plus
-    '(guarded by <name>)' while a guardian lives, and 'Sealed Shortcut' for a fast-travel exit not yet opened from the other side."""
+    '(guarded by <name>)' while a guardian lives, 'Sealed Shortcut' for a fast-travel exit not yet opened from the other side, and the
+    destination plus its gate's map_label while a story gate is shut. An exit to a concealed room isn't listed at all."""
     if not room.exits:
         return "There are no exits from this room."
     lines = []
     for direction, target in room.exits.items():
+        if is_room_concealed(target, player):
+            continue
         guardian = get_exit_guardian(room, direction)
         if is_exit_locked(room, direction, player):
             lines.append(f"{direction} -> Locked Door")
         elif guardian is not None:
             lines.append(f"{direction} -> {target.name} (guarded by {guardian.name})")
         elif direction in room.fast_travel_locks:
-                    lines.append(f"{direction} -> Sealed Shortcut")
+            lines.append(f"{direction} -> Sealed Shortcut")
+        elif (gate := get_story_gate(room, direction, player)) is not None:
+            lines.append(f"{direction} -> {target.name} ({gate.map_label})")
         else:
             lines.append(f"{direction} -> {target.name}")
-    return "\n".join(lines)
+    return "\n".join(lines) if lines else "There are no exits from this room."
 
 def display_map(current_room: Room, player: Player) -> str:
     """Format every room reachable from current_room, via a recursive traversal that stops at any exit the player can't use yet - locked,
-    guarded, or a sealed shortcut, each labelled as in display_local_exits(). Unlike display_local_exits(), this shows the whole
+    guarded, a sealed shortcut, or a shut story gate, each labelled as in display_local_exits(). Concealed rooms are left out entirely. Unlike display_local_exits(), this shows the whole
     currently-reachable map, not just the current room's own exits."""
     visited: set[str] = set()
     lines = []
 
     def explore(room: Room) -> None:
-        """Depth-first visit room and every room reachable from it, appending exit lines to the enclosing lines list. Recursion stops at an unusable exit (locked, guarded or sealed) or an already-visited room, so this always terminates even with exit loops."""
+        """Depth-first visit room and every room reachable from it, appending exit lines to the enclosing lines list. Recursion stops at an unusable exit (locked, guarded, sealed or story-gated) or an already-visited room, so this always terminates even with exit loops."""
         if room.name in visited:
             return
         visited.add(room.name)
@@ -253,6 +282,8 @@ def display_map(current_room: Room, player: Player) -> str:
 
         unlocked_targets = []
         for direction, target in room.exits.items():
+            if is_room_concealed(target, player):
+                continue
             guardian = get_exit_guardian(room, direction)
             if is_exit_locked(room, direction, player):
                 lines.append(f"  {direction} -> Locked Door")
@@ -260,6 +291,8 @@ def display_map(current_room: Room, player: Player) -> str:
                 lines.append(f"  {direction} -> {target.name} (guarded by {guardian.name})")
             elif direction in room.fast_travel_locks:
                 lines.append(f"  {direction} -> Sealed Shortcut")
+            elif (gate := get_story_gate(room, direction, player)) is not None:
+                lines.append(f"  {direction} -> {target.name} ({gate.map_label})")
             else:
                 lines.append(f"  {direction} -> {target.name}")
                 unlocked_targets.append(target)
@@ -338,8 +371,7 @@ def has_unfinished_trade(ally: Ally) -> bool:
     return bool(ally.required_items) and ally.reward is not None and not ally.trade_completed
 
 def get_uncleared_reasons(room: Room) -> list[str]:
-    """Why room isn't finished yet - an empty list means it's cleared. A hidden exit is reported vaguely, without naming a direction, so the
-    command hints that a room is worth examining rather than spoiling what's there."""
+    """Why room isn't finished yet - an empty list means it's cleared."""
     reasons = []
     if any(enemy.is_alive() and not enemy.respawns for enemy in room.enemies):
         reasons.append("enemies remain")
@@ -347,14 +379,12 @@ def get_uncleared_reasons(room: Room) -> list[str]:
         reasons.append("items left behind")
     if any(has_unfinished_trade(ally) for ally in room.allies):
         reasons.append("an unfinished trade")
-    if room.hidden_exits:
-        reasons.append("something here is worth a closer look")
     return reasons
 
 def get_undiscovered_rooms(all_floors: dict[str, dict[str, Room]], player: Player) -> set[str]:
     """Names of unvisited rooms the player could walk into right now - one step through a usable exit from a room they've already visited.
-    An exit counts as usable if it isn't item-locked, guarded, or a sealed Forge shortcut, and only revealed exits are in room.exits, so a hidden
-    one is never followed. Limited to one step on purpose: an adjacent room's name is already shown by the map's exit list, so this reveals
+    An exit counts as usable if it isn't item-locked, guarded, a sealed Forge shortcut or a shut story gate, and doesn't lead to a concealed
+    room; only revealed exits are in room.exits, so a hidden one is never followed. Limited to one step on purpose: an adjacent room's name is already shown by the map's exit list, so this reveals
     nothing new, whereas following exits further would name rooms the player has never seen."""
     rooms_by_name = {room.name: room for rooms in all_floors.values() for room in rooms.values()}
     undiscovered : set[str] = set()
@@ -363,6 +393,8 @@ def get_undiscovered_rooms(all_floors: dict[str, dict[str, Room]], player: Playe
         if room is None:
             continue
         for direction, target in room.exits.items():
+            if is_room_concealed(target, player):
+                continue
             if target.name in player.visited_rooms:
                 continue
             if direction in room.fast_travel_locks:
@@ -371,12 +403,15 @@ def get_undiscovered_rooms(all_floors: dict[str, dict[str, Room]], player: Playe
                 continue
             if get_exit_guardian(room, direction) is not None:
                 continue
+            if get_story_gate(room, direction, player) is not None:
+                continue
             undiscovered.add(target.name)
     return undiscovered
 
 def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) -> str:
-    """List every visited room that isn't cleared yet, plus every undiscovered room within one step of a visited one (see
-    get_undiscovered_rooms()), grouped by floor."""
+    """List every visited room that isn't cleared yet (get_uncleared_reasons(), plus 'a decision to make' while one of its story gates is
+    shut), plus every undiscovered room within one step of a visited one (see get_undiscovered_rooms()), grouped by floor. Hidden exits are
+    never pinned to a room: while any remain on a floor the player has reached, the report ends with HIDDEN_WAYS_NOTE instead."""
     undiscovered = get_undiscovered_rooms(all_floors, player)
     lines = []
     for floor_key, rooms in all_floors.items():
@@ -384,6 +419,8 @@ def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) 
         for room in rooms.values():
             if room.name in player.visited_rooms:
                 reasons = get_uncleared_reasons(room)
+                if any(get_story_gate(room, direction, player) for direction in room.story_gates):
+                    reasons = reasons + ["a decision to make"]
             elif room.name in undiscovered:
                 reasons = ["undiscovered"]
             else:
@@ -393,7 +430,19 @@ def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) 
         if floor_lines:
             lines.append(f"{floor_key.replace('_', ' ').title()}:")
             lines.extend(floor_lines)
-    return "\n".join(lines) if lines else "Every room you've visited has been cleared."
+
+    hidden_remaining = any(
+        room.hidden_exits and not is_room_concealed(room, player)
+        for floor_key, rooms in all_floors.items() if floor_key in player.visited_floors
+        for room in rooms.values()
+    )
+    if not lines:
+        if hidden_remaining:
+            return f"Every room you can reach has been cleared - but {HIDDEN_WAYS_NOTE[0].lower()}{HIDDEN_WAYS_NOTE[1:]}"
+        return "Nothing left to find - every room you can reach has been cleared."
+    if hidden_remaining:
+        lines.append(HIDDEN_WAYS_NOTE)
+    return "\n".join(lines)
 
 def start_duel(name: str, room: Room, player: Player) -> str:
     """Begin a duel with the named companion in the room: they're swapped out for the Enemy their duel_enemy_factory builds, which carries a
@@ -415,3 +464,65 @@ def start_duel(name: str, room: Room, player: Player) -> str:
     player.in_combat = True
     player.current_target = opponent
     return f"{companion.name} accepts. The duel begins.\n{opponent.description}"
+
+def enemy_traits(enemies) -> list[str]:
+    """The notable traits of one group of enemies, in TRAIT_ORDER - the analysis shared by Odysseus' advice, the Oracle's 'ask ahead' and
+    Tiresias' readings. Each speaker has their own phrasing for each trait; this only decides which traits apply."""
+    alive = [e for e in enemies if e.is_alive() and not e.respawns]
+    fighting = [e for e in alive if not e.invulnerable]
+    found = set()
+    if any(e.armour >= 3 for e in fighting):
+        found.add("heavy_armour")
+    if any(e.melee_dodge_chance > 0 for e in fighting):
+        found.add("evasive")
+    if any(e.heal_amount > 0 for e in fighting):
+        found.add("heals")
+    if any(e.armour_pierce > 0 for e in fighting):
+        found.add("pierces")
+    if len(fighting) >= 3:
+        found.add("numerous")
+    if any(e.invulnerable for e in alive):
+        found.add("puzzle")
+    return [trait for trait in TRAIT_ORDER if trait in found]
+
+def encounter_enemies(enemy, depth: int = 0) -> list:
+    """The enemy plus everything its fight will bring - wave adds and later phases, built from its factories. Used when describing a floor the player
+    hasn't reached, so a boss' second phase counts too. Depth-limited as a safeguard."""
+    found = [enemy]
+    if depth >= 3:
+        return found
+    for factory in enemy.next_wave_factories or []:
+        found.extend(encounter_enemies(factory(), depth + 1))
+    if enemy.next_phase_factory is not None:
+        found.extend(encounter_enemies(enemy.next_phase_factory(), depth + 1))
+    return found
+
+def floor_traits(rooms: dict[str, Room]) -> list[str]:
+    """The traits of a whole floor - each room analysed on its own (so 'numerous' means one room with many enemies, not the floor's total),
+    including every phase and wave, then combined in TRAIT_ORDER."""
+    found = set()
+    for room in rooms.values():
+        expanded = [e for enemy in room.enemies for e in encounter_enemies(enemy)]
+        found.update(enemy_traits(expanded))
+    return [trait for trait in TRAIT_ORDER if trait in found]
+
+def next_floor_key(all_floors: dict[str, dict[str, Room]], player: Player) -> str | None:
+    """The floor after the deepest one the player has reached, or None if they haven't reached any or there's nothing below."""
+    reached = [int(key.removeprefix("floor_")) for key in player.visited_floors if key.startswith("floor_")]
+    if not reached:
+        return None
+    candidate = f"floor_{max(reached) + 1}"
+    if candidate not in all_floors:
+        return None
+    if all(is_room_concealed(room, player) for room in all_floors[candidate].values()):
+        return None
+    return candidate
+
+def is_room_concealed(room: Room, player: Player) -> bool:
+    """Whether room is still concealed from the player - see Room.concealed_until."""
+    return room.concealed_until is not None and room.concealed_until not in player.story_flags
+
+def is_exit_concealed(room: Room, direction: str, player: Player) -> bool:
+    """Whether the exit in 'direction' leads to a room that's still concealed."""
+    target = room.exits.get(direction)
+    return target is not None and is_room_concealed(target, player)

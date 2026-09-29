@@ -111,6 +111,9 @@ something occurs to you mid-build.
   swallowing, drained, spewing) want to be seen, with the fig tree and raft as the only things the player can act on.
   The text version advances one phase per typed verb; a real-time version would need a fair window per phase, or a
   visible turn counter, so the solution stays about reading the sea rather than reflexes.
+- **A concealed room (`Room.concealed_until` - Tartarus) must not leak through the map screen.** A map drawn
+  straight from `Room.exits` would show the stair below Hades before the twist; draw only what
+  `display_local_exits()`/`display_map()` would list, and reveal it with a moment of its own once the flag is set.
 - The room network (Room.exits as a dict) maps naturally onto a node-based
   or grid-based map screen — the existing `fullmap`/`world` traversal logic
   (stopping at locked exits) could drive what's actually drawn/revealed.
@@ -204,6 +207,12 @@ something occurs to you mid-build.
 - **Companion advice (`advice`) is a natural fit for a contextual bark** - Odysseus muttering a tip as you enter a room,
   or a portrait with a speech bubble on demand, rather than a typed command. Since it's built from the room's enemies,
   it could also drive small visual cues (a shield icon over a heavily armoured foe) for players who don't ask.
+- **Branching dialogue (`dialogue.py`, Persephone) is already a dialogue tree** - nodes with numbered options map
+  straight onto a text box with clickable answers, replacing `say <number>`. A choice that sets a story flag is final,
+  so it wants marking as such (a distinct style, or a confirm) before the click, and a leaving-the-room exit should
+  visibly end the conversation rather than silently dropping it.
+- **The Oracle's three prophecies are a visible resource** - three candles or tokens that go out as they're spent,
+  with a question that isn't spent leaving them lit, so the rule is readable without the "(2 prophecies remain.)" line.
 - `Ally.hint` / `hint_complete` are effectively dialogue nodes already —
   could map onto a simple dialogue-tree/text-box system fairly directly,
   since the conditional-hint logic (required_items check) already exists.

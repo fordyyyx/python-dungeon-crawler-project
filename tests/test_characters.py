@@ -2925,3 +2925,35 @@ def test_take_damage_without_loyalty_downs_the_companion():
 
 def test_ally_companion_lines_default_to_empty():
     assert Ally(name="Idler").companion_lines == {}
+
+def test_ally_has_no_dialogue_function_or_dialogue_by_default():
+    ally = Ally(name="Idler")
+    assert ally.dialogue_function is None
+    assert ally.dialogue == {}
+
+def test_ally_talk_returns_the_dialogue_function_result():
+    player = Player(name="Hero", hp=20)
+    ally = Ally(name="Seer", hint="Unused.", dialogue_function=lambda p: f"I see you, {p.name}.")
+    message = ally.talk(player)
+    assert message == "I see you, Hero."
+
+def test_ally_talk_dialogue_function_takes_priority_over_a_completed_trade():
+    player = Player(name="Hero", hp=20)
+    ally = Ally(name="Seer", hint_traded="Thanks again.", dialogue_function=lambda p: "Generated.")
+    ally.trade_completed = True
+    assert ally.talk(player) == "Generated."
+
+def test_ally_talk_dialogue_function_is_called_with_the_player():
+    player = Player(name="Hero", hp=20)
+    received = []
+    ally = Ally(name="Seer", dialogue_function=lambda p: received.append(p) or "")
+    ally.talk(player)
+    assert received[0] is player
+
+def test_ally_has_no_opening_line_by_default():
+    assert Ally(name="Idler").opening_line == ""
+
+def test_ally_talk_never_includes_the_opening_line():
+    """The opening line is consumed by talk_to() (exploration.py), never by talk() itself."""
+    ally = Ally(name="Seer", hint="Hello.", opening_line="At last.")
+    assert ally.talk(Player(name="Hero", hp=20)) == "Hello."

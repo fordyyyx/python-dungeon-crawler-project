@@ -1,7 +1,10 @@
 from dungeon_crawler.content import create_suitor, create_antinous, create_eurymachus, create_antinous_goblet, create_penelope, create_penelopes_thread, create_circe, create_nestor, create_poseidon, create_hippocampus, create_poseidon_earth_shaker, create_trident_of_the_depths, create_kelp_poultice, create_odysseus, create_charybdis, create_hoplon_of_the_drowned, resolve_charybdis_action, CHARYBDIS_PHASES, create_polyphemus, create_polyphemus_blinded, create_olive_wood_stake, create_wheel_of_cheese, create_head_of_scylla, create_boars_tusk_helm, ANCESTRIES, create_laestrygonian, create_antiphates, create_laestrygonian_hide, create_antiphates_club, create_shade_of_ajax, create_tower_shield_of_ajax, create_myrmidon_soldier, create_field_dressing, create_shade_of_paris, create_bow_of_paris, create_nestor, create_cup_of_kykeon, create_shade_of_hector, create_hectors_helm, create_shade_of_achilles, create_shade_of_achilles_duellist, create_ambrosia, create_ares, create_athena, create_breastplate_of_athena, create_bronze_breastplate, create_bronze_xiphos, create_centaur, create_centaurs_broken_bow, create_charon, create_charons_coin, create_chiron, create_chipped_stone_aegis, create_crypt_keeper, create_cyclops_eye, create_ember_wraith, create_fanatic, create_harpy, create_gorgon, create_harpy_fletched_bow, create_lamia, create_lamias_fang, create_lurker, create_medusa, create_medusa_awakened, create_petrified_guardian, create_prayer_bolt, create_satyr, create_serpents_kiss, create_sunscorched_dagger, create_talos, create_talos_bronze_plating, create_tome_of_old_prayers, create_wineskin_of_dionysus, create_cyclops, create_dummy_head, create_hades, create_hermes, create_hermes_favour, create_labrys, create_mentor, create_mentors_token, create_minotaur, create_prometheus, create_shade, create_skeleton_bone, create_skeleton_warrior, create_small_healing_potion, create_spear_of_ares, create_practice_dummy, create_training_dummy, create_vial_of_grave_rot, create_weathered_helm, create_wooden_shield, create_wooden_sword, create_wounded_soldier, build_world, build_floor_0, build_floor_1, build_floor_2, build_floor_3, build_floor_4, build_floor_5, build_floor_6, build_floor_7, build_floor_8, build_floor_9, build_blank_test_room, build_companion_test_camp, create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial, create_test_boss, ANCESTRIES
 from dungeon_crawler.characters import Player, Companion, Enemy
 from dungeon_crawler.world import Room
-from dungeon_crawler.dev_tools import find_item_by_name
+from dungeon_crawler.exploration import talk_to, get_story_gate
+from dungeon_crawler.dialogue import continue_dialogue
+from dungeon_crawler.content import create_oracle, create_tiresias, create_persephone, create_pomegranate, ORACLE_TWIST, ORACLE_PHRASES, ORACLE_NOTHING_STRANGE, PROMISED_MERCY, REFUSED_MERCY
+from dungeon_crawler.dev_tools import find_item_by_name, ALLY_REGISTRY
 from dungeon_crawler.items import LoyaltyToken, QuestItem, StatusEffectItem, Weapon, SpellBook, Armour
 
 
@@ -3111,3 +3114,381 @@ def test_build_floor_6_places_penelope_in_the_bedchamber():
 
 def test_penelopes_description_has_her_sitting_at_the_loom():
     assert create_penelope().description.startswith("She sits at the loom")
+
+def _tiresias_and_player():
+    """The world-wired Tiresias, and a player who has reached floor 7 (floor 8 below has no enemies yet), carries a heal, and has a
+    companion - so none of his warnings apply."""
+    dungeon, start, floors = build_world()
+    tiresias = floors["floor_7"]["Shadow of Thebes"].allies[0]
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_7"}
+    player.inventory.add(create_small_healing_potion())
+    player.companion = Companion(name="Imp", hp=10, home_room=Room("Camp"))
+    return tiresias, player
+
+def test_tiresias_with_nothing_to_warn_about_says_go_down():
+    """Regression: the reading crashed with AttributeError (inventory.item for inventory.items), and this line had a comma splice."""
+    tiresias, player = _tiresias_and_player()
+    message = tiresias.talk(player)
+    assert message.endswith('"I look, and I find nothing waiting. Go down, then."')
+
+def test_tiresias_names_a_carried_signature_weapon_that_is_never_equipped():
+    tiresias, player = _tiresias_and_player()
+    player.inventory.add(create_labrys())
+    assert '"You carry a Labrys and never raise it."' in tiresias.talk(player)
+
+def test_oracle_ask_ahead_ends_with_the_prophecies_remaining():
+    """Regression: the remaining-count line printed the helper function itself, since _remaining_note was never called."""
+    dungeon, start, floors = build_world()
+    chamber = floors["floor_7"]["Chamber of the Oracle"]
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_5"}
+    message = chamber.interactions["ask ahead"].handler(player, chamber)
+    assert message.endswith("\n(2 prophecies remain.)")
+
+def test_persephone_first_conversation_gives_the_pomegranate_and_sets_its_flag():
+    """The flag is saved in Player.story_flags, so its spelling is pinned (it was first 'persophone_...')."""
+    dungeon, start, floors = build_world()
+    bedchamber = floors["floor_7"]["Bedchamber of Persephone"]
+    player = Player(name="Hero", hp=20)
+    talk_to(bedchamber.allies[0], player, bedchamber)
+    assert "persephone_pomegranate_given" in player.story_flags
+    assert [item.name for item in player.inventory.items] == ["Pomegranate"]
+
+# ---- floor 7: the Oracle ----
+
+def _oracle_chamber():
+    dungeon, start, floors = build_world()
+    return floors["floor_7"]["Chamber of the Oracle"]
+
+def _ask(chamber, verb, player):
+    return chamber.interactions[verb].handler(player, chamber)
+
+def test_build_world_gives_the_oracle_her_two_questions():
+    chamber = _oracle_chamber()
+    assert chamber.available_interactions(Player(name="Hero", hp=20)) == ["ask ahead", "ask secrets"]
+
+def test_oracle_first_talk_opens_with_the_twist_prophecy():
+    chamber = _oracle_chamber()
+    message = talk_to(chamber.allies[0], Player(name="Hero", hp=20), chamber)
+    assert message.startswith(ORACLE_TWIST)
+
+def test_oracle_twist_prophecy_is_only_given_once():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    talk_to(chamber.allies[0], player, chamber)
+    assert ORACLE_TWIST not in talk_to(chamber.allies[0], player, chamber)
+
+def test_oracle_talk_itself_has_no_side_effects():
+    """Regression: the greeting used to record the twist as seen from inside talk(), which must stay free of side effects - it's
+    the Oracle's opening_line now, consumed by talk_to()."""
+    player = Player(name="Hero", hp=20)
+    message = create_oracle().talk(player)
+    assert ORACLE_TWIST not in message
+    assert player.seen_lines == set()
+
+def test_oracle_twist_given_by_a_question_is_not_repeated_on_talk():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_0"}
+    first = _ask(chamber, "ask ahead", player)
+    assert first.startswith(ORACLE_TWIST)
+    assert ORACLE_TWIST not in talk_to(chamber.allies[0], player, chamber)
+
+def test_oracle_ask_ahead_foretells_the_next_floors_traits_in_order():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.seen_lines.add("opening:Oracle")
+    player.visited_floors = {"floor_5"}
+    message = _ask(chamber, "ask ahead", player)
+    expected = [f'"{ORACLE_PHRASES[trait]}"' for trait in ("heavy_armour", "heals", "pierces", "numerous", "puzzle")]
+    assert message.split("\n") == expected + ["(2 prophecies remain.)"]
+
+def test_oracle_ask_ahead_with_no_notable_traits_sees_only_strength():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.seen_lines.add("opening:Oracle")
+    player.visited_floors = {"floor_0"}
+    assert _ask(chamber, "ask ahead", player) == f'"{ORACLE_NOTHING_STRANGE}"\n(2 prophecies remain.)'
+
+def test_oracle_ask_ahead_with_no_enemies_below_is_not_spent():
+    """Floor 8 has no enemies placed yet, so from floor 7 there's nothing to foretell."""
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_7"}
+    message = _ask(chamber, "ask ahead", player)
+    assert "(That prophecy was not spent.)" in message
+    assert chamber.flags == set()
+
+def test_oracle_ask_ahead_twice_for_the_same_floor_is_not_spent_again():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_5"}
+    _ask(chamber, "ask ahead", player)
+    message = _ask(chamber, "ask ahead", player)
+    assert message == '"I have told you what waits below. Go and meet it." (That prophecy was not spent.)'
+    assert chamber.flags == {"prophecy:ahead:floor_6"}
+
+def test_oracle_ask_secrets_names_the_first_unfound_hidden_exit():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.seen_lines.add("opening:Oracle")
+    player.visited_floors = {"floor_1", "floor_2"}
+    message = _ask(chamber, "ask secrets", player)
+    assert message == '"In Styx Crossing, a way lies hidden that you have walked straight past."\n(2 prophecies remain.)'
+
+def test_oracle_ask_secrets_moves_on_and_warns_when_intellect_is_too_low():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_1", "floor_2"}
+    _ask(chamber, "ask secrets", player)
+    message = _ask(chamber, "ask secrets", player)
+    assert '"In Armoury of Ares, a way lies hidden' in message
+    assert '"It will not show itself to a mind duller than 3."' in message
+
+def test_oracle_ask_secrets_skips_a_hidden_exit_already_found():
+    dungeon, start, floors = build_world()
+    chamber = floors["floor_7"]["Chamber of the Oracle"]
+    floors["floor_1"]["Styx Crossing"].reveal_hidden_exits()
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_1"}
+    message = chamber.interactions["ask secrets"].handler(player, chamber)
+    assert "(That prophecy was not spent.)" in message
+    assert chamber.flags == set()
+
+def test_oracle_last_prophecy_says_she_will_answer_no_more():
+    chamber = _oracle_chamber()
+    chamber.flags.update({"prophecy:ahead:floor_1", "prophecy:ahead:floor_2"})
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_1"}
+    assert _ask(chamber, "ask secrets", player).endswith("(She will answer no more.)")
+
+def test_oracle_questions_fall_silent_after_three_prophecies():
+    chamber = _oracle_chamber()
+    chamber.flags.update({"prophecy:ahead:floor_1", "prophecy:ahead:floor_2", "prophecy:secret:Styx Crossing"})
+    player = Player(name="Hero", hp=20)
+    assert chamber.available_interactions(player) == []
+    assert chamber.interactions["ask ahead"].unavailable_message == '"I have said all I will say."'
+
+# ---- floor 7: Tiresias ----
+
+def _tiresias_reading(player, visited_floor):
+    tiresias, _ = _tiresias_and_player()
+    player.visited_floors = {visited_floor}
+    return tiresias.talk(player)
+
+def test_tiresias_before_world_wiring_has_a_placeholder_line():
+    assert create_tiresias().talk(Player(name="Hero", hp=20)) == '"Not yet," he murmurs. "Come back when I can see you properly."'
+
+def test_build_world_gives_tiresias_his_readings():
+    dungeon, start, floors = build_world()
+    assert floors["floor_7"]["Shadow of Thebes"].allies[0].dialogue_function is not None
+
+def test_tiresias_warns_about_one_unspent_skill_point():
+    tiresias, player = _tiresias_and_player()
+    player.skill_tree.skill_points = 1
+    assert '"You hold 1 skill point you have not spent.' in tiresias.talk(player)
+
+def test_tiresias_warns_about_several_unspent_skill_points():
+    tiresias, player = _tiresias_and_player()
+    player.skill_tree.skill_points = 3
+    assert '"You hold 3 skill points you have not spent.' in tiresias.talk(player)
+
+def test_tiresias_warns_when_nothing_carried_reaches_an_evasive_enemy():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_4"}
+    assert "Something below keeps its distance" in tiresias.talk(player)
+
+def test_tiresias_does_not_warn_about_evasion_with_a_bow_equipped():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_4"}
+    create_harpy_fletched_bow().use(player)
+    assert "Something below keeps its distance" not in tiresias.talk(player)
+
+def test_tiresias_does_not_warn_about_evasion_with_a_ranged_companion():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_4"}
+    player.companion = Companion(name="Archer", hp=10, home_room=Room("Camp"), attack_type="ranged")
+    assert "Something below keeps its distance" not in tiresias.talk(player)
+
+def test_tiresias_warns_that_heavy_armour_is_wasted_against_piercing():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_4"}
+    create_bronze_breastplate().use(player)
+    assert "You pay for your armour with every swing" in tiresias.talk(player)
+
+def test_tiresias_does_not_warn_about_piercing_in_light_armour():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_4"}
+    create_breastplate_of_athena().use(player)
+    assert "You pay for your armour with every swing" not in tiresias.talk(player)
+
+def test_tiresias_warns_a_blade_will_skid_off_heavy_armour():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_4"}
+    create_wooden_sword().use(player)
+    assert "Your blade will skid off what waits below." in tiresias.talk(player)
+
+def test_tiresias_does_not_warn_about_heavy_armour_with_a_piercing_weapon():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_4"}
+    create_spear_of_ares().use(player)
+    assert "Your blade will skid off" not in tiresias.talk(player)
+
+def test_tiresias_warns_about_many_enemies_without_a_cleaving_weapon():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_5"}
+    assert "Many will come at you at once" in tiresias.talk(player)
+
+def test_tiresias_does_not_warn_about_many_enemies_with_a_cleaving_weapon():
+    tiresias, player = _tiresias_and_player()
+    player.visited_floors = {"floor_5"}
+    create_labrys().use(player)
+    assert "Many will come at you at once" not in tiresias.talk(player)
+
+def test_tiresias_warns_when_nothing_carried_heals():
+    tiresias, player = _tiresias_and_player()
+    player.inventory.remove(player.inventory.items[0])
+    assert '"You carry nothing to mend yourself."' in tiresias.talk(player)
+
+def test_tiresias_counts_a_heal_over_time_as_healing():
+    tiresias, player = _tiresias_and_player()
+    player.inventory.remove(player.inventory.items[0])
+    player.inventory.add(create_cup_of_kykeon())
+    assert "You carry nothing to mend yourself." not in tiresias.talk(player)
+
+def test_tiresias_suggests_a_companion_to_a_player_alone():
+    tiresias, player = _tiresias_and_player()
+    player.companion = None
+    assert '"You walk alone. You need not."' in tiresias.talk(player)
+
+def test_tiresias_notices_a_downed_companion():
+    tiresias, player = _tiresias_and_player()
+    player.companion.hp = 0
+    assert '"Imp lies broken beside you. See to that before you go down."' in tiresias.talk(player)
+
+# ---- floor 7: Persephone ----
+
+def _persephone_conversation():
+    dungeon, start, floors = build_world()
+    bedchamber = floors["floor_7"]["Bedchamber of Persephone"]
+    player = Player(name="Hero", hp=20)
+    opening = talk_to(bedchamber.allies[0], player, bedchamber)
+    return bedchamber, player, opening
+
+def test_persephone_only_gives_one_pomegranate():
+    bedchamber, player, opening = _persephone_conversation()
+    second = talk_to(bedchamber.allies[0], player, bedchamber)
+    assert "(You receive a Pomegranate.)" not in second
+    assert len(player.inventory.items) == 1
+
+def test_persephone_why_topic_leads_back_to_the_start():
+    bedchamber, player, opening = _persephone_conversation()
+    continue_dialogue("1", bedchamber, player)
+    message = continue_dialogue("1", bedchamber, player)
+    assert "Ask what you want to ask." in message
+
+def test_persephone_promise_sets_promised_mercy():
+    bedchamber, player, opening = _persephone_conversation()
+    continue_dialogue("2", bedchamber, player)
+    message = continue_dialogue("1", bedchamber, player)
+    assert PROMISED_MERCY in player.story_flags
+    assert REFUSED_MERCY not in player.story_flags
+    assert "Thank you." in message
+
+def test_persephone_refusal_sets_refused_mercy():
+    bedchamber, player, opening = _persephone_conversation()
+    continue_dialogue("2", bedchamber, player)
+    continue_dialogue("2", bedchamber, player)
+    assert REFUSED_MERCY in player.story_flags
+    assert PROMISED_MERCY not in player.story_flags
+
+def test_persephone_thinking_it_over_sets_no_flag():
+    bedchamber, player, opening = _persephone_conversation()
+    continue_dialogue("2", bedchamber, player)
+    message = continue_dialogue("3", bedchamber, player)
+    assert "Ask what you want to ask." in message
+    assert player.story_flags == {"persephone_pomegranate_given"}
+
+def test_persephone_stops_asking_once_the_choice_is_made():
+    bedchamber, player, opening = _persephone_conversation()
+    continue_dialogue("2", bedchamber, player)
+    continue_dialogue("1", bedchamber, player)
+    continue_dialogue("1", bedchamber, player)
+    message = talk_to(bedchamber.allies[0], player, bedchamber)
+    assert "Ask what she wants of you" not in message
+    assert "    2. Leave her be" in message
+
+def test_persephone_leaving_ends_the_conversation():
+    bedchamber, player, opening = _persephone_conversation()
+    continue_dialogue("3", bedchamber, player)
+    assert "dialogue" not in bedchamber.transient_state
+
+def test_pomegranate_restores_full_hp():
+    player = Player(name="Hero", hp=30)
+    player.hp = 1
+    create_pomegranate().use(player)
+    assert player.hp == 30
+
+# ---- floor 9 ----
+
+def test_tartarus_is_concealed_until_hades_is_defeated():
+    start, rooms = build_floor_9()
+    assert rooms["Tartarus"].concealed_until == "hades_defeated"
+
+def _every_real_dialogue():
+    """(speaker name, dialogue) for every ally with a branching dialogue, whether placed by build_world() or only spawnable by dev tools."""
+    dungeon, start, floors = build_world()
+    allies = [ally for rooms in floors.values() for room in rooms.values() for ally in room.allies]
+    allies += [factory() for factory in ALLY_REGISTRY.values()]
+    return [(ally.name, ally.dialogue) for ally in allies if ally.dialogue]
+
+def test_real_dialogue_exists_to_check():
+    assert "Persephone" in [name for name, dialogue in _every_real_dialogue()]
+
+def test_every_real_dialogue_begins_at_a_start_node():
+    for name, dialogue in _every_real_dialogue():
+        assert "start" in dialogue, name
+
+def test_every_real_dialogue_node_always_offers_an_option():
+    """A node with no options offered would leave the conversation open with nothing to answer ('Choose an option from 1 to 0.') until
+    the player left the room. Deliberately not handled in dialogue.py - so no real node may do it, whatever the player's state. At least
+    one option per node must have no availability check."""
+    for name, dialogue in _every_real_dialogue():
+        for node_id, node in dialogue.items():
+            assert any(option.available is None for option in node.options), f"{name}: '{node_id}' can offer no options"
+
+def test_every_real_dialogue_option_leads_to_a_node_that_exists():
+    for name, dialogue in _every_real_dialogue():
+        for node_id, node in dialogue.items():
+            for option in node.options:
+                assert option.next_node is None or option.next_node in dialogue, f"{name}: '{node_id}' -> '{option.next_node}'"
+
+def test_every_real_dialogue_can_be_left():
+    """Some option somewhere ends the conversation - otherwise only walking out would."""
+    for name, dialogue in _every_real_dialogue():
+        assert any(option.next_node is None for node in dialogue.values() for option in node.options), name
+
+def test_build_world_gates_persephones_descent_on_her_choice():
+    dungeon, start, floors = build_world()
+    gate = floors["floor_7"]["Bedchamber of Persephone"].story_gates["descend"]
+    assert gate.required_flags == (PROMISED_MERCY, REFUSED_MERCY)
+    assert gate.map_label == "Persephone is waiting for your answer"
+    assert gate.blocked_message == (
+        "Persephone rises as you reach the stair. \"Not yet. There's something I need to ask of you before you go down to him.\" "
+        "(Talk to Persephone.)"
+    )
+
+def test_persephone_answering_either_way_opens_the_descent():
+    for answer, flag in (("1", PROMISED_MERCY), ("2", REFUSED_MERCY)):
+        bedchamber, player, opening = _persephone_conversation()
+        continue_dialogue("2", bedchamber, player)
+        continue_dialogue(answer, bedchamber, player)
+        assert flag in player.story_flags
+        assert get_story_gate(bedchamber, "descend", player) is None, flag
+
+def test_persephone_thinking_it_over_leaves_the_descent_shut():
+    bedchamber, player, opening = _persephone_conversation()
+    continue_dialogue("2", bedchamber, player)
+    continue_dialogue("3", bedchamber, player)
+    assert get_story_gate(bedchamber, "descend", player) is not None
