@@ -1431,3 +1431,25 @@ def test_save_and_load_keeps_the_heads_of_scylla_striking_wildly(monkeypatch, tm
     heads = fresh_floors["floor_6"]["Rocky Shore"].enemies
     assert heads[0].hp == 4
     assert [head.get_miss_chance("light") for head in heads] == [0.3] * 6
+
+def test_slot_summary_marks_a_hardcore_save(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hardcore")
+    save_game(1, 1, player, start, dungeon)
+    assert slot_summary(1, 1).endswith(" (Hardcore)")
+
+def test_slot_summary_of_an_ordinary_save_has_no_hardcore_mark(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    save_game(1, 1, Player(name="Hero", hp=20), start, dungeon)
+    assert "Hardcore" not in slot_summary(1, 1)
+
+def test_slot_summary_of_an_older_save_without_story_flags(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    del data["player"]["story_flags"]
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    summary = slot_summary(1, 1)
+    assert summary.startswith("Hero - LVL 1")
+    assert "Hardcore" not in summary

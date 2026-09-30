@@ -3,6 +3,10 @@
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, Weapon, SkillPointReward
 from dungeon_crawler.characters import Enemy, Ally
+from dungeon_crawler.dialogue import DialogueNode, DialogueOption
+
+PROMETHEUS_OFFER_MADE = "prometheus_offer_made"
+HARDCORE = "hardcore"
 
 def create_practice_dummy() -> Enemy:
     """Player-customisable practice dummy - respawns=True (see handle_enemy_defeat()), zero XP/gold reward regardless of what 'dummy set'
@@ -98,18 +102,87 @@ def create_hermes() -> Ally:
         items=[]
     )
 
+def _prometheus_opening(player) -> str:
+    """Where Prometheus' conversation begins: his offer if he's never made it, otherwise a short line that depends on the answer."""
+    if PROMETHEUS_OFFER_MADE not in player.story_flags:
+        return "offer"
+    return "after_accepted" if HARDCORE in player.story_flags else "after_declined"
+
+def _make_offer(player) -> str:
+    """The offer counts as made the moment it's shown - declining, or leaving mid-conversation, both use it up."""
+    player.story_flags.add(PROMETHEUS_OFFER_MADE)
+    return ""
+
+def _accept_hardcore(player) -> str:
+    """Turn hardcore on for this save, and fully repair every piece of armour the player is carrying, equipped or not. No other reward -
+    hardcore is an optional challenge, not a trade."""
+    player.story_flags.add(HARDCORE)
+    for item in player.inventory.items:
+        if isinstance(item, Armour):
+            item.durability = item.max_durability
+    return "(Hardcore mode is now on for this save. All your armour has been fully repaired.)"
+
 def create_prometheus() -> Ally:
-    """Create the Prometheus ally for floor 2, placed in the Forge of Prometheus by build_floor_2()."""
+    """Create Prometheus - in the Forge of Prometheus. Makes a one-time offer: hardcore mode for the rest of the playthrough, in exchange for a
+    full repair of the player's armour. The offer counts as made as soon as it's shown. Accepting takes two steps, since it can't be undone. A
+    save loaded from before meeting him gets the offer again, since in that save it was never made."""
+    leave = DialogueOption("Leave him to his work", None)
     return Ally(
         name="Prometheus",
         description="Chained but unbroken, watching you with the weary patience of someone who's paid dearly for helping before.",
-        hint=(
-            "He doesn't look up from the fire. \"The forge is yours, if you need it. The rest of what I have to offer...\" A long "
-            "pause. \"Not yet.\""
-        ),
-        hint_complete="",
-        required_items=[],
-        items=[]
+        dialogue_start=_prometheus_opening,
+        dialogue={
+            "offer": DialogueNode(
+                on_enter=_make_offer,
+                text=(
+                    "He looks up from the anvil for the first time, and the chains on his wrists clink. \"I gave your kind fire once, and I've "
+                    "paid for it every day since. So I know something about choices that can't be taken back.\"\n\n"
+                    "\"Here's one. I'll mend everything you're carrying, good as the day it was forged. In return, you walk the rest of this road "
+                    "with no second chances. Fall once, and it's over.\"\n\n"
+                    "\"I make this offer once.\""
+                ),
+                options=[
+                    DialogueOption("Accept his offer", "confirm"),
+                    DialogueOption("Decline", "declined"),
+                ],
+            ),
+            "confirm": DialogueNode(
+                text=(
+                    "\"Be sure,\" he says. \"From this moment, if you die, this journey is over. Your save is gone, and there's no reloading it. "
+                    "Nothing in this world will undo that.\""
+                ),
+                options=[
+                    DialogueOption("Accept - no second chances", "accepted", effect=_accept_hardcore),
+                    DialogueOption("Think again", "offer"),
+                ],
+            ),
+            "accepted": DialogueNode(
+                text=(
+                    "He takes your armour one piece at a time, and the forge flares white. When he hands it back, every dent and crack is gone. "
+                    "\"There. Now you know what it costs to have something made whole.\"\n\n"
+                    "\"If it wears thin again, bring it here and say 'repair' followed by its name. I'll charge you like anyone else - but I'll do it.\""
+                ),
+                options=[leave],
+            ),
+            "declined": DialogueNode(
+                text=(
+                    "He nods, and turns back to the anvil. \"Wise, probably. Most who come here would rather live.\"\n\n"
+                    "\"The forge is yours whenever you need it. Bring your armour here and say 'repair' followed by its name.\""
+                ),
+                options=[leave],
+            ),
+            "after_accepted": DialogueNode(
+                text="\"Still walking without a second chance, I see.\" Something that might be respect. \"Keep going.\"",
+                options=[leave],
+            ),
+            "after_declined": DialogueNode(
+                text=(
+                    "\"The offer's gone - I only make it once.\" He doesn't look up. \"But the forge is still yours. 'repair' and the item's name, "
+                    "whenever you need it.\""
+                ),
+                options=[leave],
+            ),
+        },
     )
 
 def create_breastplate_of_athena() -> Armour:

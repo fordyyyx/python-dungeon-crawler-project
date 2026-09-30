@@ -2,7 +2,7 @@
 
 from dungeon_crawler.characters import Player, Enemy
 from dungeon_crawler.world import Room, Map
-from dungeon_crawler.content import build_world, HADES_SPARED, HADES_DEFEATED, TYPHON_DEFEATED
+from dungeon_crawler.content import build_world, HADES_SPARED, HADES_DEFEATED, TYPHON_DEFEATED, HARDCORE
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines, get_advice, is_exit_concealed, get_story_gate
@@ -325,13 +325,19 @@ def main() -> None:
                         print("Usage: save <profile> <slot>")
                     else:
                         profile_num, slot_num = int(parts[0]), int(parts[1])
-                        proceed = True
-                        if save_system.slot_exists(profile_num, slot_num):
-                            proceed = confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?")
-                        if proceed:
-                            save_system.save_game(profile_num, slot_num, player, current_room, dungeon)
-                            active_profile, active_slot = profile_num, slot_num
-                            print(f"Saved to profile {profile_num}, slot {slot_num}.")
+                        if HARDCORE in player.story_flags and (profile_num, slot_num) != (active_profile, active_slot):
+                            print(
+                                f"A hardcore run can only be saved to its own slot - profile {active_profile}, slot {active_slot}. "
+                                "Use 'save' on its own."
+                            )
+                        else:
+                            proceed = True
+                            if save_system.slot_exists(profile_num, slot_num):
+                                proceed = confirm(f"Profile {profile_num}, slot {slot_num} already has a save. Overwrite it?")
+                            if proceed:
+                                save_system.save_game(profile_num, slot_num, player, current_room, dungeon)
+                                active_profile, active_slot = profile_num, slot_num
+                                print(f"Saved to profile {profile_num}, slot {slot_num}.")
 
                 elif command.startswith("load ") and not player.in_combat:
                     parts = command.removeprefix("load ").split()
@@ -628,6 +634,16 @@ def main() -> None:
 
             if quit_requested:
                 return
+
+            if HARDCORE in player.story_flags:
+                if active_profile is not None:
+                    save_system.delete_save(active_profile, active_slot)
+                print(
+                    "\nYou have died.\n\n"
+                    "Somewhere far above a chained god closes his eyes. There are no second chances this time.\n"
+                    "(Hardcore: this save has been deleted.)"
+                )
+                break
 
             if active_profile is not None and confirm("You have died. Reload your last save?"):
                 fresh_dungeon, _, fresh_floors = build_world()

@@ -247,10 +247,9 @@ dev-tool workaround to try. The
 Weathered Helm (Shade's drop, Fields of Asphodel) is also content's first
 real `slot="helmet"` item, Lamia is the first enemy with
 `Character.has_lifesteal`, and her Fang is the first lifesteal weapon - see `CLAUDE.md`'s "Armour slots and durability"
-and "Canonical attribute names." Only Prometheus' trade is still unwritten
-content (no required items or reward, so `trade` just replies "Prometheus
-has nothing to trade." and never completes) - see roadmap.md's "Populate all
-floors." Athena, Ares, and Hermes all have real dialogue now, including a
+and "Canonical attribute names." Prometheus has no trade (`trade` just replies
+"Prometheus has nothing to trade.") - his role is the one-time hardcore offer
+instead (see the recipe below). Athena, Ares, and Hermes all have real dialogue now, including a
 line for after their trade (`Ally.hint_traded`).
 
 Floor 6 is all real content too, with no workaround needed: the
@@ -635,6 +634,24 @@ Unleashed); the true ending follows at once, autosaves and asks the same
 question. `dev flag hades_spared` first gives the version with Hades. To feel the
 fight properly, `attack` instead - the Serpents poison and Storm Unleashed can
 blind you.
+
+**Try hardcore mode:**
+```
+dev teleport forge of prometheus
+talk
+say 1
+say 1
+save
+save 1 2
+dev set hp 0
+```
+The first `talk` makes the offer (once - talk again and he refers back to your
+answer). `say 1` twice accepts, repairing all your armour. `save 1 2` is refused -
+a hardcore run can only save to its own slot. Dying then skips the reload prompt
+and deletes the save; the title screen's slot list no longer shows it. `dev flag
+hardcore` switches it on without Prometheus, and a hardcore save shows
+"(Hardcore)" in the slot list. To see the offer again, start a New Game - a used-up
+offer is saved (`prometheus_offer_made`).
 
 **Check that a damaged save is handled, not a crash:**
 Save a game normally, quit, then open `saves/profile_1/slot_1.json` in any

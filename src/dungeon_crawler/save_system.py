@@ -18,6 +18,7 @@ from dungeon_crawler.items import Armour
 from dungeon_crawler.dev_tools import find_item_by_name, find_spell_by_name, find_companion_by_name, find_enemy_by_name, ENEMY_REGISTRY
 from dungeon_crawler.character_creation import ANCESTRIES
 from dungeon_crawler.exceptions import SaveFileError
+from dungeon_crawler.content import HARDCORE
 
 PROFILE_LIMIT = 3
 SAVE_SLOTS_PER_PROFILE = 5
@@ -61,7 +62,10 @@ def slot_summary(profile_num: int, slot_num: int) -> str | None:
         with open(slot_path(profile_num, slot_num), "r", encoding="utf-8") as f:
             data = json.load(f)
         p = data["player"]
-        return f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']}"
+        summary = f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']}"
+        if HARDCORE in p.get("story_flags", []):
+            summary += " (Hardcore)"
+        return summary
     except SAVE_READ_ERRORS:
         return "Damaged save - can't be loaded."
 

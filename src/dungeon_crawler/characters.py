@@ -632,7 +632,7 @@ class Enemy(Character):
 class Ally():
     """A non-combat NPC that can be talked to and traded with, per its required_items/reward data - never branched on by name, see CLAUDE.md."""
 
-    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str="", ancestry_lines: dict[str, str] | None = None, offers: "list[Offer] | None" = None, exchange_line: str = "", companion_lines: dict[str, str] | None = None, dialogue_function: "Callable[[Player], str] | None" = None, dialogue: "dict[str, DialogueNode] | None" = None, opening_line: str = ""):
+    def __init__(self, name: str, description: str ='', hint: str ='', hint_complete: str='', required_items: list[str] | None = None, items: list[Item] | None = None, reward: Item | None = None, post_trade_message: str = "", hint_traded: str="", ancestry_lines: dict[str, str] | None = None, offers: "list[Offer] | None" = None, exchange_line: str = "", companion_lines: dict[str, str] | None = None, dialogue_function: "Callable[[Player], str] | None" = None, dialogue: "dict[str, DialogueNode] | None" = None, opening_line: str = "", dialogue_start: "Callable[[Player], str] | None" = None):
         """Set up an ally's dialogue and starting inventory."""
         self.name = name
         self.description = description
@@ -665,6 +665,9 @@ class Ally():
         self.opening_line = opening_line
         """A line said once, the first time the player interacts with this ally - see take_opening_line() (exploration.py). Handled outside
         talk(), which must stay free of side effects."""
+        self.dialogue_start = dialogue_start
+        """Chooses which dialogue node a conversation begins at, from the player's state. None means 'start'. Must be free of side effects,
+        like talk() - any change of state belongs in a node's on_enter or an option's effect."""
 
     def talk(self, player) -> str:
         """Return this ally's dialogue - dialogue_function's result if it has one, otherwise the completed-trade line takes priority, then the completed-hint if the player already holds every required item, otherwise the regular hint."""

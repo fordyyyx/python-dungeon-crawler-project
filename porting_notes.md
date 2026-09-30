@@ -262,6 +262,9 @@ something occurs to you mid-build.
   text version's "you've already claimed that blood, try again" reprompt.
 
 ## Save / Load
+- **Hardcore needs to be visible everywhere it matters** - a mark on the save slot (the text version's "(Hardcore)"), a small
+  persistent HUD marker during play, and a death screen that says plainly the save is gone. Prometheus' two-step accept maps onto
+  a confirm dialog that names the cost before the button, since it can't be undone.
 - A damaged save (`slot_summary()`'s "Damaged save - can't be loaded.") wants its own slot state in a save-slot picker - greyed
   out with a warning icon and a delete option, rather than a slot that looks normal until it's chosen.
 - Profile/slot selection (3 profiles, 5 slots each) is a natural fit for a

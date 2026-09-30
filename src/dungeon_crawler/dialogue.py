@@ -45,8 +45,11 @@ def _show_node(speaker, node_id: str, room, player) -> str:
     return "\n".join(lines)
 
 def start_dialogue(speaker, room, player) -> str:
-    """Begin speaker's conversation at its 'start' node."""
-    return _show_node(speaker, "start", room, player)
+    """Begin speaker's conversation. It starts at the node chosen by speaker.dialogue_start(player) if the speaker has one - for a conversation
+    whose opening depends on what's already happened, like Prometheus' one-time offer - otherwise at 'start'."""
+    chooser = getattr(speaker, "dialogue_start", None)
+    node_id = chooser(player) if chooser is not None else "start"
+    return _show_node(speaker, node_id, room, player)
 
 def continue_dialogue(choice: str, room, player) -> str:
     """Answer the current conversation with option number 'choice'. Ends the conversation when an option leads nowhere."""

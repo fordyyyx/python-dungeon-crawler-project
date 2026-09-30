@@ -3016,3 +3016,11 @@ def test_take_damage_fractional_minimum_is_not_applied_to_a_dodged_hit(monkeypat
     damage, _ = character.take_damage(100)
     assert damage == 0
     assert character.hp == 30
+
+def test_ally_has_no_dialogue_start_by_default():
+    assert Ally(name="Idler").dialogue_start is None
+
+def test_ally_stores_its_dialogue_start():
+    def chooser(player):
+        return "offer"
+    assert Ally(name="Smith", dialogue_start=chooser).dialogue_start is chooser

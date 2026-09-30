@@ -5,6 +5,7 @@ from dungeon_crawler.exploration import talk_to, get_story_gate, display_local_e
 from dungeon_crawler.dialogue import continue_dialogue
 from dungeon_crawler.combat import resolve_pending_defeats
 from dungeon_crawler.content import create_cerberus, create_cerberus_two_heads, create_cerberus_last_head, create_aconite_fangs, create_hide_of_cerberus, create_restless_shade, create_hades_helm_of_darkness, create_hades_companion, create_bident_of_hades, HADES_SPARED, HADES_DEFEATED
+from dungeon_crawler.content import PROMETHEUS_OFFER_MADE, HARDCORE
 from dungeon_crawler.content import create_typhon, create_serpent_of_typhon, create_typhon_storm_unleashed, create_serpent_venom, create_storm_of_ash, create_heart_of_typhon, TYPHON_DEFEATED
 from dungeon_crawler.exploration import floor_traits
 from dungeon_crawler.items import Trophy
@@ -967,12 +968,12 @@ def test_create_prometheus_has_no_reward():
     prometheus = create_prometheus()
     assert prometheus.reward is None
 
-def test_create_prometheus_talk_mentions_the_forge():
-    prometheus = create_prometheus()
-    player = Player(name="hero", hp=100)
-    message = prometheus.talk(player)
-    assert message == prometheus.hint
-    assert "forge" in message
+def test_create_prometheus_after_declining_points_at_the_forge():
+    forge, player, prometheus = _meet_prometheus()
+    continue_dialogue("2", forge, player)
+    message = talk_to(prometheus, player, forge)
+    assert "'repair'" in message
+    assert "The offer's gone" in message
 
 def test_create_cyclops_eye_has_correct_name_and_description():
     eye = create_cyclops_eye()
@@ -3455,9 +3456,20 @@ def _every_real_dialogue():
 def test_real_dialogue_exists_to_check():
     assert "Persephone" in [name for name, dialogue in _every_real_dialogue()]
 
-def test_every_real_dialogue_begins_at_a_start_node():
-    for name, dialogue in _every_real_dialogue():
-        assert "start" in dialogue, name
+def test_every_real_dialogue_begins_at_a_node_that_exists():
+    """At 'start', or wherever its dialogue_start chooses - checked for a fresh player, and one with each story flag the choosers read."""
+    dungeon, start, floors = build_world()
+    allies = [ally for rooms in floors.values() for room in rooms.values() for ally in room.allies]
+    allies += [factory() for factory in ALLY_REGISTRY.values()]
+    players = [Player(name="Hero", hp=20) for _ in range(3)]
+    players[1].story_flags.add(PROMETHEUS_OFFER_MADE)
+    players[2].story_flags.update({PROMETHEUS_OFFER_MADE, HARDCORE})
+    for ally in allies:
+        if not ally.dialogue:
+            continue
+        for player in players:
+            node = ally.dialogue_start(player) if ally.dialogue_start is not None else "start"
+            assert node in ally.dialogue, (ally.name, node)
 
 def test_every_real_dialogue_node_always_offers_an_option():
     """A node with no options offered would leave the conversation open with nothing to answer ('Choose an option from 1 to 0.') until
@@ -3880,3 +3892,98 @@ def test_head_of_scylla_blinded_by_the_stake_misses_more_often():
 def test_rocky_shore_heads_all_strike_wildly():
     start, rooms = build_floor_6()
     assert [e.get_miss_chance("light") for e in rooms["Rocky Shore"].enemies] == [0.3] * 6
+
+# ---- floor 2: Prometheus' hardcore offer ----
+
+def _meet_prometheus(player=None):
+    dungeon, start, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    prometheus = next(ally for ally in forge.allies if ally.name == "Prometheus")
+    player = player or Player(name="Hero", hp=20)
+    talk_to(prometheus, player, forge)
+    return forge, player, prometheus
+
+def test_prometheus_story_flag_names():
+    """Both are saved in Player.story_flags, and HARDCORE decides whether a death deletes the save - so the spellings are pinned."""
+    assert PROMETHEUS_OFFER_MADE == "prometheus_offer_made"
+    assert HARDCORE == "hardcore"
+
+def test_prometheus_first_meeting_makes_the_offer():
+    dungeon, start, floors = build_world()
+    forge = floors["floor_2"]["Forge of Prometheus"]
+    prometheus = next(ally for ally in forge.allies if ally.name == "Prometheus")
+    message = talk_to(prometheus, Player(name="Hero", hp=20), forge)
+    assert "\"I make this offer once.\"" in message
+    assert "    1. Accept his offer" in message
+
+def test_prometheus_offer_counts_as_made_as_soon_as_it_is_shown():
+    forge, player, prometheus = _meet_prometheus()
+    assert PROMETHEUS_OFFER_MADE in player.story_flags
+    assert HARDCORE not in player.story_flags
+
+def test_prometheus_accepting_asks_to_be_sure_first():
+    forge, player, prometheus = _meet_prometheus()
+    message = continue_dialogue("1", forge, player)
+    assert "\"Be sure,\"" in message
+    assert HARDCORE not in player.story_flags
+
+def test_prometheus_confirming_turns_hardcore_on():
+    forge, player, prometheus = _meet_prometheus()
+    continue_dialogue("1", forge, player)
+    message = continue_dialogue("1", forge, player)
+    assert HARDCORE in player.story_flags
+    assert "(Hardcore mode is now on for this save. All your armour has been fully repaired.)" in message
+
+def test_prometheus_confirming_repairs_every_armour_piece_carried():
+    player = Player(name="Hero", hp=20)
+    worn = create_bronze_breastplate()
+    spare = create_wooden_shield()
+    player.inventory.add(worn)
+    player.inventory.add(spare)
+    worn.use(player)
+    worn.durability = 1
+    spare.durability = 0
+    forge, player, prometheus = _meet_prometheus(player)
+    continue_dialogue("1", forge, player)
+    continue_dialogue("1", forge, player)
+    assert (worn.durability, spare.durability) == (worn.max_durability, spare.max_durability)
+
+def test_prometheus_think_again_returns_to_the_offer():
+    forge, player, prometheus = _meet_prometheus()
+    continue_dialogue("1", forge, player)
+    message = continue_dialogue("2", forge, player)
+    assert "\"I make this offer once.\"" in message
+    assert HARDCORE not in player.story_flags
+
+def test_prometheus_declining_leaves_hardcore_off():
+    forge, player, prometheus = _meet_prometheus()
+    message = continue_dialogue("2", forge, player)
+    assert "Most who come here would rather live." in message
+    assert HARDCORE not in player.story_flags
+
+def test_prometheus_never_repeats_the_offer_after_accepting():
+    forge, player, prometheus = _meet_prometheus()
+    continue_dialogue("1", forge, player)
+    continue_dialogue("1", forge, player)
+    message = talk_to(prometheus, player, forge)
+    assert "Still walking without a second chance" in message
+    assert "I make this offer once" not in message
+
+def test_prometheus_walking_away_mid_offer_uses_it_up():
+    forge, player, prometheus = _meet_prometheus()
+    forge.on_leave()
+    assert "The offer's gone" in talk_to(prometheus, player, forge)
+
+def test_prometheus_offers_again_to_a_player_who_never_saw_it():
+    """A save from before meeting him has no offer flag, so it gets the offer - in that save it was never made."""
+    forge, player, prometheus = _meet_prometheus()
+    assert prometheus.dialogue_start(Player(name="Other", hp=20)) == "offer"
+
+def test_prometheus_confirming_leaves_other_items_alone():
+    player = Player(name="Hero", hp=20)
+    potion = create_small_healing_potion()
+    player.inventory.add(potion)
+    forge, player, prometheus = _meet_prometheus(player)
+    continue_dialogue("1", forge, player)
+    continue_dialogue("1", forge, player)
+    assert potion in player.inventory.items

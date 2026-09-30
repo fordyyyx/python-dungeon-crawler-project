@@ -184,3 +184,31 @@ def test_a_node_with_no_options_shows_no_say_prompt():
     dialogue = {"start": DialogueNode(text="She says nothing more.")}
     room, queen, player = _conversation(dialogue)
     assert start_dialogue(queen, room, player) == "She says nothing more."
+
+# ---- dialogue_start ----
+
+def test_start_dialogue_begins_where_dialogue_start_chooses():
+    room = Room("Forge")
+    smith = Ally(name="Smith", dialogue_start=lambda p: "offer", dialogue={
+        "offer": DialogueNode(text="An offer.", options=[DialogueOption("Leave", None)]),
+    })
+    room.add_ally(smith)
+    player = Player(name="Hero", hp=20)
+    assert start_dialogue(smith, room, player).startswith("An offer.")
+    assert room.transient_state["dialogue"] == ("Smith", "offer")
+
+def test_start_dialogue_passes_the_player_to_dialogue_start():
+    received = []
+    room = Room("Forge")
+    smith = Ally(name="Smith", dialogue_start=lambda p: received.append(p) or "start", dialogue={
+        "start": DialogueNode(text="Hello.", options=[DialogueOption("Leave", None)]),
+    })
+    room.add_ally(smith)
+    player = Player(name="Hero", hp=20)
+    start_dialogue(smith, room, player)
+    assert received[0] is player
+
+def test_start_dialogue_without_dialogue_start_begins_at_start():
+    room, queen, player = _conversation(_two_node_dialogue())
+    assert queen.dialogue_start is None
+    assert start_dialogue(queen, room, player).startswith("Well?")

@@ -2066,3 +2066,52 @@ def test_main_true_ending_autosaves_with_it_seen(monkeypatch, capsys, tmp_path):
     _run(monkeypatch, capsys, tmp_path, ["dev flag hades_defeated", "2"] + TYPHON_KILLS + ["2"])
     player, _ = save_system.load_game(1, 1, build_world()[0])
     assert {"typhon_defeated", "true_ending_shown"} <= player.story_flags
+
+# ---- hardcore ----
+
+def test_main_hardcore_death_deletes_the_save_without_offering_a_reload(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_0",
+        "dev flag hardcore",
+        "save",
+        "dev set hp 0",
+        "4",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    out = capsys.readouterr().out
+    assert "(Hardcore: this save has been deleted.)" in out
+    assert "Reload your last save?" not in out
+    assert save_system.slot_exists(1, 1) is False
+    assert "Load Game" in out.split("(Hardcore: this save has been deleted.)")[-1]
+
+def test_main_accepting_prometheus_offer_turns_hardcore_on(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport forge of prometheus", "talk", "say 1", "say 1", "save"])
+    player, _ = save_system.load_game(1, 1, build_world()[0])
+    assert "(Hardcore mode is now on for this save." in out
+    assert "hardcore" in player.story_flags
+
+def test_main_hardcore_run_cannot_be_saved_to_another_slot(monkeypatch, capsys, tmp_path):
+    """Regression: a copy in a second slot survived a hardcore death, so it could simply be loaded again."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore", "save 1 2"])
+    assert "A hardcore run can only be saved to its own slot - profile 1, slot 1. Use 'save' on its own." in out
+    assert save_system.slot_exists(1, 2) is False
+
+def test_main_hardcore_run_can_still_save_to_its_own_slot(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore", "save 1 1"])
+    assert "Saved to profile 1, slot 1." in out
+
+def test_main_ordinary_run_can_still_save_to_another_slot(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["save 1 2"])
+    assert "Saved to profile 1, slot 2." in out
+    assert save_system.slot_exists(1, 2) is True
+
+def test_main_hardcore_death_message_wording(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "developer mode", "basic", "ares", "floor_0", "dev flag hardcore", "dev set hp 0", "4"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    main()
+    assert "There are no second chances this time." in capsys.readouterr().out

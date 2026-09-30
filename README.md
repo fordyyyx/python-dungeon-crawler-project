@@ -43,6 +43,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * An ending — the story ends when Hades falls, and how it ends depends on a promise made earlier: keep it, and the god of the dead yields and offers to fight at your side; after that, return to the title screen or keep exploring what's been opened below
 * A post-game beneath the Underworld, and a true ending for anyone who can finish what Hades started — with a trophy to show for it
 * Win/lose conditions — dying offers a reload from your last save rather than always ending the game outright
+* Hardcore mode — offered once, by a chained god at his forge: accept, and one death ends the run for good (the save is deleted)
 
 ## Design Highlights
 * **Abstract base class + inheritance** — `Character` -> `Player`/`Enemy`/`Companion`; `Item` -> `Weapon`/`Armour`/`Consumable`/`QuestItem`, and `Consumable` -> `Reviver`/`StatusEffectItem`/`SpellBook`/`SkillPointReward`

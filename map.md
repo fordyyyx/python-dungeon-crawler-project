@@ -38,7 +38,7 @@ Trophy Room of Zeus {Zeus - Friendly}
 Hall of Hermes {Hermes - Friendly}
 * north -> Library of Athena
 * south -> Forge of Prometheus
-Forge of Prometheus {Prometheus - Friendly}
+Forge of Prometheus {Prometheus - Friendly} [NOTE: built - a one-time hardcore offer (permadeath, for a full armour repair); no trade]
 * north -> Hall of Hermes
 * east -> Practice Chamber
 * descend -> Bony Crypt
@@ -202,10 +202,9 @@ from the new Centaur enemy in Overgrown Forest (floor 3); Ares' required
 Cyclops' Eye now drops from the new Cyclops enemy in Cavern of the Cyclops
 (floor 4). All four gods now have real dialogue (Athena delivers the story
 premise, and Athena's, Ares' and Hermes' hints each point at their trade
-item's source). Only
-Prometheus' trade remains incomplete - he has no required items *or* reward,
-so `trade` just replies that he has nothing to trade and never completes;
-that's unwritten content, not a placement gap. Trophy Room of Zeus remains
+item's source). Prometheus has
+no trade (`trade` replies that he has nothing to trade) - his role is the
+one-time hardcore offer instead. Trophy Room of Zeus remains
 fully unpopulated - no Zeus content (ally or otherwise) has been written
 yet. The sixth floor-2 room, Practice Chamber, is real, populated content
 (a respawning practice dummy, `create_practice_dummy()`), same as before.
@@ -268,5 +267,5 @@ Hades' chain in the Hall of Hades - the story's end.
 Floor 9 is populated: Tartarus, concealed until the 'hades_defeated' story
 flag (which clearing the Hall sets), holds Typhon - the post-game and the true
 ending. Every floor now has its content (roadmap.md's "Populate all floors" is
-complete); only Floor 2's Prometheus' trade and Trophy Room of Zeus remain, and
-both are planned under other roadmap items (hardcore mode and the Trophy room).
+complete); only Floor 2's Trophy Room of Zeus remains, planned as its own
+roadmap item (the Trophy room).
