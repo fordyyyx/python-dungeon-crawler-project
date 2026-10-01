@@ -11,6 +11,7 @@ from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
 from dungeon_crawler.exploration import pick_up, check_equippable, take_all, get_advice
 from dungeon_crawler.exceptions import ActionRefused
+from dungeon_crawler.items import EscapeItem
 from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
@@ -399,11 +400,11 @@ def resolve_pending_defeats(player: Player, room: Room) -> str:
 
     return "\n".join(messages)
 
-def flee_combat(player: Player, enemy_team: list[Enemy]) -> str:
+def flee_combat(player: Player, enemy_team: list[Enemy], guaranteed: bool = False) -> str:
     """Attempt to disengage from combat. Always succeeds, but every still-living enemy in enemy_team independently rolls its own
     chance of landing a free hit as the player disengages, scaled by that enemy's own HP%. has_swift_feet bypasses every enemy's
     free-hit roll entirely - a clean escape, guaranteed - but still marks every living enemy as has_been_fled_from, same as a normal escape."""
-    if player.has_swift_feet:
+    if player.has_swift_feet or guaranteed:
         for enemy in enemy_team:
             if enemy.is_alive():
                 enemy.has_been_fled_from = True
@@ -432,6 +433,19 @@ def flee_combat(player: Player, enemy_team: list[Enemy]) -> str:
     if hit_landed:
         return "You disengage but not without cost.\n" + "\n".join(messages)
     return "You disengage cleanly, leaving your enemies behind."
+
+def resolve_flee(player: Player, enemy_team: list[Enemy], room: Room, guaranteed: bool = False) -> str:
+    """Leave the current fight - the shared ending for the 'flee' command and escape items. guaranteed skips every enemy's parting blow. A duel
+    in progress ends without a win, returning the companion and restoring the player's pre-duel HP."""
+    result = flee_combat(player, enemy_team, guaranteed=guaranteed)
+    duel = get_duel(room)
+    if duel is not None:
+        opponent, companion = duel
+        result += "\n" + end_duel(opponent, companion, room, player, f"{companion.name} lets you go, unimpressed.")
+    player.in_combat = False
+    player.current_target = None
+    player.turn_started = False
+    return result
 
 def get_duel(room: Room) -> tuple[Enemy, Companion] | None:
     """The duel in progress in room, as (the companion's combat form, the companion), or None. Returns both together so callers get a plain
@@ -565,15 +579,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         return result
 
     if command == "flee":
-        result = flee_combat(player, enemy_team)
-        duel = get_duel(room)
-        if duel is not None:
-            opponent, companion = duel
-            result += "\n" + end_duel(opponent, companion, room, player, f"{companion.name} lets you go, unimpressed.")
-        player.in_combat = False
-        player.current_target = None
-        player.turn_started = False
-        return result
+        return resolve_flee(player, enemy_team, room)
 
     if command.startswith("equip "):
         item_name = command.removeprefix("equip ").strip()
@@ -587,6 +593,10 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
         if item is None:
             return f"No item named '{item_name}' in inventory."
+
+        if isinstance(item, EscapeItem):
+            player.inventory.remove(item)
+            return f"You use {item.with_article(definite=True)}.\n" + resolve_flee(player, enemy_team, room, guaranteed=True)
 
         failure = item.would_fail(player)
         if failure is not None:

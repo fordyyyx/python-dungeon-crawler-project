@@ -104,6 +104,9 @@ something occurs to you mid-build.
   enemy's turn or not, but a UI needs something explicit (no turn-transition
   animation, a distinct "free action" flash, etc.) so the player isn't left
   wondering whether their action actually went through.
+- **An escape item (the Feather of Icarus) should look nothing like `flee`** - fleeing is a scramble with
+  a chance of a parting blow, while the Feather is a guaranteed exit, so it wants its own clean effect
+  (the player lifted out of the fight) and no moment where the enemies get a swing.
 
 ## World / Map
 - **Room interactions** (`Room.add_interaction()`, listed as `(You could: ...)` on entry) map onto clickable hotspots
@@ -124,6 +127,10 @@ something occurs to you mid-build.
   rather than text saying "Locked Door" — could show *what's* required on
   hover, rather than only on a failed attempt. A door stays open once it's
   been walked through, so a one-time unlock animation fits too.
+- **Hidden exits are found, not just listed** - `examine` revealing a passage wants a discovery beat (the wall
+  shifting, a seam in the wooden horse opening) rather than a new entry quietly appearing in the exit list. An
+  intellect-gated one ("There's something here, but you can't quite make sense of it.") could show a
+  greyed-out hotspot with the intellect it needs, so the player knows to come back.
 - Enemy armour is now shown on room entry (`[Armour N]`) so piercing weapons
   can be judged before a fight - a visual version wants an armour pip or
   shield icon on each enemy's health bar instead.
@@ -238,9 +245,12 @@ something occurs to you mid-build.
   of the usual dialogue.
 
 ## Skill Tree
-- The three-path, three-tier structure is a natural fit for a visual skill
+- The three-path structure (five tiers each for Attack and Defence, four Abilities) is a natural fit for a visual skill
   tree UI (the genre-standard branching-node look) — `SkillPath.unlocked_count`
   already tracks exactly what a UI would need to show progress per branch.
+- **Forgetting at the Lethe wants to be seen on the tree itself** - every lit node going dark at once and the
+  points flowing back into the pool, with the gold price shown before the player commits, since it undoes
+  everything at once.
 - `level_up()`'s return message is a good hook for a "Level Up!" moment —
   a flash, a sound, a brief pause — same pattern as `on_death()` already
   being a natural animation trigger point.

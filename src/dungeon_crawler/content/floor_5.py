@@ -226,14 +226,59 @@ def create_nestor() -> Ally:
         items=[create_cup_of_kykeon()],
     )
 
+def create_spear_of_pelion() -> Weapon:
+    """Create the Spear of Pelion - Achilles' ash spear, cut on Mount Pelion and given to him by Chiron (floor 0), later carried by his son
+    Neoptolemus into the Wooden Horse. Found in the Belly of the Wooden Horse. The best plain piercing weapon at this point - between the
+    Olive-wood Stake (floor 4) and the Trident of the Depths (floor 6) - with no signature, which stays a boss-drop privilege."""
+    return Weapon(
+        name="Spear of Pelion",
+        description=(
+            "A long ash spear, far too heavy for most hands, its shaft carved with a centaur's careful work. Below the head, newer letters "
+            "scratched in a boy's hand: NEOPTOLEMUS."
+        ),
+        damage=8,
+        weapon_class="piercing",
+        armour_pierce=2,
+        article="the",
+    )
+
 def build_floor_5() -> tuple[Room, dict[str, Room]]:
     """Shadow of Troy - Shadow of Army Camp, Shadow of Troy (North), Shadow of Troy (Central), Shadow of Troy (Alleyway), Shadow of Troy (South), and Shadow of Pylos."""
-    shadow_of_army_camp = Room(name="Shadow of Army Camp", description="Rows of ghostly tents flicker at the edge of sight, campfires burning cold and without heat.")
-    shadow_of_troy_north = Room(name="Shadow of Troy (North)", description="The pale outline of great walls rises overhead, breached and burning in an endless, silent loop.")
-    shadow_of_troy_central = Room(name="Shadow of Troy (Central)", description="Rubble and broken spears cover the ground, the echo of old battle-cries fading in and out like a tide.")
-    shadow_of_troy_alleyway = Room(name="Shadow of Troy (Alleyway)", description="A narrow gap between collapsed buildings, footsteps of the dead marching somewhere just out of view.")
-    shadow_of_troy_south = Room(name="Shadow of Troy (South)", description="The last defensible ground before the walls fully give way, arrows frozen mid-fall around its edges.")
-    shadow_of_pylos = Room(name="Shadow of Pylos", description="A calmer scene than the rest of Troy — a modest hall, a fire, a place that remembers counsel more than war. The fire burns with a heat that feels borrowed from somewhere else - say 'forge' if you feel the pull toward it.")
+    shadow_of_army_camp = Room(
+        name="Shadow of Army Camp",
+        description="Rows of ghostly tents flicker at the edge of sight, campfires burning cold and without heat.",
+        examine_text=(
+            "Among the ghostly tents stands something enormous: a wooden horse, taller than the tents around it. Look closely at its flank, and "
+            "there's a seam in the timber that no carpenter left by accident."
+        ),
+    )
+    belly_of_the_wooden_horse = Room(
+        name="Belly of the Wooden Horse",
+        description=(
+            "Dark, cramped, and close, smelling of pitch and old sweat. The timbers are scratched with names - Odysseus, Menelaus, Diomedes, and "
+            "dozens more - where the men who hid here waited through the long night for the city to open its gates to them."
+        ),
+    )
+    shadow_of_troy_north = Room(
+        name="Shadow of Troy (North)",
+        description="The pale outline of great walls rises overhead, breached and burning in an endless, silent loop.",
+    )
+    shadow_of_troy_central = Room(
+        name="Shadow of Troy (Central)",
+        description="Rubble and broken spears cover the ground, the echo of old battle-cries fading in and out like a tide.",
+    )
+    shadow_of_troy_alleyway = Room(
+        name="Shadow of Troy (Alleyway)",
+        description="A narrow gap between collapsed buildings, footsteps of the dead marching somewhere just out of view.",
+    )
+    shadow_of_troy_south = Room(
+        name="Shadow of Troy (South)",
+        description="The last defensible ground before the walls fully give way, arrows frozen mid-fall around its edges.",
+    )
+    shadow_of_pylos = Room(
+        name="Shadow of Pylos",
+        description="A calmer scene than the rest of Troy — a modest hall, a fire, a place that remembers counsel more than war. The fire burns with a heat that feels borrowed from somewhere else - say 'forge' if you feel the pull toward it.",
+    )
 
     shadow_of_army_camp.connect("south", shadow_of_troy_north)
     shadow_of_troy_north.connect("north", shadow_of_army_camp)
@@ -258,6 +303,11 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     shadow_of_troy_central.guard_exit("west")
     shadow_of_troy_south.guard_exit("east")
 
+    shadow_of_army_camp.add_hidden_exit("in", belly_of_the_wooden_horse)
+    belly_of_the_wooden_horse.connect("out", shadow_of_army_camp)
+
+    belly_of_the_wooden_horse.add_item(create_spear_of_pelion())
+
     return shadow_of_army_camp, {
-        room.name: room for room in (shadow_of_army_camp, shadow_of_troy_north, shadow_of_troy_central, shadow_of_troy_alleyway, shadow_of_troy_south, shadow_of_pylos)
+        room.name: room for room in (shadow_of_army_camp, belly_of_the_wooden_horse, shadow_of_troy_north, shadow_of_troy_central, shadow_of_troy_alleyway, shadow_of_troy_south, shadow_of_pylos)
     }

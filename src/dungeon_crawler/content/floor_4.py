@@ -1,8 +1,8 @@
 """Floor 4 (Labyrinth and Greater Monsters) - Labyrinth of the Minotaur, Stony Lair, Cavern of the Cyclops, Mossy Grove, Sandy Expanse, Maze of Pillars, Lair of Medusa."""
 
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import QuestItem, Armour, StatusEffectItem, Weapon
-from dungeon_crawler.characters import Enemy
+from dungeon_crawler.items import QuestItem, Armour, StatusEffectItem, Weapon, IntellectReward, EscapeItem
+from dungeon_crawler.characters import Enemy, Ally
 from .common import create_small_healing_potion
 
 def create_minotaur() -> Enemy:
@@ -261,16 +261,107 @@ def create_serpents_kiss() -> Weapon:
         article="",
     )
 
+def create_clockwork_crossbow() -> Weapon:
+    """Create the Clockwork Crossbow - Daedalus' invention, in his Workshop. A ranged weapon between the Harpy-fletched Bow (floor 3) and the
+    Bow of Paris (floor 5): more damage than the first, with a little armour piercing, but below the second."""
+    return Weapon(
+        name="Clockwork Crossbow",
+        description="Wooden gears and a bronze spring, wound by a crank on the side. It fires harder than any arm could draw - and it's never been tested.",
+        damage=5,
+        slot="ranged",
+        weapon_class="ranged",
+        armour_pierce=1,
+    )
+
+def create_daedalus_notes() -> IntellectReward:
+    """Create Daedalus' Notes - +1 intellect, smaller than the Ledger of the Unjudged. In the Workshop, which needs intellect to find, so intellect
+    is rewarded with more of it."""
+    return IntellectReward(
+        name="Daedalus' Notes",
+        description=(
+            "Pages of tight, sloping script: the plan of the Labyrinth, the frame of the wings, a bronze giant with a single nail at its heel. On "
+            "the last page, in a much shakier hand: 'I should have made his wings stronger.'"
+        ),
+        amount=1,
+        article="",
+    )
+
+def create_feather_of_icarus() -> EscapeItem:
+    """Create the Feather of Icarus - a single-use guaranteed escape from a fight. Given by Icarus' shade."""
+    return EscapeItem(
+        name="Feather of Icarus",
+        description="A single long feather, its quill still sealed with a bead of wax. It's lighter than it has any right to be.",
+    )
+
+def create_icarus() -> Ally:
+    """Create Icarus - the shade of Daedalus' son, in Icarus' Shaft above the Workshop. Lore and the Feather of Icarus; no trade."""
+    return Ally(
+        name="Icarus",
+        description="A boy - he can't be much older than you - sitting at the bottom of the shaft, head tipped back, staring up at the light.",
+        hint=(
+            "\"He told me not to fly too high,\" he says, without looking at you. \"Not too close to the sun, or the wax would melt. Not too close "
+            "to the sea, or the feathers would soak. I heard him. I did.\" A pause. \"It was just so bright.\"\n\n"
+            "He holds out a single feather. \"Take it. If you ever need to get away from something - really need to - it'll carry you. Once. Say "
+            "'take feather of icarus from icarus'.\""
+        ),
+        required_items=[],
+        items=[create_feather_of_icarus()]
+    )
+
+
 def build_floor_4() -> tuple[Room, dict[str, Room]]:
     """Labyrinth & Greater Monsters - Labyrinth of the Minotaur, Cavern of the Cyclops, Stony Lair, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, and Lair of Medusa."""
-    labyrinth_of_the_minotaur = Room(name="Labyrinth of the Minotaur", description="Walls of rough-hewn stone stretch on in every direction, identical enough to make the way back uncertain.")
-    cavern_of_the_cyclops = Room(name="Cavern of the Cyclops", description="A vast, uneven cave with a single great boulder rolled aside from what was once its entrance.")
-    stony_lair = Room(name="Stony Lair", description="Statues in twisted, frozen poses fill every corner — a warning, if you look closely enough. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.")
-    mossy_grove = Room(name="Mossy Grove", description="Soft green moss carpets everything, and the air smells faintly of wine and something wilder underneath.")
-    shadowy_corner = Room(name="Shadowy Corner", description="A cramped, lightless space where the shadows seem to move independently of anything casting them.")
-    sandy_expanse = Room(name="Sandy Expanse", description="Dry, cracked earth stretches out under an oppressive heat that shouldn't exist this far underground.")
-    maze_of_pillars = Room(name="Maze of Pillars", description="Rows of bronze columns rise into darkness overhead, each one etched with faint, mechanical markings. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.")
-    lair_of_medusa = Room(name="Lair of Medusa", description="Stone figures, frozen mid-stride, litter the chamber — every one of them was once someone like you.")
+    labyrinth_of_the_minotaur = Room(
+        name="Labyrinth of the Minotaur",
+        description="Walls of rough-hewn stone stretch on in every direction, identical enough to make the way back uncertain."
+    )
+    cavern_of_the_cyclops = Room(
+        name="Cavern of the Cyclops",
+        description="A vast, uneven cave with a single great boulder rolled aside from what was once its entrance."
+    )
+    stony_lair = Room(
+        name="Stony Lair",
+        description="Statues in twisted, frozen poses fill every corner — a warning, if you look closely enough. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it."
+    )
+    mossy_grove = Room(
+        name="Mossy Grove",
+        description="Soft green moss carpets everything, and the air smells faintly of wine and something wilder underneath."
+    )
+    shadowy_corner = Room(
+        name="Shadowy Corner",
+        description="A cramped, lightless space where the shadows seem to move independently of anything casting them."
+    )
+    sandy_expanse = Room(
+        name="Sandy Expanse",
+        description="Dry, cracked earth stretches out under an oppressive heat that shouldn't exist this far underground."
+    )
+    maze_of_pillars = Room(
+        name="Maze of Pillars",
+        description="Rows of bronze columns rise into darkness overhead, each one etched with faint, mechanical markings. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.",
+        examine_text=(
+            "The markings on the pillars aren't decoration. Read in the right order, they're instructions - and one set of them leads to a "
+            "pillar that isn't holding anything up at all."
+        ),
+        required_intellect=5,
+    )
+    daedalus_workshop = Room(
+        name="Daedalus' Workshop",
+        description=(
+            "Benches crowded with half-built things: bronze joints, wooden gears, an enormous pair of wings strung on a frame and never finished. "
+            "Plans for a bronze giant are pinned to every wall, and on one of them, a single nail at the heel has been circled again and again."
+        ),
+    )
+    icarus_shaft = Room(
+        name="Icarus' Shaft",
+        description=(
+            "A narrow shaft climbs straight up through the rock, impossibly high, ending in a pinprick of something that looks like daylight. "
+            "Feathers drift down it slowly, and never seem to land."
+        ),
+    )
+    lair_of_medusa = Room(
+        name="Lair of Medusa",
+        description="Stone figures, frozen mid-stride, litter the chamber — every one of them was once someone like you."
+    )
 
     labyrinth_of_the_minotaur.connect("west", stony_lair)
     labyrinth_of_the_minotaur.connect("east", cavern_of_the_cyclops)
@@ -299,6 +390,15 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
     labyrinth_of_the_minotaur.guard_exit("south")
     maze_of_pillars.guard_exit("south")
 
+    maze_of_pillars.add_hidden_exit("east", daedalus_workshop)
+    daedalus_workshop.connect("west", maze_of_pillars)
+    daedalus_workshop.connect("up", icarus_shaft)
+    icarus_shaft.connect("down", daedalus_workshop)
+
+    daedalus_workshop.add_item(create_clockwork_crossbow())
+    daedalus_workshop.add_item(create_daedalus_notes())
+    icarus_shaft.add_ally(create_icarus())
+
     return labyrinth_of_the_minotaur, {
-        room.name: room for room in (labyrinth_of_the_minotaur, stony_lair, cavern_of_the_cyclops, mossy_grove, shadowy_corner, sandy_expanse, maze_of_pillars, lair_of_medusa)
+        room.name: room for room in (labyrinth_of_the_minotaur, stony_lair, cavern_of_the_cyclops, mossy_grove, shadowy_corner, sandy_expanse, maze_of_pillars, daedalus_workshop, icarus_shaft, lair_of_medusa)
     }

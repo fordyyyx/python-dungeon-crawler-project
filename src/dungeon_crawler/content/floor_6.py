@@ -20,6 +20,8 @@ CHARYBDIS_PHASE_TEXT = {
     "spewing": "With a roar, Charybdis heaves the sea back up - and flung up with it, spinning, is your raft.",
 }
 CHARYBDIS_FAIL_DAMAGE = 12
+NYMPHS_TREASURE_GOLD = 200
+NYMPHS_TREASURE_TAKEN = "nymphs_treasure_taken"
 
 def create_laestrygonian() -> Enemy:
     """Create a Laestrygonian - one of the giant cannibals from Book 10 of the Odyssey, placed in Bright Cave alongside their king, Antiphates.
@@ -575,18 +577,82 @@ def create_penelopes_thread() -> LoyaltyToken:
         article="",
     )
 
+def _treasure_remains(player, room) -> bool:
+    return NYMPHS_TREASURE_TAKEN not in room.flags
+
+def _gather_the_gifts(player, room) -> str:
+    """Take the Phaeacians' gifts - NYMPHS_TREASURE_GOLD gold, once. Recorded in the room's flags, so it's saved and can't be taken twice."""
+    room.flags.add(NYMPHS_TREASURE_TAKEN)
+    player.gold += NYMPHS_TREASURE_GOLD
+    return (
+        "Behind the stone looms, under a fall of woven cloth, the gifts are exactly where he left them: bronze tripods, great cauldrons, cloth "
+        "so fine it shines, and gold - more gold than you've ever seen in one place.\n\n"
+        f"(You gather {NYMPHS_TREASURE_GOLD} gold.)"
+    )
+
+def create_nymphs_honey() -> Consumable:
+    """Create the Nymphs' Honey - a 25 HP heal, the strongest fixed heal short of the Pomegranate. From the bees' jars in the Cave of the Nymphs."""
+    return Consumable(
+        name="Nymphs' Honey",
+        heal_amount=25,
+        description="A stone jar of dark, slow honey from the bees that nest in the cave. It tastes of thyme, and of somewhere very far from here.",
+        article="",
+    )
+
 def build_floor_6() -> tuple[Room, dict[str, Room]]:
     """The Odyssey and the Open Sea - Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidons Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, and Bedchamber of Odysseus."""
-    bright_cave = Room(name="Bright Cave", description="Sunlight streams in from an opening far above, illuminating bones picked disturbingly clean.")
-    calm_waters = Room(name="Calm Waters", description="The sea here is unnervingly still, and faint singing drifts across it from somewhere you can't quite place.")
-    cavern_of_polyphemus = Room(name="Cavern of Polyphemus", description="A single vast eye socket, carved crudely into the far wall, watches the room, long since gone dark.")
-    rocky_shore = Room(name="Rocky Shore", description="Jagged black rocks jut from churning water, six shadows moving beneath the surface in perfect, unsettling unison.")
-    narrow_river = Room(name="Narrow River", description="The current here pulls hard toward a whirlpool that never quite stops turning. A gnarled fig tree clings to the rock above it, and a small raft bobs at the water's edge, already being drawn in.")
-    poseidons_depths = Room(name="Poseidon's Depths", description="The water opens into a vast underwater hall, pressure bearing down from every direction at once.")
-    shadow_of_ithaca = Room(name="Shadow of Ithaca", description="A modest, homely room, oddly warm compared to everywhere else on this floor. Something about the hearth feels like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.")
-    muddy_pigsty = Room(name="Muddy Pigsty", description="Thick mud and the smell of something herbal linger together in a low, cramped pen.")
-    throne_room_of_odysseus = Room(name="Throne Room of Odysseus", description="An once-grand hall, now crowded and disordered, the throne itself sitting conspicuously empty.")
-    bedchamber_of_odysseus = Room(name="Bedchamber of Odysseus", description="A quiet room untouched by the chaos elsewhere, a loom standing half-finished in the corner.")
+    bright_cave = Room(
+        name="Bright Cave",
+        description="Sunlight streams in from an opening far above, illuminating bones picked disturbingly clean.",
+    )
+    calm_waters = Room(
+        name="Calm Waters",
+        description="The sea here is unnervingly still, and faint singing drifts across it from somewhere you can't quite place.",
+    )
+    cavern_of_polyphemus = Room(
+        name="Cavern of Polyphemus",
+        description="A single vast eye socket, carved crudely into the far wall, watches the room, long since gone dark.",
+    )
+    rocky_shore = Room(
+        name="Rocky Shore",
+        description="Jagged black rocks jut from churning water, six shadows moving beneath the surface in perfect, unsettling unison.",
+    )
+    narrow_river = Room(
+        name="Narrow River",
+        description="The current here pulls hard toward a whirlpool that never quite stops turning. A gnarled fig tree clings to the rock above it, and a small raft bobs at the water's edge, already being drawn in.",
+    )
+    poseidons_depths = Room(
+        name="Poseidon's Depths",
+        description="The water opens into a vast underwater hall, pressure bearing down from every direction at once.",
+    )
+    shadow_of_ithaca = Room(
+        name="Shadow of Ithaca",
+        description="A modest, homely room, oddly warm compared to everywhere else on this floor. Something about the hearth feels like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.",
+        examine_text=(
+            "Behind the hearth, the rock is damp, and you can hear water running somewhere it shouldn't be. Someone who knew exactly what they "
+            "were doing has hidden a way through - and hidden it well."
+        ),
+        required_intellect=6,
+    )
+    cave_of_nymphs = Room(
+        name="Cave of the Nymphs",
+        description=(
+            "A cave sacred to the water-nymphs: stone looms where they weave sea-purple cloth, stone jars where bees store their honey, and a "
+            "spring that never stops running. High in the far wall is a second entrance - one no mortal could ever climb to."
+        ),
+    )
+    muddy_pigsty = Room(
+        name="Muddy Pigsty",
+        description="Thick mud and the smell of something herbal linger together in a low, cramped pen.",
+    )
+    throne_room_of_odysseus = Room(
+        name="Throne Room of Odysseus",
+        description="An once-grand hall, now crowded and disordered, the throne itself sitting conspicuously empty.",
+    )
+    bedchamber_of_odysseus = Room(
+        name="Bedchamber of Odysseus",
+        description="A quiet room untouched by the chaos elsewhere, a loom standing half-finished in the corner.",
+    )
 
     bright_cave.connect("south", calm_waters)
     calm_waters.connect("north", bright_cave)
@@ -614,6 +680,10 @@ def build_floor_6() -> tuple[Room, dict[str, Room]]:
     calm_waters.add_interaction("resist", _resist_sirens, _sirens_offer_open, "There's nothing left to resist.")
     for verb in ("watch", "climb", "let go", "row"):
         narrow_river.add_interaction(verb, _charybdis_verb(verb), _charybdis_unsolved, "The water is calm now - Charybdis has let you pass.")
+    cave_of_nymphs.add_interaction(
+        "gather the gifts", _gather_the_gifts, _treasure_remains,
+        "There's nothing left here but the nymphs' looms and the sound of running water.",
+    )
 
     bright_cave.add_enemy(create_antiphates())
     bright_cave.add_enemy(create_laestrygonian())
@@ -635,17 +705,24 @@ def build_floor_6() -> tuple[Room, dict[str, Room]]:
     cavern_of_polyphemus.add_item(create_wheel_of_cheese())
     cavern_of_polyphemus.add_item(create_wheel_of_cheese())
     rocky_shore.add_item(create_boars_tusk_helm())
+    cave_of_nymphs.add_item(create_nymphs_honey())
 
     calm_waters.advice = (
         "I heard them once, tied to my own mast. What they offer is real - and so is what it costs. Don't let anyone tell you the "
         "choice is easy."
     )
     narrow_river.advice = "When she starts to swallow, get above her. I'll say no more than that - I'd hate to spoil it."
+    cave_of_nymphs.advice = (
+        "This is where I hid everything the Phaeacians gave me, the day I finally came home. I was rather hoping nobody else would ever find it."
+    )
 
     rocky_shore.guard_exit("south")
     narrow_river.guard_exit("west")
     poseidons_depths.guard_exit("south")
     throne_room_of_odysseus.guard_exit("west")
+
+    shadow_of_ithaca.add_hidden_exit("west", cave_of_nymphs)
+    cave_of_nymphs.connect("east", shadow_of_ithaca)
 
     throne_room_of_odysseus.cleared_story_flag = "suitors_cleared"
     throne_room_of_odysseus.cleared_message = (
@@ -653,5 +730,5 @@ def build_floor_6() -> tuple[Room, dict[str, Room]]:
     )
 
     return bright_cave, {
-        room.name: room for room in (bright_cave, calm_waters, cavern_of_polyphemus, rocky_shore, narrow_river, poseidons_depths, shadow_of_ithaca, muddy_pigsty, throne_room_of_odysseus, bedchamber_of_odysseus)
+        room.name: room for room in (bright_cave, calm_waters, cavern_of_polyphemus, rocky_shore, narrow_river, poseidons_depths, shadow_of_ithaca, cave_of_nymphs, muddy_pigsty, throne_room_of_odysseus, bedchamber_of_odysseus)
     }

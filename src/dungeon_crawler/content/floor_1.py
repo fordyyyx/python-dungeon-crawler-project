@@ -20,7 +20,7 @@ def create_skeleton_warrior() -> Enemy:
         description="Bones held together by little more than old habit, still gripping a rusted blade with mechanical resolve.",
         experience_reward=5,
         gold_reward=2,
-        )
+    )
 
 def create_shade() -> Enemy:
     """Create the Shade enemy for Fields of Asphodel (floor 1) - drops the Weathered Helm, the game's first real slot="helmet" item."""
@@ -134,26 +134,36 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     """Build the Styx-crossing floor, including two rooms reached through hidden exits: the Sunken Vault (down from Styx Crossing) and the Banks
     of the Lethe (south from Fields of Asphodel, hinted at by its examine text), where the drink/drink deeply interactions let the player
     forget every skill for a refund of their points. Returns (starting room, every room on this floor keyed by name)."""
-    cave_entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
-
-    styx_crossing = Room("Styx Crossing",
-                          "Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.",
-                          examine_text=(
-        "The stonework here looks subtly disturbed — as if something below "
-        "has shifted, recently, on its own."
-    ))
-    fields_of_asphodel = Room("Fields of Asphodel",
-                              "An endless grey meadow beneath a colourless sky, where the ordinary dead wander without purpose or memory.",
-                              examine_text=(
-                                  "Past the grey grass, you can hear water where no water should be - a slow river, somewhere just out of sight to the south."
-                              ),
-                            )
-    banks_of_the_lethe = Room(
-        "Banks of the Lethe",
-        "A black river moves so slowly it barely seems to move at all. The dead kneel along its banks to drink, and rise with nothing in "
-        "their eyes. Whatever they were, the water has taken it.",
+    cave_entrance = Room(
+        name="Cave Entrance",
+        description="A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.",
     )
-    sunken_vault = Room("Sunken Vault", "Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.")
+    styx_crossing = Room(
+        name="Styx Crossing",
+        description="Black water laps against a crumbling stone landing; something pale drifts just beneath the surface.",
+        examine_text=(
+            "The stonework here looks subtly disturbed — as if something below "
+            "has shifted, recently, on its own."
+        ),
+    )
+    fields_of_asphodel = Room(
+        name="Fields of Asphodel",
+        description="An endless grey meadow beneath a colourless sky, where the ordinary dead wander without purpose or memory.",
+        examine_text=(
+            "Past the grey grass, you can hear water where no water should be - a slow river, somewhere just out of sight to the south."
+        ),
+    )
+    banks_of_the_lethe = Room(
+        name="Banks of the Lethe",
+        description=(
+            "A black river moves so slowly it barely seems to move at all. The dead kneel along its banks to drink, and rise with nothing in "
+            "their eyes. Whatever they were, the water has taken it."
+        ),
+    )
+    sunken_vault = Room(
+        name="Sunken Vault",
+        description="Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.",
+    )
 
     cave_entrance.connect("descend", styx_crossing)
     styx_crossing.connect("ascend", cave_entrance)

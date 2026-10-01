@@ -213,8 +213,14 @@ def create_ambrosia() -> Consumable:
 
 def build_floor_8() -> tuple[Room, dict[str, Room]]:
     """Final Descent - Gate of Cerberus and Hall of Hades."""
-    gate_of_cerberus = Room(name="Gate of Cerberus", description="Enormous iron-bound doors loom ahead, three sets of eyes glowing faintly in the dark before them. Behind you, a faint heat leaks from a crack in the rock - say 'forge' if you feel the pull toward it.")
-    hall_of_hades = Room(name="Hall of Hades", description="The chamber opens into a vast black hall lit by pale fire; a throne of bone waits at its centre.")
+    gate_of_cerberus = Room(
+        name="Gate of Cerberus",
+        description="Enormous iron-bound doors loom ahead, three sets of eyes glowing faintly in the dark before them. Behind you, a faint heat leaks from a crack in the rock - say 'forge' if you feel the pull toward it.",
+    )
+    hall_of_hades = Room(
+        name="Hall of Hades",
+        description="The chamber opens into a vast black hall lit by pale fire; a throne of bone waits at its centre.",
+    )
 
     gate_of_cerberus.connect("south", hall_of_hades)
     hall_of_hades.connect("north", gate_of_cerberus)

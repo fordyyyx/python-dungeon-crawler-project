@@ -398,3 +398,31 @@ class Trophy(QuestItem):
     """A trophy from a great victory, for the Trophy Room of Zeus. Deliberately minimal for now: a QuestItem, so it can't be dropped, traded or
     exchanged away. The Trophy Room (roadmap) will give trophies their purpose - placing them, and Zeus' New Game+ once all are placed. Typhon's
     is the first; other bosses gain theirs when the Trophy Room is designed."""
+
+class IntellectReward(Consumable):
+    """An item that permanently raises intellect when used, then is used up - the same as SkillPointReward. The only way to raise intellect
+    beyond levelling. There's no hard cap on intellect or level, but there is a soft one: experience only comes from enemies placed in the world
+    (respawning ones give none), so a run can only reach so high a level - and its intellect is the ancestry's starting value, plus one per
+    level, plus whatever these items add. Without them, ancestries that start with little intellect couldn't reach the higher intellect gates.
+    If a second stat ever needs this, generalise it then rather than now."""
+
+    def __init__(self, name: str, description: str, amount: int = 1, article: str = "a"):
+        """Store how much intellect this item grants."""
+        super().__init__(name=name, description=description, article=article)
+        self.amount = amount
+
+    def use(self, character) -> str:
+        """Permanently raise character's intellect."""
+        character.intellect += self.amount
+        return f"{character.name} gains +{self.amount} intellect from {self.with_article(definite=True)}."
+
+class EscapeItem(Consumable):
+    """A single-use item that guarantees escape from a fight - no enemy gets a parting blow. Only usable in combat, and handled by
+    handle_combat_command() (combat.py) rather than use(), since escaping needs the enemies and the room, not just the character. Never opens a
+    guarded exit, since fleeing leaves the guard alive. The Feather of Icarus is the first."""
+
+    def would_fail(self, character) -> str | None:
+        """Refuse outside combat - there's nothing to escape from."""
+        if not getattr(character, "in_combat", False):
+            return f"There's nothing to escape from - save {self.with_article(definite=True)} for when you need it."
+        return None

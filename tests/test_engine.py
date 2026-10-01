@@ -2134,3 +2134,15 @@ def test_main_find_the_lethe_forget_skills_and_reload_there(monkeypatch, capsys,
     assert "(Paid 25 gold. 1 skill point returned - say 'skills' to see them.)" in out
     assert "can't be read" not in out
     assert out.rindex("Banks of the Lethe:") > out.index("(Paid 25 gold.")
+
+def test_main_take_the_feather_from_icarus_and_escape_a_fight_with_it(monkeypatch, capsys, tmp_path):
+    """The Feather is an escape item: combat.py handles it before the normal 'use' path, so check the routing end to end - after it, the
+    player is out of combat and exploration commands work again."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev teleport icarus' shaft", "take feather of icarus from icarus",
+        "dev spawn minotaur", "attack", "use feather of icarus", "inventory", "look",
+    ])
+    after = out.split("You disengage cleanly, leaving your enemies behind.")[-1]
+    assert "You use the Feather of Icarus.\nYou disengage cleanly, leaving your enemies behind." in out
+    assert "Your inventory is empty." in after
+    assert "The Minotaur is still here - it hasn't forgotten you either." in after

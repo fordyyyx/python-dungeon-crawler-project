@@ -148,7 +148,9 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `laestrygonian hide`, `antiphates' club`, `olive-wood stake`, `wheel of cheese`,
 `boar's-tusk helm`, `hoplon of the drowned`, `trident of the depths`,
 `kelp poultice`, `antinous' goblet`, `penelope's thread`, `pomegranate`, `hide of cerberus`,
-`bident of hades`, `heart of typhon` (a `Trophy`), `test spellbook`, `test healing tonic`, `test venom vial`.
+`bident of hades`, `heart of typhon` (a `Trophy`), `ledger of the unjudged` and `daedalus' notes`
+(both `IntellectReward`s), `clockwork crossbow`, `feather of icarus` (an `EscapeItem`),
+`spear of pelion`, `nymphs' honey`, `test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
@@ -172,7 +174,7 @@ useful for isolated testing without a full room/fight.
 
 **Allies** (`dev spawn <name>`): `chiron`, `mentor`, `wounded soldier`,
 `charon`, `athena`, `ares`, `hermes`, `prometheus`, `nestor`, `circe` (a merchant -
-see the exchange recipe below), `penelope`, `oracle`, `tiresias`, `persephone`. A spawned
+see the exchange recipe below), `penelope`, `oracle`, `tiresias`, `persephone`, `icarus`. A spawned
 `oracle` or `tiresias` is the *unwired* version - the Oracle's questions are room
 interactions of the Chamber of the Oracle, and Tiresias' readings are attached by
 `build_world()` - so spawned, Tiresias only has a placeholder line. Teleport to the
@@ -260,6 +262,17 @@ Blinded), the six Heads of Scylla in Rocky Shore, and Charybdis' puzzle in
 Narrow River - each route guards its way into Poseidon's Depths - then
 Poseidon, Odysseus, Circe, the Suitors and Penelope. Floor 7's Oracle,
 Tiresias and Persephone (and her Pomegranate) are real content as well.
+
+The hidden rooms are real content too, each found with `examine` and none needing a
+workaround: the Banks of the Lethe (south of Fields of Asphodel, floor 1 - forget
+every skill for gold), the Ossuary (below the Bony Crypt, floor 3 - the Ledger of
+the Unjudged), Daedalus' Workshop and Icarus' Shaft (east of the Maze of Pillars,
+floor 4, intellect 5 - the Clockwork Crossbow, Daedalus' Notes, and Icarus with the
+Feather of Icarus, the only escape item), the Belly of the Wooden Horse (inside the
+Shadow of Army Camp, floor 5 - the Spear of Pelion) and the Cave of the Nymphs (west
+of Shadow of Ithaca, floor 6, intellect 6 - Nymphs' Honey and 200 gold). The
+intellect gates are real too: with a low-intellect ancestry, the Ledger and the
+Notes are what get you there.
 
 Floor 8 is real content too: Cerberus, Hades (spared if you promised
 Persephone mercy - he then joins as a companion - or killed if you refused), and
@@ -569,8 +582,10 @@ talk
 ```
 The first `talk` opens with the twist prophecy (once only). `ask ahead` lists
 floor 6's traits and "(2 prophecies remain.)"; asking again isn't spent. `ask
-secrets` only finds something on floors you've reached - start on `floor_2` for
-Styx Crossing and the Armoury of Ares (with a low-intellect warning). Tiresias'
+secrets` only finds something on floors you've reached - `dev teleport` never adds
+to them - so from a `floor_5` start it names the Shadow of Army Camp (the wooden
+horse); start on `floor_1` for Styx Crossing then Fields of Asphodel, or `floor_2` for
+the Armoury of Ares (with a low-intellect warning). Tiresias'
 reading changes with your kit: try it with and without a bow, a healing item or
 `dev spawn test companion` + `recruit test companion`. Persephone gives the
 Pomegranate, `say 2` asks her request, `say 1` promises (`promised_mercy`), and the
@@ -652,6 +667,58 @@ and deletes the save; the title screen's slot list no longer shows it. `dev flag
 hardcore` switches it on without Prometheus, and a hardcore save shows
 "(Hardcore)" in the slot list. To see the offer again, start a New Game - a used-up
 offer is saved (`prometheus_offer_made`).
+
+**Forget your skills at the Banks of the Lethe:**
+```
+dev teleport fields of asphodel
+dev kill
+examine
+south
+dev set skillpoints 2
+learn attack
+learn defence
+drink
+dev set gold 50
+drink deeply
+skills
+```
+`examine` reveals `south` (the hint is the river you can hear). `drink` names the
+price and changes nothing; `drink deeply` refuses without charging if you have
+nothing learned or too little gold. The price is 25 gold per floor of the deepest
+floor reached - from a `floor_0` start that's the 25 minimum; start on a deeper floor
+(or walk down) to see it rise. Afterwards `skills` shows every path back at nothing,
+with the points refunded, and `stats` shows the bonuses gone.
+
+**Find a hidden room behind an intellect gate (Daedalus' Workshop):**
+```
+dev teleport maze of pillars
+dev kill
+examine
+dev set intellect 5
+examine
+east
+up
+take feather of icarus from icarus
+```
+The first `examine` (below 5 intellect) only says there's something you can't make
+sense of; at 5 it reveals `east`. `use ledger of the unjudged` (`dev add` it, or find
+it in the Ossuary below the Bony Crypt) is the real-play way to the extra intellect. The
+Cave of the Nymphs works the same way (`dev teleport shadow of ithaca`, intellect 6,
+`west`, then `gather the gifts` - once only).
+
+**Escape a fight with the Feather of Icarus:**
+```
+dev add feather of icarus
+use feather of icarus
+dev spawn minotaur
+attack
+use feather of icarus
+look
+```
+The first `use` is refused - there's nothing to escape from - and the Feather stays in
+your inventory. Mid-combat it gets you out with no parting blow, however healthy the
+enemy, and is used up; the Minotaur is still there afterwards, so a guarded exit stays
+guarded. Using it mid-duel ends the duel without a win, like `flee`.
 
 **Check that a damaged save is handled, not a crash:**
 Save a game normally, quit, then open `saves/profile_1/slot_1.json` in any

@@ -23,6 +23,9 @@ Styx Crossing {Charon - Friendly}
 * ascend -> Cave Entrance
 Fields of Asphodel {Shade - Enemy}
 * west -> Styx Crossing
+* south -> Banks of the Lethe [NOTE: hidden exit, revealed by 'examine' - the examine text hints at a river to the south]
+Banks of the Lethe {the river - room interaction} [NOTE: built - no enemy; 'drink' (the price, changes nothing) / 'drink deeply' (forget every skill, every point refunded, for 25 gold per floor of the deepest floor reached)]
+* north -> Fields of Asphodel
 Sunken Vault {Skeleton Warrior - Enemy}
 * up -> Styx Crossing
 
@@ -56,6 +59,9 @@ Practice Chamber {Practice Enemy - Enemy} [NOTE: is_practice_chamber=True; the e
 Bony Crypt {Crypt Keeper - Enemy}
 * ascend -> Forge of Prometheus
 * south -> Cave of Harpies
+* down -> Ossuary [NOTE: hidden exit, revealed by 'examine']
+Ossuary [NOTE: built - no enemy or ally; the Ledger of the Unjudged (+2 intellect, an IntellectReward) on the lectern]
+* up -> Bony Crypt
 Cave of Harpies {Harpy - Enemy}
 * north -> Bony Crypt
 * east -> Prayer Room
@@ -93,6 +99,12 @@ Maze of Pillars {Talos - Enemy}
 * west -> Sandy Expanse
 * south -> Lair of Medusa [NOTE: guarded - blocked while Talos lives]
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
+* east -> Daedalus' Workshop [NOTE: hidden exit, revealed by 'examine', required_intellect=5]
+Daedalus' Workshop [NOTE: built - no enemy or ally; the Clockwork Crossbow (ranged, 5, pierce 1) and Daedalus' Notes (+1 intellect)]
+* west -> Maze of Pillars
+* up -> Icarus' Shaft
+Icarus' Shaft {Icarus - Friendly} [NOTE: built - lore, no trade; gives away the Feather of Icarus, a one-use guaranteed escape (EscapeItem)]
+* down -> Daedalus' Workshop
 Lair of Medusa {Medusa - Enemy}
 * north -> Maze of Pillars
 * descend -> Shadow of Army Camp [NOTE: guarded - blocked until the whole Medusa chain (Phase 1, both Gorgons, Awakened) is defeated]
@@ -100,6 +112,9 @@ Lair of Medusa {Medusa - Enemy}
 Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable after beating him in a duel ('challenge shade of achilles')]
 * ascend -> Lair of Medusa
 * south -> Shadow of Troy (North)
+* in -> Belly of the Wooden Horse [NOTE: hidden exit, revealed by 'examine' - the examine text points at the horse]
+Belly of the Wooden Horse [NOTE: built - no enemy or ally; the Spear of Pelion (piercing, 8, pierce 2)]
+* out -> Shadow of Army Camp
 Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 32 HP / 9 ATK / 5 armour / pierce 3, drops Hector's Helm; guards 'south']
 * north -> Shadow of Army Camp
 * south -> Shadow of Troy (Central)
@@ -142,6 +157,9 @@ Shadow of Ithaca {Odysseus - Companion} [NOTE: built - a ranged companion who gi
 * east -> Muddy Pigsty
 * south -> Throne Room of Odysseus
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
+* west -> Cave of the Nymphs [NOTE: hidden exit, revealed by 'examine', required_intellect=6]
+Cave of the Nymphs {the Phaeacians' gifts - room interaction} [NOTE: built - no enemy or ally; 'gather the gifts' gives 200 gold once (saved in Room.flags); Nymphs' Honey (25 HP heal) on the floor; Odysseus has an advice line for it]
+* east -> Shadow of Ithaca
 Muddy Pigsty {Circe - Friendly} [NOTE: built - the first merchant: six exchanges ('offers' / 'exchange <number>'), outgrown gear and weak consumables into Kelp Poultices and Cups of Kykeon]
 * west -> Shadow of Ithaca
 Throne Room of Odysseus {Antinous, Eurymachus, Suitor x3 - Enemy} [NOTE: built - the floor's last fight; guards 'west'; clearing it sets 'suitors_cleared', which lets Odysseus join]
@@ -157,7 +175,7 @@ Chamber of the Oracle {Oracle of Delphi - Friendly} [NOTE: built - the twist pro
 Shadow of Thebes {Tiresias - Friendly} [NOTE: built - free, unlimited readings of what the player isn't ready for on the floor below]
 * north -> Chamber of the Oracle
 * south -> Bedchamber of Persephone
-Bedchamber of Persephone {Persephone - Friendly} [NOTE: built - the first branching dialogue ('say <number>'); gives a Pomegranate (full heal) once, and asks the player to spare Hades - 'promised_mercy' or 'refused_mercy'; which one isn't read by anything yet]
+Bedchamber of Persephone {Persephone - Friendly} [NOTE: built - the first branching dialogue ('say <number>'); gives a Pomegranate (full heal) once, and asks the player to spare Hades - 'promised_mercy' or 'refused_mercy'; 'promised_mercy' makes Hades yield on floor 8]
 * north -> Shadow of Thebes
 * descend -> Gate of Cerberus [NOTE: story-gated - shut until the player answers Persephone either way]
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
@@ -177,12 +195,12 @@ Tartarus {Typhon - Enemy} [NOTE: built - concealed until 'hades_defeated'. Typho
 ---
 FLOOR ASSIGNMENTS (confirmed):
 Floor 0 (Chiron's Training Grounds): Chamber of Chiron + 4 variants
-Floor 1 (The Underworld Gateway): Cave Entrance, Styx Crossing, Fields of Asphodel, Sunken Vault
+Floor 1 (The Underworld Gateway): Cave Entrance, Styx Crossing, Fields of Asphodel, Banks of the Lethe, Sunken Vault
 Floor 2 (Domains of the Gods): Library of Athena, Armoury of Ares, Trophy Room of Zeus, Hall of Hermes, Forge of Prometheus, Practice Chamber
-Floor 3 (Low Dungeon): Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, Overgrown Forest
-Floor 4 (Labyrinth and Greater Monsters): Labyrinth of the Minotaur, Stony Lair, Cavern of the Cyclops, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, Lair of Medusa
-Floor 5 (Shadow of Troy): Shadow of Army Camp, Shadow of Troy (North/Central/Alleyway/South), Shadow of Pylos
-Floor 6 (Odyssey and the Open Sea): Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidon's Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, Bedchamber of Odysseus
+Floor 3 (Low Dungeon): Bony Crypt, Ossuary, Cave of Harpies, Prayer Room, Dim Corridor, Overgrown Forest
+Floor 4 (Labyrinth and Greater Monsters): Labyrinth of the Minotaur, Stony Lair, Cavern of the Cyclops, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, Daedalus' Workshop, Icarus' Shaft, Lair of Medusa
+Floor 5 (Shadow of Troy): Shadow of Army Camp, Belly of the Wooden Horse, Shadow of Troy (North/Central/Alleyway/South), Shadow of Pylos
+Floor 6 (Odyssey and the Open Sea): Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidon's Depths, Shadow of Ithaca, Cave of the Nymphs, Muddy Pigsty, Throne Room of Odysseus, Bedchamber of Odysseus
 Floor 7 (Prophecy and the Elder Dead): Chamber of the Oracle, Shadow of Thebes, Bedchamber of Persephone
 Floor 8 (The Final Descent): Gate of Cerberus, Hall of Hades
 Floor 9 (Tartarus): Tartarus
@@ -269,3 +287,10 @@ flag (which clearing the Hall sets), holds Typhon - the post-game and the true
 ending. Every floor now has its content (roadmap.md's "Populate all floors" is
 complete); only Floor 2's Trophy Room of Zeus remains, planned as its own
 roadmap item (the Trophy room).
+Optional hidden rooms, each revealed by 'examine' and each with a plain way back:
+the Banks of the Lethe (floor 1, forgetting skills), the Ossuary (floor 3, the
+Ledger of the Unjudged), Daedalus' Workshop and Icarus' Shaft (floor 4, intellect
+5 - the Clockwork Crossbow, Daedalus' Notes, and Icarus with the Feather of
+Icarus), the Belly of the Wooden Horse (floor 5, the Spear of Pelion) and the Cave
+of the Nymphs (floor 6, intellect 6 - Nymphs' Honey and 200 gold) - alongside the
+older Sunken Vault (floor 1) and Trophy Room of Zeus (floor 2, intellect 3).

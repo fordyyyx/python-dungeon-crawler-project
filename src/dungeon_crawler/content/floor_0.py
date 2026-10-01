@@ -101,19 +101,42 @@ def create_mentors_token() -> QuestItem:
 
 def build_floor_0() -> tuple[Room, dict[str, Room]]:
     """Build the tutorial floor - a central chamber with four spoke rooms, each exit locked behind the item taught/found in the room before it. Returns (starting room, every room on this floor keyed by name)."""
-    chamber_of_chiron = Room("Chamber of Chiron", "A wide training hall carved into the hillside, weapon racks and practice rings arranged with "
-        "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
-        "waiting — say 'talk' if you want to know why you're here.")
-    chamber_of_chiron_north = Room("Chamber of Chiron (North)", "A quiet alcove lined with old scrolls on swordplay and stance. Dust motes drift in a shaft "
-        "of light from somewhere above. A wooden sword rests against the wall. "
-        "Chiron's voice follows you in: \"Say 'take wooden sword' to pick it up, then 'use wooden sword' "
-        "to ready it properly.\"")
-    chamber_of_chiron_east = Room("Chamber of Chiron (East)", "A narrow training yard, sand-floored and scarred with the marks of countless practice bouts. "
-        "A wooden shield leans against a post. \"Use it the same way as the sword,\" Chiron calls. "
-        "\"And if you ever need it off your arm again, 'unequip wooden shield' does the job.\"")
-    chamber_of_chiron_south = Room("Chamber of Chiron (South)", "A straw-stuffed dummy stands bolted to the floor, dented from years of use. "
-        "Chiron's voice calls from behind you: \"Go on — type 'attack' and show me what you've got.\"")
-    chamber_of_chiron_west = Room("Chamber of Chiron (West)", "A small resting nook with a low bench, where those who've trained here catch their breath before what comes next.")
+    chamber_of_chiron = Room(
+        name="Chamber of Chiron",
+        description=(
+            "A wide training hall carved into the hillside, weapon racks and practice rings arranged with "
+            "military precision. Chiron waits at the centre, patient as ever. He watches you a moment, "
+            "waiting — say 'talk' if you want to know why you're here."
+        ),
+    )
+    chamber_of_chiron_north = Room(
+        name="Chamber of Chiron (North)",
+        description=(
+            "A quiet alcove lined with old scrolls on swordplay and stance. Dust motes drift in a shaft "
+            "of light from somewhere above. A wooden sword rests against the wall. "
+            "Chiron's voice follows you in: \"Say 'take wooden sword' to pick it up, then 'use wooden sword' "
+            "to ready it properly.\""
+        ),
+    )
+    chamber_of_chiron_east = Room(
+        name="Chamber of Chiron (East)",
+        description=(
+            "A narrow training yard, sand-floored and scarred with the marks of countless practice bouts. "
+            "A wooden shield leans against a post. \"Use it the same way as the sword,\" Chiron calls. "
+            "\"And if you ever need it off your arm again, 'unequip wooden shield' does the job.\""
+        ),
+    )
+    chamber_of_chiron_south = Room(
+        name="Chamber of Chiron (South)",
+        description=(
+            "A straw-stuffed dummy stands bolted to the floor, dented from years of use. "
+            "Chiron's voice calls from behind you: \"Go on — type 'attack' and show me what you've got.\""
+        ),
+    )
+    chamber_of_chiron_west = Room(
+        name="Chamber of Chiron (West)",
+        description="A small resting nook with a low bench, where those who've trained here catch their breath before what comes next.",
+    )
 
     chamber_of_chiron.connect("north", chamber_of_chiron_north)
     chamber_of_chiron.connect("east", chamber_of_chiron_east)

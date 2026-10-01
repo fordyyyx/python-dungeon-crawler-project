@@ -1,5 +1,5 @@
 from dungeon_crawler.exceptions import ActionRefused
-from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward, LoyaltyToken, Trophy
+from dungeon_crawler.items import Item, Weapon, Armour, Consumable, Reviver, StatusEffectItem, SpellBook, QuestItem, Inventory, SkillPointReward, LoyaltyToken, Trophy, IntellectReward, EscapeItem
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.content import create_chipped_stone_aegis, create_labrys
 from dungeon_crawler.spells import Spell
@@ -1372,3 +1372,62 @@ def test_trophy_cannot_be_dropped():
 
 def test_trophy_takes_an_article():
     assert Trophy(name="Heart of Typhon", description="", article="the").with_article() == "the Heart of Typhon"
+
+# ---- IntellectReward ----
+
+def test_intellect_reward_is_a_consumable():
+    assert isinstance(IntellectReward(name="Ledger", description=""), Consumable)
+
+def test_intellect_reward_defaults_to_one_intellect():
+    assert IntellectReward(name="Ledger", description="").amount == 1
+
+def test_intellect_reward_use_raises_intellect_permanently():
+    player = Player(name="Hero", hp=20)
+    player.intellect = 2
+    IntellectReward(name="Ledger", description="", amount=2).use(player)
+    assert player.intellect == 4
+
+def test_intellect_reward_use_returns_message():
+    player = Player(name="Hero", hp=20)
+    message = IntellectReward(name="Ledger", description="", amount=2, article="the").use(player)
+    assert message == "Hero gains +2 intellect from the Ledger."
+
+def test_inventory_use_item_removes_intellect_reward_after_use():
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(IntellectReward(name="Ledger", description=""))
+    player.inventory.use_item("Ledger", player)
+    assert player.inventory.items == []
+
+def test_intellect_reward_is_never_wasted_at_full_hp():
+    """It inherits Consumable.would_fail() with heal_amount 0, so the 'would be wasted' guard must not block it."""
+    player = Player(name="Hero", hp=20)
+    assert IntellectReward(name="Ledger", description="").would_fail(player) is None
+
+def test_intellect_reward_accepts_an_article():
+    assert IntellectReward(name="Ledger", description="", article="the").with_article() == "the Ledger"
+
+# ---- EscapeItem ----
+
+def test_escape_item_is_a_consumable():
+    assert isinstance(EscapeItem(name="Feather", description=""), Consumable)
+
+def test_escape_item_would_fail_outside_combat():
+    player = Player(name="Hero", hp=20)
+    message = EscapeItem(name="Feather", description="").would_fail(player)
+    assert message == "There's nothing to escape from - save the Feather for when you need it."
+
+def test_escape_item_would_not_fail_in_combat():
+    player = Player(name="Hero", hp=20)
+    player.in_combat = True
+    assert EscapeItem(name="Feather", description="").would_fail(player) is None
+
+def test_inventory_use_item_refuses_an_escape_item_outside_combat_and_keeps_it():
+    player = Player(name="Hero", hp=20)
+    feather = EscapeItem(name="Feather", description="")
+    player.inventory.add(feather)
+    try:
+        player.inventory.use_item("Feather", player)
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as error:
+        assert str(error) == "There's nothing to escape from - save the Feather for when you need it."
+    assert feather in player.inventory.items

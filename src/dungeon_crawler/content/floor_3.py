@@ -1,7 +1,7 @@
 """Floor 3 (Low Dungeon) - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, Overgrown Forest."""
 
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, QuestItem, StatusEffectItem, SpellBook
+from dungeon_crawler.items import Weapon, QuestItem, StatusEffectItem, SpellBook, IntellectReward
 from dungeon_crawler.characters import Enemy
 from dungeon_crawler.spells import Spell
 from .common import create_small_healing_potion
@@ -123,19 +123,56 @@ def create_centaurs_broken_bow() -> QuestItem:
         article="the",
     )
 
+def create_ledger_of_the_unjudged() -> IntellectReward:
+    """Create the Ledger of the Unjudged - the Crypt Keeper's record of the dead it arranged in the Ossuary. Reading it grants +2 intellect,
+    permanently. The first way to raise intellect beyond levelling, placed on floor 3 so it arrives before floor 4's intellect-gated hidden room."""
+    return IntellectReward(
+        name="Ledger of the Unjudged",
+        description=(
+            "Page after page of names in a tiny, careful hand - every one of the dead whose bones are stacked here. Beside each, the same note: "
+            "'Not yet judged.' Whoever kept it never stopped hoping someone would come."
+        ),
+        amount=2,
+        article="the",
+    )
+
 def build_floor_3() -> tuple[Room, dict[str, Room]]:
     """Low Dungeon - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, and Overgrown Forest."""
-    bony_crypt = Room(name="Bony Crypt", description="Skeletal remains are stacked floor to ceiling in neat, deliberate rows — someone, once, cared enough to arrange them.")
-    cave_of_harpies = Room(name="Cave of Harpies", description="Feathers and old bones litter a cave mouth that reeks of carrion; shrieks echo faintly from somewhere above.")
-    prayer_room = Room(name="Prayer Room", description="Faded murals of forgotten gods cover the walls, the air thick with old incense and older dread. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.")
-    dim_corridor = Room(name="Dim Corridor", description="A low, narrow passage where the torchlight barely reaches the far end.")
-    overgrown_forest = Room(name="Overgrown Forest",
-                            description="Twisted black trees crowd close overhead, roots breaking up through the stone floor as if the dungeon itself is being reclaimed.",
-                            examine_text=(
-                                        "Carved into a half-buried stone, worn but still legible: \"Stength alone does not survive what waits below. "
-                                        "Say 'learn <path>' - attack, defence, or abilities - to spend what you've earned. The labyrinth does not forgive " \
-                                        "those who go down unprepared.\""
-                                        ),
+    bony_crypt = Room(
+        name="Bony Crypt",
+        description="Skeletal remains are stacked floor to ceiling in neat, deliberate rows — someone, once, cared enough to arrange them.",
+        examine_text=(
+            "One wall of skulls doesn't quite match the rest. The stacking is newer, and more careful, as though it was built to cover something "
+            "underneath."
+        ),
+    )
+    ossuary = Room(
+        name="Ossuary",
+        description=(
+            "A low, round chamber beneath the crypt, every niche filled with bones laid out with impossible care - sorted, cleaned, each skull "
+            "facing the same way. A lectern stands at the centre, and on it, a ledger left open at the last page anyone wrote in."
+        ),
+    )
+    cave_of_harpies = Room(
+        name="Cave of Harpies",
+        description="Feathers and old bones litter a cave mouth that reeks of carrion; shrieks echo faintly from somewhere above.",
+    )
+    prayer_room = Room(
+        name="Prayer Room",
+        description="Faded murals of forgotten gods cover the walls, the air thick with old incense and older dread. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.",
+    )
+    dim_corridor = Room(
+        name="Dim Corridor",
+        description="A low, narrow passage where the torchlight barely reaches the far end.",
+    )
+    overgrown_forest = Room(
+        name="Overgrown Forest",
+        description="Twisted black trees crowd close overhead, roots breaking up through the stone floor as if the dungeon itself is being reclaimed.",
+        examine_text=(
+            "Carved into a half-buried stone, worn but still legible: \"Strength alone does not survive what waits below. "
+            "Say 'learn <path>' - attack, defence, or abilities - to spend what you've earned. The labyrinth does not forgive "
+            "those who go down unprepared.\""
+        ),
     )
 
     bony_crypt.connect("south", cave_of_harpies)
@@ -147,12 +184,17 @@ def build_floor_3() -> tuple[Room, dict[str, Room]]:
     dim_corridor.connect("south", overgrown_forest)
     overgrown_forest.connect("north", dim_corridor)
 
+    bony_crypt.add_hidden_exit("down", ossuary)
+    ossuary.connect("up", bony_crypt)
+
     overgrown_forest.add_enemy(create_centaur())
     bony_crypt.add_enemy(create_crypt_keeper())
     cave_of_harpies.add_enemy(create_harpy())
     prayer_room.add_enemy(create_fanatic())
     dim_corridor.add_enemy(create_lurker())
 
+    ossuary.add_item(create_ledger_of_the_unjudged())
+
     return bony_crypt, {
-        room.name: room for room in (bony_crypt, cave_of_harpies, prayer_room, dim_corridor, overgrown_forest)
+        room.name: room for room in (bony_crypt, ossuary, cave_of_harpies, prayer_room, dim_corridor, overgrown_forest)
     }

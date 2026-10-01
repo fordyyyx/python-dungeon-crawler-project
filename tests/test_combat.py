@@ -1,10 +1,10 @@
 from dungeon_crawler.characters import Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver, QuestItem
+from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver, QuestItem, EscapeItem
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.content import create_polyphemus, create_polyphemus_blinded, create_charybdis, create_poseidon
-from dungeon_crawler.combat import apply_room_cleared_flag, get_duel, restore_duel_hp, end_duel, protect_duel_loser, resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
+from dungeon_crawler.combat import apply_room_cleared_flag, get_duel, restore_duel_hp, end_duel, protect_duel_loser, resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, resolve_flee, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
@@ -3701,3 +3701,75 @@ def test_handle_enemy_defeat_yield_happens_before_the_defeat_effect():
     enemy.hp = 0
     handle_enemy_defeat(room, enemy, player)
     assert seen == [True]
+
+# ---- guaranteed escapes: flee_combat(guaranteed=True), resolve_flee, escape items ----
+
+def _escape_fight():
+    """Test helper - the player mid-fight with a Goblin, holding a Feather."""
+    room = Room("Hall")
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    room.add_enemy(enemy)
+    feather = EscapeItem(name="Feather", description="")
+    player.inventory.add(feather)
+    player.in_combat = True
+    player.current_target = enemy
+    return room, player, enemy, feather
+
+def test_flee_combat_guaranteed_lands_no_parting_blow(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)  # every parting blow would land
+    player = Player(name="Hero", hp=20)
+    enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
+    message = flee_combat(player, [enemy], guaranteed=True)
+    assert player.hp == 20
+    assert enemy.has_been_fled_from is True
+    assert message == "You disengage cleanly, leaving your enemies behind."
+
+def test_resolve_flee_clears_combat_state():
+    room, player, enemy, _ = _escape_fight()
+    player.turn_started = True
+    resolve_flee(player, room.enemies, room, guaranteed=True)
+    assert (player.in_combat, player.current_target, player.turn_started) == (False, None, False)
+
+def test_resolve_flee_without_guarantee_can_take_a_parting_blow(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    room, player, enemy, _ = _escape_fight()
+    resolve_flee(player, room.enemies, room)
+    assert player.hp == 15
+
+def test_handle_combat_command_use_escape_item_escapes_without_a_parting_blow(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    room, player, enemy, _ = _escape_fight()
+    message = handle_combat_command("use feather", player, enemy, player.team, room.enemies, room)
+    assert message == "You use the Feather.\nYou disengage cleanly, leaving your enemies behind."
+    assert player.hp == 20
+    assert player.in_combat is False
+
+def test_handle_combat_command_use_escape_item_uses_it_up():
+    room, player, enemy, feather = _escape_fight()
+    handle_combat_command("use feather", player, enemy, player.team, room.enemies, room)
+    assert feather not in player.inventory.items
+
+def test_handle_combat_command_use_escape_item_leaves_the_enemy_in_the_room():
+    """Escaping isn't a kill - the enemy stays, so a guarded exit stays guarded."""
+    room, player, enemy, _ = _escape_fight()
+    handle_combat_command("use feather", player, enemy, player.team, room.enemies, room)
+    assert enemy in room.enemies
+    assert enemy.has_been_fled_from is True
+
+def test_handle_combat_command_use_escape_item_does_not_tick_status_effects():
+    room, player, enemy, _ = _escape_fight()
+    player.apply_status_effect(StatusEffect("Poison", -2, 3))
+    handle_combat_command("use feather", player, enemy, player.team, room.enemies, room)
+    assert player.hp == 20
+    assert player.active_effects[0].duration == 3
+
+def test_handle_combat_command_use_escape_item_mid_duel_ends_the_duel(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    room, player, companion, opponent = _duel(player_hp=9, return_hp=20)
+    player.inventory.add(EscapeItem(name="Feather", description=""))
+    handle_combat_command("use feather", player, opponent, player.team, room.enemies, room)
+    assert opponent not in room.enemies
+    assert companion in room.companions
+    assert player.hp == 20
+    assert companion.duel_won is False

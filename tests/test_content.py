@@ -6,6 +6,9 @@ from dungeon_crawler.dialogue import continue_dialogue
 from dungeon_crawler.combat import resolve_pending_defeats
 from dungeon_crawler.content import create_cerberus, create_cerberus_two_heads, create_cerberus_last_head, create_aconite_fangs, create_hide_of_cerberus, create_restless_shade, create_hades_helm_of_darkness, create_hades_companion, create_bident_of_hades, HADES_SPARED, HADES_DEFEATED
 from dungeon_crawler.content import PROMETHEUS_OFFER_MADE, HARDCORE, LETHE_GOLD_PER_FLOOR, lethe_cost
+from dungeon_crawler.content import create_ledger_of_the_unjudged, create_clockwork_crossbow, create_daedalus_notes, create_feather_of_icarus, create_icarus, create_spear_of_pelion, create_nymphs_honey, NYMPHS_TREASURE_GOLD, NYMPHS_TREASURE_TAKEN
+from dungeon_crawler.items import IntellectReward, EscapeItem, Consumable
+from dungeon_crawler.exploration import has_unfinished_trade
 from dungeon_crawler.content import create_typhon, create_serpent_of_typhon, create_typhon_storm_unleashed, create_serpent_venom, create_storm_of_ash, create_heart_of_typhon, TYPHON_DEFEATED
 from dungeon_crawler.exploration import floor_traits
 from dungeon_crawler.items import Trophy
@@ -1004,9 +1007,9 @@ def test_create_hermes_favour_has_correct_points():
     favour = create_hermes_favour()
     assert favour.points == 1
 
-def test_build_world_returns_fifty_two_rooms():
+def test_build_world_returns_fifty_seven_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(dungeon) == 52
+    assert len(dungeon) == 57
 
 def test_build_blank_test_room_has_correct_name_and_description():
     room = build_blank_test_room()
@@ -1215,21 +1218,21 @@ def test_build_world_floor_2_rooms_dict_contains_six_rooms():
     dungeon, entrance, floors = build_world()
     assert len(floors["floor_2"]) == 6
 
-def test_build_world_floor_3_rooms_dict_contains_five_rooms():
+def test_build_world_floor_3_rooms_dict_contains_six_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(floors["floor_3"]) == 5
+    assert len(floors["floor_3"]) == 6
 
-def test_build_world_floor_4_rooms_dict_contains_eight_rooms():
+def test_build_world_floor_4_rooms_dict_contains_ten_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(floors["floor_4"]) == 8
+    assert len(floors["floor_4"]) == 10
 
-def test_build_world_floor_5_rooms_dict_contains_six_rooms():
+def test_build_world_floor_5_rooms_dict_contains_seven_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(floors["floor_5"]) == 6
+    assert len(floors["floor_5"]) == 7
 
-def test_build_world_floor_6_rooms_dict_contains_ten_rooms():
+def test_build_world_floor_6_rooms_dict_contains_eleven_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(floors["floor_6"]) == 10
+    assert len(floors["floor_6"]) == 11
 
 def test_build_world_floor_7_rooms_dict_contains_three_rooms():
     dungeon, entrance, floors = build_world()
@@ -1605,9 +1608,9 @@ def test_build_floor_3_returns_bony_crypt_as_start_room():
     start, rooms = build_floor_3()
     assert start.name == "Bony Crypt"
 
-def test_build_floor_3_returns_rooms_dict_with_five_rooms():
+def test_build_floor_3_returns_rooms_dict_with_six_rooms():
     start, rooms = build_floor_3()
-    assert len(rooms) == 5
+    assert len(rooms) == 6
 
 def test_build_floor_3_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_3()
@@ -1678,9 +1681,9 @@ def test_build_floor_4_returns_labyrinth_of_the_minotaur_as_start_room():
     start, rooms = build_floor_4()
     assert start.name == "Labyrinth of the Minotaur"
 
-def test_build_floor_4_returns_rooms_dict_with_eight_rooms():
+def test_build_floor_4_returns_rooms_dict_with_ten_rooms():
     start, rooms = build_floor_4()
-    assert len(rooms) == 8
+    assert len(rooms) == 10
 
 def test_build_floor_4_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_4()
@@ -1786,9 +1789,9 @@ def test_build_floor_5_returns_shadow_of_army_camp_as_start_room():
     start, rooms = build_floor_5()
     assert start.name == "Shadow of Army Camp"
 
-def test_build_floor_5_returns_rooms_dict_with_six_rooms():
+def test_build_floor_5_returns_rooms_dict_with_seven_rooms():
     start, rooms = build_floor_5()
-    assert len(rooms) == 6
+    assert len(rooms) == 7
 
 def test_build_floor_5_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_5()
@@ -1838,9 +1841,9 @@ def test_build_floor_6_returns_bright_cave_as_start_room():
     start, rooms = build_floor_6()
     assert start.name == "Bright Cave"
 
-def test_build_floor_6_returns_rooms_dict_with_ten_rooms():
+def test_build_floor_6_returns_rooms_dict_with_eleven_rooms():
     start, rooms = build_floor_6()
-    assert len(rooms) == 10
+    assert len(rooms) == 11
 
 def test_build_floor_6_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_6()
@@ -2468,9 +2471,9 @@ def test_build_floor_6_calm_waters_offers_the_sirens_three_verbs():
     calm_waters = rooms["Calm Waters"]
     assert calm_waters.available_interactions(Player(name="Hero", hp=20)) == ["listen", "give in", "resist"]
 
-def test_build_floor_6_only_calm_waters_and_narrow_river_have_interactions():
+def test_build_floor_6_only_calm_waters_narrow_river_and_the_nymphs_cave_have_interactions():
     _, rooms = build_floor_6()
-    assert [name for name, room in rooms.items() if room.interactions] == ["Calm Waters", "Narrow River"]
+    assert [name for name, room in rooms.items() if room.interactions] == ["Calm Waters", "Narrow River", "Cave of the Nymphs"]
 
 def test_sirens_listen_changes_nothing():
     _, rooms = build_floor_6()
@@ -2706,6 +2709,12 @@ def test_proper_named_enemies_take_no_article():
 
 def charybdis_state():
     return {"phase": 0, "position": "raft", "freed": False}
+
+def test_resolve_charybdis_action_watching_from_the_raft_on_calm_water_is_safe():
+    state = charybdis_state()
+    outcome, message = resolve_charybdis_action("watch", "still", state)
+    assert (outcome, message) == ("ok", "")
+    assert state == charybdis_state()
 
 def test_create_charybdis_is_an_invulnerable_placeholder():
     charybdis = create_charybdis()
@@ -2973,11 +2982,12 @@ def test_build_floor_6_places_odysseus_at_home_in_ithaca():
     assert [c.name for c in ithaca.companions] == ["Odysseus"]
     assert ithaca.companions[0].home_room is ithaca
 
-def test_build_floor_6_gives_the_sirens_and_charybdis_rooms_their_own_advice():
+def test_build_floor_6_gives_the_sirens_charybdis_and_nymphs_rooms_their_own_advice():
     _, rooms = build_floor_6()
     assert "mast" in rooms["Calm Waters"].advice
     assert "swallow" in rooms["Narrow River"].advice
-    assert [name for name, room in rooms.items() if room.advice] == ["Calm Waters", "Narrow River"]
+    assert "where I hid everything" in rooms["Cave of the Nymphs"].advice
+    assert [name for name, room in rooms.items() if room.advice] == ["Calm Waters", "Narrow River", "Cave of the Nymphs"]
 
 def test_create_poseidon_wave_is_built_from_factories():
     """Regression: the wave was first written as [create_hippocampus(), create_hippocampus()] - two Enemy instances - so defeating
@@ -4079,3 +4089,179 @@ def test_lethe_drink_deeply_says_point_for_a_single_skill():
     player = _player_with_skills(1, 100)
     message = lethe.interactions["drink deeply"].handler(player, lethe)
     assert "1 skill point returned" in message
+
+# ---- floor 3: the Ossuary ----
+
+def test_build_floor_3_hides_the_ossuary_below_the_bony_crypt():
+    _, rooms = build_floor_3()
+    crypt = rooms["Bony Crypt"]
+    assert crypt.hidden_exits["down"] is rooms["Ossuary"]
+    assert crypt.get_exit("down") is None
+
+def test_build_floor_3_bony_crypt_examine_text_hints_at_the_hidden_wall():
+    _, rooms = build_floor_3()
+    assert "built to cover something" in rooms["Bony Crypt"].examine_text
+
+def test_build_floor_3_ossuary_leads_back_up_to_the_crypt():
+    _, rooms = build_floor_3()
+    crypt = rooms["Bony Crypt"]
+    assert rooms["Ossuary"].get_exit("up") is crypt
+
+def test_build_floor_3_ossuary_holds_the_ledger_of_the_unjudged():
+    _, rooms = build_floor_3()
+    ossuary = rooms["Ossuary"]
+    assert [item.name for item in ossuary.items] == ["Ledger of the Unjudged"]
+
+def test_create_ledger_of_the_unjudged_grants_two_intellect():
+    ledger = create_ledger_of_the_unjudged()
+    assert isinstance(ledger, IntellectReward)
+    assert ledger.amount == 2
+    assert ledger.with_article() == "the Ledger of the Unjudged"
+
+# ---- floor 4: Daedalus' Workshop and Icarus' Shaft ----
+
+def test_build_floor_4_hides_daedalus_workshop_east_of_the_maze_of_pillars():
+    _, rooms = build_floor_4()
+    maze = rooms["Maze of Pillars"]
+    assert maze.hidden_exits["east"] is rooms["Daedalus' Workshop"]
+    assert maze.get_exit("east") is None
+
+def test_build_floor_4_maze_of_pillars_needs_five_intellect_to_examine():
+    _, rooms = build_floor_4()
+    assert rooms["Maze of Pillars"].required_intellect == 5
+
+def test_build_floor_4_workshop_leads_back_west_and_up_to_icarus_shaft():
+    _, rooms = build_floor_4()
+    workshop = rooms["Daedalus' Workshop"]
+    assert workshop.get_exit("west") is rooms["Maze of Pillars"]
+    assert workshop.get_exit("up") is rooms["Icarus' Shaft"]
+    assert rooms["Icarus' Shaft"].get_exit("down") is workshop
+
+def test_build_floor_4_workshop_holds_the_crossbow_and_daedalus_notes():
+    _, rooms = build_floor_4()
+    assert [item.name for item in rooms["Daedalus' Workshop"].items] == ["Clockwork Crossbow", "Daedalus' Notes"]
+
+def test_build_floor_4_places_icarus_in_his_shaft():
+    _, rooms = build_floor_4()
+    assert [ally.name for ally in rooms["Icarus' Shaft"].allies] == ["Icarus"]
+
+def test_create_clockwork_crossbow_is_a_lightly_piercing_ranged_weapon():
+    crossbow = create_clockwork_crossbow()
+    assert (crossbow.slot, crossbow.weapon_class, crossbow.damage, crossbow.armour_pierce) == ("ranged", "ranged", 5, 1)
+
+def test_create_clockwork_crossbow_sits_between_the_harpy_bow_and_the_bow_of_paris():
+    assert create_harpy_fletched_bow().damage < create_clockwork_crossbow().damage < create_bow_of_paris().damage
+
+def test_create_daedalus_notes_grants_one_intellect():
+    notes = create_daedalus_notes()
+    assert isinstance(notes, IntellectReward)
+    assert notes.amount == 1
+    assert notes.with_article() == "Daedalus' Notes"
+
+def test_create_feather_of_icarus_is_an_escape_item():
+    assert isinstance(create_feather_of_icarus(), EscapeItem)
+
+def test_create_icarus_gives_away_the_feather_of_icarus():
+    assert [item.name for item in create_icarus().inventory.items] == ["Feather of Icarus"]
+
+def test_create_icarus_tells_the_player_how_to_take_the_feather():
+    assert "'take feather of icarus from icarus'" in create_icarus().talk(Player(name="Hero", hp=20))
+
+def test_create_icarus_has_nothing_to_trade():
+    assert has_unfinished_trade(create_icarus()) is False
+
+# ---- floor 5: the Belly of the Wooden Horse ----
+
+def test_build_floor_5_hides_the_wooden_horse_in_the_army_camp():
+    _, rooms = build_floor_5()
+    camp = rooms["Shadow of Army Camp"]
+    assert camp.hidden_exits["in"] is rooms["Belly of the Wooden Horse"]
+    assert camp.get_exit("in") is None
+
+def test_build_floor_5_army_camp_examine_text_points_at_the_horse():
+    _, rooms = build_floor_5()
+    assert "wooden horse" in rooms["Shadow of Army Camp"].examine_text
+
+def test_build_floor_5_wooden_horse_leads_back_out_to_the_camp():
+    _, rooms = build_floor_5()
+    assert rooms["Belly of the Wooden Horse"].get_exit("out") is rooms["Shadow of Army Camp"]
+
+def test_build_floor_5_wooden_horse_holds_the_spear_of_pelion():
+    _, rooms = build_floor_5()
+    assert [item.name for item in rooms["Belly of the Wooden Horse"].items] == ["Spear of Pelion"]
+
+def test_create_spear_of_pelion_is_a_piercing_weapon():
+    spear = create_spear_of_pelion()
+    assert (spear.weapon_class, spear.damage, spear.armour_pierce) == ("piercing", 8, 2)
+    assert spear.with_article() == "the Spear of Pelion"
+
+def test_create_spear_of_pelion_has_no_signature_property():
+    spear = create_spear_of_pelion()
+    assert (spear.lifesteal, spear.cleave, spear.poison_chance, spear.blind_chance) == (False, False, 0.0, 0.0)
+
+# ---- floor 6: the Cave of the Nymphs ----
+
+def _nymphs_cave():
+    _, rooms = build_floor_6()
+    return rooms["Cave of the Nymphs"]
+
+def test_build_floor_6_hides_the_nymphs_cave_west_of_ithaca():
+    _, rooms = build_floor_6()
+    ithaca = rooms["Shadow of Ithaca"]
+    assert ithaca.hidden_exits["west"] is rooms["Cave of the Nymphs"]
+    assert ithaca.get_exit("west") is None
+
+def test_build_floor_6_shadow_of_ithaca_needs_six_intellect_to_examine():
+    _, rooms = build_floor_6()
+    assert rooms["Shadow of Ithaca"].required_intellect == 6
+
+def test_build_floor_6_nymphs_cave_leads_back_east_to_ithaca():
+    _, rooms = build_floor_6()
+    assert rooms["Cave of the Nymphs"].get_exit("east") is rooms["Shadow of Ithaca"]
+
+def test_build_floor_6_nymphs_cave_holds_the_nymphs_honey():
+    assert [item.name for item in _nymphs_cave().items] == ["Nymphs' Honey"]
+
+def test_create_nymphs_honey_heals_twenty_five():
+    honey = create_nymphs_honey()
+    assert isinstance(honey, Consumable)
+    assert honey.heal_amount == 25
+    assert honey.with_article() == "Nymphs' Honey"
+
+def test_nymphs_cave_offers_gather_the_gifts():
+    assert _nymphs_cave().available_interactions(Player(name="Hero", hp=20)) == ["gather the gifts"]
+
+def test_nymphs_treasure_gold():
+    assert NYMPHS_TREASURE_GOLD == 200
+
+def test_gather_the_gifts_gives_the_treasure_gold():
+    cave = _nymphs_cave()
+    player = Player(name="Hero", hp=20)
+    message = cave.interactions["gather the gifts"].handler(player, cave)
+    assert player.gold == NYMPHS_TREASURE_GOLD
+    assert message.endswith(f"(You gather {NYMPHS_TREASURE_GOLD} gold.)")
+
+def test_gather_the_gifts_can_only_be_taken_once():
+    cave = _nymphs_cave()
+    player = Player(name="Hero", hp=20)
+    cave.interactions["gather the gifts"].handler(player, cave)
+    assert NYMPHS_TREASURE_TAKEN in cave.flags
+    assert cave.available_interactions(player) == []
+
+def test_gather_the_gifts_once_taken_says_nothing_is_left():
+    assert _nymphs_cave().interactions["gather the gifts"].unavailable_message == (
+        "There's nothing left here but the nymphs' looms and the sound of running water."
+    )
+
+def test_build_world_every_room_an_exit_leads_to_is_in_the_map():
+    """Regression: the Banks of the Lethe and then the Ossuary were each left out of their floor's room dict, so they weren't in the map -
+    a save made there named an unknown room and couldn't be loaded. Hidden exits count, since that's where both were."""
+    dungeon, entrance, floors = build_world()
+    rooms = [room for floor in floors.values() for room in floor.values()]
+    missing = {
+        destination.name
+        for room in rooms
+        for destination in list(room.exits.values()) + list(room.hidden_exits.values())
+        if dungeon.get_room(destination.name) is not destination
+    }
+    assert missing == set()

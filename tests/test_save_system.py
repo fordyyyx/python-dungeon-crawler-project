@@ -1510,3 +1510,38 @@ def test_save_and_load_in_the_banks_of_the_lethe(monkeypatch, tmp_path):
 
     assert room is fresh_floors["floor_1"]["Banks of the Lethe"]
     assert fresh_floors["floor_1"]["Fields of Asphodel"].get_exit("south") is room
+
+def test_save_and_load_in_each_new_hidden_room(monkeypatch, tmp_path):
+    """The Ossuary was first missing from floor 3's room dict - the Lethe bug again - so check a save in every hidden room added with it reloads
+    into that room, with the way in still revealed."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    hidden_rooms = [
+        ("floor_3", "Bony Crypt", "down", "Ossuary"),
+        ("floor_4", "Maze of Pillars", "east", "Daedalus' Workshop"),
+        ("floor_5", "Shadow of Army Camp", "in", "Belly of the Wooden Horse"),
+        ("floor_6", "Shadow of Ithaca", "west", "Cave of the Nymphs"),
+    ]
+    for floor, entrance, direction, hidden in hidden_rooms:
+        dungeon, start, floors = build_world()
+        floors[floor][entrance].reveal_hidden_exit(direction)
+        save_game(1, 1, Player(name="Hero", hp=20), floors[floor][hidden], dungeon)
+
+        fresh, _, fresh_floors = build_world()
+        player, room = load_game(1, 1, fresh)
+
+        assert room is fresh_floors[floor][hidden]
+        assert fresh_floors[floor][entrance].get_exit(direction) is room
+
+def test_save_and_load_keeps_the_nymphs_gifts_gathered(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    cave = floors["floor_6"]["Cave of the Nymphs"]
+    player = Player(name="Hero", hp=20)
+    cave.interactions["gather the gifts"].handler(player, cave)
+    save_game(1, 1, player, cave, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    loaded, room = load_game(1, 1, fresh)
+
+    assert loaded.gold == 200
+    assert room.available_interactions(loaded) == []

@@ -313,8 +313,9 @@ def find_floor_for_room(room: Room, all_floors: dict[str, dict[str, Room]]) -> s
 def handle_examine(room: Room, player: Player) -> str:
     """Show extra flavour text and reveal hidden exits, both gated together by required_intellect. A threshold of 0 (the default)
     means content always shows, exactly as before - only rooms explicitly setting a higher threshold (e.g. the Trophy Room's entrance)
-    are genuinely gated, reveal included, not just the flavour text. Intellect gated progress is allowed, since Intellect grows
-    with every level with no cap - the guardrail is reachability, not avoidance of gating entirely."""
+    are genuinely gated, reveal included, not just the flavour text. Intellect-gated progress is allowed, since intellect grows by one
+    every level and from IntellectReward items - there's no hard cap, but the finite experience in the world sets a soft one, so the guardrail
+    is that every gate stays reachable, not avoidance of gating entirely."""
     if player.intellect < room.required_intellect:
         return "There's something here, but you can't quite make sense of it."
 

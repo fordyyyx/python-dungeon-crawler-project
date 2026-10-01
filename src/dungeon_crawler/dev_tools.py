@@ -7,9 +7,9 @@ from dungeon_crawler.items import Item, ARMOUR_SLOTS
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
-from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang, create_sunscorched_dagger, create_talos_bronze_plating, create_serpents_kiss, create_labrys, create_hectors_helm, create_tower_shield_of_ajax, create_field_dressing, create_bow_of_paris, create_cup_of_kykeon, create_antiphates_club, create_laestrygonian_hide, create_wheel_of_cheese, create_olive_wood_stake, create_boars_tusk_helm, create_hoplon_of_the_drowned, create_trident_of_the_depths, create_kelp_poultice, create_antinous_goblet, create_penelopes_thread, create_pomegranate, create_hide_of_cerberus, create_ambrosia, create_bident_of_hades, create_heart_of_typhon
+from dungeon_crawler.content import create_wooden_sword, create_wooden_shield, create_dummy_head, create_mentors_token, create_charons_coin, create_bronze_xiphos, create_bronze_breastplate, create_small_healing_potion, create_cyclops_eye, create_spear_of_ares, create_centaurs_broken_bow, create_breastplate_of_athena, create_hermes_favour, create_skeleton_bone, create_weathered_helm, create_vial_of_grave_rot, create_harpy_fletched_bow, create_prayer_bolt, create_tome_of_old_prayers, create_chipped_stone_aegis, create_wineskin_of_dionysus, create_lamias_fang, create_sunscorched_dagger, create_talos_bronze_plating, create_serpents_kiss, create_labrys, create_hectors_helm, create_tower_shield_of_ajax, create_field_dressing, create_bow_of_paris, create_cup_of_kykeon, create_antiphates_club, create_laestrygonian_hide, create_wheel_of_cheese, create_olive_wood_stake, create_boars_tusk_helm, create_hoplon_of_the_drowned, create_trident_of_the_depths, create_kelp_poultice, create_antinous_goblet, create_penelopes_thread, create_pomegranate, create_hide_of_cerberus, create_ambrosia, create_bident_of_hades, create_heart_of_typhon, create_ledger_of_the_unjudged, create_clockwork_crossbow, create_daedalus_notes, create_feather_of_icarus, create_spear_of_pelion, create_nymphs_honey
 from dungeon_crawler.content import create_training_dummy, create_skeleton_warrior, create_minotaur, create_hades, create_test_boss, create_centaur, create_cyclops, create_shade, create_crypt_keeper, create_harpy, create_fanatic, create_lurker, create_petrified_guardian, create_satyr, create_lamia, create_ember_wraith, create_talos, create_medusa, create_medusa_awakened, create_gorgon, create_practice_dummy, create_shade_of_achilles_duellist, create_shade_of_hector, create_shade_of_ajax, create_myrmidon_soldier, create_shade_of_paris, create_laestrygonian, create_antiphates, create_polyphemus, create_polyphemus_blinded, create_head_of_scylla, create_charybdis, create_poseidon, create_hippocampus, create_poseidon_earth_shaker, create_suitor, create_antinous, create_eurymachus, create_cerberus, create_cerberus_two_heads, create_cerberus_last_head, create_hades, create_restless_shade, create_hades_helm_of_darkness, create_typhon, create_serpent_of_typhon, create_typhon_storm_unleashed
-from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus, create_nestor, create_circe, create_penelope, create_oracle, create_tiresias, create_persephone
+from dungeon_crawler.content import create_chiron, create_mentor, create_wounded_soldier, create_charon, create_athena, create_ares, create_hermes, create_prometheus, create_nestor, create_circe, create_penelope, create_oracle, create_tiresias, create_persephone, create_icarus
 from dungeon_crawler.content import create_shade_of_achilles, create_odysseus, create_hades_companion
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat, apply_room_cleared_flag
@@ -66,6 +66,12 @@ ITEM_REGISTRY: dict[str, Callable[[], Item]] = {
     "hide of cerberus": create_hide_of_cerberus,
     "bident of hades": create_bident_of_hades,
     "heart of typhon": create_heart_of_typhon,
+    "ledger of the unjudged": create_ledger_of_the_unjudged,
+    "clockwork crossbow": create_clockwork_crossbow,
+    "daedalus' notes": create_daedalus_notes,
+    "feather of icarus": create_feather_of_icarus,
+    "spear of pelion": create_spear_of_pelion,
+    "nymphs' honey": create_nymphs_honey,
 }
 
 ENEMY_REGISTRY: dict[str, Callable[[], Enemy]] = {
@@ -132,6 +138,7 @@ ALLY_REGISTRY: dict[str, Callable[[], Ally]] = {
     "oracle": create_oracle,
     "tiresias": create_tiresias,
     "persephone": create_persephone,
+    "icarus": create_icarus,
 }
 
 COMPANION_REGISTRY: dict[str, Callable[[], Companion]] = {
