@@ -2,7 +2,7 @@ from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon, Consumable
 from dungeon_crawler.content import create_circe
-from dungeon_crawler.exploration import get_advice, talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms, enemy_traits, encounter_enemies, floor_traits, next_floor_key, is_room_concealed, is_exit_concealed, HIDDEN_WAYS_NOTE, take_opening_line, get_story_gate
+from dungeon_crawler.exploration import get_advice, talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms, enemy_traits, encounter_enemies, floor_traits, next_floor_key, is_room_concealed, is_exit_concealed, HIDDEN_WAYS_NOTE, take_opening_line, get_story_gate, deepest_floor_reached
 from dungeon_crawler.dialogue import DialogueNode, DialogueOption
 
 def test_pick_up_adds_item_to_inventory():
@@ -1127,7 +1127,7 @@ def test_get_undiscovered_rooms_follows_a_hidden_exit_once_revealed():
     styx = Room("Styx Crossing")
     vault = Room("Sunken Vault")
     styx.add_hidden_exit("down", vault)
-    styx.reveal_hidden_exits()
+    styx.reveal_hidden_exit("down")
     player = Player(name="Hero", hp=20)
     player.visited_rooms = {"Styx Crossing"}
     assert get_undiscovered_rooms(_one_floor(styx, vault), player) == {"Sunken Vault"}
@@ -1886,3 +1886,27 @@ def test_get_uncleared_rooms_stops_reporting_the_decision_once_made():
     player.visited_rooms = {"Bedchamber"}
     player.story_flags.add("refused")
     assert get_uncleared_rooms(_one_floor(bedchamber, gate_room), player) == "Floor 1:\n    Gate of Cerberus - undiscovered"
+
+def test_handle_examine_a_second_time_reveals_nothing_new():
+    """Regression: once reveals went one exit at a time, the 'hidden passage' line was printed even when nothing was revealed."""
+    room = Room("Styx Crossing")
+    room.add_hidden_exit("down", Room("Sunken Vault"))
+    player = Player(name="Hero", hp=20)
+    handle_examine(room, player)
+    message = handle_examine(room, player)
+    assert "hidden passage" not in message
+
+# ---- deepest_floor_reached ----
+
+def test_deepest_floor_reached_with_no_floors_is_zero():
+    assert deepest_floor_reached(Player(name="Hero", hp=20)) == 0
+
+def test_deepest_floor_reached_is_the_highest_floor_number():
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_0", "floor_7", "floor_2"}
+    assert deepest_floor_reached(player) == 7
+
+def test_deepest_floor_reached_ignores_names_that_are_not_floors():
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_3", "dev_room"}
+    assert deepest_floor_reached(player) == 3

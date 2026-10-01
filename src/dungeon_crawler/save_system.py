@@ -239,6 +239,7 @@ def serialise_room(room) -> dict:
         "locked_exits": sorted(room.locked_exits),
         "companions": [serialise_companion(companion) for companion in room.companions],
         "flags": sorted(room.flags),
+        "hidden_exits": sorted(room.hidden_exits),
     }
 
 def apply_room_data(room, data: dict) -> None:
@@ -304,6 +305,12 @@ def apply_room_data(room, data: dict) -> None:
 
     if "flags" in data:
         room.flags = set(data["flags"])
+
+    if "hidden_exits" in data:
+        still_hidden = set(data["hidden_exits"])
+        for direction in list(room.hidden_exits):
+            if direction not in still_hidden:
+                room.reveal_hidden_exit(direction)
 
 def serialise_world(world: Map) -> dict:
     """Snapshot every room in world."""

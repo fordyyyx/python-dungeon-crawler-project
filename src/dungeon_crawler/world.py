@@ -14,7 +14,8 @@ class Room:
         self.required_intellect = required_intellect
         self.exits: dict[str, "Room"] = {}
         self.hidden_exits: dict[str, "Room"] = {}
-        """Exits that dont appear in .exits (and therefore not in map/fullmap) until revealed via reveal_hidden_exits()."""
+        """Exits that don't appear in .exits (and therefore not in map/fullmap) until revealed via reveal_hidden_exit() - by examining the
+        room, or by loading a save made after it was examined."""
         self.locked_exits: dict[str, str] = {}
         """direction -> the item needed to pass through it (see is_exit_locked(), exploration.py). The lock is removed for good via
         unlock_exit() the first time the player walks through, so it mutates during play and is part of save data - see save_system.py."""
@@ -60,7 +61,6 @@ class Room:
         self.story_gates: dict[str, StoryGate] = {}
         """direction -> StoryGate. A fourth kind of blocked exit, alongside locked_exits (items), guarded_exits (enemies) and
         fast_travel_locks (shortcuts): shut until the player has made some story decision."""
-
 
     def connect(self, direction: str, other_room: "Room") -> None:
         """Add a normal (unlocked, visible) exit from this room to other_room."""
@@ -128,17 +128,15 @@ class Room:
         self._companions.remove(companion)
 
     def add_hidden_exit(self, direction: str, room: "Room") -> None:
-        """Add an exit that remains invisible until reveal_hidden_exits() is called."""
+        """Add an exit that remains invisible until reveal_hidden_exit() is called for its direction."""
         self.hidden_exits[direction] = room
 
-    def reveal_hidden_exits(self) -> list[str]:
-        """Promote every hidden exit into the normal exits dict. Returns the list of directions revealed, empty if there was nothing to
-        reveal - the caller uses this to decide whether to print a discovery message."""
-        revealed = list(self.hidden_exits.keys())
-        for direction, room in self.hidden_exits.items():
-            self.exits[direction] = room
-        self.hidden_exits.clear()
-        return revealed
+    def reveal_hidden_exit(self, direction: str) -> None:
+        """Move a hidden exit into this room's normal exits - the one place that happens, used by examining a room and by loading a save.
+        Does nothing if there's no hidden exit in that direction."""
+        target = self.hidden_exits.pop(direction, None)
+        if target is not None:
+            self.exits[direction] = target
 
     def add_interaction(self, verb: str, handler: Callable[...,str], is_available: Callable[..., bool] | None = None, unavailable_message: str = "Nothing happens.") -> None:
         """Register a verb that only works in this room."""

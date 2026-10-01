@@ -324,7 +324,10 @@ def handle_examine(room: Room, player: Player) -> str:
     else:
         messages.append("You look closer, but find nothing you hadn't already noticed.")
 
-    revealed = room.reveal_hidden_exits()
+    revealed = []
+    for direction in list(room.hidden_exits):
+        room.reveal_hidden_exit(direction)
+        revealed += [direction]
     if revealed:
         messages.append(f"Your search reveals a hidden passage: {', '.join(revealed)}.")
 
@@ -443,6 +446,11 @@ def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) 
     if hidden_remaining:
         lines.append(HIDDEN_WAYS_NOTE)
     return "\n".join(lines)
+
+def deepest_floor_reached(player: Player) -> int:
+    """The number of the deepest floor the player has reached - 0 if they've only been on floor 0, or nowhere."""
+    reached = [int(key.removeprefix("floor_")) for key in player.visited_floors if key.startswith("floor_")]
+    return max(reached, default=0)
 
 def start_duel(name: str, room: Room, player: Player) -> str:
     """Begin a duel with the named companion in the room: they're swapped out for the Enemy their duel_enemy_factory builds, which carries a

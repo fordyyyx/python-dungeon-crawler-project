@@ -3024,3 +3024,125 @@ def test_ally_stores_its_dialogue_start():
     def chooser(player):
         return "offer"
     assert Ally(name="Smith", dialogue_start=chooser).dialogue_start is chooser
+
+# ---- forgetting skills (the Lethe) ----
+
+def test_skill_remove_must_be_implemented_by_subclasses():
+    try:
+        Skill(name="Blank", description="").remove(Character(name="Hero", hp=10, attack_damage=1))
+        assert False, "Expected a NotImplementedError but none was raised"
+    except NotImplementedError:
+        pass
+
+def test_attack_boost_skill_remove_takes_the_bonus_back_off():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = AttackBoostSkill(name="Iron Grip", description="", bonus=3)
+    skill.apply(character)
+    skill.remove(character)
+    assert character.attack_damage == 10
+
+def test_defence_boost_skill_remove_leaves_worn_armour_counted():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    plate = Armour(name="Plate", description="", defence=4)
+    plate.use(character)
+    skill = DefenceBoostSkill(name="Hardened Skin", description="", bonus=2)
+    skill.apply(character)
+    skill.remove(character)
+    assert character.armour == 4
+    assert character.base_armour == 0
+
+def test_double_strike_skill_remove_turns_the_flag_off():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DoubleStrikeSkill(name="Twin Strike", description="")
+    skill.apply(character)
+    skill.remove(character)
+    assert character.has_double_strike is False
+
+def test_last_stand_skill_remove_turns_the_flag_off():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = LastStandSkill(name="Last Stand", description="")
+    skill.apply(character)
+    skill.remove(character)
+    assert character.has_last_stand is False
+
+def test_thorns_skill_remove_turns_the_flag_off():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = ThornsSkill(name="Retribution", description="")
+    skill.apply(character)
+    skill.remove(character)
+    assert character.has_thorns is False
+
+def test_dodge_skill_remove_takes_the_chance_back_off():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    skill = DodgeSkill(name="Nimble Grace", description="", chance=0.35)
+    skill.apply(character)
+    skill.remove(character)
+    assert character.dodge_chance == 0.0
+
+def test_skill_path_forget_all_undoes_every_unlocked_skill():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path = SkillPath(name="Attack", skills=[AttackBoostSkill(name="A", description="", bonus=2), AttackBoostSkill(name="B", description="", bonus=3)])
+    path.unlock_next(character)
+    path.unlock_next(character)
+    forgotten = path.forget_all(character)
+    assert forgotten == 2
+    assert path.unlocked_count == 0
+    assert character.attack_damage == 10
+
+def test_skill_path_forget_all_starts_the_path_again_from_its_first_skill():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    first = AttackBoostSkill(name="A", description="", bonus=2)
+    path = SkillPath(name="Attack", skills=[first, AttackBoostSkill(name="B", description="", bonus=3)])
+    path.unlock_next(character)
+    path.forget_all(character)
+    assert path.next_skill is first
+
+def test_skill_path_forget_all_leaves_unlearned_skills_alone():
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path = SkillPath(name="Attack", skills=[AttackBoostSkill(name="A", description="", bonus=2), AttackBoostSkill(name="B", description="", bonus=3)])
+    path.unlock_next(character)
+    path.forget_all(character)
+    assert character.attack_damage == 10
+
+def test_skill_path_forget_all_with_nothing_learned_forgets_nothing():
+    path = SkillPath(name="Attack", skills=[AttackBoostSkill(name="A", description="", bonus=2)])
+    assert path.forget_all(Character(name="Hero", hp=100, attack_damage=10)) == 0
+
+def test_skill_tree_total_unlocked_counts_every_path():
+    player = Player(name="Hero", hp=20)
+    player.skill_tree.skill_points = 3
+    player.skill_tree.invest("attack", player)
+    player.skill_tree.invest("defence", player)
+    player.skill_tree.invest("abilities", player)
+    assert player.skill_tree.total_unlocked == 3
+
+def test_skill_tree_forget_all_refunds_a_point_per_skill():
+    player = Player(name="Hero", hp=20)
+    player.skill_tree.skill_points = 4
+    player.skill_tree.invest("attack", player)
+    player.skill_tree.invest("attack", player)
+    player.skill_tree.invest("abilities", player)
+    refunded = player.skill_tree.forget_all(player)
+    assert refunded == 3
+    assert player.skill_tree.skill_points == 4
+    assert player.skill_tree.total_unlocked == 0
+
+def test_skill_tree_forget_all_restores_every_stat_it_changed():
+    """Apply-then-forget must leave the player exactly as they were - every path, every kind of skill."""
+    player = Player(name="Hero", hp=20)
+    before = (player.attack_damage, player.armour, player.dodge_chance, player.has_double_strike, player.has_thorns, player.has_last_stand)
+    player.skill_tree.skill_points = 14
+    for path in ("attack", "defence"):
+        for _ in range(5):
+            player.skill_tree.invest(path, player)
+    for _ in range(4):
+        player.skill_tree.invest("abilities", player)
+    player.skill_tree.forget_all(player)
+    after = (player.attack_damage, player.armour, player.dodge_chance, player.has_double_strike, player.has_thorns, player.has_last_stand)
+    assert after == before
+
+def test_skill_tree_forget_all_with_nothing_learned_refunds_nothing():
+    player = Player(name="Hero", hp=20)
+    player.skill_tree.skill_points = 2
+    assert player.skill_tree.forget_all(player) == 0
+    assert player.skill_tree.skill_points == 2

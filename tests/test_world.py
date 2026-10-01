@@ -257,40 +257,13 @@ def test_room_add_hidden_exit_does_not_appear_via_get_exit():
     a.add_hidden_exit("down", b)
     assert a.get_exit("down") is None
 
-def test_room_reveal_hidden_exits_promotes_exit_into_exits():
-    a = Room("A")
-    b = Room("B")
-    a.add_hidden_exit("down", b)
-    a.reveal_hidden_exits()
-    assert a.get_exit("down") is b
-
-def test_room_reveal_hidden_exits_clears_hidden_exits():
-    a = Room("A")
-    b = Room("B")
-    a.add_hidden_exit("down", b)
-    a.reveal_hidden_exits()
-    assert a.hidden_exits == {}
-
-def test_room_reveal_hidden_exits_returns_revealed_directions():
-    a = Room("A")
-    b = Room("B")
-    c = Room("C")
-    a.add_hidden_exit("down", b)
-    a.add_hidden_exit("up", c)
-    revealed = a.reveal_hidden_exits()
-    assert revealed == ["down", "up"]
-
-def test_room_reveal_hidden_exits_with_none_hidden_returns_empty_list():
-    room = Room("A")
-    assert room.reveal_hidden_exits() == []
-
-def test_room_reveal_hidden_exits_does_not_affect_existing_normal_exits():
+def test_room_reveal_hidden_exit_does_not_affect_existing_normal_exits():
     a = Room("A")
     b = Room("B")
     c = Room("C")
     a.connect("north", b)
     a.add_hidden_exit("down", c)
-    a.reveal_hidden_exits()
+    a.reveal_hidden_exit("down")
     assert a.get_exit("north") is b
     assert a.get_exit("down") is c
 
@@ -466,3 +439,25 @@ def test_room_gate_exit_stores_a_story_gate_for_that_direction():
     assert gate.required_flags == ("promised", "refused")
     assert gate.blocked_message == "Not yet."
     assert gate.map_label == "waiting"
+
+def test_room_reveal_hidden_exit_moves_it_into_exits():
+    a, b = Room("Styx"), Room("Vault")
+    a.add_hidden_exit("down", b)
+    a.reveal_hidden_exit("down")
+    assert a.get_exit("down") is b
+    assert "down" not in a.hidden_exits
+
+def test_room_reveal_hidden_exit_leaves_other_hidden_exits_hidden():
+    a, b, c = Room("Styx"), Room("Vault"), Room("Cellar")
+    a.add_hidden_exit("down", b)
+    a.add_hidden_exit("north", c)
+    a.reveal_hidden_exit("down")
+    assert a.hidden_exits == {"north": c}
+    assert "north" not in a.exits
+
+def test_room_reveal_hidden_exit_with_no_such_exit_does_nothing():
+    a, b = Room("Styx"), Room("Hall")
+    a.connect("east", b)
+    a.reveal_hidden_exit("down")
+    assert a.exits == {"east": b}
+    assert a.hidden_exits == {}

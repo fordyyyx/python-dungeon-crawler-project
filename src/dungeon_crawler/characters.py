@@ -801,6 +801,11 @@ class Skill:
         """Grant this skill's effect to character. Must be implemented by subclasses."""
         raise NotImplementedError
 
+    def remove(self, character) -> None:
+        """Undo exactly what apply() did - used when the player forgets their skills at the Lethe. Must be implemented by subclasses, and must be
+        the precise reverse of apply(), so apply-then-remove always leaves the character as they were."""
+        raise NotImplementedError
+
 class AttackBoostSkill(Skill):
     """A skill that permanently raises attack_damage by a fixed bonus."""
 
@@ -814,6 +819,10 @@ class AttackBoostSkill(Skill):
         character.attack_damage += self.bonus
         return f"{character.name} gains +{self.bonus} attack from {self.name}."
 
+    def remove(self, character) -> None:
+        """Take this skill's bonus back off character's attack_damage."""
+        character.attack_damage -= self.bonus
+
 class DefenceBoostSkill(Skill):
     """A skill that permanently raises armour by a fixed bonus."""
 
@@ -826,6 +835,11 @@ class DefenceBoostSkill(Skill):
         """Add this skill's bonus to character's armour."""
         character.armour += self.bonus
         return f"{character.name} gains +{self.bonus} armour from {self.name}."
+
+    def remove(self, character) -> None:
+        """Take this skill's bonus back off character's armour. Goes through the armour property, so - like apply() - it only ever changes
+        base_armour, never a worn piece."""
+        character.armour -= self.bonus
 
 class SkillPath:
     """One branch of the skill tree (e.g. Attack, Defence, Abilities) - an ordered list of skills unlocked one at a time."""
@@ -843,6 +857,14 @@ class SkillPath:
         skill = self._skills[self.unlocked_count]
         self.unlocked_count += 1
         return skill.apply(character)
+
+    def forget_all(self, character) -> int:
+        """Undo every unlocked skill on this path, most recent first, and reset it to nothing unlocked. Returns how many were forgotten."""
+        forgotten = self.unlocked_count
+        for skill in reversed(self._skills[:self.unlocked_count]):
+            skill.remove(character)
+        self.unlocked_count = 0
+        return forgotten
 
     @property
     def next_skill(self) -> "Skill | None":
@@ -896,6 +918,18 @@ class SkillTree:
         self.skill_points -= 1
         return message
 
+    @property
+    def total_unlocked(self) -> int:
+        """How many skills have been learned across every path."""
+        return sum(path.unlocked_count for path in self.paths.values())
+
+    def forget_all(self, character) -> int:
+        """Forget every learned skill on every path, undoing their effects, and refund one skill point for each. Returns how many were refunded.
+        The skill tree's saved unlock counts and the character's saved stats both change here, so a save made afterwards is already consistent."""
+        refunded = sum(path.forget_all(character) for path in self.paths.values())
+        self.skill_points += refunded
+        return refunded
+
 class DoubleStrikeSkill(Skill):
     """Unlocks Double Strike - see Character.attack() for the second-hit behaviour this flag enables."""
 
@@ -903,6 +937,10 @@ class DoubleStrikeSkill(Skill):
         """Turn on character.has_double_strike."""
         character.has_double_strike = True
         return f"{character.name} learns to strike twice in quick succession."
+
+    def remove(self, character) -> None:
+        """Turn character.has_double_strike back off."""
+        character.has_double_strike = False
 
 class LastStandSkill(Skill):
     """Unlocks Last Stand - see Character.take_damage() for the survive-at-1-HP behaviour this flag enables."""
@@ -912,6 +950,10 @@ class LastStandSkill(Skill):
         character.has_last_stand = True
         return f"{character.name} will not fall easily - death itself will have to try twice."
 
+    def remove(self, character) -> None:
+        """Turn character.has_last_stand back off."""
+        character.has_last_stand = False
+
 class ThornsSkill(Skill):
     """Unlocks Thorns - see Character.take_damage() for the damage-reflection behaviour this flag enables."""
 
@@ -919,6 +961,10 @@ class ThornsSkill(Skill):
         """Turn on character.has_thorns."""
         character.has_thorns = True
         return f"{character.name} learns to turn an enemy's own strength against them."
+
+    def remove(self, character) -> None:
+        """Turn character.has_thorns back off."""
+        character.has_thorns = False
 
 class DodgeSkill(Skill):
     """Unlocks a permanent chance to dodge - see Character.take_damage() for the avoid-the-hit-entirely behaviour this grants."""
@@ -932,3 +978,7 @@ class DodgeSkill(Skill):
         """Add this skill's chance to character's dodge_chance."""
         character.dodge_chance += self.chance
         return f"{character.name} learns to slip aside from incoming blows."
+
+    def remove(self, character) -> None:
+        """Take this skill's chance back off character's dodge_chance."""
+        character.dodge_chance -= self.chance

@@ -5,7 +5,7 @@ from dungeon_crawler.exploration import talk_to, get_story_gate, display_local_e
 from dungeon_crawler.dialogue import continue_dialogue
 from dungeon_crawler.combat import resolve_pending_defeats
 from dungeon_crawler.content import create_cerberus, create_cerberus_two_heads, create_cerberus_last_head, create_aconite_fangs, create_hide_of_cerberus, create_restless_shade, create_hades_helm_of_darkness, create_hades_companion, create_bident_of_hades, HADES_SPARED, HADES_DEFEATED
-from dungeon_crawler.content import PROMETHEUS_OFFER_MADE, HARDCORE
+from dungeon_crawler.content import PROMETHEUS_OFFER_MADE, HARDCORE, LETHE_GOLD_PER_FLOOR, lethe_cost
 from dungeon_crawler.content import create_typhon, create_serpent_of_typhon, create_typhon_storm_unleashed, create_serpent_venom, create_storm_of_ash, create_heart_of_typhon, TYPHON_DEFEATED
 from dungeon_crawler.exploration import floor_traits
 from dungeon_crawler.items import Trophy
@@ -1004,9 +1004,9 @@ def test_create_hermes_favour_has_correct_points():
     favour = create_hermes_favour()
     assert favour.points == 1
 
-def test_build_world_returns_fifty_one_rooms():
+def test_build_world_returns_fifty_two_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(dungeon) == 51
+    assert len(dungeon) == 52
 
 def test_build_blank_test_room_has_correct_name_and_description():
     room = build_blank_test_room()
@@ -1152,11 +1152,11 @@ def test_build_world_styx_crossing_down_exit_to_sunken_vault_is_hidden_until_rev
     assert styx_crossing.get_exit("down") is None
     assert styx_crossing.hidden_exits["down"] is dungeon.get_room("Sunken Vault")
 
-def test_build_world_styx_crossing_down_exit_revealed_via_reveal_hidden_exits():
+def test_build_world_styx_crossing_down_exit_revealed_via_reveal_hidden_exit():
     dungeon, entrance, floors = build_world()
     styx_crossing = dungeon.get_room("Styx Crossing")
     assert styx_crossing is not None
-    styx_crossing.reveal_hidden_exits()
+    styx_crossing.reveal_hidden_exit("down")
     assert styx_crossing.get_exit("down") is dungeon.get_room("Sunken Vault")
 
 def test_build_world_styx_crossing_has_examine_text():
@@ -1207,9 +1207,9 @@ def test_build_world_floor_0_rooms_dict_contains_five_rooms():
     dungeon, entrance, floors = build_world()
     assert len(floors["floor_0"]) == 5
 
-def test_build_world_floor_1_rooms_dict_contains_four_rooms():
+def test_build_world_floor_1_rooms_dict_contains_five_rooms():
     dungeon, entrance, floors = build_world()
-    assert len(floors["floor_1"]) == 4
+    assert len(floors["floor_1"]) == 5
 
 def test_build_world_floor_2_rooms_dict_contains_six_rooms():
     dungeon, entrance, floors = build_world()
@@ -1408,11 +1408,11 @@ def test_build_world_armoury_of_ares_north_exit_to_trophy_room_is_hidden_until_r
     assert armoury.get_exit("north") is None
     assert armoury.hidden_exits["north"] is dungeon.get_room("Trophy Room of Zeus")
 
-def test_build_world_armoury_of_ares_north_exit_revealed_via_reveal_hidden_exits():
+def test_build_world_armoury_of_ares_north_exit_revealed_via_reveal_hidden_exit():
     dungeon, entrance, floors = build_world()
     armoury = dungeon.get_room("Armoury of Ares")
     assert armoury is not None
-    armoury.reveal_hidden_exits()
+    armoury.reveal_hidden_exit("north")
     assert armoury.get_exit("north") is dungeon.get_room("Trophy Room of Zeus")
 
 def test_build_world_trophy_room_of_zeus_connects_back_to_armoury_via_south():
@@ -1482,9 +1482,9 @@ def test_build_floor_1_returns_cave_entrance_as_start_room():
     start, rooms = build_floor_1()
     assert start.name == "Cave Entrance"
 
-def test_build_floor_1_returns_rooms_dict_with_four_rooms():
+def test_build_floor_1_returns_rooms_dict_with_five_rooms():
     start, rooms = build_floor_1()
-    assert len(rooms) == 4
+    assert len(rooms) == 5
 
 def test_build_floor_1_rooms_dict_keyed_by_room_name():
     start, rooms = build_floor_1()
@@ -3247,11 +3247,18 @@ def test_oracle_ask_secrets_names_the_first_unfound_hidden_exit():
     message = _ask(chamber, "ask secrets", player)
     assert message == '"In Styx Crossing, a way lies hidden that you have walked straight past."\n(2 prophecies remain.)'
 
-def test_oracle_ask_secrets_moves_on_and_warns_when_intellect_is_too_low():
+def test_oracle_ask_secrets_moves_on_to_the_next_hidden_exit():
     chamber = _oracle_chamber()
     player = Player(name="Hero", hp=20)
     player.visited_floors = {"floor_1", "floor_2"}
     _ask(chamber, "ask secrets", player)
+    message = _ask(chamber, "ask secrets", player)
+    assert '"In Fields of Asphodel, a way lies hidden' in message
+
+def test_oracle_ask_secrets_warns_when_intellect_is_too_low():
+    chamber = _oracle_chamber()
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_2"}
     message = _ask(chamber, "ask secrets", player)
     assert '"In Armoury of Ares, a way lies hidden' in message
     assert '"It will not show itself to a mind duller than 3."' in message
@@ -3259,7 +3266,8 @@ def test_oracle_ask_secrets_moves_on_and_warns_when_intellect_is_too_low():
 def test_oracle_ask_secrets_skips_a_hidden_exit_already_found():
     dungeon, start, floors = build_world()
     chamber = floors["floor_7"]["Chamber of the Oracle"]
-    floors["floor_1"]["Styx Crossing"].reveal_hidden_exits()
+    floors["floor_1"]["Styx Crossing"].reveal_hidden_exit("down")
+    floors["floor_1"]["Fields of Asphodel"].reveal_hidden_exit("south")
     player = Player(name="Hero", hp=20)
     player.visited_floors = {"floor_1"}
     message = chamber.interactions["ask secrets"].handler(player, chamber)
@@ -3987,3 +3995,87 @@ def test_prometheus_confirming_leaves_other_items_alone():
     continue_dialogue("1", forge, player)
     continue_dialogue("1", forge, player)
     assert potion in player.inventory.items
+
+# ---- floor 1: the Banks of the Lethe ----
+
+def _lethe():
+    dungeon, start, floors = build_world()
+    return floors["floor_1"]["Banks of the Lethe"]
+
+def _player_with_skills(points, gold):
+    player = Player(name="Hero", hp=20)
+    player.skill_tree.skill_points = points
+    for _ in range(points):
+        player.skill_tree.invest("attack", player)
+    player.gold = gold
+    return player
+
+def test_build_world_includes_the_banks_of_the_lethe():
+    """Regression: build_floor_1() first left the room out of its dict, so it wasn't in the map - saving there made an unloadable save."""
+    dungeon, start, floors = build_world()
+    assert dungeon.get_room("Banks of the Lethe") is floors["floor_1"]["Banks of the Lethe"]
+
+def test_build_floor_1_hides_the_lethe_south_of_fields_of_asphodel():
+    start, rooms = build_floor_1()
+    assert rooms["Fields of Asphodel"].hidden_exits["south"] is rooms["Banks of the Lethe"]
+    assert rooms["Fields of Asphodel"].get_exit("south") is None
+
+def test_build_floor_1_lethe_leads_back_north_to_the_fields():
+    start, rooms = build_floor_1()
+    assert rooms["Banks of the Lethe"].get_exit("north") is rooms["Fields of Asphodel"]
+
+def test_fields_of_asphodel_examine_text_hints_at_the_river():
+    start, rooms = build_floor_1()
+    assert "a slow river" in rooms["Fields of Asphodel"].examine_text
+
+def test_lethe_offers_drink_and_drink_deeply():
+    assert _lethe().available_interactions(Player(name="Hero", hp=20)) == ["drink", "drink deeply"]
+
+def test_lethe_gold_per_floor():
+    assert LETHE_GOLD_PER_FLOOR == 25
+
+def test_lethe_cost_is_never_less_than_one_floor():
+    assert lethe_cost(Player(name="Hero", hp=20)) == LETHE_GOLD_PER_FLOOR
+
+def test_lethe_cost_scales_with_the_deepest_floor_reached():
+    player = Player(name="Hero", hp=20)
+    player.visited_floors = {"floor_0", "floor_1", "floor_6"}
+    assert lethe_cost(player) == 6 * LETHE_GOLD_PER_FLOOR
+
+def test_lethe_drink_names_the_cost_and_changes_nothing():
+    lethe = _lethe()
+    player = _player_with_skills(1, 100)
+    message = lethe.interactions["drink"].handler(player, lethe)
+    assert f"It will cost {lethe_cost(player)} gold." in message
+    assert (player.gold, player.skill_tree.total_unlocked) == (100, 1)
+
+def test_lethe_drink_deeply_with_nothing_learned_charges_nothing():
+    lethe = _lethe()
+    player = _player_with_skills(0, 100)
+    message = lethe.interactions["drink deeply"].handler(player, lethe)
+    assert message == "You drink, and nothing happens. There's nothing in you yet for the river to take."
+    assert player.gold == 100
+
+def test_lethe_drink_deeply_without_enough_gold_is_refused():
+    lethe = _lethe()
+    player = _player_with_skills(2, 10)
+    message = lethe.interactions["drink deeply"].handler(player, lethe)
+    assert message == "The river doesn't give its gift freely. It will cost 25 gold - you have 10."
+    assert (player.gold, player.skill_tree.total_unlocked) == (10, 2)
+
+def test_lethe_drink_deeply_forgets_every_skill_for_the_cost():
+    lethe = _lethe()
+    player = _player_with_skills(2, 100)
+    attack_before_skills = player.attack_damage - 2 - 3
+    message = lethe.interactions["drink deeply"].handler(player, lethe)
+    assert player.gold == 75
+    assert player.skill_tree.total_unlocked == 0
+    assert player.skill_tree.skill_points == 2
+    assert player.attack_damage == attack_before_skills
+    assert "(Paid 25 gold. 2 skill points returned - say 'skills' to see them.)" in message
+
+def test_lethe_drink_deeply_says_point_for_a_single_skill():
+    lethe = _lethe()
+    player = _player_with_skills(1, 100)
+    message = lethe.interactions["drink deeply"].handler(player, lethe)
+    assert "1 skill point returned" in message

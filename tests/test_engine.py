@@ -2115,3 +2115,22 @@ def test_main_hardcore_death_message_wording(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
     main()
     assert "There are no second chances this time." in capsys.readouterr().out
+
+def test_main_examined_exit_is_still_open_after_saving_and_loading(monkeypatch, capsys, tmp_path):
+    """The map is only printed after the reload, so the exit it lists must have survived it."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport styx crossing", "examine", "save", "load 1 1", "yes", "map"])
+    assert "Your search reveals a hidden passage: down." in out
+    assert "down -> Sunken Vault" in out
+
+def test_main_find_the_lethe_forget_skills_and_reload_there(monkeypatch, capsys, tmp_path):
+    """Examine the Fields, find the Lethe, forget a skill, then save and reload there. A failed load would print 'can't be read' and leave
+    the old game running, so the reload itself is what's checked."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev teleport fields of asphodel", "dev kill", "examine", "south",
+        "dev set skillpoints 1", "learn attack", "dev set gold 50", "drink deeply",
+        "save", "load 1 1", "yes",
+    ])
+    assert "Your search reveals a hidden passage: south." in out
+    assert "(Paid 25 gold. 1 skill point returned - say 'skills' to see them.)" in out
+    assert "can't be read" not in out
+    assert out.rindex("Banks of the Lethe:") > out.index("(Paid 25 gold.")

@@ -1,9 +1,13 @@
-"""Floor 1 (The Underworld Gateway) - Cave Entrance, Styx Crossing, Fields of Asphodel, Sunken Vault."""
+"""Floor 1 (The Underworld Gateway) - Cave Entrance, Styx Crossing, Fields of Asphodel, Sunken Vault, and the Banks of the Lethe."""
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon
 from dungeon_crawler.characters import Enemy, Ally
+from dungeon_crawler.exploration import deepest_floor_reached
 from .common import create_small_healing_potion
+
+LETHE_GOLD_PER_FLOOR = 25
+"""The Lethe's price per floor of the deepest floor reached."""
 
 def create_skeleton_warrior() -> Enemy:
     """Create a skeleton warrior enemy"""
@@ -94,8 +98,42 @@ def create_bronze_xiphos() -> Weapon:
         weapon_class="blade",
     )
 
+def lethe_cost(player) -> int:
+    """What forgetting costs right now: LETHE_GOLD_PER_FLOOR for each floor of the deepest one reached, and never less than one floor's worth.
+    Based on the deepest floor rather than rooms visited, so exploring thoroughly never makes it dearer."""
+    return LETHE_GOLD_PER_FLOOR * max(1, deepest_floor_reached(player))
+
+def _drink(player, room) -> str:
+    """Explain what the lethe does and what it would cost now. Changes nothing."""
+    return (
+        "The river moves so slowly it barely seems to move at all. The dead kneel along its banks and drink, and when they stand, whatever "
+        "they were has left them.\n\n"
+        "A little of it would take less. Enough to make you forget everything you've learned - every skill - and leave you free to learn it "
+        "again, differently.\n\n"
+        f"(Say 'drink deeply' to forget every skill and have all their points returned. It will cost {lethe_cost(player)} gold.)"
+    )
+
+def _drink_deeply(player, room) -> str:
+    """Forget every skill and refund all their points, for lethe_cost(). Refuses without charging if there's nothing to forget or the player
+    can't afford it."""
+    if player.skill_tree.total_unlocked == 0:
+        return "You drink, and nothing happens. There's nothing in you yet for the river to take."
+    cost = lethe_cost(player)
+    if player.gold < cost:
+        return f"The river doesn't give its gift freely. It will cost {cost} gold - you have {player.gold}."
+    player.gold -= cost
+    refunded = player.skill_tree.forget_all(player)
+    return (
+        "You kneel and drink deeply. The water is so cold it burns, and then it isn't anything at all.\n\n"
+        "When you stand, the shape of every skill you learned is gone - but the strength that learned them is still there, waiting to be "
+        "spent again.\n\n"
+        f"(Paid {cost} gold. {refunded} skill point{'s' if refunded != 1 else ''} returned - say 'skills' to see them.)"
+    )
+
 def build_floor_1() -> tuple[Room, dict[str, Room]]:
-    """Build the Styx-crossing floor, including the Sunken Vault reached via a hidden exit off Styx Crossing. Returns (starting room, every room on this floor keyed by name)."""
+    """Build the Styx-crossing floor, including two rooms reached through hidden exits: the Sunken Vault (down from Styx Crossing) and the Banks
+    of the Lethe (south from Fields of Asphodel, hinted at by its examine text), where the drink/drink deeply interactions let the player
+    forget every skill for a refund of their points. Returns (starting room, every room on this floor keyed by name)."""
     cave_entrance = Room("Cave Entrance", "A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.")
 
     styx_crossing = Room("Styx Crossing",
@@ -104,21 +142,37 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
         "The stonework here looks subtly disturbed — as if something below "
         "has shifted, recently, on its own."
     ))
-    fields_of_asphodel = Room("Fields of Asphodel", "An endless grey meadow beneath a colourless sky, where the ordinary dead wander without purpose or memory.")
+    fields_of_asphodel = Room("Fields of Asphodel",
+                              "An endless grey meadow beneath a colourless sky, where the ordinary dead wander without purpose or memory.",
+                              examine_text=(
+                                  "Past the grey grass, you can hear water where no water should be - a slow river, somewhere just out of sight to the south."
+                              ),
+                            )
+    banks_of_the_lethe = Room(
+        "Banks of the Lethe",
+        "A black river moves so slowly it barely seems to move at all. The dead kneel along its banks to drink, and rise with nothing in "
+        "their eyes. Whatever they were, the water has taken it.",
+    )
     sunken_vault = Room("Sunken Vault", "Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.")
 
     cave_entrance.connect("descend", styx_crossing)
     styx_crossing.connect("ascend", cave_entrance)
     styx_crossing.connect("east", fields_of_asphodel)
     fields_of_asphodel.connect("west", styx_crossing)
-    sunken_vault.connect("up", styx_crossing)
+
     styx_crossing.add_hidden_exit("down", sunken_vault)
+    sunken_vault.connect("up", styx_crossing)
+    fields_of_asphodel.add_hidden_exit("south", banks_of_the_lethe)
+    banks_of_the_lethe.connect("north", fields_of_asphodel)
 
     cave_entrance.add_ally(create_wounded_soldier())
     styx_crossing.add_ally(create_charon())
     sunken_vault.add_enemy(create_skeleton_warrior())
     fields_of_asphodel.add_enemy(create_shade())
 
+    banks_of_the_lethe.add_interaction("drink", _drink)
+    banks_of_the_lethe.add_interaction("drink deeply", _drink_deeply)
+
     return cave_entrance, {
-        room.name: room for room in (cave_entrance, styx_crossing, fields_of_asphodel, sunken_vault)
+        room.name: room for room in (cave_entrance, styx_crossing, fields_of_asphodel, banks_of_the_lethe, sunken_vault)
     }

@@ -1453,3 +1453,60 @@ def test_slot_summary_of_an_older_save_without_story_flags(monkeypatch, tmp_path
     summary = slot_summary(1, 1)
     assert summary.startswith("Hero - LVL 1")
     assert "Hardcore" not in summary
+
+def test_serialise_room_records_the_exits_still_hidden():
+    room = Room("Styx Crossing")
+    room.add_hidden_exit("down", Room("Sunken Vault"))
+    room.add_hidden_exit("north", Room("Cellar"))
+    room.reveal_hidden_exit("north")
+    assert serialise_room(room)["hidden_exits"] == ["down"]
+
+def test_apply_room_data_reveals_exits_the_save_no_longer_lists_as_hidden():
+    vault = Room("Sunken Vault")
+    room = Room("Styx Crossing")
+    room.add_hidden_exit("down", vault)
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": [], "hidden_exits": []})
+    assert room.get_exit("down") is vault
+    assert room.hidden_exits == {}
+
+def test_apply_room_data_keeps_exits_the_save_lists_as_hidden():
+    room = Room("Styx Crossing")
+    room.add_hidden_exit("down", Room("Sunken Vault"))
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": [], "hidden_exits": ["down"]})
+    assert "down" in room.hidden_exits
+    assert room.get_exit("down") is None
+
+def test_apply_room_data_from_an_older_save_leaves_hidden_exits_hidden():
+    room = Room("Styx Crossing")
+    room.add_hidden_exit("down", Room("Sunken Vault"))
+    apply_room_data(room, {"enemies": [], "items": [], "allies_traded": []})
+    assert "down" in room.hidden_exits
+
+def test_save_and_load_keeps_a_revealed_hidden_exit_open(monkeypatch, tmp_path):
+    """Regression: loading rebuilds the world fresh, so an exit revealed before saving used to be hidden again after a reload."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    styx = floors["floor_1"]["Styx Crossing"]
+    styx.reveal_hidden_exit("down")
+    save_game(1, 1, Player(name="Hero", hp=20), styx, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    load_game(1, 1, fresh)
+
+    fresh_styx = fresh_floors["floor_1"]["Styx Crossing"]
+    assert fresh_styx.get_exit("down") is fresh_floors["floor_1"]["Sunken Vault"]
+    assert fresh_styx.hidden_exits == {}
+
+def test_save_and_load_in_the_banks_of_the_lethe(monkeypatch, tmp_path):
+    """Regression: the room was missing from floor 1's room dict, so a save made there referenced an unknown room and couldn't be loaded."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    fields = floors["floor_1"]["Fields of Asphodel"]
+    fields.reveal_hidden_exit("south")
+    save_game(1, 1, Player(name="Hero", hp=20), floors["floor_1"]["Banks of the Lethe"], dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    player, room = load_game(1, 1, fresh)
+
+    assert room is fresh_floors["floor_1"]["Banks of the Lethe"]
+    assert fresh_floors["floor_1"]["Fields of Asphodel"].get_exit("south") is room
