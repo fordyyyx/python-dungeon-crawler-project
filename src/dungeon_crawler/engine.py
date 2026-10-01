@@ -9,7 +9,7 @@ from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
 from dungeon_crawler import save_system
 from dungeon_crawler.hints import show_hint
-from dungeon_crawler.exchange import list_offers, make_exchange
+from dungeon_crawler.exchange import list_offers, make_exchange, sell_item
 from dungeon_crawler.exceptions import ActionRefused, SaveFileError
 from dungeon_crawler.dialogue import continue_dialogue
 
@@ -20,7 +20,7 @@ ENDING_SHOWN = "ending_shown"
 TRUE_ENDING_SHOWN = "true_ending_shown"
 RESERVED_COMMAND_WORDS: frozenset[str] = frozenset({
     "north", "south", "east", "west", "up", "down", "ascend", "descend",
-    "look", "examine", "map", "fullmap", "world", "inventory", "stats", "skills", "learn", "advice", "offers", "exchange",
+    "look", "examine", "map", "fullmap", "world", "inventory", "stats", "skills", "learn", "advice", "offers", "exchange", "sell",
     "take", "drop", "use", "equip", "unequip", "talk", "trade", "recruit", "dismiss", "challenge", "say",
     "attack", "cast", "target", "flee", "rest", "wait", "repair", "dummy",
     "save", "load", "quit", "exit", "controls", "uncleared", "toggle", "dev", "developer",
@@ -510,6 +510,9 @@ def main() -> None:
 
                 elif command == "exchange" or command.startswith("exchange "):
                     print(make_exchange(command.removeprefix("exchange").strip(), current_room, player))
+
+                elif command.startswith("sell ") and not player.in_combat:
+                    print(sell_item(command.removeprefix("sell ").strip(), current_room, player))
 
                 elif command == "uncleared":
                     print(get_uncleared_rooms(all_floors, player))

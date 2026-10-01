@@ -121,6 +121,53 @@ into `src/`, `tests/`, or anywhere in the repo. Use this to confirm or walk
 back a static-math flag, not to replace Phase 1 for every encounter — it's a
 spot-check for the borderline cases, not a full pass.
 
+## Phase 4 — Gold economy measurement
+
+Measure the gold economy as it stands, as the baseline for pricing (Charon's
+shop, and every provisional price already in the game). This phase measures
+and reports only — like the rest of this command, it changes no game code
+or numbers.
+
+Simulate two player types through floors 0-9, each across a few builds
+(e.g. attack-led, defence-led, balanced), using the real content and combat
+functions as in Phase 3:
+
+- **A careful player** — clears every room, optional and hidden ones
+  included, and paces their fights (walks to the regen cap before each one).
+- **A rushing explorer** — fights only what gates the way forward, and skips
+  optional rooms.
+
+At the end of each floor, report for each player type:
+
+- **Gold earned so far**, split into enemy gold, treasure (room rewards such
+  as the Cave of the Nymphs), and sales — assume they sell everything they
+  don't use or wear. Use the real sell rule if one exists in the code (read
+  it, don't assume it); if selling isn't built, say so, state the rule you
+  assumed, and keep sales as a clearly separate column.
+- **Gold spent so far on Forge repairs**, and how many armour points that
+  repaired (from the real repair cost in `exploration.py`, repairing
+  whenever a forge or forge shortcut is reachable).
+- **Gold held** after those repairs.
+- **Healing items used on that floor**, and healing items still held.
+
+Also report, from the current code:
+
+- **Every gold sink's price against income** — the Lethe's cost at each
+  floor as a fraction of that floor's income, and likewise any other
+  price that scales.
+- **Every merchant offer's cost** (Circe's, and Charon's once he has stock),
+  and the first point at which each player type has enough gold for it.
+- **Every one-off gold reward** (the Cave of the Nymphs' gold, any chest) —
+  when it arrives, and what fraction of the gold held at that point it is.
+
+Summarise with one table per player type (a row per floor), and **flag any
+floor a player ends holding less than one floor's typical repair cost** -
+that's the point where armour starts staying broken.
+
+The names above are examples of what exists today. Find the sinks, offers
+and rewards by reading the code on this run, so anything added since is
+measured too and anything removed isn't reported from memory.
+
 ## Rules
 
 - Read-only pass — do not modify any file under `src/` or `tests/`, and
@@ -148,7 +195,9 @@ Structure the final report as:
    short reason; unpopulated floors get a one-line "not yet populated" note.
 3. **Forced-path / softlock findings** — one entry per finding, each stating
    the gate, its single source, and the consequence of missing it.
-4. **Correctness bugs found, if any** — kept separate from balance opinions.
-5. A short closing summary: overall read on whether the current baseline
+4. **Gold economy** — Phase 4's per-floor table for each player type, the
+   sink/offer/reward figures, and any floor flagged as short of a repair.
+5. **Correctness bugs found, if any** — kept separate from balance opinions.
+6. A short closing summary: overall read on whether the current baseline
    sits at "medium," and the handful of changes that would matter most if
    the user only made a few.

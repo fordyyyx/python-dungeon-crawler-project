@@ -288,10 +288,12 @@ def create_daedalus_notes() -> IntellectReward:
 
 def create_feather_of_icarus() -> EscapeItem:
     """Create the Feather of Icarus - a single-use guaranteed escape from a fight. Given by Icarus' shade."""
-    return EscapeItem(
+    feather = EscapeItem(
         name="Feather of Icarus",
         description="A single long feather, its quill still sealed with a bead of wax. It's lighter than it has any right to be.",
     )
+    feather.value_override = 60
+    return feather
 
 def create_icarus() -> Ally:
     """Create Icarus - the shade of Daedalus' son, in Icarus' Shaft above the Workshop. Lore and the Feather of Icarus; no trade."""

@@ -21,6 +21,9 @@ class Item(ABC):
         self.description: str = description
         self.article: str = article
         self.equipped: bool = False
+        self.value_override: int | None = None
+        """A hand-set value, used instead of the calculated one (see item_value(), exchange.py) for an item whose worth isn't in its numbers.
+        Set in the item's factory after it's built, rather than passed in, so no item class' constructor needs another parameter."""
 
     @abstractmethod
     def use(self, character) -> str:

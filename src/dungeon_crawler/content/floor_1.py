@@ -77,6 +77,7 @@ def create_charon() -> Ally:
             "\"You have the coin. Good.\" His voice is dry, unhurried. "
             "\"Cross when you're ready — the water won't wait for anyone, but it won't rush you either.\""
         ),
+        buys_items=True,
     )
 
 def create_bronze_breastplate() -> Armour:

@@ -5,7 +5,21 @@ later merchant needs limited stock, it will also need adding to the save format.
 from dataclasses import dataclass
 from typing import Callable
 
-from dungeon_crawler.items import Item
+from dungeon_crawler.items import Item, Armour, Consumable, EscapeItem, IntellectReward, QuestItem, SkillPointReward, SpellBook, StatusEffectItem, Weapon
+from dungeon_crawler.exploration import deepest_floor_reached
+
+VALUE_PER_DAMAGE = 10
+VALUE_PER_PIERCE = 8
+VALUE_PER_SIGNATURE = 40
+VALUE_PER_DEFENCE = 12
+ARMOUR_WEIGHT_VALUE = {"light": 1.25, "medium": 1.0, "heavy": 0.85}
+VALUE_PER_HEAL = 2
+FULL_HEAL_THRESHOLD = 999
+FULL_HEAL_VALUE = 120
+VALUE_PER_INTELLECT = 60
+VALUE_PER_SKILL_POINT = 80
+ESCAPE_ITEM_VALUE = 60
+SALE_FRACTION = 0.5
 
 @dataclass
 class Offer:
@@ -16,6 +30,7 @@ class Offer:
     gold_cost: int
     output_factory: Callable[[], Item]
     input_factory: Callable[[], Item] | None = None
+    min_floor: int = 0
 
     @property
     def output_name(self) -> str:
@@ -42,8 +57,11 @@ def list_offers(room, player) -> str:
     merchant = get_merchant(room)
     if merchant is None:
         return "There's no one here to exchange with."
+    offers = available_offers(merchant, player)
+    if not offers:
+        return f"{merchant.name} has nothing to offer you yet."
     lines = [f"{merchant.name}'s offers (you have {player.gold} gold):"]
-    for number, offer in enumerate(merchant.offers, start=1):
+    for number, offer in enumerate(offers, start=1):
         lines.append(f"    {number}. {offer.describe()}")
     lines.append("Say 'exchange <number>' to accept one.")
     return "\n".join(lines)
@@ -54,9 +72,12 @@ def make_exchange(choice: str, room, player) -> str:
     merchant = get_merchant(room)
     if merchant is None:
         return "There's no one here to exchange with."
-    if not choice.isdigit() or not 1 <= int(choice) <= len(merchant.offers):
-        return f"Choose an offer from 1 to {len(merchant.offers)} - say 'offers' to see them."
-    offer = merchant.offers[int(choice) - 1]
+    offers = available_offers(merchant, player)
+    if not offers:
+        return f"{merchant.name} has nothing to offer you yet."
+    if not choice.isdigit() or not 1 <= int(choice) <= len(offers):
+        return f"Choose an offer from 1 to {len(offers)} - say 'offers' to see them."
+    offer = offers[int(choice) - 1]
 
     handed_over = None
     if offer.input_factory is not None:
@@ -82,3 +103,74 @@ def make_exchange(choice: str, room, player) -> str:
         lines.append(merchant.exchange_line)
     lines.append(f"You receive: {output.with_article()}.")
     return "\n".join(lines)
+
+def item_value(item: Item) -> int | None:
+    """What an item is worth - the single number that both buying from and selling to a merchant are based on. None means it can never be sold:
+    quest items, and everything built on them (trophies, keepsakes). A hand-set value_override wins over the formula, for items whose worth
+    isn't in their numbers. Never below 1 for anything sellable."""
+    if isinstance(item, QuestItem):
+        return None
+    if item.value_override is not None:
+        return item.value_override
+
+    if isinstance(item, Weapon):
+        signatures = sum(1 for present in (item.cleave, item.lifesteal, item.poison_chance, item.blind_chance) if present)
+        value = item.damage * VALUE_PER_DAMAGE + item.armour_pierce * VALUE_PER_PIERCE + signatures * VALUE_PER_SIGNATURE
+    elif isinstance(item, Armour):
+        value = round(item.defence * VALUE_PER_DEFENCE * ARMOUR_WEIGHT_VALUE[item.weight])
+    elif isinstance(item, EscapeItem):
+        value = ESCAPE_ITEM_VALUE
+    elif isinstance(item, IntellectReward):
+        value = item.amount * VALUE_PER_INTELLECT
+    elif isinstance(item, SkillPointReward):
+        value = item.points * VALUE_PER_SKILL_POINT
+    elif isinstance(item, SpellBook):
+        value = (item.spell.damage or 0) * VALUE_PER_DAMAGE * 2
+    elif isinstance(item, StatusEffectItem):
+        value = abs(item.amount) * item.duration * VALUE_PER_HEAL
+    elif isinstance(item, Consumable):
+        value = FULL_HEAL_VALUE if item.heal_amount >= FULL_HEAL_THRESHOLD else item.heal_amount * VALUE_PER_HEAL
+    else:
+        return None
+    return max(1, value)
+
+def sale_price(item: Item) -> int | None:
+    """What a merchant pays for item - SALE_FRACTION of its value, and for armour, reduced in proportion to its remaining durability, so selling
+    broken armour pays less than selling it repaired. None if it can't be sold. Never below 1 for anything sellable."""
+    value = item_value(item)
+    if value is None:
+        return None
+    if isinstance(item, Armour) and item.max_durability > 0:
+        value = value * item.durability / item.max_durability
+    return max(1, int(value * SALE_FRACTION))
+
+def available_offers(merchant, player) -> list[Offer]:
+    """The offers this merchant shows the player right now - every offer whose min_floor they've reached. The numbers 'exchange' uses come from
+    this list, so they only ever count offers the player can actually see."""
+    deepest = deepest_floor_reached(player)
+    return [offer for offer in merchant.offers if deepest >= offer.min_floor]
+
+def get_buyer(room):
+    """The first ally in room who buys items, or None."""
+    return next((ally for ally in room.allies if ally.buys_items), None)
+
+def sell_item(item_name: str, room, player) -> str:
+    """Sell the named item to the buyer in room for its sale_price(). Refused if there's no buyer, the player doesn't have it, the only copy is
+    equipped (the same rule as trading), or it can't be sold - quest items, trophies, and keepsakes. If the player has two of the same item and
+    one is equipped, the unequipped one is sold."""
+    buyer = get_buyer(room)
+    if buyer is None:
+        return "There's no one here to sell to."
+    copies = [i for i in player.inventory.items if i.name.lower() == item_name.lower()]
+    if not copies:
+        return f"No item named '{item_name}' in inventory."
+    item = next((i for i in copies if not i.equipped), None)
+    if item is None:
+        return f"You'll need to unequip {copies[0].with_article(definite=True)} first."
+    price = sale_price(item)
+    if price is None:
+        return f"{buyer.name} won't take {item.with_article(definite=True)}."
+
+    player.inventory.remove(item)
+    player.gold += price
+    return f"{buyer.name} takes {item.with_article(definite=True)} and counts out {price} gold."

@@ -460,7 +460,7 @@ The full system is **built**: team representation, round structure, target selec
 - **Commands**: `offers` lists the merchant's offers, numbered, with the player's gold (`list_offers()`); `exchange <number>` accepts one (`make_exchange()`). A bare `exchange` is routed too and asks for a number. Both are exploration-only, and listed in `get_controls_text()` and the README.
 - **`make_exchange()` refuses without changing anything** if the number is invalid, the item isn't held, or is only held equipped (the same rule as `trade_with_ally()` - with a spare unequipped copy it takes that one), or there isn't enough gold. It checks the item before the gold. On success it takes both, adds the output, and prints the merchant's optional `exchange_line`.
 - **Offers never run out, so nothing is saved** - offers are rebuilt with the world. A future merchant with limited stock will need adding to the save format.
-- **Charon's shop** (roadmap.md's "Charon shop, gold currency, searchable chests") is planned to reuse this with gold-only offers.
+- **Charon's shop** (roadmap.md's "Charon's shop, item values, selling, and searchable chests") is planned to reuse this with gold-only offers.
 - *(Two real bugs caught before shipping, each regression-tested: (1) `make_exchange()` first looked up `offer.input_name` while `Offer` only had `input_item`, and the lookup ran over every carried item - so any exchange with an item input crashed the game for anyone carrying anything. (2) Circe's Wineskin offer was spelt "Wineskine", so it could never be accepted. Switching `Offer` to `input_factory` removed that class of typo altogether, and `test_content.py` checks every Circe input is an item `ITEM_REGISTRY` can build.)*
 
 ## Custom exceptions
