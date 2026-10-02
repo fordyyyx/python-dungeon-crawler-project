@@ -97,8 +97,8 @@ def create_shade_of_hector() -> Enemy:
     Drops Hector's Helm."""
     return Enemy(
         name="Shade of Hector",
-        hp=32,
-        attack_damage=9,
+        hp=39,
+        attack_damage=11,
         armour=5,
         loot=[create_hectors_helm()],
         description="Bronze from crest to greaves, the plume on his helm still stirring in a wind you can't feel. He doesn't taunt. He simply waits.",
@@ -126,8 +126,8 @@ def create_shade_of_ajax() -> Enemy:
     armour-beating tools like piercing. Drops the Tower Shield of Ajax."""
     return Enemy(
         name="Shade of Ajax",
-        hp=46,
-        attack_damage=12,
+        hp=56,
+        attack_damage=13,
         armour=1,
         loot=[create_tower_shield_of_ajax()],
         description="Head and shoulders above every other shade on the field, he fights like a landslide - no footwork, no feints, just weight.",
@@ -157,8 +157,8 @@ def create_myrmidon_soldier() -> Enemy:
     line is keyed to it."""
     return Enemy(
         name="Myrmidon Soldier",
-        hp=22,
-        attack_damage=9,
+        hp=27,
+        attack_damage=10,
         armour=3,
         loot=[create_field_dressing()],
         description="Bronze-armoured and silent, moving in step with the soldier beside it, as if they'd never stopped drilling.",
@@ -166,7 +166,7 @@ def create_myrmidon_soldier() -> Enemy:
         gold_reward=10,
         brace_amount=3,
         caution_weight=1.2,
-        armour_pierce=2,
+        armour_pierce=3,
     )
 
 def create_shade_of_paris() -> Enemy:
@@ -175,7 +175,7 @@ def create_shade_of_paris() -> Enemy:
     - a bow, spells, or the atalanta ancestry are the answer. Drops the Bow of Paris."""
     return Enemy(
         name="Shade of Paris",
-        hp=20,
+        hp=24,
         attack_damage=10,
         armour=1,
         loot=[create_bow_of_paris()],
@@ -183,7 +183,7 @@ def create_shade_of_paris() -> Enemy:
         experience_reward=40,
         gold_reward=30,
         melee_dodge_chance=0.5,
-        armour_pierce=8,
+        armour_pierce=9,
         article="the",
     )
 

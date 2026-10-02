@@ -429,7 +429,7 @@ def create_odysseus(home_room: Room | None = None) -> Companion:
             "find my hall full of men eating my stores and courting my wife.\"\n\n"
             "At last he turns to you. \"I could use a strong arm. Clear them out of my hall, and I'm yours for whatever's left of this "
             "road. You'll find I'm more use than most - I tend to see things coming.\"\n\n"
-            "He catches your arm before you go. \"One more thing. There are five of them in there, and they'll all come at you at once. Don't "
+            "He catches your arm before you go. \"One more thing. There are four of them in there, and they'll all come at you at once. Don't "
             "save your potions for afterwards. Drinking one in a fight costs you nothing - you can drink and still swing in the same breath. "
             "Most men who die in a brawl die with a full flask.\""
         ),
@@ -472,8 +472,8 @@ def create_circe() -> Ally:
     )
 
 def create_suitor() -> Enemy:
-    """Create a Suitor - one of three nameless suitors in the Throne Room, alongside Antinous and Eurymachus. Individually the weakest enemy
-    on floor 6; the room's difficulty comes from five attackers at once, meant to bring it close to (but deliberately not above)
+    """Create a Suitor - one of two nameless suitors in the Throne Room, alongside Antinous and Eurymachus. Individually the weakest enemy
+    on floor 6; the room's difficulty comes from four attackers at once, meant to bring it close to (but deliberately not above)
     Poseidon. No item loot, since identical enemies can only carry identical items - but they're rich, so the gold adds up."""
     return Enemy(
         name="Suitor",
@@ -718,7 +718,7 @@ def build_floor_6() -> tuple[Room, dict[str, Room]]:
     poseidons_depths.add_enemy(create_poseidon())
     throne_room_of_odysseus.add_enemy(create_antinous())
     throne_room_of_odysseus.add_enemy(create_eurymachus())
-    for _ in range(3):
+    for _ in range(2):
         throne_room_of_odysseus.add_enemy(create_suitor())
 
     muddy_pigsty.add_ally(create_circe())

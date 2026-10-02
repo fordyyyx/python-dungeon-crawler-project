@@ -220,8 +220,8 @@ def test_create_lurker_drops_small_healing_potion():
 def test_create_petrified_guardian_has_correct_stats():
     guardian = create_petrified_guardian()
     assert guardian.name == "Petrified Guardian"
-    assert guardian.hp == 18
-    assert guardian.attack_damage == 6
+    assert guardian.hp == 21
+    assert guardian.attack_damage == 7
     assert guardian.armour == 3
     assert len(guardian.loot) == 2
     assert guardian.experience_reward == 16
@@ -251,8 +251,8 @@ def test_create_chipped_stone_aegis_has_correct_max_durability():
 def test_create_satyr_has_correct_stats():
     satyr = create_satyr()
     assert satyr.name == "Satyr"
-    assert satyr.hp == 26
-    assert satyr.attack_damage == 6
+    assert satyr.hp == 31
+    assert satyr.attack_damage == 7
     assert satyr.armour == 1
     assert len(satyr.loot) == 1
     assert satyr.experience_reward == 14
@@ -284,8 +284,8 @@ def test_create_wineskin_of_dionysus_is_a_free_action_mid_combat():
 def test_create_lamia_has_correct_stats():
     lamia = create_lamia()
     assert lamia.name == "Lamia"
-    assert lamia.hp == 30
-    assert lamia.attack_damage == 7
+    assert lamia.hp == 36
+    assert lamia.attack_damage == 8
     assert lamia.armour == 1
     assert len(lamia.loot) == 1
     assert lamia.experience_reward == 18
@@ -300,13 +300,13 @@ def test_create_lamia_attack_drains_hp_from_the_target():
     lamia.hp = 5
     player = Player(name="hero", hp=100)
     lamia.attack(player)
-    assert lamia.hp == 8  # 7 damage dealt (no armour), heals 7 // 2
+    assert lamia.hp == 9  # 8 damage dealt (no armour), heals 8 // 2
 
 def test_create_ember_wraith_has_correct_stats():
     wraith = create_ember_wraith()
     assert wraith.name == "Ember Wraith"
-    assert wraith.hp == 28
-    assert wraith.attack_damage == 7
+    assert wraith.hp == 34
+    assert wraith.attack_damage == 8
     assert wraith.armour == 1
     assert len(wraith.loot) == 1
     assert wraith.experience_reward == 17
@@ -460,7 +460,7 @@ def test_create_skeleton_bone_is_a_quest_item():
 def test_create_hades_has_correct_stats():
     hades = create_hades()
     assert hades.name == "Hades"
-    assert hades.hp == 83
+    assert hades.hp == 100
     assert hades.attack_damage == 15
     assert hades.armour == 5
     assert hades.heal_amount == 6
@@ -2243,8 +2243,8 @@ def test_build_floor_5_holds_no_other_companions():
 def test_create_shade_of_hector_has_correct_stats():
     hector = create_shade_of_hector()
     assert hector.name == "Shade of Hector"
-    assert hector.hp == 32
-    assert hector.attack_damage == 9
+    assert hector.hp == 39
+    assert hector.attack_damage == 11
     assert hector.armour == 5
     assert hector.experience_reward == 38
     assert hector.gold_reward == 22
@@ -2302,8 +2302,8 @@ def test_medusa_ancestry_line_is_on_her_first_phase_only():
 def test_create_shade_of_ajax_has_correct_stats():
     ajax = create_shade_of_ajax()
     assert ajax.name == "Shade of Ajax"
-    assert ajax.hp == 46
-    assert ajax.attack_damage == 12
+    assert ajax.hp == 56
+    assert ajax.attack_damage == 13
     assert ajax.armour_pierce == 3
     assert ajax.armour == 1
     assert ajax.experience_reward == 42
@@ -2323,9 +2323,9 @@ def test_create_tower_shield_of_ajax_is_a_heavy_shield():
 def test_create_myrmidon_soldier_has_correct_stats():
     myrmidon = create_myrmidon_soldier()
     assert myrmidon.name == "Myrmidon Soldier"
-    assert myrmidon.hp == 22
-    assert myrmidon.attack_damage == 9
-    assert myrmidon.armour_pierce == 2
+    assert myrmidon.hp == 27
+    assert myrmidon.attack_damage == 10
+    assert myrmidon.armour_pierce == 3
     assert myrmidon.armour == 3
     assert myrmidon.brace_amount == 3
     assert myrmidon.caution_weight == 1.2
@@ -2340,7 +2340,7 @@ def test_create_field_dressing_heals_ten():
 def test_create_shade_of_paris_has_correct_stats():
     paris = create_shade_of_paris()
     assert paris.name == "Shade of Paris"
-    assert paris.hp == 20
+    assert paris.hp == 24
     assert paris.attack_damage == 10
     assert paris.armour == 1
     assert paris.experience_reward == 40
@@ -2349,7 +2349,7 @@ def test_create_shade_of_paris_has_correct_stats():
 def test_create_shade_of_paris_is_evasive_in_melee_and_pierces_armour():
     paris = create_shade_of_paris()
     assert paris.melee_dodge_chance == 0.5
-    assert paris.armour_pierce == 8
+    assert paris.armour_pierce == 9
 
 def test_create_shade_of_paris_drops_the_bow_of_paris():
     assert [item.name for item in create_shade_of_paris().loot] == ["Bow of Paris"]
@@ -3122,7 +3122,7 @@ def test_penelopes_companion_lines_name_real_companions():
 
 def test_build_floor_6_places_the_suitors_in_the_throne_room_antinous_first():
     _, rooms = build_floor_6()
-    assert [e.name for e in rooms["Throne Room of Odysseus"].enemies] == ["Antinous", "Eurymachus", "Suitor", "Suitor", "Suitor"]
+    assert [e.name for e in rooms["Throne Room of Odysseus"].enemies] == ["Antinous", "Eurymachus", "Suitor", "Suitor"]
 
 def test_build_floor_6_the_suitors_guard_the_way_to_the_bedchamber():
     _, rooms = build_floor_6()
@@ -3553,7 +3553,7 @@ def test_floor_8_story_flag_names():
 
 def test_create_cerberus_is_a_bracing_wall_with_no_rewards():
     cerberus = create_cerberus()
-    assert (cerberus.name, cerberus.hp, cerberus.attack_damage, cerberus.armour) == ("Cerberus", 75, 13, 5)
+    assert (cerberus.name, cerberus.hp, cerberus.attack_damage, cerberus.armour) == ("Cerberus", 90, 13, 5)
     assert cerberus.brace_amount == 5
     assert cerberus.loot == []
     assert cerberus.experience_reward == 0
@@ -3568,13 +3568,13 @@ def test_create_cerberus_leads_to_two_heads_then_the_last_head():
 
 def test_create_cerberus_two_heads_hits_hardest_with_less_armour():
     two_heads = create_cerberus_two_heads()
-    assert (two_heads.hp, two_heads.attack_damage, two_heads.armour) == (68, 17, 3)
+    assert (two_heads.hp, two_heads.attack_damage, two_heads.armour) == (82, 17, 3)
     assert two_heads.aggression_weight == 1.6
     assert two_heads.loot == []
 
 def test_create_cerberus_last_head_has_the_rewards():
     last_head = create_cerberus_last_head()
-    assert (last_head.hp, last_head.attack_damage, last_head.armour) == (60, 15, 3)
+    assert (last_head.hp, last_head.attack_damage, last_head.armour) == (72, 15, 3)
     assert last_head.experience_reward == 110
     assert last_head.gold_reward == 60
     assert [item.name for item in last_head.loot] == ["Hide of Cerberus", "Collar of Cerberus"]
@@ -3630,7 +3630,7 @@ def test_create_restless_shade_drops_ambrosia():
 
 def test_create_hades_helm_of_darkness_is_evasive_and_piercing():
     helm = create_hades_helm_of_darkness()
-    assert (helm.hp, helm.attack_damage, helm.armour) == (83, 18, 4)
+    assert (helm.hp, helm.attack_damage, helm.armour) == (100, 18, 4)
     assert helm.melee_dodge_chance == 0.4
     assert helm.armour_pierce == 2
     assert (helm.experience_reward, helm.gold_reward) == (150, 80)
@@ -3763,7 +3763,7 @@ def test_typhon_defeated_flag_name():
 
 def test_create_typhon_is_the_armoured_first_phase_with_no_rewards():
     typhon = create_typhon()
-    assert (typhon.name, typhon.hp, typhon.attack_damage, typhon.armour) == ("Typhon", 90, 20, 5)
+    assert (typhon.name, typhon.hp, typhon.attack_damage, typhon.armour) == ("Typhon", 110, 20, 5)
     assert typhon.armour_pierce == 3
     assert typhon.brace_amount == 6
     assert typhon.loot == []
@@ -3798,7 +3798,7 @@ def test_create_serpent_venom_adds_only_poison():
 
 def test_create_typhon_storm_unleashed_is_the_hardest_fight():
     storm = create_typhon_storm_unleashed()
-    assert (storm.hp, storm.attack_damage, storm.armour, storm.armour_pierce) == (110, 24, 4, 4)
+    assert (storm.hp, storm.attack_damage, storm.armour, storm.armour_pierce) == (135, 24, 4, 4)
     assert storm.melee_dodge_chance == 0.25
     assert storm.heal_amount == 8
     assert (storm.experience_reward, storm.gold_reward) == (250, 150)
@@ -4375,9 +4375,9 @@ def test_charon_and_the_myrmidons_share_the_field_dressing_factory():
     assert type(dressing) is type(create_myrmidon_soldier().loot[0])
     assert dressing.heal_amount == create_myrmidon_soldier().loot[0].heal_amount == 10
 
-def test_create_odysseus_warns_about_the_five_suitors_before_the_fight():
+def test_create_odysseus_warns_about_the_four_suitors_before_the_fight():
     hint = create_odysseus().hint
-    assert "five of them" in hint
+    assert "four of them" in hint
     assert "Drinking one in a fight costs you nothing" in hint
 
 # ---- chests and loot tables ----
@@ -4434,14 +4434,14 @@ def test_throne_room_chest_holds_kykeon_a_poultice_and_forty_gold():
     assert player.gold == 40
 
 def test_loot_tables_pay_more_gold_the_deeper_they_are():
-    assert EARLY_LOOT.gold == (10, 25)
-    assert MIDDLE_LOOT.gold == (20, 40)
-    assert LATE_LOOT.gold == (30, 55)
+    assert EARLY_LOOT.gold == (15, 30)
+    assert MIDDLE_LOOT.gold == (25, 50)
+    assert LATE_LOOT.gold == (35, 65)
 
 def test_loot_tables_item_names():
     assert [factory().name for _, factory in EARLY_LOOT.items] == ["Small Healing Potion", "Field Dressing", "Bronze Xiphos"]
-    assert [factory().name for _, factory in MIDDLE_LOOT.items] == ["Field Dressing", "Kelp Poultice", "Bronze Buckler", "Bronze Greataxe"]
-    assert [factory().name for _, factory in LATE_LOOT.items] == ["Kelp Poultice", "Cup of Kykeon", "Obol of Return", "Hoplite Sword"]
+    assert [factory().name for _, factory in MIDDLE_LOOT.items] == ["Kelp Poultice", "Bronze Buckler", "Bronze Greataxe"]
+    assert [factory().name for _, factory in LATE_LOOT.items] == ["Cup of Kykeon", "Obol of Return", "Hoplite Sword"]
 
 def test_loot_tables_never_hold_a_unique_item():
     """Random chests stay within the shop's limit: everything in a table is something Charon sells, or the plain Bronze Xiphos."""
@@ -4450,10 +4450,26 @@ def test_loot_tables_never_hold_a_unique_item():
         for _, factory in table.items:
             assert factory().name in plain, factory().name
 
-def test_loot_tables_make_gear_rarer_than_healing():
+def test_loot_tables_item_weights():
+    assert [weight for weight, _ in EARLY_LOOT.items] == [2, 2, 3]
+    assert [weight for weight, _ in MIDDLE_LOOT.items] == [3, 3, 3]
+    assert [weight for weight, _ in LATE_LOOT.items] == [2, 2, 3]
+
+def test_loot_tables_roll_one_item_each():
     for table in (EARLY_LOOT, MIDDLE_LOOT, LATE_LOOT):
-        gear = sum(weight for weight, factory in table.items if isinstance(factory(), (Weapon, Armour)))
-        assert gear < sum(weight for weight, _ in table.items) / 2
+        assert table.rolls == 1
+
+def test_random_chests_hold_exactly_one_item():
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    for name in ("Cave of Harpies", "Stony Lair", "Shadow of Troy (Central)", "Bright Cave"):
+        room = dungeon.get_room(name)
+        assert room is not None
+        for enemy in list(room.enemies):
+            room.remove_enemy(enemy)
+        before = len(room.items)
+        room.interactions["open chest"].handler(player, room)
+        assert len(room.items) == before + 1, name
 
 def test_loot_tables_never_roll_anything_charon_only_sells_deeper():
     """A chest shouldn't hand out stock before the shop would sell it: early loot is from floors 1-3, middle from 4-5, late from 6 on."""

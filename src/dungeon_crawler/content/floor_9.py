@@ -12,7 +12,7 @@ def create_typhon() -> Enemy:
     armoured, bracing, piercing armour. His defeat brings four Serpents of Typhon, then Typhon (Storm Unleashed). No rewards on this phase."""
     return Enemy(
         name="Typhon",
-        hp=90,
+        hp=110,
         attack_damage=20,
         armour=5,
         armour_pierce=3,
@@ -47,7 +47,7 @@ def create_typhon_storm_unleashed() -> Enemy:
     cleared_story_flag sets 'typhon_defeated' when he falls, triggering the true ending."""
     typhon = Enemy(
         name="Typhon (Storm Unleashed)",
-        hp=110,
+        hp=135,
         attack_damage=24,
         armour=4,
         armour_pierce=4,

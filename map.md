@@ -115,16 +115,16 @@ Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable a
 * in -> Belly of the Wooden Horse [NOTE: hidden exit, revealed by 'examine' - the examine text points at the horse]
 Belly of the Wooden Horse [NOTE: built - no enemy or ally; the Spear of Pelion (piercing, 8, pierce 2)]
 * out -> Shadow of Army Camp
-Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 32 HP / 9 ATK / 5 armour / pierce 3, drops Hector's Helm; guards 'south']
+Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 39 HP / 11 ATK / 5 armour / pierce 3, drops Hector's Helm; guards 'south']
 * north -> Shadow of Army Camp
 * south -> Shadow of Troy (Central)
-Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 12 ATK / 1 armour / pierce 3, drops the Tower Shield of Ajax; guards 'west'] [NOTE: chest - 'open chest' once the room is clear: random, middle loot table]
+Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 56 HP / 13 ATK / 1 armour / pierce 3, drops the Tower Shield of Ajax; guards 'west'] [NOTE: chest - 'open chest' once the room is clear: random, middle loot table]
 * north -> Shadow of Troy (North)
 * west -> Shadow of Troy (Alleyway)
-Shadow of Troy (Alleyway) {Myrmidon Soldier ×2 - Enemy} [NOTE: built - a pair, 9 ATK / pierce 2, each dropping a Field Dressing; 'south' deliberately unguarded - skipping them costs the dressings]
+Shadow of Troy (Alleyway) {Myrmidon Soldier ×2 - Enemy} [NOTE: built - a pair, 10 ATK / pierce 3, each dropping a Field Dressing; 'south' deliberately unguarded - skipping them costs the dressings]
 * east -> Shadow of Troy (Central)
 * south -> Shadow of Troy (South)
-Shadow of Troy (South) {Shade of Paris - Enemy} [NOTE: built - evasive archer: 50% melee dodge, natural 8 armour pierce; drops the Bow of Paris; guards 'east']
+Shadow of Troy (South) {Shade of Paris - Enemy} [NOTE: built - evasive archer: 50% melee dodge, natural 9 armour pierce; drops the Bow of Paris; guards 'east']
 * north -> Shadow of Troy (Alleyway)
 * east -> Shadow of Pylos
 Shadow of Pylos {Nestor - Friendly} [NOTE: built - advice, no trade; gives away a Cup of Kykeon]
@@ -162,7 +162,7 @@ Cave of the Nymphs {the Phaeacians' gifts - room interaction} [NOTE: built - no 
 * east -> Shadow of Ithaca
 Muddy Pigsty {Circe - Friendly} [NOTE: built - six exchanges ('offers' / 'exchange <number>'): outgrown gear into Kelp Poultices and Cups of Kykeon for no gold, and weak consumables into the same for 5-10]
 * west -> Shadow of Ithaca
-Throne Room of Odysseus {Antinous, Eurymachus, Suitor x3 - Enemy} [NOTE: built - the floor's last fight; guards 'west'; clearing it sets 'suitors_cleared', which lets Odysseus join] [NOTE: chest - 'open chest' once the room is clear: fixed, a Cup of Kykeon, a Kelp Poultice and 40 gold]
+Throne Room of Odysseus {Antinous, Eurymachus, Suitor x2 - Enemy} [NOTE: built - the floor's last fight; guards 'west'; clearing it sets 'suitors_cleared', which lets Odysseus join] [NOTE: chest - 'open chest' once the room is clear: fixed, a Cup of Kykeon, a Kelp Poultice and 40 gold]
 * north -> Shadow of Ithaca
 * west -> Bedchamber of Odysseus
 Bedchamber of Odysseus {Penelope - Friendly} [NOTE: built - no trade; gives away Penelope's Thread, the first LoyaltyToken; has lines for Odysseus and Achilles]

@@ -71,8 +71,8 @@ def create_petrified_guardian() -> Enemy:
     Stone-cursed rather than truly alive, fittingly higher armour than the floor's other early enemies."""
     return Enemy(
         name="Petrified Guardian",
-        hp=18,
-        attack_damage=6,
+        hp=21,
+        attack_damage=7,
         armour=3,
         loot=[create_chipped_stone_aegis(), create_small_healing_potion()],
         description="Grey and unmoving until you're close enough to matter - one of Medusa's earlier mistakes, still standing guard.",
@@ -96,8 +96,8 @@ def create_satyr() -> Enemy:
     (create_test_healing_tonic() was dev-only until now)."""
     return Enemy(
         name="Satyr",
-        hp=26,
-        attack_damage=6,
+        hp=31,
+        attack_damage=7,
         armour=1,
         loot=[create_wineskin_of_dionysus()],
         description="It grins before it attacks, unsteady on its hooves but faster than that ought to allow.",
@@ -121,8 +121,8 @@ def create_lamia() -> Enemy:
     hit. Drops Lamia's Fang."""
     return Enemy(
         name="Lamia",
-        hp=30,
-        attack_damage=7,
+        hp=36,
+        attack_damage=8,
         armour=1,
         loot=[create_lamias_fang()],
         description="Beautiful only until she smiles - and by then it's already too late to look away.",
@@ -149,8 +149,8 @@ def create_ember_wraith() -> Enemy:
     """Create the Ember Wraith enemy for Sandy Expanse (floor 4) - the heat here isn't natural, and neither is what's causing it."""
     return Enemy(
         name="Ember Wraith",
-        hp=28,
-        attack_damage=7,
+        hp=34,
+        attack_damage=8,
         armour=1,
         loot=[create_sunscorched_dagger()],
         description="Heat-shimmer given shape, it moves like the air itself is trying to get away from what's underneath.",

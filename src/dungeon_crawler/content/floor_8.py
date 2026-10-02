@@ -12,7 +12,7 @@ def create_cerberus() -> Enemy:
     first is the watchful head: heavily armoured, bracing readily - a wall. No rewards on this phase. Guards the way south to the Hall of Hades."""
     return Enemy(
         name="Cerberus",
-        hp=75,
+        hp=90,
         attack_damage=13,
         armour=5,
         brace_amount=5,
@@ -27,7 +27,7 @@ def create_cerberus_two_heads() -> Enemy:
     the game so far, and aggressive. No rewards on this phase."""
     return Enemy(
         name="Cerberus (Two Heads)",
-        hp=68,
+        hp=82,
         attack_damage=17,
         armour=3,
         aggression_weight=1.6,
@@ -42,7 +42,7 @@ def create_cerberus_last_head() -> Enemy:
     Hades). Drops the Hide of Cerberus."""
     cerberus = Enemy(
         name="Cerberus (Last Head)",
-        hp=60,
+        hp=72,
         attack_damage=15,
         armour=3,
         article="",
@@ -91,7 +91,7 @@ def create_hades() -> Enemy:
     he's been too busy to judge - then Hades (Helm of Darkness), the final phase. No rewards on this phase."""
     return Enemy(
         name="Hades",
-        hp=83,
+        hp=100,
         attack_damage=15,
         armour=5,
         heal_amount=6,
@@ -123,7 +123,7 @@ def create_hades_helm_of_darkness() -> Enemy:
     mechanic - becoming a recruitable companion. His defeat_effect plays the reveal and the recovery either way; defeating him ends the story."""
     return Enemy(
         name="Hades (Helm of Darkness)",
-        hp=83,
+        hp=100,
         attack_damage=18,
         armour=4,
         armour_pierce=2,
