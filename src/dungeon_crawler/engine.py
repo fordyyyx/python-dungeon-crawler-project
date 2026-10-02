@@ -12,6 +12,8 @@ from dungeon_crawler.hints import show_hint
 from dungeon_crawler.exchange import list_offers, make_exchange, sell_item
 from dungeon_crawler.exceptions import ActionRefused, SaveFileError
 from dungeon_crawler.dialogue import continue_dialogue
+from dungeon_crawler.upgrades import upgrade_item, list_upgrades
+from dungeon_crawler.trophies import place_trophies, describe_plinths
 
 REST_MANA_AMOUNT = 10
 PASSIVE_REGEN_PER_MOVE = 1
@@ -21,8 +23,8 @@ TRUE_ENDING_SHOWN = "true_ending_shown"
 RESERVED_COMMAND_WORDS: frozenset[str] = frozenset({
     "north", "south", "east", "west", "up", "down", "ascend", "descend",
     "look", "examine", "map", "fullmap", "world", "inventory", "stats", "skills", "learn", "advice", "offers", "exchange", "sell",
-    "take", "drop", "use", "equip", "unequip", "talk", "trade", "recruit", "dismiss", "challenge", "say",
-    "attack", "cast", "target", "flee", "rest", "wait", "repair", "dummy",
+    "take", "drop", "use", "equip", "unequip", "talk", "trade", "recruit", "dismiss", "challenge", "say", "place",
+    "attack", "cast", "target", "flee", "rest", "wait", "repair", "dummy", 'upgrade',
     "save", "load", "quit", "exit", "controls", "uncleared", "toggle", "dev", "developer",
 })
 """The first word of every global command. Room interactions are checked before global commands so a room verb starting with one of these would
@@ -30,19 +32,23 @@ silently override it."""
 
 
 def print_room(room: Room, player: Player):
-    """Display a room's name, description, any room interactions currently available, contents, and occupants on entry. Same-named enemies
+    """Display a room's name, description, the Trophy Room's plinths (describe_plinths()), any room interactions currently available, contents,
+    and occupants on entry. Same-named enemies
     are grouped onto one line ("Head of Scylla x6"), and each enemy is introduced with its own article (see Enemy.with_article()).
     Ally dialogue - or, with no ally present, a companion's - fires automatically here if player.auto_talk is enabled, and the room's exits
     are listed if player.auto_map is. A companion who still requires a duel is announced as present, not as recruitable. An invulnerable
     enemy is shown by its description alone - no "blocks your path", no armour - and never triggers the combat hint."""
     print(f"{room.name}: {room.description}")
 
+    if room.is_trophy_room:
+        print(describe_plinths(room))
+
     verbs = room.available_interactions(player)
     if verbs:
         print(f"(You could: {', '.join(verbs)})")
 
     if room.items:
-        print(f"You see: {', '.join(item.name for item in room.items)}")
+        print(f"You see: {', '.join(item.display_name for item in room.items)}")
 
     if room.enemies:
         groups: dict[str, list] = {}
@@ -91,6 +97,8 @@ def print_room(room: Room, player: Player):
         room_hints.append(show_hint(player, "forge"))
     if room.is_practice_chamber:
         room_hints.append(show_hint(player, "practice_chamber"))
+    if room.is_workshop:
+        room_hints.append(show_hint(player, "workshop"))
     if any(enemy.is_alive() and enemy.melee_dodge_chance > 0 for enemy in room.enemies):
         room_hints.append(show_hint(player, "evasive"))
     if room.available_interactions(player):
@@ -98,7 +106,6 @@ def print_room(room: Room, player: Player):
     for hint in room_hints:
         if hint:
             print(f"\n{hint}")
-
 
 def get_controls_text() -> str:
     """Return the full player-facing command list, unchanged regardless of whether the player is currently
@@ -130,6 +137,8 @@ def get_controls_text() -> str:
         "recruit <name> - recruit a companion who joins your team in combat (requires specific items)\n"
         "challenge <name> - duel a companion who won't join until you've beaten them; losing isn't a death, and your HP is restored afterwards\n"
         "repair <item> - repair an item to full durability (requires gold)\n"
+        "upgrade / upgrade <item> - improve a weapon or armour piece at a workshop (requires gold; your intellect limits how far); bare 'upgrade' lists what you could improve\n"
+        "place <trophy> / place all - set a trophy you've won on its plinth, where there's somewhere worthy of it\n"
         "dismiss - release your current companion, who returns home\n"
         "advice - ask your companion what they make of the room (only some companions give advice; also works mid-combat)\n"
         "offers - list what the merchant in this room will exchange, and for how much\n"
@@ -421,7 +430,7 @@ def main() -> None:
                     if item is None:
                         item = next((i for i in player.inventory.items if i.name.lower() == item_name.lower()), None)
                     if item is not None:
-                        print(f"{item.name}: {item.description}")
+                        print(f"{item.display_name}: {item.description}")
                     else:
                         print("You don't see that here.")
 
@@ -514,6 +523,14 @@ def main() -> None:
 
                 elif (command == "sell" or command.startswith("sell ")) and not player.in_combat:
                     print(sell_item(command.removeprefix("sell").strip(), current_room, player))
+
+                elif (command == "upgrade" or command.startswith("upgrade ")) and not player.in_combat:
+                    item_name = command.removeprefix("upgrade").strip()
+                    print(upgrade_item(item_name, current_room, player) if item_name else list_upgrades(current_room, player))
+
+                elif (command == "place" or command.startswith("place ")) and not player.in_combat:
+                    item_name = command.removeprefix("place").strip()
+                    print(place_trophies(item_name, current_room, player) if item_name else "Place what? Say 'place' followed by a trophy, or 'place all'.")
 
                 elif command == "uncleared":
                     print(get_uncleared_rooms(all_floors, player))

@@ -28,7 +28,11 @@ HINTS: dict[str, str] = {
     "room_interactions": (
         "Some rooms have things you can do that don't work anywhere else - they're listed in brackets under the room's description. "
         "Type one exactly as shown to try it."
-    )
+    ),
+    "workshop": (
+        "Daedalus' tools still work, for anyone who understands them. 'upgrade' shows what you could improve and what it would cost; 'upgrade "
+        "<item>' improves it. How far you can take an item depends on your intellect."
+    ),
 }
 
 def show_hint(player, key: str) -> str:

@@ -5,7 +5,7 @@ from typing import Callable
 class Room:
     """A single location in the world - holds its own items/enemies/allies, and its exits (including locked and hidden ones) to other rooms."""
 
-    def __init__(self, name: str, description: str = "", examine_text: str = "", required_intellect = 0, is_forge: bool = False, is_practice_chamber: bool = False):
+    def __init__(self, name: str, description: str = "", examine_text: str = "", required_intellect = 0, is_forge: bool = False, is_practice_chamber: bool = False, is_workshop: bool = False, is_trophy_room: bool = False):
         """Build an empty room; items/enemies/allies/exits are all populated afterwards via add_*()/connect()/lock_exit() calls."""
         self.name = name
         self.description = description
@@ -40,7 +40,8 @@ class Room:
         """Room-specific verbs -> RoomInteraction. Set at world-build time and never saved - like exits. Checked before global commands in main(),
         so a verb must never clash with a core command."""
         self.flags: set[str] = set()
-        """Permanent changes an interaction has made to this room (e.g. 'sirens_bargain_taken', 'chest_opened'). Saved, like fast_travel_locks."""
+        """Permanent changes an interaction has made to this room (e.g. 'sirens_bargain_taken', 'chest_opened', 'trophy_milestone:5'). Saved, like
+        fast_travel_locks."""
         self.cleared_story_flag: str | None = None
         """A story flag (player.story_flags) to set the first time this room has no living, non-respawning enemies left - e.g. the Throne
         Room's 'suitors_cleared', which makes Odysseus recruitable. Checked after every defeat, so kill order never matters. Set at world-build
@@ -61,6 +62,17 @@ class Room:
         self.story_gates: dict[str, StoryGate] = {}
         """direction -> StoryGate. A fourth kind of blocked exit, alongside locked_exits (items), guarded_exits (enemies) and
         fast_travel_locks (shortcuts): shut until the player has made some story decision."""
+        self.is_workshop = is_workshop
+        """Whether 'upgrade' works here - Daedalus' Workshop. Like is_forge for 'repair'."""
+        self.is_trophy_room = is_trophy_room
+        """Whether 'place' works here - the Trophy Room of Zeus."""
+        self.placed_trophies: set[str] = set()
+        """Names of the trophies placed here. Changes during play, so it's saved with the room."""
+        self.trophy_plinths: list[tuple[str, str]] = []
+        """(trophy name, clue) for every plinth - one per trophy in the game. "Every trophy" is counted from this list. Set at world-build time."""
+        self.trophy_milestones: dict = {}
+        """Number of trophies placed -> a function(player) that gives that milestone's reward and returns its message. Set at world-build time;
+        which milestones have been reached is recorded in the room's flags."""
 
     def connect(self, direction: str, other_room: "Room") -> None:
         """Add a normal (unlocked, visible) exit from this room to other_room."""

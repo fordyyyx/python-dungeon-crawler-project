@@ -127,6 +127,14 @@ something occurs to you mid-build.
   rather than text saying "Locked Door" — could show *what's* required on
   hover, rather than only on a failed attempt. A door stays open once it's
   been walked through, so a one-time unlock animation fits too.
+- **The Trophy Room is the one room that should visibly fill up** - thirteen plinths the player can walk between,
+  each empty one showing its clue (never the trophy's name) and each filled one showing the trophy itself, so the
+  room is a record of the run. Placing wants a small ceremony, the five- and ten-trophy rewards a reaction from Zeus,
+  and the last trophy the room's big moment: thunder, the chest unlocking, Zeus standing up.
+- **Gear upgrades want a workbench screen** - the item on the bench, its current and next stats side by side, the
+  cost, and the levels as pips: filled, available, and locked ones marked with the intellect they need. An upgraded
+  item should look upgraded everywhere it appears (a "+2" badge on its icon), as the text version does by
+  writing the level after its name in every message.
 - **Chests want to be seen from the doorway and out of reach** - the text version only says an enemy "won't let you
   anywhere near the chest"; a visual one can put the chest behind the enemy, then let it be opened with a proper lid-and-loot
   moment once the room is clear. The loot spills onto the floor rather than into the inventory, which suits a pickup

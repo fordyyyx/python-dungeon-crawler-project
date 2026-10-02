@@ -95,7 +95,7 @@ def serialise_player(player: Player, current_room) -> dict:
         "spell_cooldowns": dict(player.spell_cooldowns),
         "active_effects": [{"name": e.name, "amount": e.amount, "duration": e.duration, "miss_chance": e.miss_chance} for e in player.active_effects],
         "inventory": [
-            {"name": item.name, "equipped": item.equipped, "durability": getattr(item, "durability", None)} for item in player.inventory.items
+            {"name": item.name, "equipped": item.equipped, "durability": getattr(item, "durability", None), "upgrade_level": item.upgrade_level} for item in player.inventory.items
         ],
         "companion": serialise_companion(player.companion) if player.companion is not None else None,
         "dev_mode": player.dev_mode,
@@ -160,6 +160,7 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
         if item_data["durability"] is not None and isinstance(item, Armour):
             item.durability = item_data["durability"]
         player.inventory.add(item)
+        item.upgrade_level = item_data.get("upgrade_level", 0)
         if item_data["equipped"]:
             item.use(player)
 
@@ -224,7 +225,8 @@ def serialise_room(room) -> dict:
     as a function, so it's stored as the name of the phase it would spawn, and re-linked through ENEMY_REGISTRY by apply_room_data().
     Every companion still in the room is saved via serialise_companion(), so a won duel - or a recruited companion's absence - survives.
     flags (the permanent changes a room interaction has made, e.g. the Sirens' bargain or an opened chest) are saved too, since build_world()
-    starts them empty - and hidden_exits as the directions still hidden, so an exit found by examining stays found."""
+    starts them empty - and hidden_exits as the directions still hidden, so an exit found by examining stays found. placed_trophies (the
+    Trophy Room's filled plinths) and each item's upgrade_level are saved too."""
     return {
         "enemies": [
             {
@@ -235,7 +237,7 @@ def serialise_room(room) -> dict:
             }
             for e in room.enemies if e.is_alive()],
         "items": [
-            {"name": item.name, "durability": getattr(item, "durability", None)} for item in room.items
+            {"name": item.name, "durability": getattr(item, "durability", None), "upgrade_level": item.upgrade_level} for item in room.items
         ],
         "unlocked_extras": [d for d in list(room.locked_exits) if False],
         "locked_exits_removed": [],
@@ -245,13 +247,15 @@ def serialise_room(room) -> dict:
         "companions": [serialise_companion(companion) for companion in room.companions],
         "flags": sorted(room.flags),
         "hidden_exits": sorted(room.hidden_exits),
+        "placed_trophies": sorted(room.placed_trophies),
     }
 
 def apply_room_data(room, data: dict) -> None:
     """Patch a freshly-built room to match its saved snapshot: restore the room's living enemies, replace the item list, mark completed
     trades, restore fast_travel_locks, unlock any locked exit the save no longer lists as locked, and replace the room's companions with
-    the saved ones, restore the room's flags, and reveal any hidden exit the save no longer lists as hidden (the last four only when the save
-    has them - an older save without "locked_exits", "companions", "flags" or "hidden_exits" leaves what build_world() made in place).
+    the saved ones, restore the room's flags, reveal any hidden exit the save no longer lists as hidden, and restore the trophies placed (the
+    last five only when the save has them - an older save without "locked_exits", "companions", "flags", "hidden_exits" or "placed_trophies"
+    leaves what build_world() made in place).
 
     Enemies: each saved enemy first claims an unclaimed same-named enemy already in the fresh room (in order, so two same-named enemies
     each get their own saved HP), keeping the exact instance build_world() made - which matters for any enemy ENEMY_REGISTRY doesn't
@@ -285,6 +289,7 @@ def apply_room_data(room, data: dict) -> None:
             continue
         if item_data["durability"] is not None and isinstance(item, Armour):
             item.durability = item_data["durability"]
+        item.upgrade_level = item_data.get("upgrade_level", 0)
         room.add_item(item)
 
     for ally in room.allies:
@@ -316,6 +321,9 @@ def apply_room_data(room, data: dict) -> None:
         for direction in list(room.hidden_exits):
             if direction not in still_hidden:
                 room.reveal_hidden_exit(direction)
+
+    if "placed_trophies" in data:
+        room.placed_trophies = set(data["placed_trophies"])
 
 def serialise_world(world: Map) -> dict:
     """Snapshot every room in world."""

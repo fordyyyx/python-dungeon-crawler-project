@@ -1,7 +1,7 @@
 """Floor 1 (The Underworld Gateway) - Cave Entrance, Styx Crossing, Fields of Asphodel, Sunken Vault, and the Banks of the Lethe."""
 
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour, QuestItem, Weapon, Reviver
+from dungeon_crawler.items import Armour, QuestItem, Weapon, Reviver, Trophy
 from dungeon_crawler.characters import Enemy, Ally
 from dungeon_crawler.exploration import deepest_floor_reached
 from dungeon_crawler.exchange import shop_offer
@@ -138,6 +138,14 @@ def _drink_deeply(player, room) -> str:
         f"(Paid {cost} gold. {refunded} skill point{'s' if refunded != 1 else ''} returned - say 'skills' to see them.)"
     )
 
+def create_phial_of_the_lethe() -> Trophy:
+    """Create the Phial of the Lethe - a Trophy for the Trophy Room of Zeus, found in the Banks of the Lethe."""
+    return Trophy(
+        name="Phial of the Lethe",
+        description="A sealed phial of black river water. Looking at it too long mkaes you forget why you picked it up.",
+        article="the",
+    )
+
 def build_floor_1() -> tuple[Room, dict[str, Room]]:
     """Build the Styx-crossing floor, including two rooms reached through hidden exits: the Sunken Vault (down from Styx Crossing) and the Banks
     of the Lethe (south from Fields of Asphodel, hinted at by its examine text), where the drink/drink deeply interactions let the player
@@ -189,6 +197,8 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     styx_crossing.add_ally(create_charon())
     sunken_vault.add_enemy(create_skeleton_warrior())
     fields_of_asphodel.add_enemy(create_shade())
+
+    banks_of_the_lethe.add_item(create_phial_of_the_lethe())
 
     banks_of_the_lethe.add_interaction("drink", _drink)
     banks_of_the_lethe.add_interaction("drink deeply", _drink_deeply)

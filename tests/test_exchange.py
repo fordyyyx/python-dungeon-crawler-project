@@ -455,3 +455,11 @@ def test_shop_offer_for_something_with_no_value_raises_value_error():
         assert False, "Expected a ValueError but none was raised"
     except ValueError:
         pass
+
+def test_sell_item_names_an_upgraded_item_with_its_level_and_pays_for_it():
+    room, _ = buyer_room()
+    player = Player(name="Hero", hp=20)
+    sword = old_sword()
+    sword.upgrade_level = 2
+    player.inventory.add(sword)
+    assert sell_item("old sword", room, player) == "Ferryman takes the Old Sword +2 and counts out 20 gold."

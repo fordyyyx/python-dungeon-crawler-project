@@ -148,7 +148,11 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `laestrygonian hide`, `antiphates' club`, `olive-wood stake`, `wheel of cheese`,
 `boar's-tusk helm`, `hoplon of the drowned`, `trident of the depths`,
 `kelp poultice`, `antinous' goblet`, `penelope's thread`, `pomegranate`, `hide of cerberus`,
-`bident of hades`, `heart of typhon` (a `Trophy`), `ledger of the unjudged` and `daedalus' notes`
+`bident of hades`, the thirteen trophies (`phial of the lethe`, `keeper's lantern`,
+`horn of the minotaur`, `bronze nail of talos`, `head of medusa`, `daedalus' compass`,
+`bridle of the wooden horse`, `fleece of the ram`, `conch of poseidon`, `phaeacian tripod`,
+`collar of cerberus`, `helm of darkness`, `heart of typhon`), `thunderbolt of zeus`,
+`ledger of the unjudged` and `daedalus' notes`
 (both `IntellectReward`s), `clockwork crossbow`, `feather of icarus` (an `EscapeItem`),
 `spear of pelion`, `nymphs' honey`, `obol of return` (a `Reviver`), `bronze buckler`,
 `bronze greataxe`, `hoplite sword` (Charon's stock), `test spellbook`, `test healing tonic`, `test venom vial`.
@@ -184,8 +188,9 @@ real floor 7 rooms to test them (see the recipe below).
 **Companions** (`dev spawn companion <name>`): `shade of achilles` — the real floor 5
 companion, spawned still needing his duel (`challenge shade of achilles`
 before `recruit`) - plain `dev spawn shade of achilles` gives his duel form instead.
-`odysseus`, and `hades` - the spared Hades, recruitable straight away (plain `dev
-spawn hades` gives the boss).
+`odysseus`, `hades` - the spared Hades, recruitable straight away (plain `dev
+spawn hades` gives the boss) - and `zeus`, who won't join until `dev flag
+trophy_room_complete` (or every trophy is placed).
 `test companion` — a dev-only stand-in
 with all three AI actions live (non-zero attack, `heal_amount`, and
 `brace_amount`), no `required_items`, so `recruit test companion` succeeds
@@ -264,6 +269,10 @@ Narrow River - each route guards its way into Poseidon's Depths - then
 Poseidon, Odysseus, Circe, the Suitors and Penelope. Floor 7's Oracle,
 Tiresias and Persephone (and her Pomegranate) are real content as well.
 
+Gear upgrades are real content too: `upgrade` works in Daedalus' Workshop (hidden east of
+the Maze of Pillars, floor 4), which needs 5 intellect to find - and intellect also limits
+how far an item can go (+1 for anyone, one more level per 3 intellect, +5 at 12).
+
 Chests are real content too: six rooms have an `open chest` verb once they're cleared -
 Sunken Vault, Cave of Harpies, Stony Lair, Shadow of Troy (Central), Bright Cave and the
 Throne Room of Odysseus. Two are fixed (the Vault and the Throne Room); the other four roll
@@ -283,8 +292,9 @@ Notes are what get you there.
 Floor 8 is real content too: Cerberus, Hades (spared if you promised
 Persephone mercy - he then joins as a companion - or killed if you refused), and
 the ending, which opens Tartarus - and floor 9's Typhon and the true ending are
-real content too. The one thing a trophy can't do yet is anything: the Heart of
-Typhon is a `Trophy`, but the Trophy Room of Zeus it's meant for isn't built.
+real content too. The Trophy Room of Zeus is real content as well: thirteen
+trophies (eight boss drops, five lying in hidden rooms) to `place` on its plinths, with
+rewards at five, ten and all thirteen.
 
 Two more small things from the same playtesting pass: moving into a new
 room restores 1 HP while you're below three-quarters of max HP (`"You
@@ -697,6 +707,56 @@ and deletes the save; the title screen's slot list no longer shows it. `dev flag
 hardcore` switches it on without Prometheus, and a hardcore save shows
 "(Hardcore)" in the slot list. To see the offer again, start a New Game - a used-up
 offer is saved (`prometheus_offer_made`).
+
+**Fill the Trophy Room of Zeus:**
+```
+dev add heart of typhon
+dev add horn of the minotaur
+place heart of typhon
+dev teleport trophy room of zeus
+talk
+place all
+open chest
+recruit zeus
+dev flag trophy_room_complete
+open chest
+take all
+recruit zeus
+```
+The first `place` is refused - "There's nowhere here worthy of it." - without naming
+the room. In the room the description is followed by all thirteen plinths, each with a
+clue until it's filled. `place all` sets both trophies; the chest and Zeus both refuse
+until every plinth is filled. `dev flag trophy_room_complete` skips the other eleven:
+the chest gives the Thunderbolt of Zeus and Zeus joins. To see the milestones instead,
+`dev add` five trophies (+5 max HP), ten (a skill point) or all thirteen (the names are
+in the item list above) and `place all`. Milestones are saved - `save`, `load 1 1` and
+placing more never pays one twice.
+
+**Upgrade gear at Daedalus' Workshop:**
+```
+dev add labrys
+dev add talos' bronze plating
+use talos' bronze plating
+dev set gold 300
+upgrade labrys
+dev teleport daedalus' workshop
+upgrade
+upgrade labrys
+upgrade labrys
+dev set intellect 3
+upgrade labrys
+upgrade talos' bronze plating
+inventory
+stats
+```
+The first `upgrade labrys` is refused - you need the Workshop. There, bare `upgrade`
+lists each weapon and armour piece with its next level's cost. The Labrys goes to +1
+for 70 gold; the next try is refused, since a dev character's 2 intellect caps items
+at +1. With 3 intellect the cap is +2, and the second level costs 140. The plating's
++1 costs 61, and `stats` shows the extra point of armour straight away. `inventory`
+shows "Labrys +2" and "Talos' Bronze Plating +1". `dev set intellect 12` allows the
+full +5 (1050 gold for the Labrys). Levels are saved with the item - drop one, `save`,
+`load 1 1`, and it's still upgraded.
 
 **Open a chest, and see that a reload can't reroll it:**
 ```

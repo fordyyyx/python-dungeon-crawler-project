@@ -1,7 +1,8 @@
 """Floor 8 (The Final Descent) - Gate of Cerberus, Hall of Hades."""
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour, Consumable, Weapon
+from dungeon_crawler.items import Armour, Consumable, Weapon, Trophy
 from dungeon_crawler.characters import Enemy, Companion
+from .common import create_ambrosia
 
 HADES_SPARED = "hades_spared"
 HADES_DEFEATED = "hades_defeated"
@@ -45,7 +46,7 @@ def create_cerberus_last_head() -> Enemy:
         attack_damage=15,
         armour=3,
         article="",
-        loot=[create_hide_of_cerberus()],
+        loot=[create_hide_of_cerberus(), create_collar_of_cerberus()],
         description="Only one head is left, dripping something that smokes where it hits the stone. Where it lands, pale flowers start to grow.",
         experience_reward=110,
         gold_reward=60,
@@ -129,7 +130,7 @@ def create_hades_helm_of_darkness() -> Enemy:
         melee_dodge_chance=0.4,
         aggression_weight=1.4,
         article="",
-        loot=[create_bident_of_hades()],
+        loot=[create_bident_of_hades(), create_helm_of_darkness()],
         description="He sets a dark helm on his head, and he's simply gone - there's only the sense of him, and the bident, coming from wherever you aren't looking.",
         experience_reward=150,
         gold_reward=80,
@@ -203,12 +204,20 @@ def create_bident_of_hades() -> Weapon:
         article="the",
     )
 
-def create_ambrosia() -> Consumable:
-    """Create the Vial of Ambrosia consumable."""
-    return Consumable(
-        name="Vial of Ambrosia",
-        heal_amount=20,
-        description="Golden and faintly humming - mortal hands were never meant to hold this.",
+def create_collar_of_cerberus() -> Trophy:
+    """Create the Collar of Cerberus - a Trophy for the Trophy Room of Zeus, dropped by Cerberus (Last Head)."""
+    return Trophy(
+        name="Collar of Cerberus",
+        description="Bronze, three-ringed and enormous, and still warm.",
+        article="the",
+    )
+
+def create_helm_of_darkness() -> Trophy:
+    """Create the Helm of Darkness - a Trophy for the Trophy Room of Zeus, dropped by Hades (Helm of Darkness)."""
+    return Trophy(
+        name="Helm of Darkness",
+        description="His helm, no longer making anyone invisible. It drops whether he is spared or not.",
+        article="the",
     )
 
 def build_floor_8() -> tuple[Room, dict[str, Room]]:

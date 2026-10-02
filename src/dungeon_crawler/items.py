@@ -24,6 +24,9 @@ class Item(ABC):
         self.value_override: int | None = None
         """A hand-set value, used instead of the calculated one (see item_value(), exchange.py) for an item whose worth isn't in its numbers.
         Set in the item's factory after it's built, rather than passed in, so no item class' constructor needs another parameter."""
+        self.upgrade_level: int = 0
+        """How many times this item has been upgraded at Daedalus' Workshop - see upgrades.py. Only weapons and armour can be upgraded; for anything
+        else it stays 0. Saved with the item, wherever it is."""
 
     @abstractmethod
     def use(self, character) -> str:
@@ -38,16 +41,16 @@ class Item(ABC):
         """This item's name with the right article - lower case by default, since items are almost always named mid-sentence ('Circe takes the
         Bronze Xiphos'). definite=True gives 'the' for an ordinary item already mentioned; a name that takes no article never gets one."""
         if self.article == "":
-            return self.name
+            return self.display_name
         if self.article == "the" or definite:
             word = "the"
         else:
             word = "an" if self.name[0].lower() in "aeiou" else "a"
-        return f"{word.capitalize() if capitalise else word} {self.name}"
+        return f"{word.capitalize() if capitalise else word} {self.display_name}"
 
     def unequip(self, character) -> str:
         """Default no-op for items that can't be equipped; Weapon and Armour override this."""
-        return f"{self.name} cannot be unequipped."
+        return f"{self.display_name} cannot be unequipped."
 
     def would_fail(self, character) -> str | None:
         """Default: never fails."""
@@ -61,6 +64,12 @@ class Item(ABC):
     def details(self) -> str:
         """A short stat summary for the inventory display (e.g. 'blade, 3 DMG'). Empty by default; Weapon and Armour override it."""
         return ""
+
+    @property
+    def display_name(self) -> str:
+        """The name to show the player - the name itself, followed by the upgrade level if there is one ('Labrys +2'). The name never changes,
+        since items are rebuilt from the registry by name; the level is only ever shown beside it."""
+        return f"{self.name} +{self.upgrade_level}" if self.upgrade_level else self.name
 
 class Weapon(Item):
     """An equippable item that deals extra damage while equipped, in one of two slots ('melee' or 'ranged'). A weapon's damage is NOT added into
@@ -77,7 +86,7 @@ class Weapon(Item):
         super().__init__(name, description, article)
         if weapon_class not in WEAPON_CLASSES:
             raise ValueError(f"Unknown weapon_class '{weapon_class}' - must be one of {WEAPON_CLASSES}.")
-        self.damage = damage
+        self.base_damage = damage
         self.slot = slot
         self.weapon_class = weapon_class
         self.armour_pierce = armour_pierce
@@ -90,6 +99,17 @@ class Weapon(Item):
     def two_handed(self) -> bool:
         """Heavy weapons are two-handed - equipping one unequips any shield, and vice-versa."""
         return self.weapon_class == "heavy"
+
+    @property
+    def damage(self) -> int:
+        """Damage after upgrades - base_damage plus one per upgrade level. Calculated rather than stored, so nothing can ever apply an upgrade twice
+        (the lesson of the armour double-counting bug)."""
+        return self.base_damage + self.upgrade_level
+
+    @damage.setter
+    def damage(self, value: int) -> None:
+        """Setting damage adjusts base_damage so the total comes out at value - so code and tests that set damage directly still behave."""
+        self.base_damage = value - self.upgrade_level
 
     def details(self) -> str:
         """Class, handedness, piercing, signature properties, then damage - e.g. 'heavy, two-handed, cleave, 7 DMG'."""
@@ -113,7 +133,7 @@ class Weapon(Item):
         """Equip this weapon into its slot, unequipping whatever currently occupies that same slot first. A two-handed weapon also unequips any
         shield, matching how every other slot swaps rather than refusing."""
         if self.equipped:
-            return f"{self.name} already equipped."
+            return f"{self.display_name} already equipped."
 
         slot_attr = f"equipped_{self.slot}_weapon"
         messages = []
@@ -127,18 +147,18 @@ class Weapon(Item):
 
         self.equipped = True
         setattr(character, slot_attr, self)
-        messages.append(f"{character.name} equips {self.name} ({self.slot}, +{self.damage} DMG).")
+        messages.append(f"{character.name} equips {self.display_name} ({self.slot}, +{self.damage} DMG).")
         return "\n".join(messages)
 
     def unequip(self, character) -> str:
         """Clear this weapon from its slot. No longer touches attack_damage - see class docstring."""
         if not self.equipped:
-            return f"{self.name} is not equipped."
+            return f"{self.display_name} is not equipped."
         self.equipped = False
         slot_attr = f"equipped_{self.slot}_weapon"
         if getattr(character, slot_attr) is self:
             setattr(character, slot_attr, None)
-        return f"{character.name} unequips {self.name} (-{self.damage} DMG)"
+        return f"{character.name} unequips {self.display_name} (-{self.damage} DMG)"
 
 class Armour(Item):
     """An equippable item that raises armour while equipped, in one of three slots ('helmet', 'body', or shield) - all three can be worn at once.
@@ -155,13 +175,24 @@ class Armour(Item):
             raise ValueError(f"Unknown armour slot '{slot}' - must be one of {ARMOUR_SLOTS}.")
         if weight not in ARMOUR_WEIGHTS:
             raise ValueError(f"Unknown armour weight '{weight}' - must be one of {ARMOUR_WEIGHTS}.")
-        self.defence = defence
+        self.base_defence = defence
         self.slot = slot
         self.weight = weight
         self.max_durability = max_durability
         self.durability = max_durability
         """Starts full. Reaches 0 via Character.take_damage() (see there) - the item stays equipped but its defence stops counting towards
         Character.armour until repaired at the Forge (see repair_item(), exploration.py)."""
+
+    @property
+    def defence(self) -> int:
+        """Defence after upgrades - base_defence plus one upgrade per level. Character.armour already adds up worn pieces' defence, so an upgraded
+        piece raises the wearer's armour straight away, with no other code involved."""
+        return self.base_defence + self.upgrade_level
+
+    @defence.setter
+    def defence(self, value: int) -> None:
+        """Setting defence adjusts base_defence so the total comes out at value."""
+        self.base_defence = value - self.upgrade_level
 
     def details(self) -> str:
         """Slot, weight, defence, and durability - e.g. 'body, heavy, 6 DEF, 18/18 durability'."""
@@ -171,7 +202,7 @@ class Armour(Item):
         """Equip this armour into its slot, unequipping whatever currently occupies that same slot first. Equipping a shield also unequips a
         two-handed weapon."""
         if self.equipped:
-            return f"{self.name} already equipped"
+            return f"{self.display_name} already equipped"
 
         slot_attr = f"equipped_{self.slot}"
         messages = []
@@ -185,18 +216,18 @@ class Armour(Item):
 
         self.equipped = True
         setattr(character, slot_attr, self)
-        messages.append(f"{character.name} equips {self.name} ({self.slot}, +{self.defence} DEF).")
+        messages.append(f"{character.name} equips {self.display_name} ({self.slot}, +{self.defence} DEF).")
         return "\n".join(messages)
 
     def unequip(self, character) -> str:
         """Clear this armour from its slot - its defence stops counting towards Character.armour."""
         if not self.equipped:
-            return f"{self.name} is not equipped."
+            return f"{self.display_name} is not equipped."
         self.equipped = False
         slot_attr = f"equipped_{self.slot}"
         if getattr(character, slot_attr) is self:
             setattr(character, slot_attr, None)
-        return f"{character.name} unequips {self.name} (-{self.defence} DEF)"
+        return f"{character.name} unequips {self.display_name} (-{self.defence} DEF)"
 
 class Consumable(Item):
     """A single-use item that heals HP on use; Inventory.use_item() removes it from the inventory afterwards."""
@@ -211,7 +242,7 @@ class Consumable(Item):
         near full health doesn't overstate what it did."""
         healed = min(self.heal_amount, character.max_hp - character.hp)
         character.hp += healed
-        return f"{character.name} uses {self.name}, healing {healed} HP."
+        return f"{character.name} uses {self.display_name}, healing {healed} HP."
 
     def ends_turn(self, character) -> bool:
         """A genuine heal (heal_amount > 0) is a free action; anything else (including in the base Consumable's default 0) still ends the turn."""
@@ -222,7 +253,7 @@ class Consumable(Item):
         inherits this method and has heal_amount = 0, so it must never be blocked at full HP. Reviver, StatusEffectItem and SpellBook
         all override would_fail() with their own rules, so this doesn't reach them."""
         if self.heal_amount > 0 and character.hp >= character.max_hp:
-            return f"{character.name} is already at full health - {self.name} would be wasted."
+            return f"{character.name} is already at full health - {self.display_name} would be wasted."
         return None
 
 class Reviver(Consumable):
@@ -236,11 +267,11 @@ class Reviver(Consumable):
         isn't a lookup failure the way a missing item name is."""
         companion = getattr(character, "companion", None)
         if companion is None:
-            return f"{self.name} has nothing to revive."
+            return f"{self.display_name} has nothing to revive."
         if companion.is_alive():
             return f"{companion.name} doesn't need reviving."
         companion.hp = min(self.heal_amount, companion.max_hp)
-        return f"{companion.name} is revived with {companion.hp} HP, thanks to {self.name}."
+        return f"{companion.name} is revived with {companion.hp} HP, thanks to {self.display_name}."
 
     def ends_turn(self, character) -> bool:
         """Reviving always costs the turn - see class docstring."""
@@ -250,7 +281,7 @@ class Reviver(Consumable):
         """Mirrors use()'s two no-op cases, so handle_combat_command() rejects them before the Reviver is consumed or a turn is spent."""
         companion = getattr(character, "companion", None)
         if companion is None:
-            return f"{self.name} has nothing to revive."
+            return f"{self.display_name} has nothing to revive."
         if companion.is_alive():
             return f"{companion.name} doesn't need reviving."
         return None
@@ -259,7 +290,7 @@ class QuestItem(Item):
 
     def use(self, character) -> str:
         """Quest items have no effect of their own when used."""
-        return f"{self.name} doesn't do anything on its own - it is meant for someone else."
+        return f"{self.display_name} doesn't do anything on its own - it is meant for someone else."
 
 class SkillPointReward(Consumable):
     """An item that grants skill points on use. Inherits Consumable's auto-remove-after-use behaviour in Inventory.use_item() for free - consumed
@@ -274,7 +305,7 @@ class SkillPointReward(Consumable):
     def use(self, character) -> str:
         """Grant character's skill tree points skill points."""
         character.skill_tree.skill_points += self.points
-        return f"{character.name} gains {self.points} skill point(s) from {self.name}."
+        return f"{character.name} gains {self.points} skill point(s) from {self.display_name}."
 
 class StatusEffectItem(Consumable):
     """Applies a StatusEffect to the player (if amount is positive, a heal-over-time tonic) or to player.current_target (if negative,
@@ -296,14 +327,14 @@ class StatusEffectItem(Consumable):
         if self.amount >= 0:
             return character.apply_status_effect(effect)
         if character.current_target is None or not character.current_target.is_alive():
-            raise ActionRefused(f"You need a target for {self.name} - try 'target <enemy>' first.")
+            raise ActionRefused(f"You need a target for {self.display_name} - try 'target <enemy>' first.")
         return character.current_target.apply_status_effect(effect)
 
     def would_fail(self, character) -> str | None:
         """Mirrors use()'s one failure - an offensive item with no living target - so it's refused before a turn is spent. A heal-over-time
         is never blocked at full HP, since drinking one before a fight is a legitimate pre-buff."""
         if self.amount < 0 and (character.current_target is None or not character.current_target.is_alive()):
-            return f"You need a target for {self.name} - try 'target <enemy>' first."
+            return f"You need a target for {self.display_name} - try 'target <enemy>' first."
         return None
 
     def ends_turn(self, character) -> bool:
@@ -365,9 +396,9 @@ class Inventory:
         for item in self._items:
             if item.name.lower() == item_name.lower():
                 if isinstance(item, QuestItem):
-                    raise ActionRefused(f"{item.name} is too important to drop.")
+                    raise ActionRefused(f"{item.display_name} is too important to drop.")
                 if item.equipped:
-                    raise ActionRefused(f"Cannot drop {item.name} while it is equipped.")
+                    raise ActionRefused(f"Cannot drop {item.display_name} while it is equipped.")
                 self._items.remove(item)
                 return item
         raise ActionRefused(f"No item named '{item_name}' in inventory.")
@@ -398,9 +429,9 @@ class LoyaltyToken(QuestItem):
     Penelope's Thread is the first."""
 
 class Trophy(QuestItem):
-    """A trophy from a great victory, for the Trophy Room of Zeus. Deliberately minimal for now: a QuestItem, so it can't be dropped, traded or
-    exchanged away. The Trophy Room (roadmap) will give trophies their purpose - placing them, and Zeus' New Game+ once all are placed. Typhon's
-    is the first; other bosses gain theirs when the Trophy Room is designed."""
+    """A trophy for the Trophy Room of Zeus - won from a great fight, or found in a hidden place. Has no behaviour of its own: a QuestItem, so it
+    can't be dropped, traded, sold or exchanged away, and the 'place' command (trophies.py) sets it on its plinth. Thirteen exist, one per plinth
+    (TROPHY_PLINTHS, content/floor_2.py). Zeus' New Game+ once all are placed is still to come (roadmap)."""
 
 class IntellectReward(Consumable):
     """An item that permanently raises intellect when used, then is used up - the same as SkillPointReward. The only way to raise intellect

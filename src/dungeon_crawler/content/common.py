@@ -94,3 +94,11 @@ def create_hoplite_sword() -> Weapon:
         description="A soldier's sword, well balanced and well kept. Thousands like it were carried to Troy.",
         damage=5,
     )
+
+def create_ambrosia() -> Consumable:
+    """Create the Vial of Ambrosia consumable."""
+    return Consumable(
+        name="Vial of Ambrosia",
+        heal_amount=20,
+        description="Golden and faintly humming - mortal hands were never meant to hold this.",
+    )

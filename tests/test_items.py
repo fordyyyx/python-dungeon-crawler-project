@@ -1434,3 +1434,137 @@ def test_inventory_use_item_refuses_an_escape_item_outside_combat_and_keeps_it()
 
 def test_item_value_override_defaults_to_none():
     assert Weapon(name="Sword", description="", damage=3).value_override is None
+
+# ---- upgrade levels ----
+
+def test_item_upgrade_level_defaults_to_zero():
+    assert Weapon(name="Sword", description="", damage=3).upgrade_level == 0
+    assert Consumable(name="Tonic", heal_amount=5).upgrade_level == 0
+
+def test_item_display_name_is_the_plain_name_until_upgraded():
+    assert Weapon(name="Labrys", description="", damage=7).display_name == "Labrys"
+
+def test_item_display_name_shows_the_upgrade_level():
+    axe = Weapon(name="Labrys", description="", damage=7)
+    axe.upgrade_level = 2
+    assert axe.display_name == "Labrys +2"
+    assert axe.name == "Labrys"
+
+def test_weapon_damage_adds_one_per_upgrade_level():
+    axe = Weapon(name="Labrys", description="", damage=7)
+    axe.upgrade_level = 3
+    assert axe.damage == 10
+    assert axe.base_damage == 7
+
+def test_weapon_details_show_the_upgraded_damage():
+    sword = Weapon(name="Sword", description="", damage=3)
+    sword.upgrade_level = 2
+    assert sword.details() == "blade, 5 DMG"
+
+def test_weapon_damage_setter_sets_the_total_not_the_base():
+    """Setting damage on an upgraded weapon gives exactly that damage - the upgrade isn't added on top a second time."""
+    axe = Weapon(name="Labrys", description="", damage=7)
+    axe.upgrade_level = 2
+    axe.damage = 12
+    assert axe.damage == 12
+    assert axe.base_damage == 10
+
+def test_armour_defence_adds_one_per_upgrade_level():
+    plate = Armour(name="Plate", description="", defence=5)
+    plate.upgrade_level = 2
+    assert plate.defence == 7
+    assert plate.base_defence == 5
+
+def test_armour_defence_setter_sets_the_total_not_the_base():
+    plate = Armour(name="Plate", description="", defence=5)
+    plate.upgrade_level = 2
+    plate.defence = 9
+    assert plate.defence == 9
+    assert plate.base_defence == 7
+
+def test_upgraded_worn_armour_counts_its_upgrades_towards_armour():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    plate = Armour(name="Plate", description="", defence=5)
+    plate.upgrade_level = 2
+    plate.use(hero)
+    assert hero.armour == 7
+
+def test_broken_upgraded_armour_stops_counting_altogether():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    plate = Armour(name="Plate", description="", defence=5)
+    plate.upgrade_level = 2
+    plate.use(hero)
+    plate.durability = 0
+    assert hero.armour == 0
+
+def test_upgraded_weapon_deals_its_upgraded_damage(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.9)
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    target = Character(name="target", hp=100, attack_damage=1)
+    sword = Weapon(name="Sword", description="", damage=3)
+    sword.upgrade_level = 2
+    sword.use(hero)
+    hero.attack(target)
+    assert target.hp == 85
+
+# ---- messages name an upgraded item with its level ----
+
+def _upgraded_sword(level: int = 2) -> Weapon:
+    sword = Weapon(name="Sword", description="", damage=3)
+    sword.upgrade_level = level
+    return sword
+
+def test_item_display_name_does_not_recurse():
+    """Regression: a find-and-replace once made display_name read itself, so naming any item at all raised RecursionError."""
+    assert Weapon(name="Sword", description="", damage=3).display_name == "Sword"
+    assert _upgraded_sword().display_name == "Sword +2"
+
+def test_item_with_article_names_an_upgraded_item_with_its_level():
+    sword = _upgraded_sword()
+    assert sword.with_article() == "a Sword +2"
+    assert sword.with_article(definite=True) == "the Sword +2"
+
+def test_item_with_article_for_a_proper_named_upgraded_item():
+    fang = Weapon(name="Lamia's Fang", description="", damage=4, article="")
+    fang.upgrade_level = 1
+    assert fang.with_article() == "Lamia's Fang +1"
+
+def test_item_with_article_chooses_an_from_the_name_not_the_level():
+    axe = Weapon(name="Axe", description="", damage=3)
+    axe.upgrade_level = 1
+    assert axe.with_article() == "an Axe +1"
+
+def test_weapon_equip_and_unequip_messages_show_the_upgrade_level():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    sword = _upgraded_sword()
+    assert sword.use(hero) == "hero equips Sword +2 (melee, +5 DMG)."
+    assert sword.use(hero) == "Sword +2 already equipped."
+    assert sword.unequip(hero) == "hero unequips Sword +2 (-5 DMG)"
+
+def test_armour_equip_and_unequip_messages_show_the_upgrade_level():
+    hero = Character(name="hero", hp=100, attack_damage=10)
+    plate = Armour(name="Plate", description="", defence=5)
+    plate.upgrade_level = 1
+    assert plate.use(hero) == "hero equips Plate +1 (body, +6 DEF)."
+    assert plate.unequip(hero) == "hero unequips Plate +1 (-6 DEF)"
+
+def test_inventory_use_item_finds_an_upgraded_item_by_its_plain_name():
+    player = Player(name="hero", hp=100)
+    sword = _upgraded_sword()
+    player.inventory.add(sword)
+    player.inventory.use_item("sword", player)
+    assert sword.equipped is True
+
+def test_inventory_drop_item_refusal_names_an_upgraded_item_with_its_level():
+    player = Player(name="hero", hp=100)
+    sword = _upgraded_sword()
+    player.inventory.add(sword)
+    sword.use(player)
+    try:
+        player.inventory.drop_item("sword")
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused as error:
+        assert str(error) == "Cannot drop Sword +2 while it is equipped."
+
+def test_item_repr_keeps_the_plain_name():
+    assert repr(_upgraded_sword()) == "Weapon(name='Sword')"

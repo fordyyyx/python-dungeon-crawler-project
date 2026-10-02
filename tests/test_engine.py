@@ -2175,3 +2175,67 @@ def test_main_open_a_chest_once_its_room_is_cleared(monkeypatch, capsys, tmp_pat
     assert "You force the lid open. Inside: a Small Healing Potion, a Small Healing Potion, 15 gold." in out
     assert "The chest is empty." in out
     assert "Small Healing Potion x3" in out.split("You force the lid open.")[-1]
+
+def test_print_room_shows_the_workshop_hint_once(capsys):
+    room = Room("Workshop", is_workshop=True)
+    player = Player(name="Hero", hp=20)
+    print_room(room, player)
+    first = capsys.readouterr().out
+    print_room(room, player)
+    second = capsys.readouterr().out
+    assert "[Hint] Daedalus' tools still work" in first
+    assert "[Hint]" not in second
+
+def test_main_upgrade_a_weapon_in_the_workshop_and_see_it_in_the_inventory(monkeypatch, capsys, tmp_path):
+    """'upgrade' lists, 'upgrade <item>' improves - and 'inventory' afterwards must show the level rather than crash, which it first did.
+    Outside the Workshop the command is refused."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev add labrys", "dev set gold 100", "upgrade labrys",
+        "dev set intellect 3", "dev teleport daedalus' workshop", "upgrade", "upgrade labrys", "upgrade labrys", "inventory",
+    ])
+    assert "You'd need proper tools for that." in out
+    assert "    Labrys - +1 for 70 gold" in out
+    assert "Labrys +1 - heavy, two-handed, cleave, 8 DMG. (Paid 70 gold.)" in out
+    assert "Upgrading it to +2 costs 140 gold - you have 30." in out
+    assert "Labrys +1 - heavy, two-handed, cleave, 8 DMG" in out.split("you have 30.")[-1]
+
+def test_get_controls_text_lists_upgrade():
+    assert "upgrade / upgrade <item> - " in get_controls_text()
+
+def test_print_room_lists_an_upgraded_item_on_the_floor_with_its_level(capsys):
+    room = Room("Hall")
+    sword = Weapon(name="Sword", description="", damage=3)
+    sword.upgrade_level = 2
+    room.add_item(sword)
+    print_room(room, Player(name="Hero", hp=20))
+    assert "You see: Sword +2" in capsys.readouterr().out
+
+def test_print_room_lists_the_plinths_in_the_trophy_room(capsys):
+    room = Room("Trophy Room", is_trophy_room=True)
+    room.trophy_plinths = [("Horn", "A curved notch.")]
+    print_room(room, Player(name="Hero", hp=20))
+    out = capsys.readouterr().out
+    assert "Trophies placed: 0 of 1." in out
+    assert "  - (empty) A curved notch." in out
+
+def test_print_room_shows_no_plinths_anywhere_else(capsys):
+    print_room(Room("Hall"), Player(name="Hero", hp=20))
+    assert "Trophies placed" not in capsys.readouterr().out
+
+def test_main_place_trophies_in_the_trophy_room(monkeypatch, capsys, tmp_path):
+    """'place' is refused outside the Trophy Room without naming it, asks what to place when bare, and in the room sets a trophy on its plinth -
+    which then shows on the plinth list."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev add heart of typhon", "place heart of typhon", "place",
+        "dev teleport trophy room of zeus", "open chest", "place all", "place all", "look",
+    ])
+    assert "There's nowhere here worthy of it." in out
+    assert "Place what? Say 'place' followed by a trophy, or 'place all'." in out
+    assert "The chest won't move." in out
+    assert "You set the Heart of Typhon on its plinth." in out
+    assert "(Trophies placed: 1 of 13.)" in out
+    assert "You have no trophies to place." in out
+    assert "  - Heart of Typhon" in out.split("You have no trophies to place.")[-1]
+
+def test_get_controls_text_lists_place():
+    assert "place <trophy> / place all - " in get_controls_text()

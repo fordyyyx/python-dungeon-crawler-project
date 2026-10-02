@@ -2,7 +2,7 @@
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.characters import Enemy, BLINDED_EFFECT_NAME, Companion, Ally
-from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, LoyaltyToken
+from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, LoyaltyToken, Trophy
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.combat import resolve_pending_defeats
 from dungeon_crawler.exchange import Offer
@@ -151,7 +151,7 @@ def create_polyphemus_blinded() -> Enemy:
         hp=36,
         attack_damage=17,
         armour=3,
-        loot=[create_olive_wood_stake()],
+        loot=[create_olive_wood_stake(), create_fleece_of_the_ram()],
         description="Roaring, clutching his ruined eye, he swings at every sound in the cave - and when he finds you, he doesn't hold back.",
         experience_reward=60,
         gold_reward=35,
@@ -384,7 +384,7 @@ def create_poseidon_earth_shaker() -> Enemy:
         aggression_weight=1.6,
         caution_weight=0.8,
         article="",
-        loot=[create_trident_of_the_depths()],
+        loot=[create_trident_of_the_depths(), create_conch_of_poseidon()],
         description="The floor of the hall cracks and heaves beneath you. Whatever amusement he had is gone - this is the god who drowns cities.",
         experience_reward=90,
         gold_reward=50,
@@ -597,6 +597,30 @@ def create_nymphs_honey() -> Consumable:
         article="",
     )
 
+def create_fleece_of_the_ram() -> Trophy:
+    """Create the Fleece of the Ram - a Trophy for the Trophy Room of Zeus, dropped by Polyphemus (Blinded)."""
+    return Trophy(
+        name="Fleece of the Ram",
+        description="The thick fleece of the ram Odysseus clung to as he slipped past the blinded giant.",
+        article="the",
+    )
+
+def create_conch_of_poseidon() -> Trophy:
+    """Create the Conch of Poseidon - a Trophy for the Trophy Room of Zeus, dropped by Poseidon (Earth-Shaker)."""
+    return Trophy(
+        name="Conch of Poseidon",
+        description="A great spiral shell. Held to your ear, it isn't the sea you hear - it's something much angrier.",
+        article="the",
+    )
+
+def create_phaeacian_tripod() -> Trophy:
+    """Create the Phaeacian Tripod - a Trophy for the Trophy Room of Zeus, found in the Cave of Nymphs."""
+    return Trophy(
+        name="Phaeacian Tripod",
+        description="A bronze prize-tripod, one of the Phaeacians' gifts. The Greeks awarded these to champions.",
+        article="the",
+    )
+
 def build_floor_6() -> tuple[Room, dict[str, Room]]:
     """The Odyssey and the Open Sea - Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidon's Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, and Bedchamber of Odysseus, plus the Cave of the Nymphs, hidden west of Shadow of Ithaca. Bright Cave holds a random chest and the Throne Room a fixed one."""
     bright_cave = Room(
@@ -706,6 +730,7 @@ def build_floor_6() -> tuple[Room, dict[str, Room]]:
     cavern_of_polyphemus.add_item(create_wheel_of_cheese())
     rocky_shore.add_item(create_boars_tusk_helm())
     cave_of_nymphs.add_item(create_nymphs_honey())
+    cave_of_nymphs.add_item(create_phaeacian_tripod())
 
     add_random_chest(bright_cave, LATE_LOOT)
     add_fixed_chest(throne_room_of_odysseus, [create_cup_of_kykeon, create_kelp_poultice], gold=40)

@@ -220,3 +220,27 @@ def test_random_chest_can_only_be_opened_once():
     player = seeded_player()
     open_chest(room, player)
     assert room.available_interactions(player) == []
+
+# ---- a chest with its own condition ----
+
+def test_fixed_chest_with_its_own_condition_ignores_the_cleared_room_rule():
+    room = Room("Vault")
+    add_fixed_chest(room, [create_tonic], can_open=lambda player, room: True, locked_message="Locked.")
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    open_chest(room, seeded_player())
+    assert CHEST_OPENED in room.flags
+
+def test_fixed_chest_with_its_own_condition_is_refused_with_its_own_message():
+    room = Room("Vault")
+    add_fixed_chest(room, [create_tonic], gold=5, can_open=lambda player, room: False, locked_message="Locked.")
+    player = seeded_player()
+    assert open_chest(room, player) == "Locked."
+    assert (room.items, player.gold, CHEST_OPENED in room.flags) == ([], 0, False)
+
+def test_fixed_chest_condition_is_given_the_player_and_the_room():
+    room = Room("Vault")
+    add_fixed_chest(room, [create_tonic], can_open=lambda player, room: player.gold >= 5 and room.name == "Vault", locked_message="Locked.")
+    player = seeded_player()
+    assert open_chest(room, player) == "Locked."
+    player.gold = 5
+    assert open_chest(room, player).startswith("You force the lid open.")

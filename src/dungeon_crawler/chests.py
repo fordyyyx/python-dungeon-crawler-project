@@ -1,4 +1,5 @@
-"""Searchable chests - a room verb, 'open chest', usable once the room is clear (room_is_clear()). Contents land in the room as items, any gold goes
+"""Searchable chests - a room verb, 'open chest', usable once the room is clear (room_is_clear()) - or, for a chest given its own condition
+(can_open), once that holds instead: the Trophy Room's opens when every trophy is placed. Contents land in the room as items, any gold goes
 straight to the player, and a room flag records the chest as opened, so nothing new needs saving. One chest per room, so 'open chest' is never
 ambiguous. Fixed chests hold hand-chosen contents; random chests roll from a loot table using the player's run seed and the room's name, so a
 reload can never change the result."""
@@ -37,10 +38,14 @@ def roll_loot(table: LootTable, player, room) -> tuple[list, int]:
 def _chest_closed(player, room) -> bool:
     return CHEST_OPENED not in room.flags
 
-def _open_chest(contents: Callable):
-    """Build the 'open chest' handler. contents(player, room) returns (items, gold). Refuses, with the reason, while the room isn't clear."""
+def _open_chest(contents: Callable, can_open: Callable | None = None, locked_message: str = ""):
+    """Build the 'open chest' handler. contents(player, room) returns (items, gold). Refuses, with the reason, while the room isn't clear.
+    can_open(player, room), if given, replaces the cleared-room rule, with locked_message as the refusal."""
     def handler(player, room) -> str:
-        if not room_is_clear(room):
+        if can_open is not None:
+            if not can_open(player, room):
+                return locked_message
+        elif not room_is_clear(room):
             blocker = next(enemy for enemy in room.enemies if enemy.is_alive() and not enemy.respawns)
             return f"{blocker.with_article(definite=True)} won't let you anywhere near the chest."
         items, gold = contents(player, room)
@@ -54,9 +59,15 @@ def _open_chest(contents: Callable):
         return f"You force the lid open. Inside: {', '.join(found)}." + (" (The items are on the floor - 'take all' to pick them up.)" if items else "")
     return handler
 
-def add_fixed_chest(room, items: list[Callable], gold: int = 0) -> None:
-    """Place a chest with hand-chosen contents - item factories and an amount of gold."""
-    room.add_interaction("open chest", _open_chest(lambda player, room: ([factory() for factory in items], gold)), _chest_closed, "The chest is empty.")
+def add_fixed_chest(room, items: list[Callable], gold: int = 0, can_open: Callable | None = None, locked_message: str = "") -> None:
+    """Place a chest with hand-chosen contents - item factories and an amount of gold. can_open and locked_message replace the usual
+    cleared-room rule - see _open_chest()."""
+    room.add_interaction(
+        "open chest",
+        _open_chest(lambda player, room: ([factory() for factory in items], gold), can_open, locked_message),
+        _chest_closed,
+        "The chest is empty.",
+    )
 
 def add_random_chest(room, table: LootTable) -> None:
     """Place a chest that rolls its contents from table when it's opened."""

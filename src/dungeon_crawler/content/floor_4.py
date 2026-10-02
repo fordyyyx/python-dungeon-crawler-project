@@ -1,7 +1,7 @@
 """Floor 4 (Labyrinth and Greater Monsters) - Labyrinth of the Minotaur, Stony Lair, Cavern of the Cyclops, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, Lair of Medusa, and the hidden Daedalus' Workshop and Icarus' Shaft."""
 
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import QuestItem, Armour, StatusEffectItem, Weapon, IntellectReward, EscapeItem
+from dungeon_crawler.items import QuestItem, Armour, StatusEffectItem, Weapon, IntellectReward, EscapeItem, Trophy
 from dungeon_crawler.characters import Enemy, Ally
 from dungeon_crawler.chests import add_random_chest
 from dungeon_crawler.content.loot_tables import MIDDLE_LOOT
@@ -14,7 +14,7 @@ def create_minotaur() -> Enemy:
         hp=28,
         attack_damage=8,
         armour=3,
-        loot=[create_labrys()],
+        loot=[create_labrys(), create_horn_of_the_minotaur()],
         description="Massive and bull-headed, it turns toward you with a snort that shakes dust from the walls.",
         ancestry_lines={
             "minotaur": (
@@ -176,7 +176,7 @@ def create_talos() -> Enemy:
         hp=30,
         attack_damage=9,
         armour=3,
-        loot=[create_talos_bronze_plating()],
+        loot=[create_talos_bronze_plating(), create_bronze_nail_of_talos()],
         description="Impossibly large and impossibly quiet - each footstep lands like a verdict not a warning.",
         experience_reward=35,
         gold_reward=20,
@@ -240,7 +240,7 @@ def create_medusa_awakened() -> Enemy:
         hp=35,
         attack_damage=8,
         armour=3,
-        loot=[create_serpents_kiss()],
+        loot=[create_serpents_kiss(), create_head_of_medusa()],
         description="There's no half-seen about it now - she looks at you directly, and you understand exactly what that means.",
         experience_reward=40,
         gold_reward=25,
@@ -312,6 +312,37 @@ def create_icarus() -> Ally:
         items=[create_feather_of_icarus()]
     )
 
+def create_horn_of_the_minotaur() -> Trophy:
+    """Create the Horn of the Minotaur - a Trophy for the Trophy Room of Zeus, dropped by the Minotaur."""
+    return Trophy(
+        name="Horn of the Minotaur",
+        description="One great curved horn, cracked at the base. It smells faintly of the Labyrinth.",
+        article="the",
+    )
+
+def create_bronze_nail_of_talos() -> Trophy:
+    """Create the Bronze Nail of Talos - a Trophy for the Trophy Room of Zeus, dropped by Talos."""
+    return Trophy(
+        name="Bronze Nail of Talos",
+        description="The single nail that sealed his one vein - the detail Daedalus circled again and again.",
+        article="the",
+    )
+
+def create_head_of_medusa() -> Trophy:
+    """Create the Head of Medusa - a Trophy for the Trophy Room of Zeus, dropped by Medusa (Awakened)."""
+    return Trophy(
+        name="Head of Medusa",
+        description="Wrapped in cloth, and heavier than it looks. Nobody has ever been brave enough to unwrap it.",
+        article="the",
+    )
+
+def create_daedalus_compass() -> Trophy:
+    """Create Daedalus' Compass - a Trophy for the Trophy Room of Zeus, found in Daedalus' Workshop."""
+    return Trophy(
+        name="Daedalus' Compass",
+        description="The compass he drew the Labyrinth with. Its point is still sharp enough to draw blood",
+        article="",
+    )
 
 def build_floor_4() -> tuple[Room, dict[str, Room]]:
     """Labyrinth & Greater Monsters - Labyrinth of the Minotaur, Cavern of the Cyclops, Stony Lair, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, and Lair of Medusa, plus Daedalus' Workshop (hidden east of the Maze of Pillars) and Icarus' Shaft above it. Stony Lair holds a random chest."""
@@ -355,7 +386,9 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
         description=(
             "Benches crowded with half-built things: bronze joints, wooden gears, an enormous pair of wings strung on a frame and never finished. "
             "Plans for a bronze giant are pinned to every wall, and on one of them, a single nail at the heel has been circled again and again."
+            "His tools still hang above the bench, oiled and waiting, as though he only stepped out."
         ),
+        is_workshop=True,
     )
     icarus_shaft = Room(
         name="Icarus' Shaft",
@@ -403,6 +436,7 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
 
     daedalus_workshop.add_item(create_clockwork_crossbow())
     daedalus_workshop.add_item(create_daedalus_notes())
+    daedalus_workshop.add_item(create_daedalus_compass())
     icarus_shaft.add_ally(create_icarus())
 
     add_random_chest(stony_lair, MIDDLE_LOOT)

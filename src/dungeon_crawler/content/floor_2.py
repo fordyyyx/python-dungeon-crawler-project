@@ -2,11 +2,29 @@
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, Weapon, SkillPointReward
-from dungeon_crawler.characters import Enemy, Ally
+from dungeon_crawler.characters import Enemy, Ally, Companion
 from dungeon_crawler.dialogue import DialogueNode, DialogueOption
+from dungeon_crawler.trophies import TROPHY_ROOM_COMPLETE
+from dungeon_crawler.chests import add_fixed_chest
+from dungeon_crawler.content.common import create_ambrosia
 
 PROMETHEUS_OFFER_MADE = "prometheus_offer_made"
 HARDCORE = "hardcore"
+TROPHY_PLINTHS = [
+    ("Phial of the Lethe", "A small stand, damp, as though something was always meant to be spilled on it."),
+    ("Keeper's Lantern", "A hook for a lantern that has burned in the dark beneath the bones for a long time."),
+    ("Horn of the Minotaur", "A plinth carved with a maze, with a curved notch on top."),
+    ("Bronze Nail of Talos", "A tiny plinth for something very small that once held up something very large."),
+    ("Head of Medusa", "A plinth draped in cloth, which every visitor is careful not to look at."),
+    ("Daedalus' Compass", "A plinth scored with perfect circles, drawn by a hand that never needed a second try."),
+    ("Bridle of the Wooden Horse", "A plinth shaped like the head of a horse that was never alive."),
+    ("Fleece of the Ram", "A hook for a fleece that once hid a man from a blind giant."),
+    ("Conch of Poseidon", "A plinth wet with sea water that never dries."),
+    ("Phaeacian Tripod", "A wide space for a prize the Greeks once gave to champions."),
+    ("Collar of Cerberus", "A plinth with three iron rings, each worn smooth on the inside."),
+    ("Helm of Darkness", "A plinth that looks empty even when you're certain it isn't."),
+    ("Heart of Typhon", "A plinth scorched black at the centre, as if waiting for something still burning."),
+]
 
 def create_practice_dummy() -> Enemy:
     """Player-customisable practice dummy - respawns=True (see handle_enemy_defeat()), zero XP/gold reward regardless of what 'dummy set'
@@ -216,8 +234,70 @@ def create_hermes_favour() -> SkillPointReward:
         article="the",
     )
 
+def _zeus_blessing(player) -> str:
+    player.max_hp += 5
+    player.hp += 5
+    return "Zeus looks over the plinths and nods. \"A start.\" Something warm settles in your chest. (+5 max HP)"
+
+def _zeus_favour(player) -> str:
+    player.skill_tree.skill_points += 1
+    return "\"You've been busy.\" Zeus almost smiles. \"Let me give you something to show for it.\" (+1 skill point)"
+
+def _trophy_room_complete(player) -> str:
+    player.story_flags.add(TROPHY_ROOM_COMPLETE)
+    return (
+        "The last trophy settles on its plinth, and thunder rolls somewhere far above. Zeus stands. \"Every one. I fought Typhon myself, and I "
+        "barely won - and you went and brought me his heart.\" He gestures at a chest at the foot of his throne. \"That's yours. And if you'll have "
+        "me, I'd like to see what you do next.\""
+    )
+
+def create_thunderbolt_of_zeus() -> Weapon:
+    """Create the Thunderbolt of Zeus - the best ranged weapon in the game, with a chance to blind (the flash of the bolt). Ranged so it sits beside
+    an upgraded favourite rather than replacing it. In the Trophy Room's chest, which opens once every trophy is placed."""
+    return Weapon(
+        name="Thunderbolt of Zeus",
+        description="A jagged bolt of white light that somehow holds its shape in your hand. It hums, and the air around it smells of rain.",
+        damage=12,
+        slot="ranged",
+        weapon_class="ranged",
+        armour_pierce=4,
+        blind_chance=0.25,
+        article="the",
+    )
+
+def create_zeus(home_room: Room | None = None) -> Companion:
+    """Create Zeus - in the Trophy Room from the start, recruitable once every trophy is placed ('trophy_room_complete'). The strongest companion
+    in the game, above the spared Hades; since he can only join after the post-game, his level-1 stats are set for it. Attacks at range - he throws
+    thunderbolts. Speaks to Hades, his brother, if the player brings him."""
+    return Companion(
+        name="Zeus",
+        hp=75,
+        home_room=home_room or Room("Trophy Room of Zeus"),
+        attack_damage=20,
+        armour=5,
+        heal_amount=8,
+        brace_amount=5,
+        attack_type="ranged",
+        description="King of the gods, slouched on a throne far too grand for the room, watching the plinths the way other men watch the sea.",
+        required_story_flag=TROPHY_ROOM_COMPLETE,
+        recruit_blocked_message="\"Not yet,\" Zeus says, without looking at you. \"Fill the plinths first.\"",
+        hint=(
+            "\"Trophies,\" he says, nodding at the empty plinths. \"Every great thing you face down there leaves something behind. Bring them here, "
+            "and say 'place' and their name - or 'place all'. Fill the room, and I'll make it worth your while.\""
+        ),
+        hint_recruitable="\"Every plinth filled.\" He rises at last. \"Say 'recruit zeus'. I haven't fought beside a mortal in a very long time.\"",
+        companion_lines={
+            "Hades": (
+                "Zeus looks past you, at Hades, for a long moment. \"Brother.\" Hades doesn't look away. \"You could have told us what you were holding "
+                "back.\" \"You could have asked.\" Neither of them says anything else - but neither leaves."
+            )
+        }
+    )
+
 def build_floor_2() -> tuple[Room, dict[str, Room]]:
-    """Domains of the Gods - Library of Athena, Armoury of Ares, Trophy Room of Zeus, Hall of Hermes, and Forge of Prometheus."""
+    """Domains of the Gods - Library of Athena, Armoury of Ares, Hall of Hermes, Forge of Prometheus and the Practice Chamber, plus the Trophy
+    Room of Zeus, hidden north of the Armoury: Zeus himself, a plinth for every trophy in the game (TROPHY_PLINTHS), the milestone rewards for
+    filling them, and a chest that opens only when they're all placed."""
     library_of_athena = Room(
         name="Library of Athena",
         description="Towering shelves of scrolls creak under their own weight; an owl watches from the rafters, unblinking.",
@@ -244,7 +324,11 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     )
     trophy_room_of_zeus = Room(
         name="Trophy Room of Zeus",
-        description="A narrow chamber lit by no visible flame, empty display alcoves lining every wall, patiently waiting to be filled.",
+        description=(
+            "A narrow chamber lit by no visible flame. Thirteen plinths line the walls, each with an inscription, and at the far end, on a throne "
+            "far too grand for the room, sits Zeus himself - with a chest at his feet."
+        ),
+        is_trophy_room=True,
     )
 
     library_of_athena.connect("west", armoury_of_ares)
@@ -263,6 +347,16 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
     armoury_of_ares.add_ally(create_ares())
     hall_of_hermes.add_ally(create_hermes())
     forge_of_prometheus.add_ally(create_prometheus())
+    trophy_room_of_zeus.add_companion(create_zeus(trophy_room_of_zeus))
+
+    trophy_room_of_zeus.trophy_plinths = TROPHY_PLINTHS
+    trophy_room_of_zeus.trophy_milestones = {5: _zeus_blessing, 10: _zeus_favour, len(TROPHY_PLINTHS): _trophy_room_complete}
+    add_fixed_chest(
+        trophy_room_of_zeus,
+        [create_thunderbolt_of_zeus, create_ambrosia, create_ambrosia],
+        can_open=lambda player, room: TROPHY_ROOM_COMPLETE in player.story_flags,
+        locked_message="The chest won't move. Zeus doesn't even look up. \"When every plinth is filled.\"",
+    )
 
     return library_of_athena, {
         room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus, trophy_room_of_zeus, practice_chamber)

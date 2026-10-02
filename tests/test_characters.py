@@ -3156,3 +3156,47 @@ def test_player_run_seed_is_a_whole_number_fixed_at_creation():
     assert isinstance(seed, int)
     assert 0 <= seed < 2**31
     assert player.run_seed == seed
+
+# ---- upgraded items in the inventory display ----
+
+def test_get_inventory_display_shows_an_upgraded_weapons_level():
+    """Regression: the display looked items up by plain name after counting them by display name, so 'inventory' crashed the game as soon as
+    the player held an upgraded weapon."""
+    player = Player(name="Hero", hp=20)
+    axe = Weapon(name="Labrys", description="", damage=7, weapon_class="heavy")
+    axe.upgrade_level = 1
+    player.inventory.add(axe)
+    assert player.get_inventory_display() == "Labrys +1 - heavy, two-handed, 8 DMG"
+
+def test_get_inventory_display_lists_an_upgraded_copy_apart_from_plain_ones():
+    """Regression: an upgraded copy vanished from the list when a plain copy of the same item was also held."""
+    player = Player(name="Hero", hp=20)
+    for _ in range(2):
+        player.inventory.add(Weapon(name="Bronze Xiphos", description="", damage=3))
+    upgraded = Weapon(name="Bronze Xiphos", description="", damage=3)
+    upgraded.upgrade_level = 1
+    player.inventory.add(upgraded)
+    upgraded.use(player)
+    assert player.get_inventory_display() == "Bronze Xiphos x2 - blade, 3 DMG\nBronze Xiphos +1 (equipped) - blade, 4 DMG"
+
+def test_get_inventory_display_shows_upgraded_armours_level():
+    player = Player(name="Hero", hp=20)
+    plate = Armour(name="Plate", description="", defence=5, max_durability=10)
+    plate.upgrade_level = 2
+    player.inventory.add(plate)
+    assert player.get_inventory_display() == "Plate +2 - body, light, 7 DEF, 10/10 durability"
+
+def test_get_inventory_display_counts_a_single_item_once():
+    """Regression: a half-finished change counted every non-armour item twice, so one potion showed as 'x2'."""
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(Consumable(name="Tonic", heal_amount=5))
+    assert player.get_inventory_display() == "Tonic"
+
+def test_companion_companion_lines_default_to_empty():
+    assert Companion(name="Imp", hp=20, home_room=Room("Camp")).companion_lines == {}
+
+def test_companions_do_not_share_their_companion_lines():
+    first = Companion(name="Imp", hp=20, home_room=Room("Camp"))
+    second = Companion(name="Sprite", hp=20, home_room=Room("Camp"))
+    first.companion_lines["Hades"] = "Brother."
+    assert second.companion_lines == {}

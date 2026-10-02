@@ -36,7 +36,7 @@ Library of Athena {Athena - Friendly}
 Armoury of Ares {Ares - Friendly}
 * east -> Library of Athena
 * north -> Trophy Room of Zeus [NOTE: hidden exit in actual code, add_hidden_exit(), required_intellect=3 — this plain-text notation has no way to mark that]
-Trophy Room of Zeus {Zeus - Friendly}
+Trophy Room of Zeus {Zeus - Companion} [NOTE: built - is_trophy_room=True: thirteen plinths, 'place <trophy>' / 'place all'; rewards at 5 (+5 max HP), 10 (a skill point) and 13 trophies; a chest that opens only when every plinth is filled (the Thunderbolt of Zeus, two Vials of Ambrosia); Zeus joins as a companion once the room is complete]
 * south -> Armoury of Ares
 Hall of Hermes {Hermes - Friendly}
 * north -> Library of Athena
@@ -100,7 +100,7 @@ Maze of Pillars {Talos - Enemy}
 * south -> Lair of Medusa [NOTE: guarded - blocked while Talos lives]
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 * east -> Daedalus' Workshop [NOTE: hidden exit, revealed by 'examine', required_intellect=5]
-Daedalus' Workshop [NOTE: built - no enemy or ally; the Clockwork Crossbow (ranged, 5, pierce 1) and Daedalus' Notes (+1 intellect)]
+Daedalus' Workshop [NOTE: built - no enemy or ally; is_workshop=True, so 'upgrade' works here (weapons and armour, up to +5, limited by intellect); the Clockwork Crossbow (ranged, 5, pierce 1) and Daedalus' Notes (+1 intellect)]
 * west -> Maze of Pillars
 * up -> Icarus' Shaft
 Icarus' Shaft {Icarus - Friendly} [NOTE: built - lore, no trade; gives away the Feather of Icarus, a one-use guaranteed escape (EscapeItem)]
@@ -222,9 +222,8 @@ Cyclops' Eye now drops from the new Cyclops enemy in Cavern of the Cyclops
 premise, and Athena's, Ares' and Hermes' hints each point at their trade
 item's source). Prometheus has
 no trade (`trade` replies that he has nothing to trade) - his role is the
-one-time hardcore offer instead. Trophy Room of Zeus remains
-fully unpopulated - no Zeus content (ally or otherwise) has been written
-yet. The sixth floor-2 room, Practice Chamber, is real, populated content
+one-time hardcore offer instead. Trophy Room of Zeus is built
+too (see the end of this section). The sixth floor-2 room, Practice Chamber, is real, populated content
 (a respawning practice dummy, `create_practice_dummy()`), same as before.
 
 Floors 3 and 4 have each gained their first real enemy content, placed as
@@ -285,8 +284,7 @@ Hades' chain in the Hall of Hades - the story's end.
 Floor 9 is populated: Tartarus, concealed until the 'hades_defeated' story
 flag (which clearing the Hall sets), holds Typhon - the post-game and the true
 ending. Every floor now has its content (roadmap.md's "Populate all floors" is
-complete); only Floor 2's Trophy Room of Zeus remains, planned as its own
-roadmap item (the Trophy room).
+complete), and Floor 2's Trophy Room of Zeus has been built since.
 Optional hidden rooms, each revealed by 'examine' and each with a plain way back:
 the Banks of the Lethe (floor 1, forgetting skills), the Ossuary (floor 3, the
 Ledger of the Unjudged), Daedalus' Workshop and Icarus' Shaft (floor 4, intellect
@@ -301,4 +299,14 @@ floors 0 and 6, and buys anything sellable. Every forge shortcut is three rooms 
 Six rooms hold a chest, opened with 'open chest' once the room is clear: Sunken Vault
 (floor 1) and the Throne Room of Odysseus (floor 6) have fixed contents; Cave of Harpies
 (floor 3), Stony Lair (floor 4), Shadow of Troy (Central) (floor 5) and Bright Cave
-(floor 6) roll theirs from a loot table, once per playthrough.
+(floor 6) roll theirs from a loot table, once per playthrough. A seventh, in the Trophy
+Room, opens only when every trophy is placed.
+The Trophy Room of Zeus (floor 2, hidden north of the Armoury, intellect 3) holds Zeus
+and thirteen plinths. Eight trophies are boss drops - Horn of the Minotaur, Bronze Nail
+of Talos, Head of Medusa (floor 4), Fleece of the Ram (Polyphemus), Conch of Poseidon
+(floor 6), Collar of Cerberus, Helm of Darkness (floor 8) and Heart of Typhon (floor 9) -
+and five lie in hidden rooms: Phial of the Lethe (Banks of the Lethe), Keeper's Lantern
+(Ossuary), Daedalus' Compass (Workshop), Bridle of the Wooden Horse (Belly of the Wooden
+Horse) and Phaeacian Tripod (Cave of the Nymphs).
+Daedalus' Workshop (floor 4, hidden) is where gear is upgraded: 'upgrade' lists what
+can be improved, 'upgrade <item>' adds +1 damage or defence for gold, up to +5.

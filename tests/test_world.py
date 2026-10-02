@@ -461,3 +461,23 @@ def test_room_reveal_hidden_exit_with_no_such_exit_does_nothing():
     a.reveal_hidden_exit("down")
     assert a.exits == {"east": b}
     assert a.hidden_exits == {}
+
+def test_room_initialises_with_is_workshop_false_by_default():
+    assert Room("A").is_workshop is False
+
+def test_room_initialises_with_is_workshop_true():
+    assert Room("A", is_workshop=True).is_workshop is True
+
+def test_room_is_not_a_trophy_room_by_default():
+    room = Room("A")
+    assert room.is_trophy_room is False
+    assert (room.placed_trophies, room.trophy_plinths, room.trophy_milestones) == (set(), [], {})
+
+def test_room_initialises_with_is_trophy_room_true():
+    assert Room("A", is_trophy_room=True).is_trophy_room is True
+
+def test_rooms_do_not_share_their_trophy_state():
+    first, second = Room("A"), Room("B")
+    first.placed_trophies.add("Horn")
+    first.trophy_plinths.append(("Horn", "A notch."))
+    assert (second.placed_trophies, second.trophy_plinths) == (set(), [])

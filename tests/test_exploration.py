@@ -1964,3 +1964,38 @@ def test_get_uncleared_reasons_ignores_other_room_interactions():
     room = Room("Shore")
     room.add_interaction("listen", lambda player, room: "")
     assert get_uncleared_reasons(room) == []
+
+# ---- messages name an upgraded item with its level ----
+
+def _upgraded(item, level=2):
+    item.upgrade_level = level
+    return item
+
+def test_pick_up_names_an_upgraded_item_with_its_level():
+    room = Room("Hall")
+    player = Player(name="Hero", hp=20)
+    room.add_item(_upgraded(Weapon(name="Sword", description="", damage=3)))
+    assert pick_up(room, "sword", player).startswith("You take the Sword +2.")
+
+def test_take_all_names_an_upgraded_item_with_its_level():
+    room = Room("Hall")
+    player = Player(name="Hero", hp=20)
+    room.add_item(_upgraded(Weapon(name="Sword", description="", damage=3)))
+    room.add_item(Weapon(name="Dagger", description="", damage=1))
+    assert take_all(room, player) == "You take: Sword +2, Dagger."
+
+def test_check_equippable_names_an_upgraded_item_with_its_level():
+    player = Player(name="Hero", hp=20)
+    sword = _upgraded(Weapon(name="Sword", description="", damage=3))
+    player.inventory.add(sword)
+    sword.use(player)
+    assert check_equippable("sword", player) == "Sword +2 is already equipped."
+
+def test_repair_item_names_an_upgraded_piece_with_its_level():
+    forge = Room("Forge", is_forge=True)
+    player = Player(name="Hero", hp=20)
+    player.gold = 100
+    plate = _upgraded(Armour(name="Plate", description="", defence=5, max_durability=10), 1)
+    plate.durability = 5
+    player.inventory.add(plate)
+    assert repair_item("plate", player, forge) == "Plate +1 is fully repaired for 10 gold."

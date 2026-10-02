@@ -13,6 +13,10 @@ from dungeon_crawler.content import create_obol_of_return, create_bronze_buckler
 from dungeon_crawler.items import Reviver
 from dungeon_crawler.exchange import item_value, sale_price, SHOP_MARKUP
 from dungeon_crawler.content import EARLY_LOOT, MIDDLE_LOOT, LATE_LOOT
+from dungeon_crawler.content import TROPHY_PLINTHS, create_zeus, create_thunderbolt_of_zeus
+from dungeon_crawler.trophies import TROPHY_ROOM_COMPLETE, place_trophies
+from dungeon_crawler.exploration import encounter_enemies, recruit_companion
+from dungeon_crawler.dev_tools import ITEM_REGISTRY, COMPANION_REGISTRY
 from dungeon_crawler.exploration import CHEST_OPENED, room_is_clear
 from dungeon_crawler.content import create_typhon, create_serpent_of_typhon, create_typhon_storm_unleashed, create_serpent_venom, create_storm_of_ash, create_heart_of_typhon, TYPHON_DEFEATED
 from dungeon_crawler.exploration import floor_traits
@@ -29,7 +33,7 @@ def test_create_minotaur_has_correct_stats():
     assert minotaur.hp == 28
     assert minotaur.attack_damage == 8
     assert minotaur.armour == 3
-    assert len(minotaur.loot) == 1
+    assert len(minotaur.loot) == 2
     assert minotaur.experience_reward == 30
     assert minotaur.gold_reward == 18
 
@@ -326,7 +330,7 @@ def test_create_talos_has_correct_stats():
     assert talos.hp == 30
     assert talos.attack_damage == 9
     assert talos.armour == 3
-    assert len(talos.loot) == 1
+    assert len(talos.loot) == 2
     assert talos.experience_reward == 35
     assert talos.gold_reward == 20
 
@@ -385,7 +389,7 @@ def test_create_medusa_awakened_has_correct_stats():
     assert awakened.hp == 35
     assert awakened.attack_damage == 8
     assert awakened.armour == 3
-    assert len(awakened.loot) == 1
+    assert len(awakened.loot) == 2
     assert awakened.experience_reward == 40
     assert awakened.gold_reward == 25
 
@@ -2635,7 +2639,7 @@ def test_create_polyphemus_blinded_starts_blinded_for_the_whole_fight():
 
 def test_create_polyphemus_blinded_pays_out_and_drops_the_stake():
     blinded = create_polyphemus_blinded()
-    assert [item.name for item in blinded.loot] == ["Olive-wood Stake"]
+    assert [item.name for item in blinded.loot] == ["Olive-wood Stake", "Fleece of the Ram"]
     assert blinded.experience_reward == 60
     assert blinded.gold_reward == 35
 
@@ -2931,7 +2935,7 @@ def test_create_poseidon_earth_shaker_has_correct_stats():
 
 def test_create_poseidon_earth_shaker_pays_out_and_drops_the_trident():
     shaker = create_poseidon_earth_shaker()
-    assert [item.name for item in shaker.loot] == ["Trident of the Depths"]
+    assert [item.name for item in shaker.loot] == ["Trident of the Depths", "Conch of Poseidon"]
     assert shaker.experience_reward == 90
     assert shaker.gold_reward == 50
 
@@ -3573,7 +3577,7 @@ def test_create_cerberus_last_head_has_the_rewards():
     assert (last_head.hp, last_head.attack_damage, last_head.armour) == (60, 15, 3)
     assert last_head.experience_reward == 110
     assert last_head.gold_reward == 60
-    assert [item.name for item in last_head.loot] == ["Hide of Cerberus"]
+    assert [item.name for item in last_head.loot] == ["Hide of Cerberus", "Collar of Cerberus"]
 
 def test_create_cerberus_last_head_bites_with_the_aconite_fangs():
     """A natural weapon: equipped, never in the loot, adding only its poison chance."""
@@ -3630,7 +3634,7 @@ def test_create_hades_helm_of_darkness_is_evasive_and_piercing():
     assert helm.melee_dodge_chance == 0.4
     assert helm.armour_pierce == 2
     assert (helm.experience_reward, helm.gold_reward) == (150, 80)
-    assert [item.name for item in helm.loot] == ["Bident of Hades"]
+    assert [item.name for item in helm.loot] == ["Bident of Hades", "Helm of Darkness"]
 
 def test_create_hades_helm_of_darkness_yields_on_promised_mercy():
     helm = create_hades_helm_of_darkness()
@@ -4118,7 +4122,7 @@ def test_build_floor_3_ossuary_leads_back_up_to_the_crypt():
 def test_build_floor_3_ossuary_holds_the_ledger_of_the_unjudged():
     _, rooms = build_floor_3()
     ossuary = rooms["Ossuary"]
-    assert [item.name for item in ossuary.items] == ["Ledger of the Unjudged"]
+    assert [item.name for item in ossuary.items] == ["Ledger of the Unjudged", "Keeper's Lantern"]
 
 def test_create_ledger_of_the_unjudged_grants_two_intellect():
     ledger = create_ledger_of_the_unjudged()
@@ -4147,7 +4151,7 @@ def test_build_floor_4_workshop_leads_back_west_and_up_to_icarus_shaft():
 
 def test_build_floor_4_workshop_holds_the_crossbow_and_daedalus_notes():
     _, rooms = build_floor_4()
-    assert [item.name for item in rooms["Daedalus' Workshop"].items] == ["Clockwork Crossbow", "Daedalus' Notes"]
+    assert [item.name for item in rooms["Daedalus' Workshop"].items] == ["Clockwork Crossbow", "Daedalus' Notes", "Daedalus' Compass"]
 
 def test_build_floor_4_places_icarus_in_his_shaft():
     _, rooms = build_floor_4()
@@ -4196,7 +4200,7 @@ def test_build_floor_5_wooden_horse_leads_back_out_to_the_camp():
 
 def test_build_floor_5_wooden_horse_holds_the_spear_of_pelion():
     _, rooms = build_floor_5()
-    assert [item.name for item in rooms["Belly of the Wooden Horse"].items] == ["Spear of Pelion"]
+    assert [item.name for item in rooms["Belly of the Wooden Horse"].items] == ["Spear of Pelion", "Bridle of the Wooden Horse"]
 
 def test_create_spear_of_pelion_is_a_piercing_weapon():
     spear = create_spear_of_pelion()
@@ -4228,7 +4232,7 @@ def test_build_floor_6_nymphs_cave_leads_back_east_to_ithaca():
     assert rooms["Cave of the Nymphs"].get_exit("east") is rooms["Shadow of Ithaca"]
 
 def test_build_floor_6_nymphs_cave_holds_the_nymphs_honey():
-    assert [item.name for item in _nymphs_cave().items] == ["Nymphs' Honey"]
+    assert [item.name for item in _nymphs_cave().items] == ["Nymphs' Honey", "Phaeacian Tripod"]
 
 def test_create_nymphs_honey_heals_twenty_five():
     honey = create_nymphs_honey()
@@ -4379,10 +4383,16 @@ def test_create_odysseus_warns_about_the_five_suitors_before_the_fight():
 # ---- chests and loot tables ----
 
 def _chest_rooms():
+    """Every room with a chest that opens once its room is clear - all but the Trophy Room's, which waits for the trophies instead."""
     dungeon, start, floors = build_world()
-    return [(floor, room) for floor, rooms in floors.items() for room in rooms.values() if "open chest" in room.interactions]
+    return [(floor, room) for floor, rooms in floors.items() for room in rooms.values()
+            if "open chest" in room.interactions and not room.is_trophy_room]
 
-def test_build_world_places_six_chests():
+def test_build_world_places_seven_chests():
+    dungeon, start, floors = build_world()
+    assert sum("open chest" in room.interactions for rooms in floors.values() for room in rooms.values()) == 7
+
+def test_build_world_places_six_chests_behind_fights():
     assert [(floor, room.name) for floor, room in _chest_rooms()] == [
         ("floor_1", "Sunken Vault"), ("floor_3", "Cave of Harpies"), ("floor_4", "Stony Lair"),
         ("floor_5", "Shadow of Troy (Central)"), ("floor_6", "Bright Cave"), ("floor_6", "Throne Room of Odysseus"),
@@ -4451,3 +4461,177 @@ def test_loot_tables_never_roll_anything_charon_only_sells_deeper():
     for table, deepest in ((EARLY_LOOT, 3), (MIDDLE_LOOT, 5), (LATE_LOOT, 9)):
         for _, factory in table.items:
             assert unlocks.get(factory().name, 0) <= deepest, factory().name
+
+# ---- floor 4: the Workshop's tools ----
+
+def test_build_world_only_daedalus_workshop_is_a_workshop():
+    dungeon, start, floors = build_world()
+    assert [room.name for rooms in floors.values() for room in rooms.values() if room.is_workshop] == ["Daedalus' Workshop"]
+
+def test_daedalus_workshop_description_mentions_his_tools():
+    _, rooms = build_floor_4()
+    assert "His tools still" in rooms["Daedalus' Workshop"].description
+
+# ---- floor 2: the Trophy Room of Zeus ----
+
+def _trophy_room():
+    dungeon, start, floors = build_world()
+    return floors["floor_2"]["Trophy Room of Zeus"], floors
+
+def _all_trophies():
+    return [find_item_by_name(name) for name, _ in TROPHY_PLINTHS]
+
+def _complete_the_trophy_room(room, player):
+    for item in _all_trophies():
+        player.inventory.add(item)
+    return place_trophies("all", room, player)
+
+def test_trophy_plinths_has_thirteen_trophies_with_a_clue_each():
+    assert len(TROPHY_PLINTHS) == 13
+    assert len({name for name, _ in TROPHY_PLINTHS}) == 13
+    assert all(clue for _, clue in TROPHY_PLINTHS)
+
+def test_trophy_plinth_clues_never_name_their_trophy():
+    for name, clue in TROPHY_PLINTHS:
+        assert name.lower() not in clue.lower(), name
+
+def test_build_world_only_the_trophy_room_of_zeus_is_a_trophy_room():
+    room, floors = _trophy_room()
+    assert [r.name for rooms in floors.values() for r in rooms.values() if r.is_trophy_room] == ["Trophy Room of Zeus"]
+    assert room.trophy_plinths == TROPHY_PLINTHS
+
+def test_trophy_room_description_counts_its_plinths_correctly():
+    room, _ = _trophy_room()
+    assert "Thirteen plinths" in room.description
+
+def test_every_trophy_plinth_names_a_real_trophy():
+    """A plinth for a trophy that can't be built could never be filled - and saves rebuild trophies by name through the registry."""
+    for name, _ in TROPHY_PLINTHS:
+        item = ITEM_REGISTRY[name.lower()]()
+        assert isinstance(item, Trophy), name
+        assert item.name == name
+
+def test_every_trophy_can_be_found_exactly_once_in_the_world():
+    """Regression guard: the room can only be completed if every trophy is placed somewhere - as a drop (any phase or wave of a fight) or lying
+    in a room - and none can be found twice."""
+    dungeon, start, floors = build_world()
+    found = []
+    for rooms in floors.values():
+        for room in rooms.values():
+            found += [item.name for item in room.items if isinstance(item, Trophy)]
+            for enemy in room.enemies:
+                for stage in encounter_enemies(enemy):
+                    found += [item.name for item in stage.loot if isinstance(item, Trophy)]
+    assert sorted(found) == sorted(name for name, _ in TROPHY_PLINTHS)
+
+def test_every_trophy_in_the_game_has_a_plinth():
+    plinth_names = {name for name, _ in TROPHY_PLINTHS}
+    for key, factory in ITEM_REGISTRY.items():
+        item = factory()
+        if isinstance(item, Trophy):
+            assert item.name in plinth_names, item.name
+
+def test_trophy_room_milestones_are_at_five_ten_and_all_thirteen():
+    room, _ = _trophy_room()
+    assert sorted(room.trophy_milestones) == [5, 10, 13]
+
+def test_placing_five_trophies_gives_zeus_blessing():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    player.hp = 12
+    for item in _all_trophies()[:5]:
+        player.inventory.add(item)
+    message = place_trophies("all", room, player)
+    assert (player.max_hp, player.hp) == (25, 17)
+    assert "(+5 max HP)" in message
+
+def test_placing_ten_trophies_gives_a_skill_point():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    for item in _all_trophies()[:10]:
+        player.inventory.add(item)
+    message = place_trophies("all", room, player)
+    assert player.skill_tree.skill_points == 1
+    assert "(+1 skill point)" in message
+    assert TROPHY_ROOM_COMPLETE not in player.story_flags
+
+def test_placing_every_trophy_completes_the_room():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    message = _complete_the_trophy_room(room, player)
+    assert TROPHY_ROOM_COMPLETE in player.story_flags
+    assert message.endswith("(Trophies placed: 13 of 13.)")
+    assert player.inventory.items == []
+
+def test_trophy_room_chest_stays_shut_until_every_plinth_is_filled():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    message = room.interactions["open chest"].handler(player, room)
+    assert message == "The chest won't move. Zeus doesn't even look up. \"When every plinth is filled.\""
+    assert CHEST_OPENED not in room.flags
+
+def test_trophy_room_chest_holds_the_thunderbolt_once_the_room_is_complete():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    _complete_the_trophy_room(room, player)
+    room.interactions["open chest"].handler(player, room)
+    assert [item.name for item in room.items] == ["Thunderbolt of Zeus", "Vial of Ambrosia", "Vial of Ambrosia"]
+    assert room.available_interactions(player) == []
+
+def test_create_thunderbolt_of_zeus_is_the_best_ranged_weapon():
+    bolt = create_thunderbolt_of_zeus()
+    assert (bolt.slot, bolt.weapon_class, bolt.damage, bolt.armour_pierce, bolt.blind_chance) == ("ranged", "ranged", 12, 4, 0.25)
+    assert bolt.with_article() == "the Thunderbolt of Zeus"
+    ranged = [f() for f in ITEM_REGISTRY.values() if isinstance(f(), Weapon) and f().slot == "ranged"]
+    assert max(ranged, key=lambda weapon: weapon.damage).name == "Thunderbolt of Zeus"
+
+def test_build_world_places_zeus_at_home_in_his_trophy_room():
+    room, _ = _trophy_room()
+    assert [companion.name for companion in room.companions] == ["Zeus"]
+    assert room.companions[0].home_room is room
+
+def test_create_zeus_stats():
+    zeus = create_zeus()
+    assert (zeus.max_hp, zeus.attack_damage, zeus.armour, zeus.heal_amount, zeus.brace_amount) == (75, 20, 5, 8, 5)
+    assert zeus.attack_type == "ranged"
+    assert zeus.requires_duel is False
+
+def test_create_zeus_is_the_strongest_companion():
+    zeus = create_zeus()
+    for key, factory in COMPANION_REGISTRY.items():
+        other = factory()
+        if other.name not in ("Zeus", "Test Companion"):
+            assert zeus.max_hp > other.max_hp and zeus.attack_damage > other.attack_damage, other.name
+
+def test_zeus_will_not_join_until_the_trophy_room_is_complete():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    assert recruit_companion("zeus", room, player) == "\"Not yet,\" Zeus says, without looking at you. \"Fill the plinths first.\""
+    assert player.companion is None
+
+def test_zeus_joins_once_the_trophy_room_is_complete():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    _complete_the_trophy_room(room, player)
+    recruit_companion("zeus", room, player)
+    assert player.companion is not None
+    assert player.companion.name == "Zeus"
+
+def test_zeus_tells_the_player_how_to_place_trophies():
+    hint = create_zeus().talk(Player(name="Hero", hp=20))
+    assert "'place'" in hint
+    assert "'place all'" in hint
+
+def test_zeus_points_at_recruiting_him_once_the_room_is_complete():
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add(TROPHY_ROOM_COMPLETE)
+    assert "'recruit zeus'" in create_zeus().talk(player)
+
+def test_zeus_has_a_line_for_his_brother_hades():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    player.companion = create_hades_companion()
+    first = talk_to(room.companions[0], player, room)
+    second = talk_to(room.companions[0], player, room)
+    assert "\"Brother.\"" in first
+    assert "\"Brother.\"" not in second

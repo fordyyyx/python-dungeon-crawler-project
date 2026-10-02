@@ -462,23 +462,23 @@ class Player(Character):
         counts: dict[str, int] = {}
         for item in regular_items:
             if not isinstance(item, Armour):
-                counts[item.name] = counts.get(item.name, 0) + 1
+                counts[item.display_name] = counts.get(item.display_name, 0) + 1
 
         equipped_names = {
-            item.name for item in regular_items if item.equipped and not isinstance(item, Armour)
+            item.display_name for item in regular_items if item.equipped and not isinstance(item, Armour)
         }
 
         lines =[]
         listed: set[str] = set()
         for item in regular_items:
             if isinstance(item, Armour):
-                line = item.name + (" (equipped)" if item.equipped else "") + f" - {item.details()}"
+                line = item.display_name + (" (equipped)" if item.equipped else "") + f" - {item.details()}"
                 lines.append(line)
-            elif item.name not in listed:
-                listed.add(item.name)
-                count = counts[item.name]
-                line = f"{item.name} x{count}" if count > 1 else item.name
-                if item.name in equipped_names:
+            elif item.display_name not in listed:
+                listed.add(item.display_name)
+                count = counts[item.display_name]
+                line = f"{item.display_name} x{count}" if count > 1 else item.display_name
+                if item.display_name in equipped_names:
                     line += " (equipped)"
                 details = item.details()
                 if details:
@@ -486,7 +486,7 @@ class Player(Character):
                 lines.append(line)
 
         if quest_items:
-            quest_names = ", ".join(item.name for item in quest_items)
+            quest_names = ", ".join(item.display_name for item in quest_items)
             lines.append(f"\nQuest Items: {quest_names}")
 
         if self.gold > 0:
@@ -701,11 +701,12 @@ class Companion(Character):
     Companion IS a Character - it needs real combat stats to sit in Player.team and act via choose_companion_action() (combat.py),
     home_room is where a dismissed Companion reappears - see dismiss_companion()."""
 
-    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = "", ancestry_lines: dict[str, str] | None = None, rival_lines: dict[str, str] | None = None, required_story_flag: str | None = None, recruit_blocked_message: str = "", attack_type: str = "light", gives_advice: bool = False):
+    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = "", ancestry_lines: dict[str, str] | None = None, rival_lines: dict[str, str] | None = None, required_story_flag: str | None = None, recruit_blocked_message: str = "", attack_type: str = "light", gives_advice: bool = False, companion_lines: dict[str, str] | None = None):
         """required_items are what the player must hold to recruit this companion (see recruit_companion()) - mirrors Ally.required_items.
         aggression_weight/caution_weight/randomness_weight/brace_amount/heal_amount feed choose_companion_action()'s utility scoring (combat.py)
         - same shape and same defaults as Enemy's equivalent fields. hint/hint_recruitable are this companion's talk() lines, and
-        duel_enemy_factory/duel_won_message/duel_lost_message set up a duel they insist on before joining (see start_duel(), exploration.py)."""
+        duel_enemy_factory/duel_won_message/duel_lost_message set up a duel they insist on before joining (see start_duel(), exploration.py).
+        companion_lines are once-only lines for whoever is in the player's party, the same as Ally.companion_lines - Zeus has one for Hades."""
         super().__init__(name, hp, attack_damage, armour)
         self.description = description
         self.home_room = home_room
@@ -743,6 +744,7 @@ class Companion(Character):
         """Whether this companion will survive the next blow that would down them, staying on 1 HP. Set at the top of the game loop whenever
         the player isn't in combat - to whether they hold a LoyaltyToken - so it's readied once per fight. Never saved: it's always recalculated
         before the next fight can start."""
+        self.companion_lines = companion_lines or {}
 
     def on_death(self) -> str:
         """Companion-specific 'downed' message - distinct from a permanent death. Fires through take_damage() exactly as it does for

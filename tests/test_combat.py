@@ -3471,7 +3471,7 @@ def test_handle_enemy_defeat_polyphemus_blinded_pays_out_and_drops_the_stake():
     blinded.hp = 0
     handle_enemy_defeat(room, blinded, player)
     assert room.enemies == []
-    assert [item.name for item in room.items] == ["Olive-wood Stake"]
+    assert [item.name for item in room.items] == ["Olive-wood Stake", "Fleece of the Ram"]
     assert player.gold == 35
 
 def test_resolve_companion_and_enemy_turns_a_two_turn_blind_makes_two_enemy_attacks_miss(monkeypatch):

@@ -2,7 +2,7 @@
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.characters import Companion, Enemy, Ally
-from dungeon_crawler.items import Armour, Weapon
+from dungeon_crawler.items import Armour, Weapon, Trophy
 from dungeon_crawler.chests import add_random_chest
 from dungeon_crawler.content.loot_tables import MIDDLE_LOOT
 from .common import create_cup_of_kykeon, create_field_dressing
@@ -236,6 +236,14 @@ def create_spear_of_pelion() -> Weapon:
         article="the",
     )
 
+def create_bridle_of_the_wooden_horse() -> Trophy:
+    """Create the Bridle of the Wooden Horse - a Trophy for the Trophy Room of Zeus, found in the Belly of the Wooden Horse."""
+    return Trophy(
+        name="Bridle of the Wooden Horse",
+        description="A bronze bridle for a horse that was never meant to be ridden - only believed.",
+        article="the",
+    )
+
 def build_floor_5() -> tuple[Room, dict[str, Room]]:
     """Shadow of Troy - Shadow of Army Camp, Shadow of Troy (North), Shadow of Troy (Central), Shadow of Troy (Alleyway), Shadow of Troy (South), and Shadow of Pylos, plus the Belly of the Wooden Horse, hidden inside the Army Camp. Shadow of Troy (Central) holds a random chest."""
     shadow_of_army_camp = Room(
@@ -302,6 +310,7 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     belly_of_the_wooden_horse.connect("out", shadow_of_army_camp)
 
     belly_of_the_wooden_horse.add_item(create_spear_of_pelion())
+    belly_of_the_wooden_horse.add_item(create_bridle_of_the_wooden_horse())
 
     add_random_chest(shadow_of_troy_central, MIDDLE_LOOT)
 

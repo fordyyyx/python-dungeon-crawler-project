@@ -37,7 +37,7 @@ def take_all(room: Room, player: Player) -> str:
     for item in items:
         room.remove_item(item)
         player.inventory.add(item)
-    return f"You take: {', '.join(item.name for item in items)}."
+    return f"You take: {', '.join(item.display_name for item in items)}."
 
 def take_all_from_ally(ally: Ally, player: Player) -> str:
     """Move every item ally is holding into player's inventory."""
@@ -69,7 +69,7 @@ def trade_with_ally(ally: Ally, player: Player):
     if equipped_items:
         # checked ahead of time rather than letting the removal below hit it - Inventory.remove() has no
         # equipped guard of its own (only drop_item() does), so this is the only place stopping an equipped trade
-        equipped_names = ", ".join(item.name for item in equipped_items)
+        equipped_names = ", ".join(item.display_name for item in equipped_items)
         return f"{ally.name} shakes their head. \"You'll need to unequip: {equipped_names}.\""
 
     if not player.has_silver_tongue:
@@ -111,7 +111,7 @@ def recruit_companion(name: str, room: Room, player: Player) -> str:
     ]
 
     if equipped_items:
-        equipped_names = ', '.join(item.name for item in equipped_items)
+        equipped_names = ', '.join(item.display_name for item in equipped_items)
         return f"{companion.name} shakes their head. \"You'll need to unequip: {equipped_names}.\""
 
     for item_name in companion.required_items:
@@ -146,7 +146,7 @@ def take_opening_line(speaker, player: Player) -> str:
 
 def talk_to(speaker, player: Player, room: Room) -> str:
     """The speaker's dialogue, preceded - the first time only - by their opening_line (take_opening_line()), then any ancestry line matching
-    the player's primary or secondary ancestry, then any companion line (Ally.companion_lines) for the companion in the player's party. A
+    the player's primary or secondary ancestry, then any companion line (companion_lines, on an ally or a companion) for the companion in the player's party. A
     speaker with a branching dialogue (Ally.dialogue) starts it in room instead of calling talk() - which is why room is needed. Every
     place that shows ally or companion dialogue (the 'talk' command and auto-talk) goes through this rather than calling speaker.talk() directly,
     so the once-only rule lives in one place and talk() itself stays free of side effects."""
@@ -348,15 +348,15 @@ def repair_item(item_name: str, player: Player, room: Room) -> str:
 
     missing = item.max_durability - item.durability
     if missing == 0:
-        return f"{item.name} doesn't need repairing."
+        return f"{item.display_name} doesn't need repairing."
 
     cost = missing * REPAIR_COST_PER_POINT
     if player.gold < cost:
-        return f"Repairing {item.name} costs {cost} gold - you only have {player.gold}."
+        return f"Repairing {item.display_name} costs {cost} gold - you only have {player.gold}."
 
     player.gold -= cost
     item.durability = item.max_durability
-    return f"{item.name} is fully repaired for {cost} gold."
+    return f"{item.display_name} is fully repaired for {cost} gold."
 
 def check_equippable(item_name: str, player: Player) -> str | None:
     """An error message if item_name isn't held, isn't a Weapon/Armour, or is already equipped - otherwise None. Checked before equipping so
@@ -367,7 +367,7 @@ def check_equippable(item_name: str, player: Player) -> str | None:
     if not isinstance(item, (Weapon, Armour)):
         return f"You can't equip {item.with_article(definite=True)}."
     if item.equipped:
-        return f"{item.name} is already equipped."
+        return f"{item.display_name} is already equipped."
     return None
 
 def has_unfinished_trade(ally: Ally) -> bool:

@@ -4,7 +4,7 @@ import os
 from dungeon_crawler.characters import Player, Enemy, Ally, Companion
 from dungeon_crawler.world import Room, Map
 from dungeon_crawler.character_creation import create_player
-from dungeon_crawler.dev_tools import ENEMY_REGISTRY
+from dungeon_crawler.dev_tools import ENEMY_REGISTRY, find_item_by_name
 from dungeon_crawler.content import build_world, create_penelopes_thread, create_odysseus, create_poseidon, create_charybdis, create_polyphemus_blinded, create_antiphates_club, create_cyclops_eye, create_shade_of_achilles, create_gorgon, create_medusa_awakened
 from dungeon_crawler.combat import handle_enemy_defeat, resolve_pending_defeats
 from dungeon_crawler.items import Weapon, Armour
@@ -136,7 +136,7 @@ def test_serialise_player_includes_inventory_item_name_and_defaults():
     sword = Weapon(name="Bronze Xiphos", description="", damage=3)
     player.inventory.add(sword)
     data = serialise_player(player, Room("Chamber"))
-    assert data["inventory"] == [{"name": "Bronze Xiphos", "equipped": False, "durability": None}]
+    assert data["inventory"] == [{"name": "Bronze Xiphos", "equipped": False, "durability": None, "upgrade_level": 0}]
 
 def test_serialise_player_includes_equipped_flag_in_inventory():
     player = Player(name="Hero", hp=50)
@@ -381,14 +381,14 @@ def test_serialise_room_includes_item_names_and_durability():
     armour.durability = 3
     room.add_item(armour)
     data = serialise_room(room)
-    assert data["items"] == [{"name": "Bronze Breastplate", "durability": 3}]
+    assert data["items"] == [{"name": "Bronze Breastplate", "durability": 3, "upgrade_level": 0}]
 
 def test_serialise_room_non_armour_item_has_none_durability():
     room = Room("Chamber")
     sword = Weapon(name="Bronze Xiphos", description="", damage=3)
     room.add_item(sword)
     data = serialise_room(room)
-    assert data["items"] == [{"name": "Bronze Xiphos", "durability": None}]
+    assert data["items"] == [{"name": "Bronze Xiphos", "durability": None, "upgrade_level": 0}]
 
 def test_serialise_room_includes_completed_trade_ally_names():
     room = Room("Chamber")
@@ -1612,3 +1612,124 @@ def test_save_and_load_keeps_an_opened_chest_opened(monkeypatch, tmp_path):
 
     assert room.available_interactions(loaded) == []
     assert [item.name for item in room.items] == ["Small Healing Potion", "Small Healing Potion"]
+
+# ---- upgrade levels ----
+
+def _strip_upgrade_levels(path):
+    """Rewrite a save as an older one, from before items had upgrade levels."""
+    with open(path, encoding="utf-8") as save_file:
+        data = json.load(save_file)
+    for item in data["player"]["inventory"]:
+        item.pop("upgrade_level", None)
+    for room in data["world"].values():
+        for item in room["items"]:
+            item.pop("upgrade_level", None)
+    with open(path, "w", encoding="utf-8") as save_file:
+        json.dump(data, save_file)
+
+def test_save_and_load_keeps_an_inventory_items_upgrade_level(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    plating = find_item_by_name("talos' bronze plating")
+    plating.upgrade_level = 2
+    player.inventory.add(plating)
+    plating.use(player)
+    armour_before = player.armour
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    loaded, _ = load_game(1, 1, fresh)
+
+    assert loaded.equipped_body.upgrade_level == 2
+    assert loaded.equipped_body.defence == plating.defence
+    assert loaded.armour == armour_before
+
+def test_save_and_load_keeps_the_upgrade_level_of_an_item_left_in_a_room(monkeypatch, tmp_path):
+    """Regression: room items were saved by name and durability only, so an upgraded item dropped on the floor reloaded at +0."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    labrys = find_item_by_name("labrys")
+    labrys.upgrade_level = 5
+    start.add_item(labrys)
+    save_game(1, 1, Player(name="Hero", hp=20), start, dungeon)
+
+    fresh, _, _ = build_world()
+    loaded, room = load_game(1, 1, fresh)
+
+    dropped = next(item for item in room.items if item.name == "Labrys")
+    assert dropped.upgrade_level == 5
+    assert dropped.damage == labrys.damage
+
+def test_load_from_an_older_save_without_upgrade_levels_gives_plain_items(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.inventory.add(find_item_by_name("labrys"))
+    start.add_item(find_item_by_name("bronze xiphos"))
+    save_game(1, 1, player, start, dungeon)
+    _strip_upgrade_levels(slot_path(1, 1))
+
+    fresh, _, _ = build_world()
+    loaded, room = load_game(1, 1, fresh)
+
+    assert [item.upgrade_level for item in loaded.inventory.items] == [0]
+    assert all(item.upgrade_level == 0 for item in room.items)
+
+# ---- the Trophy Room ----
+
+def test_serialise_room_records_the_trophies_placed():
+    room = Room("Trophy Room", is_trophy_room=True)
+    room.placed_trophies = {"Horn", "Heart"}
+    assert serialise_room(room)["placed_trophies"] == ["Heart", "Horn"]
+
+def test_apply_room_data_from_an_older_save_leaves_the_plinths_empty():
+    room = Room("Trophy Room", is_trophy_room=True)
+    data = serialise_room(room)
+    del data["placed_trophies"]
+    apply_room_data(room, data)
+    assert room.placed_trophies == set()
+
+def test_save_and_load_keeps_placed_trophies_and_never_pays_a_milestone_twice(monkeypatch, tmp_path):
+    """Five trophies placed, saved and reloaded: the plinths stay filled, the blessing isn't given again, and the count carries on to ten."""
+    from dungeon_crawler.content import TROPHY_PLINTHS
+    from dungeon_crawler.trophies import place_trophies
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    trophy_room = floors["floor_2"]["Trophy Room of Zeus"]
+    names = [name for name, _ in TROPHY_PLINTHS]
+    player = Player(name="Hero", hp=20)
+    for name in names[:5]:
+        player.inventory.add(find_item_by_name(name))
+    place_trophies("all", trophy_room, player)
+    save_game(1, 1, player, trophy_room, dungeon)
+
+    fresh, _, _ = build_world()
+    loaded, room = load_game(1, 1, fresh)
+    for name in names[5:10]:
+        loaded.inventory.add(find_item_by_name(name))
+    message = place_trophies("all", room, loaded)
+
+    assert len(room.placed_trophies) == 10
+    assert loaded.max_hp == 25
+    assert "(+5 max HP)" not in message
+    assert "(+1 skill point)" in message
+
+def test_save_and_load_keeps_a_recruited_zeus(monkeypatch, tmp_path):
+    from dungeon_crawler.content import create_zeus
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    trophy_room = floors["floor_2"]["Trophy Room of Zeus"]
+    player = Player(name="Hero", hp=20)
+    zeus = trophy_room.companions[0]
+    trophy_room.remove_companion(zeus)
+    player.companion = zeus
+    save_game(1, 1, player, trophy_room, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    loaded, room = load_game(1, 1, fresh)
+
+    assert loaded.companion is not None
+    assert (loaded.companion.name, loaded.companion.max_hp) == ("Zeus", create_zeus().max_hp)
+    assert loaded.companion.home_room is room
+    assert room.companions == []

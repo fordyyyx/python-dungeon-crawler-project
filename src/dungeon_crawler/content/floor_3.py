@@ -1,7 +1,7 @@
 """Floor 3 (Low Dungeon) - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, Overgrown Forest, and the hidden Ossuary."""
 
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, QuestItem, StatusEffectItem, SpellBook, IntellectReward
+from dungeon_crawler.items import Weapon, QuestItem, StatusEffectItem, SpellBook, IntellectReward, Trophy
 from dungeon_crawler.characters import Enemy
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.chests import add_random_chest
@@ -138,6 +138,14 @@ def create_ledger_of_the_unjudged() -> IntellectReward:
         article="the",
     )
 
+def create_keepers_lantern() -> Trophy:
+    """Create the Keeper's Lantern - a Trophy for the Trophy Room of Zeus, found in the Ossuary."""
+    return Trophy(
+        name="Keeper's Lantern",
+        description="The Crypt Keeper's lantern, stil burning low, as it has for every name in the ledger.",
+        article="the",
+    )
+
 def build_floor_3() -> tuple[Room, dict[str, Room]]:
     """Low Dungeon - Bony Crypt, Cave of Harpies (with a random chest), Prayer Room, Dim Corridor, and Overgrown Forest, plus the Ossuary, hidden
     below the Bony Crypt."""
@@ -198,6 +206,7 @@ def build_floor_3() -> tuple[Room, dict[str, Room]]:
     dim_corridor.add_enemy(create_lurker())
 
     ossuary.add_item(create_ledger_of_the_unjudged())
+    ossuary.add_item(create_keepers_lantern())
 
     add_random_chest(cave_of_harpies, EARLY_LOOT)
 

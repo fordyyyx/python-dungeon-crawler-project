@@ -42,7 +42,7 @@ def test_show_hint_with_unknown_key_raises_key_error():
 
 def test_hints_defines_every_key_the_game_triggers():
     """Every show_hint() call site in engine.py uses one of these keys - a missing one would raise KeyError mid-game."""
-    assert set(HINTS) == {"combat", "passive_regen", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave", "evasive", "room_interactions"}
+    assert set(HINTS) == {"combat", "passive_regen", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave", "evasive", "room_interactions", "workshop"}
 
 def test_hints_all_have_non_empty_text():
     assert all(text.strip() for text in HINTS.values())
@@ -62,3 +62,7 @@ def test_combat_hint_does_not_claim_light_attacks_never_miss():
     """Regression: the hint said "'attack light' never misses", untrue since armour weight added a miss chance to every attack."""
     assert "never misses" not in HINTS["combat"]
     assert "'stats'" in HINTS["combat"]
+
+def test_workshop_hint_names_the_upgrade_command_and_what_limits_it():
+    assert "'upgrade'" in HINTS["workshop"]
+    assert "intellect" in HINTS["workshop"]
