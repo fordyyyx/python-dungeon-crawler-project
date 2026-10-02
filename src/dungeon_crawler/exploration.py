@@ -18,6 +18,7 @@ ODYSSEUS_ADVICE = {
     "puzzle": "You can't fight that. Look around - there'll be another way.",
 }
 HIDDEN_WAYS_NOTE = "Hidden ways remain somewhere on the floors you've reached."
+CHEST_OPENED = "chest_opened"
 
 def pick_up(room: Room, item_name: str, player: Player) -> str:
     """Move the named item from room into player's inventory. Returns an error message if no matching item is present."""
@@ -383,6 +384,8 @@ def get_uncleared_reasons(room: Room) -> list[str]:
         reasons.append("items left behind")
     if any(has_unfinished_trade(ally) for ally in room.allies):
         reasons.append("an unfinished trade")
+    if "open chest" in room.interactions and CHEST_OPENED not in room.flags:
+        reasons.append("a chest unopened")
     return reasons
 
 def get_undiscovered_rooms(all_floors: dict[str, dict[str, Room]], player: Player) -> set[str]:
@@ -411,6 +414,11 @@ def get_undiscovered_rooms(all_floors: dict[str, dict[str, Room]], player: Playe
                 continue
             undiscovered.add(target.name)
     return undiscovered
+
+def room_is_clear(room: Room) -> bool:
+    """Whether room has no living enemy that isn't respawning - the one definition of a 'cleared' room, shared by chests and
+    apply_room_cleared_flag(). An unsolved invulnerable enemy, like Charybdis, still counts as living, so a puzzle must be solved first."""
+    return not any(enemy.is_alive() and not enemy.respawns for enemy in room.enemies)
 
 def get_uncleared_rooms(all_floors: dict[str, dict[str, Room]], player: Player) -> str:
     """List every visited room that isn't cleared yet (get_uncleared_reasons(), plus 'a decision to make' while one of its story gates is

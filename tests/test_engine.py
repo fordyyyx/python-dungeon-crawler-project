@@ -1741,7 +1741,7 @@ def test_main_offers_lists_circes_exchanges(monkeypatch, capsys, tmp_path):
     captured = capsys.readouterr()
     assert "There's no one here to exchange with." in captured.out
     assert "Circe's offers (you have 0 gold):" in captured.out
-    assert "1. Bronze Xiphos + 20 gold -> Kelp Poultice" in captured.out
+    assert "1. Bronze Xiphos -> Kelp Poultice" in captured.out
     assert "from 1 to 6" in captured.out
 
 def test_get_controls_text_lists_offers_and_exchange():
@@ -1765,7 +1765,7 @@ def test_main_exchanging_gear_with_circe(monkeypatch, capsys, tmp_path):
     main()
 
     captured = capsys.readouterr()
-    assert "Circe takes the Bronze Xiphos and 20 gold." in captured.out
+    assert "Circe takes the Bronze Xiphos." in captured.out
     assert "You receive: a Kelp Poultice." in captured.out
     after = captured.out.split("You receive: a Kelp Poultice.")[-1]
     assert "Kelp Poultice" in after
@@ -2146,3 +2146,32 @@ def test_main_take_the_feather_from_icarus_and_escape_a_fight_with_it(monkeypatc
     assert "You use the Feather of Icarus.\nYou disengage cleanly, leaving your enemies behind." in out
     assert "Your inventory is empty." in after
     assert "The Minotaur is still here - it hasn't forgotten you either." in after
+
+def test_main_buy_from_charon_and_sell_back_to_him(monkeypatch, capsys, tmp_path):
+    """Charon both sells and buys: 'offers' shows only the stock unlocked by the deepest floor reached, 'exchange' buys it, 'sell' sells it back
+    for less - and a quest item is refused."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev teleport styx crossing", "dev set gold 20", "offers", "exchange 1",
+        "sell small healing potion", "dev add charon's coin", "sell charon's coin", "sell nothing", "sell",
+    ])
+    assert "Charon's offers (you have 20 gold):" + "\n" + "    1. 12 gold -> Small Healing Potion" + "\n" + "Say 'exchange <number>'" in out
+    assert "Charon takes 12 gold." in out
+    assert "Charon takes the Small Healing Potion and counts out 5 gold." in out
+    assert "Charon won't take Charon's Coin." in out
+    assert "No item named 'nothing' in inventory." in out
+    assert "Sell what? Say 'sell' followed by the item's name." in out
+
+def test_get_controls_text_lists_sell():
+    assert "sell <item> - " in get_controls_text()
+
+def test_main_open_a_chest_once_its_room_is_cleared(monkeypatch, capsys, tmp_path):
+    """'open chest' is a room verb: refused while the Skeleton Warrior lives, then it pays out once, shows up in 'uncleared' until then, and
+    the loot is taken like any other item."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev teleport sunken vault", "open chest", "dev kill", "take all", "open chest", "take all", "inventory", "open chest",
+    ])
+    assert "(You could: open chest)" in out
+    assert "The Skeleton Warrior won't let you anywhere near the chest." in out
+    assert "You force the lid open. Inside: a Small Healing Potion, a Small Healing Potion, 15 gold." in out
+    assert "The chest is empty." in out
+    assert "Small Healing Potion x3" in out.split("You force the lid open.")[-1]

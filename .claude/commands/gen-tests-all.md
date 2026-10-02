@@ -1,7 +1,7 @@
 Read CLAUDE.md for project context. Generate tests for each of these
 files, in this order, one at a time:
 characters.py, items.py, world.py, content/ (the whole package), combat.py,
-exploration.py, exchange.py, dialogue.py, character_creation.py,
+exploration.py, exchange.py, chests.py, dialogue.py, character_creation.py,
 save_system.py, dev_tools.py, engine.py, status_effects.py, spells.py, hints.py
 
 (The engine.py reorganisation is complete, status effects/spells, the
@@ -18,7 +18,8 @@ yet. Charon's shop is planned to reuse exchange.py rather than get a
 shop.py of its own.)
 
 For each file, use its matching test file under tests/ (exchange.py ->
-tests/test_exchange.py, dialogue.py -> tests/test_dialogue.py). The content/
+tests/test_exchange.py, chests.py -> tests/test_chests.py, dialogue.py ->
+tests/test_dialogue.py). The content/
 package (one module per floor, plus common.py, dev_content.py,
 ancestries.py and world_builder.py) is still covered by the single
 tests/test_content.py - every name is re-exported from

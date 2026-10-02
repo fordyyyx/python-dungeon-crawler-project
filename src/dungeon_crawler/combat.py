@@ -9,7 +9,7 @@ import random
 
 from dungeon_crawler.characters import Character, Player, Enemy, Companion
 from dungeon_crawler.world import Room
-from dungeon_crawler.exploration import pick_up, check_equippable, take_all, get_advice
+from dungeon_crawler.exploration import pick_up, check_equippable, take_all, get_advice, room_is_clear
 from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.items import EscapeItem
 from typing import Sequence
@@ -361,9 +361,7 @@ def apply_room_cleared_flag(room: Room, player: Player) -> str:
     Returns room.cleared_message the one time it's set, otherwise ''. An unsolved invulnerable enemy still counts as living, so a room
     guarded by a puzzle only counts as cleared once the puzzle is solved."""
     flag = room.cleared_story_flag
-    if flag is None or flag in player.story_flags:
-        return ""
-    if any(enemy.is_alive() and not enemy.respawns for enemy in room.enemies):
+    if flag is None or flag in player.story_flags or not room_is_clear(room):
         return ""
     player.story_flags.add(flag)
     return room.cleared_message

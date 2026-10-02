@@ -14,6 +14,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Conversations that branch — some characters talk *with* you rather than at you: pick an answer with `say <number>`, and a choice made there is final, and remembered
 * Seers who look ahead — an Oracle who will answer three questions and no more (what waits on the floor below, or which hidden passage you walked straight past), and a blind prophet who tells you, every time you ask, what you're not ready for
 * An Intellect stat, set by ancestry and grown through levelling (and by a few rare writings worth reading), that unlocks additional flavour text and lore when examining, and opens the way to some hidden places — never anything required to progress
+* Chests worth fighting for — clear a room and `open chest`; some hold the same thing every time, others are rolled once for your whole playthrough, so reloading never changes what's inside
 * Hidden rooms off the beaten path on many floors, each found by looking closer — an inventor's abandoned workshop, the belly of a wooden horse, a cave of treasure a famous wanderer hid on his way home — and each with something in it worth the search
 * A river of forgetting — drink from it to unlearn every skill and have the points back to spend again, for a price that rises the deeper you've been
 * Turn-based, team-vs-team combat that locks you into an encounter — attack a chosen target, cast a spell, use an item, check your stats/skills, or flee (fleeing always succeeds, but a healthier enemy has a higher chance of landing a parting hit as you disengage)
@@ -35,6 +36,7 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * Friendly NPCs with hints, conditional dialogue that changes before, during, and after a trade, and items to trade
 * A trading system that checks for both missing and still-equipped items
 * Merchants — trade gold, and sometimes gear you've outgrown, for something better (`offers` to see what's on offer, `exchange <number>` to accept)
+* A ferryman's shop — Charon sells healing and plain gear, with more on his shelves the deeper you've been, and buys what you no longer need (`sell <item>`) — every item has a value, and damaged armour is worth less
 * Quest items — untradeable, undroppable, and displayed separately from regular gear
 * A branching skill tree (Attack and Defence paths of five escalating tiers each, plus an Abilities path) unlocked via skill points earned through trades — or through levelling up, gained by defeating enemies for experience, which also raises your max HP
 * Gold, earned from defeating enemies, tracked separately from your core stats
@@ -111,6 +113,7 @@ pytest --cov=src/dungeon_crawler
 * `advice` - ask your companion what they make of the room (only some companions give advice; also works mid-combat)
 * `offers` - list what the merchant in this room will exchange, and for how much
 * `exchange <number>` - accept one of the merchant's offers, paying its gold (and handing over its item, if it asks for one)
+* `sell <item>` - sell an item to someone who buys them, for half its value (quest items and equipped gear can't be sold)
 * `repair <item>` - repair an item to full durability at a Forge (requires gold)
 * `dummy set <stat> <value>` - customise the practice dummy's stats (Practice Chamber only)
 * `rest` / `wait` - recover mana outside of combat
@@ -129,7 +132,8 @@ pytest --cov=src/dungeon_crawler
 * `status_effects.py` - `StatusEffect` - the poison/flame/heal-over-time engine, ticked once per combat turn, plus blindness, which counts down per attack instead
 * `spells.py` - `Spell` - offensive/defensive/utility spellcasting
 * `hints.py` - the text of every one-off contextual hint, and the logic that shows each one only once per save
-* `exchange.py` - the exchange system: merchants' offers, and trading gold (and items) for new ones
+* `exchange.py` - the exchange system: merchants' offers, trading gold (and items) for new ones, item values, shop stock, and selling
+* `chests.py` - searchable chests: fixed and random contents, rolled from a seed saved with the player
 * `dialogue.py` - branching conversations: nodes, numbered options, and the choices they record
 * `world.py` - `Room`, `Map`, and `RoomInteraction` (a verb that only works in one room)
 * `content/` - the actual game content: specific rooms, enemies, allies, and items, one module per floor, plus the ancestry options for character creation, dev-only test content, and `build_world()`
@@ -142,7 +146,7 @@ pytest --cov=src/dungeon_crawler
 * `engine.py` - the game loop and top-level command routing
 
 ## Roadmap
-The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and floor 5's Shadow of Troy - home to the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the shades of Hector, Ajax and Paris - and the first half of floor 6's Odyssey: the Laestrygonian giants, the Sirens' bargain, the Cyclops Polyphemus, Scylla and Charybdis, Poseidon himself, Odysseus, a second companion, Circe, the first merchant, and the Suitors in Odysseus' own hall - floor 6 is now complete - and floor 7's seers: the Oracle of Delphi, the blind prophet Tiresias, and Persephone, the first character you hold a real conversation with. Floor 8 completes the story: Cerberus at the gate, then Hades himself - the game now has an ending, and the promise made to Persephone decides how it plays out. Floor 9 adds the post-game: Tartarus, and the thing Hades was holding down there, with a true ending for defeating it. Hidden rooms on floors 1 and 3-6 reward a closer look - among them the Banks of the Lethe, where skills can be forgotten and their points spent again. Planned additions include a Trophy Room of Zeus for the spoils of the game's great victories.
+The current release covers character creation with primary and secondary ancestries, a training prologue, the foundational systems (combat, inventory, trading, allies, skill tree), companions, armour with durability and repair, status effects, spellcasting, attack variety (light/heavy/ranged), a practice chamber for testing loadouts risk-free, weapon classes and armour weight, a full save/load system with profiles/slots and autosave, multi-stage boss fight mechanics (phase transitions and wave-gated adds) with Medusa as the first named boss built on them, floors 0–4 fully populated, from Chiron's training grounds down to Medusa's lair, and floor 5's Shadow of Troy - home to the Shade of Achilles, the first companion you can recruit, once you've beaten him in a duel, and the shades of Hector, Ajax and Paris - and the first half of floor 6's Odyssey: the Laestrygonian giants, the Sirens' bargain, the Cyclops Polyphemus, Scylla and Charybdis, Poseidon himself, Odysseus, a second companion, Circe, the first merchant, and the Suitors in Odysseus' own hall - floor 6 is now complete - and floor 7's seers: the Oracle of Delphi, the blind prophet Tiresias, and Persephone, the first character you hold a real conversation with. Floor 8 completes the story: Cerberus at the gate, then Hades himself - the game now has an ending, and the promise made to Persephone decides how it plays out. Floor 9 adds the post-game: Tartarus, and the thing Hades was holding down there, with a true ending for defeating it. Hidden rooms on floors 1 and 3-6 reward a closer look - among them the Banks of the Lethe, where skills can be forgotten and their points spent again. Charon, the ferryman, now keeps a shop: gold finally has somewhere to go, and old gear somewhere to be sold. Six chests now reward clearing a room. Planned additions include a Trophy Room of Zeus for the spoils of the game's great victories.
 
 ## License
 MIT - https://github.com/fordyyyx/python-dungeon-crawler-project/blob/main/LICENSE

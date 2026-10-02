@@ -150,7 +150,8 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `kelp poultice`, `antinous' goblet`, `penelope's thread`, `pomegranate`, `hide of cerberus`,
 `bident of hades`, `heart of typhon` (a `Trophy`), `ledger of the unjudged` and `daedalus' notes`
 (both `IntellectReward`s), `clockwork crossbow`, `feather of icarus` (an `EscapeItem`),
-`spear of pelion`, `nymphs' honey`, `test spellbook`, `test healing tonic`, `test venom vial`.
+`spear of pelion`, `nymphs' honey`, `obol of return` (a `Reviver`), `bronze buckler`,
+`bronze greataxe`, `hoplite sword` (Charon's stock), `test spellbook`, `test healing tonic`, `test venom vial`.
 
 **Enemies** (`dev spawn <name>`): `training dummy`, `skeleton warrior`,
 `minotaur`, `hades`, `centaur`, `cyclops`, `shade`, `crypt keeper`, `harpy`,
@@ -206,8 +207,8 @@ now exist as real content too, Spells only partly:
   Odysseus, in Shadow of Ithaca (floor 6), who joins once the Suitors in the
   Throne Room are cleared (the `suitors_cleared` story flag) - real content,
   no workaround needed. Penelope's Thread (Bedchamber, beyond the Suitors) is
-  the one real `LoyaltyToken`. No `Reviver` is real content yet, so reviving a downed
-  companion still needs `dismiss` (which restores them) or a dev-added item.
+  the one real `LoyaltyToken`. The one real `Reviver` is the Obol of Return, sold by Charon
+  (100 gold, once you've reached floor 5); `dismiss` restores a downed companion too.
   `test companion` remains useful as a companion with no duel, no
   `required_items`, and all three AI actions live.
 - **Spells.** One real spell exists now: Prayer Bolt, taught by the Tome of
@@ -262,6 +263,11 @@ Blinded), the six Heads of Scylla in Rocky Shore, and Charybdis' puzzle in
 Narrow River - each route guards its way into Poseidon's Depths - then
 Poseidon, Odysseus, Circe, the Suitors and Penelope. Floor 7's Oracle,
 Tiresias and Persephone (and her Pomegranate) are real content as well.
+
+Chests are real content too: six rooms have an `open chest` verb once they're cleared -
+Sunken Vault, Cave of Harpies, Stony Lair, Shadow of Troy (Central), Bright Cave and the
+Throne Room of Odysseus. Two are fixed (the Vault and the Throne Room); the other four roll
+from a loot table using the save's run seed.
 
 The hidden rooms are real content too, each found with `examine` and none needing a
 workaround: the Banks of the Lethe (south of Fields of Asphodel, floor 1 - forget
@@ -543,9 +549,33 @@ dev set gold 30
 exchange 1
 ```
 `offers` lists her six exchanges with your gold. `exchange 1` takes the Bronze
-Xiphos and 20 gold for a Kelp Poultice. Equip the Xiphos first to see the
-"unequip it first" refusal; drop to under 20 gold to see the price refusal -
-neither changes anything. Offers never run out.
+Xiphos for a Kelp Poultice - her four gear offers cost no gold. Equip the Xiphos
+first to see the "unequip it first" refusal. For the price refusal, `dev set gold
+0`, `dev add small healing potion` and `exchange 5` (it costs 5) - neither refusal
+changes anything. Offers never run out.
+
+**Buy from Charon, and sell to him:**
+Start a dev game on `floor_6`, so all his stock is unlocked - it goes by the deepest
+floor *walked* to, and `dev teleport` never adds one.
+```
+dev teleport styx crossing
+dev set gold 200
+offers
+exchange 1
+sell small healing potion
+dev add bronze breastplate
+use bronze breastplate
+dev set durability body 4
+unequip bronze breastplate
+sell bronze breastplate
+sell
+```
+`offers` lists eight items (from a `floor_0` start, only the potion). `exchange 1`
+buys a potion for 12; selling it back pays 5 - half its value. Armour sells for less
+by exactly its repair bill (2 gold a missing point), so the damaged breastplate pays
+4 rather than 12. Bare `sell` asks what to sell; quest items are refused (`dev add
+charon's coin`, `sell charon's coin`), and so is anything only held equipped. To see
+stock unlock, start on `floor_3` (three offers) or `floor_4` (six).
 
 **Try a loyalty token (Penelope's Thread):**
 ```
@@ -667,6 +697,29 @@ and deletes the save; the title screen's slot list no longer shows it. `dev flag
 hardcore` switches it on without Prometheus, and a hardcore save shows
 "(Hardcore)" in the slot list. To see the offer again, start a New Game - a used-up
 offer is saved (`prometheus_offer_made`).
+
+**Open a chest, and see that a reload can't reroll it:**
+```
+dev set run_seed 1
+dev teleport cave of harpies
+open chest
+dev kill
+save
+open chest
+load 1 1
+yes
+open chest
+take all
+open chest
+```
+The first `open chest` is refused - the Harpy is still alive. After `dev kill` it
+opens: with `run_seed` 1 this chest holds two Small Healing Potions and 21 gold, and
+after the reload it holds exactly the same. The last `open chest` says the chest is
+empty. Change the seed (`dev set run_seed 2`) before opening to see different loot -
+`dev set` works because `run_seed` is an ordinary `Player` attribute. The loot lands on
+the floor, so `uncleared` lists the room for "items left behind" until it's taken, and
+for "a chest unopened" before that - though only for rooms you've *walked* into, not
+teleported. `dev teleport sunken vault` has a fixed chest (two potions, 15 gold).
 
 **Forget your skills at the Banks of the Lethe:**
 ```

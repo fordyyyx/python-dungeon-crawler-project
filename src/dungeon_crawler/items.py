@@ -1,4 +1,4 @@
-"""Item classes - Item and its subclasses (Weapon, Armour, Consumable (and its own subclasses Reviver, StatusEffectItem, SpellBook, SkillPointReward), QuestItem) - plus Inventory, which holds and manages a character's items."""
+"""Item classes - Item and its subclasses (Weapon, Armour, Consumable (and its own subclasses Reviver, StatusEffectItem, SpellBook, SkillPointReward, IntellectReward, EscapeItem), QuestItem (and its subclasses LoyaltyToken, Trophy)) - plus Inventory, which holds and manages a character's items."""
 
 from abc import ABC, abstractmethod
 from dungeon_crawler.status_effects import StatusEffect

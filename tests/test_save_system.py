@@ -1545,3 +1545,70 @@ def test_save_and_load_keeps_the_nymphs_gifts_gathered(monkeypatch, tmp_path):
 
     assert loaded.gold == 200
     assert room.available_interactions(loaded) == []
+
+def test_serialise_player_records_the_run_seed():
+    player = Player(name="Hero", hp=20)
+    player.run_seed = 4242
+    assert serialise_player(player, Room("Hall"))["run_seed"] == 4242
+
+def test_save_and_load_keeps_the_run_seed(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.run_seed = 4242
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    loaded, _ = load_game(1, 1, fresh)
+
+    assert loaded.run_seed == 4242
+
+def test_load_from_an_older_save_without_a_run_seed_gets_a_fresh_one(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    save_game(1, 1, Player(name="Hero", hp=20), start, dungeon)
+    path = slot_path(1, 1)
+    with open(path, encoding="utf-8") as save_file:
+        data = json.load(save_file)
+    del data["player"]["run_seed"]
+    with open(path, "w", encoding="utf-8") as save_file:
+        json.dump(data, save_file)
+
+    fresh, _, _ = build_world()
+    loaded, _ = load_game(1, 1, fresh)
+
+    assert isinstance(loaded.run_seed, int)
+
+def test_reloading_before_a_random_chest_cannot_change_what_is_inside(monkeypatch, tmp_path):
+    """The whole point of the run seed: save, open the chest, reload, open it again - the same loot and the same gold."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    cave = floors["floor_3"]["Cave of Harpies"]
+    for enemy in list(cave.enemies):
+        cave.remove_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    save_game(1, 1, player, cave, dungeon)
+    cave.interactions["open chest"].handler(player, cave)
+    first = ([item.name for item in cave.items], player.gold)
+
+    for _ in range(3):
+        fresh, _, _ = build_world()
+        loaded, room = load_game(1, 1, fresh)
+        room.interactions["open chest"].handler(loaded, room)
+        assert ([item.name for item in room.items], loaded.gold) == first
+
+def test_save_and_load_keeps_an_opened_chest_opened(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    vault = floors["floor_1"]["Sunken Vault"]
+    for enemy in list(vault.enemies):
+        vault.remove_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    vault.interactions["open chest"].handler(player, vault)
+    save_game(1, 1, player, vault, dungeon)
+
+    fresh, _, _ = build_world()
+    loaded, room = load_game(1, 1, fresh)
+
+    assert room.available_interactions(loaded) == []
+    assert [item.name for item in room.items] == ["Small Healing Potion", "Small Healing Potion"]

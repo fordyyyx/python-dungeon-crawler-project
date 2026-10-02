@@ -1,9 +1,11 @@
-"""Floor 3 (Low Dungeon) - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, Overgrown Forest."""
+"""Floor 3 (Low Dungeon) - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, Overgrown Forest, and the hidden Ossuary."""
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Weapon, QuestItem, StatusEffectItem, SpellBook, IntellectReward
 from dungeon_crawler.characters import Enemy
 from dungeon_crawler.spells import Spell
+from dungeon_crawler.chests import add_random_chest
+from dungeon_crawler.content.loot_tables import EARLY_LOOT
 from .common import create_small_healing_potion
 
 def create_centaur() -> Enemy:
@@ -16,7 +18,7 @@ def create_centaur() -> Enemy:
         loot=[create_centaurs_broken_bow()],
         description="Half man, half horse, nothing like the patient tutor you met on floor 0 - this one draws its bow the moment it sees you.",
         experience_reward=10,
-        gold_reward=5,
+        gold_reward=20,
     )
 
 def create_crypt_keeper() -> Enemy:
@@ -29,7 +31,7 @@ def create_crypt_keeper() -> Enemy:
         loot=[create_vial_of_grave_rot(), create_small_healing_potion()],
         description="Not a skeleton like the others - this one moves with purpose, tending to bones that were never meant to be disturbed.",
         experience_reward=12,
-        gold_reward=6,
+        gold_reward=18,
         article="the",
     )
 
@@ -44,7 +46,7 @@ def create_harpy() -> Enemy:
         loot=[create_harpy_fletched_bow()],
         description="It drops from the cave roof without warning, all talons and shrieking fury before you've even registered movement.",
         experience_reward=11,
-        gold_reward=4,
+        gold_reward=15,
         aggression_weight=1.5,
     )
 
@@ -58,7 +60,7 @@ def create_fanatic() -> Enemy:
         loot=[create_tome_of_old_prayers()],
         description="Still muttering to gods no one else remembers, it turns on you the moment you disturb the murals.",
         experience_reward=13,
-        gold_reward=7,
+        gold_reward=18,
     )
 
 def create_lurker() -> Enemy:
@@ -72,7 +74,7 @@ def create_lurker() -> Enemy:
         loot=[create_small_healing_potion()],
         description="You don't see it until it's already close - just a shape the torchlight never quite reaches.",
         experience_reward=14,
-        gold_reward=8,
+        gold_reward=20,
     )
 
 def create_prayer_bolt() -> Spell:
@@ -137,7 +139,8 @@ def create_ledger_of_the_unjudged() -> IntellectReward:
     )
 
 def build_floor_3() -> tuple[Room, dict[str, Room]]:
-    """Low Dungeon - Bony Crypt, Cave of Harpies, Prayer Room, Dim Corridor, and Overgrown Forest."""
+    """Low Dungeon - Bony Crypt, Cave of Harpies (with a random chest), Prayer Room, Dim Corridor, and Overgrown Forest, plus the Ossuary, hidden
+    below the Bony Crypt."""
     bony_crypt = Room(
         name="Bony Crypt",
         description="Skeletal remains are stacked floor to ceiling in neat, deliberate rows — someone, once, cared enough to arrange them.",
@@ -155,7 +158,8 @@ def build_floor_3() -> tuple[Room, dict[str, Room]]:
     )
     cave_of_harpies = Room(
         name="Cave of Harpies",
-        description="Feathers and old bones litter a cave mouth that reeks of carrion; shrieks echo faintly from somewhere above.",
+        description="Feathers and old bones litter a cave mouth that reeks of carrion; shrieks echo faintly from somewhere above. Wedged into a nest of "
+        "sticks and torn cloth sits a battered chest - whatever the harpies dragged up here, they wanted to keep.",
     )
     prayer_room = Room(
         name="Prayer Room",
@@ -194,6 +198,8 @@ def build_floor_3() -> tuple[Room, dict[str, Room]]:
     dim_corridor.add_enemy(create_lurker())
 
     ossuary.add_item(create_ledger_of_the_unjudged())
+
+    add_random_chest(cave_of_harpies, EARLY_LOOT)
 
     return bony_crypt, {
         room.name: room for room in (bony_crypt, ossuary, cave_of_harpies, prayer_room, dim_corridor, overgrown_forest)

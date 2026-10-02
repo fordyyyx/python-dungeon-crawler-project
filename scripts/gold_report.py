@@ -9,8 +9,10 @@ from dungeon_crawler.content.floor_6 import NYMPHS_TREASURE_GOLD
 from dungeon_crawler.exchange import sale_price
 from dungeon_crawler.exploration import encounter_enemies
 
-FIXED_TREASURE = {"floor_6": NYMPHS_TREASURE_GOLD}
-"""Gold handed out by room interactions rather than enemies. Update this whenever new treasure is added - chests will need the same."""
+FIXED_TREASURE = {"floor_1": 15,
+                  "floor_6": NYMPHS_TREASURE_GOLD + 40}
+"""Gold handed out by room interactions rather than enemies: the Sunken Vault's chest (floor 1), and the Cave of the Nymphs' gifts plus the
+Throne Room's chest (floor 6). Update this whenever fixed treasure is added. Random chests aren't counted - their gold is rolled per run."""
 
 def sellable_value(items) -> int:
     return sum(price for price in (sale_price(item) for item in items) if price is not None)

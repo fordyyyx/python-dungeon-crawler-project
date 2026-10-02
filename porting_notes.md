@@ -127,6 +127,11 @@ something occurs to you mid-build.
   rather than text saying "Locked Door" — could show *what's* required on
   hover, rather than only on a failed attempt. A door stays open once it's
   been walked through, so a one-time unlock animation fits too.
+- **Chests want to be seen from the doorway and out of reach** - the text version only says an enemy "won't let you
+  anywhere near the chest"; a visual one can put the chest behind the enemy, then let it be opened with a proper lid-and-loot
+  moment once the room is clear. The loot spills onto the floor rather than into the inventory, which suits a pickup
+  animation. Random chests are rolled from a seed saved with the player (`Player.run_seed`) - keep that, so a reload
+  can't reroll one.
 - **Hidden exits are found, not just listed** - `examine` revealing a passage wants a discovery beat (the wall
   shifting, a seam in the wooden horse opening) rather than a new entry quietly appearing in the exit list. An
   intellect-gated one ("There's something here, but you can't quite make sense of it.") could show a
@@ -174,7 +179,10 @@ something occurs to you mid-build.
 ## Items / Inventory
 - **Merchants (`offers`/`exchange`) want a trade screen**, not a numbered text list: the merchant's offers on one side,
   the player's inventory on the other, with the item and gold each offer takes highlighted, and greyed-out offers the
-  player can't afford or lacks the item for. The same screen serves Circe's transformations and Charon's future shop.
+  player can't afford or lacks the item for. The same screen serves Circe's transformations and Charon's shop -
+  whose stock unlocks by depth, so locked shelves could be shown as silhouettes with the floor they open at. Selling
+  (`sell <item>`) wants the other half of that screen: the player's items with their sale prices shown, damaged armour
+  visibly marked down, and quest items and equipped gear greyed out.
 - Equip slots are a natural fit for a paper-doll style UI — weapons
   (melee/ranged) and armour (helmet/body/shield) now occupy five independent
   slots, so a paper doll would show five simultaneous equip points. The one

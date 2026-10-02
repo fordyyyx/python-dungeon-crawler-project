@@ -1,10 +1,12 @@
 """Floor 1 (The Underworld Gateway) - Cave Entrance, Styx Crossing, Fields of Asphodel, Sunken Vault, and the Banks of the Lethe."""
 
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Armour, QuestItem, Weapon
+from dungeon_crawler.items import Armour, QuestItem, Weapon, Reviver
 from dungeon_crawler.characters import Enemy, Ally
 from dungeon_crawler.exploration import deepest_floor_reached
-from .common import create_small_healing_potion
+from dungeon_crawler.exchange import shop_offer
+from dungeon_crawler.chests import add_fixed_chest
+from .common import create_small_healing_potion, create_kelp_poultice, create_field_dressing, create_cup_of_kykeon, create_hoplite_sword, create_bronze_greataxe, create_bronze_buckler, create_obol_of_return, create_bronze_xiphos
 
 LETHE_GOLD_PER_FLOOR = 25
 """The Lethe's price per floor of the deepest floor reached."""
@@ -19,7 +21,7 @@ def create_skeleton_warrior() -> Enemy:
         loot=[create_small_healing_potion(), create_skeleton_bone()],
         description="Bones held together by little more than old habit, still gripping a rusted blade with mechanical resolve.",
         experience_reward=5,
-        gold_reward=2,
+        gold_reward=10,
     )
 
 def create_shade() -> Enemy:
@@ -32,7 +34,7 @@ def create_shade() -> Enemy:
         loot=[create_weathered_helm()],
         description="Barely more than mist given shape, it drifts toward you without any real malice - just habit, worn thin over centuries.",
         experience_reward=4,
-        gold_reward=1,
+        gold_reward=8,
     )
 
 def create_weathered_helm() -> Armour:
@@ -69,15 +71,29 @@ def create_wounded_soldier() -> Ally:
     )
 
 def create_charon() -> Ally:
-    """Create the Charon ally, who ferries the player across the Styx."""
+    """Create Charon - the ferryman at Styx Crossing, and the game's first merchant. Sells healing and plain gear that unlocks as the player goes
+    deeper, and buys anything with a value. Never sells unique items, and his gear never beats the best ordinary drop of the floor it unlocks on -
+    it's for catching up and filling gaps in the weapon and armour ladders."""
     return Ally(
         name="Charon",
         description="He holds out one weathered hand, saying nothing, waiting for the coin he already knows you'll need.",
         hint=(
-            "\"You have the coin. Good.\" His voice is dry, unhurried. "
-            "\"Cross when you're ready — the water won't wait for anyone, but it won't rush you either.\""
+            "\"You have the coin. Good.\" His voice is dry, unhurried. \"Cross when you're ready - the water won't wait for anyone, but it won't "
+            "rush you either.\"\n\n"
+            "\"And if you've anything to trade, I deal in what the dead leave behind. Say 'offers' to see what I have, or 'sell' what you don't "
+            "need.\""
         ),
         buys_items=True,
+        offers=[
+            shop_offer(create_small_healing_potion, price=12),
+            shop_offer(create_field_dressing, min_floor=3, price=15),
+            shop_offer(create_kelp_poultice, min_floor=4, price=25),
+            shop_offer(create_bronze_buckler, min_floor=4),
+            shop_offer(create_bronze_greataxe, min_floor=3, price=70),
+            shop_offer(create_obol_of_return, min_floor=5, price=100),
+            shop_offer(create_cup_of_kykeon, min_floor=6, price=40),
+            shop_offer(create_hoplite_sword, min_floor=4, price=100),
+        ],
     )
 
 def create_bronze_breastplate() -> Armour:
@@ -88,15 +104,6 @@ def create_bronze_breastplate() -> Armour:
         description="Dented and a size too large, but the bronze is sound - better than the wood you started with, if only just.",
         weight="medium",
         max_durability=8,
-    )
-
-def create_bronze_xiphos() -> Weapon:
-    """Create the Bronze Xiphos weapon."""
-    return Weapon(
-        name="Bronze Xiphos",
-        description="A short, leaf-bladed sword - favoured by soldiers who valued speed over reach.",
-        damage=3,
-        weapon_class="blade",
     )
 
 def lethe_cost(player) -> int:
@@ -134,7 +141,8 @@ def _drink_deeply(player, room) -> str:
 def build_floor_1() -> tuple[Room, dict[str, Room]]:
     """Build the Styx-crossing floor, including two rooms reached through hidden exits: the Sunken Vault (down from Styx Crossing) and the Banks
     of the Lethe (south from Fields of Asphodel, hinted at by its examine text), where the drink/drink deeply interactions let the player
-    forget every skill for a refund of their points. Returns (starting room, every room on this floor keyed by name)."""
+    forget every skill for a refund of their points. Charon keeps his shop at Styx Crossing, and the Sunken Vault holds a fixed chest. Returns
+    (starting room, every room on this floor keyed by name)."""
     cave_entrance = Room(
         name="Cave Entrance",
         description="A jagged fissure in the hillside breathes cold air from below; the last daylight fades behind you as you descend.",
@@ -163,7 +171,8 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
     )
     sunken_vault = Room(
         name="Sunken Vault",
-        description="Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason.",
+        description="Half-flooded and littered with old offerings, this side chamber was clearly sealed off for a reason. A lidded chest sits above the "
+        "waterline, the offerings heaped around it.",
     )
 
     cave_entrance.connect("descend", styx_crossing)
@@ -183,6 +192,8 @@ def build_floor_1() -> tuple[Room, dict[str, Room]]:
 
     banks_of_the_lethe.add_interaction("drink", _drink)
     banks_of_the_lethe.add_interaction("drink deeply", _drink_deeply)
+
+    add_fixed_chest(sunken_vault, [create_small_healing_potion, create_small_healing_potion], gold=15)
 
     return cave_entrance, {
         room.name: room for room in (cave_entrance, styx_crossing, fields_of_asphodel, banks_of_the_lethe, sunken_vault)

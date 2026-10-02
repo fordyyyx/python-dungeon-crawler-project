@@ -1,7 +1,7 @@
 """The game loop and top-level command routing."""
 
-from dungeon_crawler.characters import Player, Enemy
-from dungeon_crawler.world import Room, Map
+from dungeon_crawler.characters import Player
+from dungeon_crawler.world import Room
 from dungeon_crawler.content import build_world, HADES_SPARED, HADES_DEFEATED, TYPHON_DEFEATED, HARDCORE
 from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
 from dungeon_crawler import dev_tools
@@ -134,6 +134,7 @@ def get_controls_text() -> str:
         "advice - ask your companion what they make of the room (only some companions give advice; also works mid-combat)\n"
         "offers - list what the merchant in this room will exchange, and for how much\n"
         "exchange <number> - accept one of the merchant's offers, paying its gold (and handing over its item, if it asks for one)\n"
+        "sell <item> - sell an item to someone who buys them, for half its value (quest items and equipped gear can't be sold)\n"
         "dummy set <stat> <value> - customise the practice dummy's stats (Practice Chamber only)\n"
         "skills - view your skill tree progress and available points\n"
         "learn <path> - spend a skill point (attack, defence, or abilities)\n"
@@ -511,8 +512,8 @@ def main() -> None:
                 elif command == "exchange" or command.startswith("exchange "):
                     print(make_exchange(command.removeprefix("exchange").strip(), current_room, player))
 
-                elif command.startswith("sell ") and not player.in_combat:
-                    print(sell_item(command.removeprefix("sell ").strip(), current_room, player))
+                elif (command == "sell" or command.startswith("sell ")) and not player.in_combat:
+                    print(sell_item(command.removeprefix("sell").strip(), current_room, player))
 
                 elif command == "uncleared":
                     print(get_uncleared_rooms(all_floors, player))

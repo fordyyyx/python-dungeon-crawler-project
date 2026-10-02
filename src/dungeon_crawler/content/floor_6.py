@@ -1,4 +1,4 @@
-"""Floor 6 (Odyssey and the Open Sea) - Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidon's Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, Bedchamber of Odysseus."""
+"""Floor 6 (Odyssey and the Open Sea) - Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidon's Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, Bedchamber of Odysseus, and the hidden Cave of the Nymphs."""
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.characters import Enemy, BLINDED_EFFECT_NAME, Companion, Ally
@@ -6,7 +6,9 @@ from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, 
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.combat import resolve_pending_defeats
 from dungeon_crawler.exchange import Offer
-from .common import create_cup_of_kykeon, create_small_healing_potion
+from dungeon_crawler.chests import add_random_chest, add_fixed_chest
+from dungeon_crawler.content.loot_tables import LATE_LOOT
+from .common import create_cup_of_kykeon, create_small_healing_potion, create_kelp_poultice
 from dungeon_crawler.content import create_bronze_xiphos, create_weathered_helm, create_bronze_breastplate, create_harpy_fletched_bow, create_wineskin_of_dionysus
 
 SIRENS_SKILL_POINTS = 2
@@ -401,14 +403,6 @@ def create_trident_of_the_depths() -> Weapon:
         article="the",
     )
 
-def create_kelp_poultice() -> Consumable:
-    """Create a Kelp Poultice - a 12 HP heal, dropped by each Hippocampus in Poseidon's fight."""
-    return Consumable(
-        name="Kelp Poultice",
-        heal_amount=12,
-        description="A wad of cold, salty kelp that draws the sting out of a wound faster than it has any right to."
-    )
-
 def create_odysseus(home_room: Room | None = None) -> Companion:
     """Create Odysseus - the second recruitable companion, in Shadow of Ithaca, and the clever counterpart to Achilles: he fights at range
     (attack_type 'ranged', so evasive enemies can't dodge him) and answers 'advice' (gives_advice). Recruitable once the 'suitors_cleared'
@@ -434,7 +428,10 @@ def create_odysseus(home_room: Room | None = None) -> Companion:
             "\"Twenty years,\" he says quietly, without looking away from the door. \"Ten at Troy, ten getting home. And I come back to "
             "find my hall full of men eating my stores and courting my wife.\"\n\n"
             "At last he turns to you. \"I could use a strong arm. Clear them out of my hall, and I'm yours for whatever's left of this "
-            "road. You'll find I'm more use than most - I tend to see things coming.\""
+            "road. You'll find I'm more use than most - I tend to see things coming.\"\n\n"
+            "He catches your arm before you go. \"One more thing. There are five of them in there, and they'll all come at you at once. Don't "
+            "save your potions for afterwards. Drinking one in a fight costs you nothing - you can drink and still swing in the same breath. "
+            "Most men who die in a brawl die with a full flask.\""
         ),
         hint_recruitable=(
             "\"My hall's quiet again. I owe you that.\" He shoulders the bow. \"Say 'recruit odysseus', and I'll walk the rest of this "
@@ -449,9 +446,10 @@ def create_odysseus(home_room: Room | None = None) -> Companion:
     )
 
 def create_circe() -> Ally:
-    """Create Circe - a transformation trading post in Muddy Pigsty, and the first merchant (see exchange.py). Her offers are of two kinds:
-    gear the player has outgrown, turned into something useful, and fixed recipes that turn weaker consumables into stronger ones. Prices are
-    provisional until gold income is settled - to be tuned alongside Charon's shop."""
+    """Create Circe - a transformation trading post in Muddy Pigsty, and the first merchant built (see exchange.py). Her offers are of two
+    kinds: gear the player has outgrown, turned into something useful for no gold at all, and fixed recipes that turn weaker consumables into
+    stronger ones for a little. Retuned alongside Charon's shop: with Charon paying gold for the same old gear, her gear offers had to be free
+    to be worth keeping it for."""
     return Ally(
         name="Circe",
         description="She's scattering grain for the pigs and humming, and every so often one of them looks up at you with an expression far too human for a pig.",
@@ -463,12 +461,12 @@ def create_circe() -> Ally:
         required_items=[],
         items=[],
         offers=[
-            Offer(gold_cost=20, output_factory=create_kelp_poultice, input_factory=create_bronze_xiphos),
-            Offer(gold_cost=20, output_factory=create_kelp_poultice, input_factory=create_weathered_helm),
-            Offer(gold_cost=30, output_factory=create_cup_of_kykeon, input_factory=create_bronze_breastplate),
-            Offer(gold_cost=30, output_factory=create_cup_of_kykeon, input_factory=create_harpy_fletched_bow),
-            Offer(gold_cost=10, output_factory=create_kelp_poultice, input_factory=create_small_healing_potion),
-            Offer(gold_cost=20, output_factory=create_cup_of_kykeon, input_factory=create_wineskin_of_dionysus),
+            Offer(gold_cost=0, output_factory=create_kelp_poultice, input_factory=create_bronze_xiphos),
+            Offer(gold_cost=0, output_factory=create_kelp_poultice, input_factory=create_weathered_helm),
+            Offer(gold_cost=0, output_factory=create_cup_of_kykeon, input_factory=create_bronze_breastplate),
+            Offer(gold_cost=0, output_factory=create_cup_of_kykeon, input_factory=create_harpy_fletched_bow),
+            Offer(gold_cost=5, output_factory=create_kelp_poultice, input_factory=create_small_healing_potion),
+            Offer(gold_cost=10, output_factory=create_cup_of_kykeon, input_factory=create_wineskin_of_dionysus),
         ],
         exchange_line="She murmurs something over it, and when you look again, it isn't what it was.",
     )
@@ -600,10 +598,11 @@ def create_nymphs_honey() -> Consumable:
     )
 
 def build_floor_6() -> tuple[Room, dict[str, Room]]:
-    """The Odyssey and the Open Sea - Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidons Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, and Bedchamber of Odysseus."""
+    """The Odyssey and the Open Sea - Bright Cave, Calm Waters, Cavern of Polyphemus, Rocky Shore, Narrow River, Poseidon's Depths, Shadow of Ithaca, Muddy Pigsty, Throne Room of Odysseus, and Bedchamber of Odysseus, plus the Cave of the Nymphs, hidden west of Shadow of Ithaca. Bright Cave holds a random chest and the Throne Room a fixed one."""
     bright_cave = Room(
         name="Bright Cave",
-        description="Sunlight streams in from an opening far above, illuminating bones picked disturbingly clean.",
+        description="Sunlight streams in from an opening far above, illuminating bones picked disturbingly clean. In the light at the cave's "
+        "centre stands a sea-chest, salt-crusted and dragged up from some lost ship.",
     )
     calm_waters = Room(
         name="Calm Waters",
@@ -647,7 +646,8 @@ def build_floor_6() -> tuple[Room, dict[str, Room]]:
     )
     throne_room_of_odysseus = Room(
         name="Throne Room of Odysseus",
-        description="An once-grand hall, now crowded and disordered, the throne itself sitting conspicuously empty.",
+        description="An once-grand hall, now crowded and disordered, the throne itself sitting conspicuously empty. Beside it stands a heavy "
+        "chest, packed with what the suitors helped themselves to from the household's stores.",
     )
     bedchamber_of_odysseus = Room(
         name="Bedchamber of Odysseus",
@@ -706,6 +706,9 @@ def build_floor_6() -> tuple[Room, dict[str, Room]]:
     cavern_of_polyphemus.add_item(create_wheel_of_cheese())
     rocky_shore.add_item(create_boars_tusk_helm())
     cave_of_nymphs.add_item(create_nymphs_honey())
+
+    add_random_chest(bright_cave, LATE_LOOT)
+    add_fixed_chest(throne_room_of_odysseus, [create_cup_of_kykeon, create_kelp_poultice], gold=40)
 
     calm_waters.advice = (
         "I heard them once, tied to my own mast. What they offer is real - and so is what it costs. Don't let anyone tell you the "

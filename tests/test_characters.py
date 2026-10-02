@@ -3146,3 +3146,13 @@ def test_skill_tree_forget_all_with_nothing_learned_refunds_nothing():
     player.skill_tree.skill_points = 2
     assert player.skill_tree.forget_all(player) == 0
     assert player.skill_tree.skill_points == 2
+
+def test_ally_buys_items_defaults_to_false():
+    assert Ally(name="Guide").buys_items is False
+
+def test_player_run_seed_is_a_whole_number_fixed_at_creation():
+    player = Player(name="Hero", hp=20)
+    seed = player.run_seed
+    assert isinstance(seed, int)
+    assert 0 <= seed < 2**31
+    assert player.run_seed == seed

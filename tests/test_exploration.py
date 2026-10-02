@@ -2,7 +2,7 @@ from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, QuestItem, Weapon, Consumable
 from dungeon_crawler.content import create_circe
-from dungeon_crawler.exploration import get_advice, talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms, enemy_traits, encounter_enemies, floor_traits, next_floor_key, is_room_concealed, is_exit_concealed, HIDDEN_WAYS_NOTE, take_opening_line, get_story_gate, deepest_floor_reached
+from dungeon_crawler.exploration import get_advice, talk_to, get_rival_lines, get_enemy_ancestry_lines, start_duel, pick_up, is_exit_locked, trade_with_ally, recruit_companion, dismiss_companion, repair_item, display_map, find_floor_for_room, display_local_exits, handle_examine, get_exit_guardian, take_all, take_all_from_ally, check_equippable, get_uncleared_reasons, get_uncleared_rooms, has_unfinished_trade, get_undiscovered_rooms, enemy_traits, encounter_enemies, floor_traits, next_floor_key, is_room_concealed, is_exit_concealed, HIDDEN_WAYS_NOTE, take_opening_line, get_story_gate, deepest_floor_reached, room_is_clear, CHEST_OPENED
 from dungeon_crawler.dialogue import DialogueNode, DialogueOption
 
 def test_pick_up_adds_item_to_inventory():
@@ -1910,3 +1910,57 @@ def test_deepest_floor_reached_ignores_names_that_are_not_floors():
     player = Player(name="Hero", hp=20)
     player.visited_floors = {"floor_3", "dev_room"}
     assert deepest_floor_reached(player) == 3
+
+# ---- room_is_clear ----
+
+def test_room_is_clear_with_no_enemies():
+    assert room_is_clear(Room("Hall")) is True
+
+def test_room_is_clear_is_false_while_an_enemy_lives():
+    room = Room("Hall")
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    assert room_is_clear(room) is False
+
+def test_room_is_clear_ignores_a_dead_enemy():
+    room = Room("Hall")
+    goblin = Enemy(name="Goblin", hp=10)
+    room.add_enemy(goblin)
+    goblin.hp = 0
+    assert room_is_clear(room) is True
+
+def test_room_is_clear_ignores_a_respawning_enemy():
+    room = Room("Hall")
+    dummy = Enemy(name="Dummy", hp=10)
+    dummy.respawns = True
+    room.add_enemy(dummy)
+    assert room_is_clear(room) is True
+
+def test_room_is_clear_counts_an_unsolved_invulnerable_enemy():
+    room = Room("River")
+    room.add_enemy(Enemy(name="Charybdis", hp=1, invulnerable=True, article=""))
+    assert room_is_clear(room) is False
+
+# ---- uncleared: an unopened chest ----
+
+def _room_with_a_chest():
+    room = Room("Vault")
+    room.add_interaction("open chest", lambda player, room: "")
+    return room
+
+def test_get_uncleared_reasons_reports_an_unopened_chest():
+    assert get_uncleared_reasons(_room_with_a_chest()) == ["a chest unopened"]
+
+def test_get_uncleared_reasons_drops_the_chest_once_opened():
+    room = _room_with_a_chest()
+    room.flags.add(CHEST_OPENED)
+    assert get_uncleared_reasons(room) == []
+
+def test_get_uncleared_reasons_lists_the_chest_after_the_other_reasons():
+    room = _room_with_a_chest()
+    room.add_enemy(Enemy(name="Goblin", hp=10))
+    assert get_uncleared_reasons(room) == ["enemies remain", "a chest unopened"]
+
+def test_get_uncleared_reasons_ignores_other_room_interactions():
+    room = Room("Shore")
+    room.add_interaction("listen", lambda player, room: "")
+    assert get_uncleared_reasons(room) == []

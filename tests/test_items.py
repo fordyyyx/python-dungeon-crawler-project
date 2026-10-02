@@ -1431,3 +1431,6 @@ def test_inventory_use_item_refuses_an_escape_item_outside_combat_and_keeps_it()
     except ActionRefused as error:
         assert str(error) == "There's nothing to escape from - save the Feather for when you need it."
     assert feather in player.inventory.items
+
+def test_item_value_override_defaults_to_none():
+    assert Weapon(name="Sword", description="", damage=3).value_override is None

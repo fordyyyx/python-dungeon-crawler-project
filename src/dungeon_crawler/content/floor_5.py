@@ -1,9 +1,11 @@
-"""Floor 5 (Shadow of Troy) - Shadow of Army Camp, Shadow of Troy (North/Central/Alleyway/South), Shadow of Pylos."""
+"""Floor 5 (Shadow of Troy) - Shadow of Army Camp, Shadow of Troy (North/Central/Alleyway/South), Shadow of Pylos, and the hidden Belly of the Wooden Horse."""
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.characters import Companion, Enemy, Ally
-from dungeon_crawler.items import Armour, Consumable, Weapon
-from .common import create_cup_of_kykeon
+from dungeon_crawler.items import Armour, Weapon
+from dungeon_crawler.chests import add_random_chest
+from dungeon_crawler.content.loot_tables import MIDDLE_LOOT
+from .common import create_cup_of_kykeon, create_field_dressing
 
 def _grant_achilles_skill_point(player) -> str:
     """Achilles' duel reward - a free skill point."""
@@ -167,14 +169,6 @@ def create_myrmidon_soldier() -> Enemy:
         armour_pierce=2,
     )
 
-def create_field_dressing() -> Consumable:
-    """Create a Field Dressing - a 10 HP heal, the first step up from the Small Healing Potion's 5. Dropped by each Myrmidon Soldier."""
-    return Consumable(
-        name="Field Dressing",
-        heal_amount=10,
-        description="Clean linen and a salve that smells of honey and pine - soldier's way of staying on their feet.",
-    )
-
 def create_shade_of_paris() -> Enemy:
     """Create the Shade of Paris for Shadow of Troy (South) - an evasive archer, the first enemy to use melee_dodge_chance and a natural armour_pierce.
     Low HP, but half of all melee attacks miss him and his arrows ignore most armour, so both the 'just hit it' and 'stack armour' approaches struggle
@@ -243,7 +237,7 @@ def create_spear_of_pelion() -> Weapon:
     )
 
 def build_floor_5() -> tuple[Room, dict[str, Room]]:
-    """Shadow of Troy - Shadow of Army Camp, Shadow of Troy (North), Shadow of Troy (Central), Shadow of Troy (Alleyway), Shadow of Troy (South), and Shadow of Pylos."""
+    """Shadow of Troy - Shadow of Army Camp, Shadow of Troy (North), Shadow of Troy (Central), Shadow of Troy (Alleyway), Shadow of Troy (South), and Shadow of Pylos, plus the Belly of the Wooden Horse, hidden inside the Army Camp. Shadow of Troy (Central) holds a random chest."""
     shadow_of_army_camp = Room(
         name="Shadow of Army Camp",
         description="Rows of ghostly tents flicker at the edge of sight, campfires burning cold and without heat.",
@@ -265,7 +259,8 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     )
     shadow_of_troy_central = Room(
         name="Shadow of Troy (Central)",
-        description="Rubble and broken spears cover the ground, the echo of old battle-cries fading in and out like a tide.",
+        description="Rubble and broken spears cover the ground, the echo of old battle-cries fading in and out like a tide. Half-buried "
+        "in the debris is a soldier's chest, its lid scorched but still shut.",
     )
     shadow_of_troy_alleyway = Room(
         name="Shadow of Troy (Alleyway)",
@@ -307,6 +302,8 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     belly_of_the_wooden_horse.connect("out", shadow_of_army_camp)
 
     belly_of_the_wooden_horse.add_item(create_spear_of_pelion())
+
+    add_random_chest(shadow_of_troy_central, MIDDLE_LOOT)
 
     return shadow_of_army_camp, {
         room.name: room for room in (shadow_of_army_camp, belly_of_the_wooden_horse, shadow_of_troy_north, shadow_of_troy_central, shadow_of_troy_alleyway, shadow_of_troy_south, shadow_of_pylos)

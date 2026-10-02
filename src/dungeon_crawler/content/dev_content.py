@@ -31,8 +31,8 @@ def create_test_companion() -> Companion:
 
 def create_test_spell() -> Spell:
     """Generic dev-test Spell combining damage and an offensive status effect in one cast, so both branches of Spell.cast()/would_fail()
-    get exercised through a real SpellBook rather than only via 'dev grant spell'. Not tied to any lore - a real elemental/ability-tied
-    spell roster is still pending design."""
+    get exercised through a real SpellBook rather than only via 'dev grant spell'. Not tied to any lore. The only real spell so far is Prayer
+    Bolt (floor 3), which has no status-effect component - so this stays the only spell that combines the two."""
     return Spell(
         name="Test Bolt",
         description="A cracking dev-only bolt, useful for exercising damage and poison in a single cast.",

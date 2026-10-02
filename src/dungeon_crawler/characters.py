@@ -409,6 +409,10 @@ class Player(Character):
         """Things that have happened in the story, for content that depends on events elsewhere in the world - e.g. 'suitors_cleared',
         which makes Odysseus recruitable. On the player rather than a room, because the content that checks a flag often lives far from
         the room that sets it. Saved."""
+        self.run_seed: int = random.randrange(2**31)
+        """A random number fixed for the whole playthrough, saved with the player. Random chests roll from it and their room's name, so reloading
+        before a chest can never change what's inside. Every new Player gets one; a save from before it existed gets a fresh one on loading, which
+        is then saved like everything else."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""

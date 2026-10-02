@@ -1,8 +1,10 @@
-"""Floor 4 (Labyrinth and Greater Monsters) - Labyrinth of the Minotaur, Stony Lair, Cavern of the Cyclops, Mossy Grove, Sandy Expanse, Maze of Pillars, Lair of Medusa."""
+"""Floor 4 (Labyrinth and Greater Monsters) - Labyrinth of the Minotaur, Stony Lair, Cavern of the Cyclops, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, Lair of Medusa, and the hidden Daedalus' Workshop and Icarus' Shaft."""
 
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import QuestItem, Armour, StatusEffectItem, Weapon, IntellectReward, EscapeItem
 from dungeon_crawler.characters import Enemy, Ally
+from dungeon_crawler.chests import add_random_chest
+from dungeon_crawler.content.loot_tables import MIDDLE_LOOT
 from .common import create_small_healing_potion
 
 def create_minotaur() -> Enemy:
@@ -312,30 +314,32 @@ def create_icarus() -> Ally:
 
 
 def build_floor_4() -> tuple[Room, dict[str, Room]]:
-    """Labyrinth & Greater Monsters - Labyrinth of the Minotaur, Cavern of the Cyclops, Stony Lair, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, and Lair of Medusa."""
+    """Labyrinth & Greater Monsters - Labyrinth of the Minotaur, Cavern of the Cyclops, Stony Lair, Mossy Grove, Shadowy Corner, Sandy Expanse, Maze of Pillars, and Lair of Medusa, plus Daedalus' Workshop (hidden east of the Maze of Pillars) and Icarus' Shaft above it. Stony Lair holds a random chest."""
     labyrinth_of_the_minotaur = Room(
         name="Labyrinth of the Minotaur",
-        description="Walls of rough-hewn stone stretch on in every direction, identical enough to make the way back uncertain."
+        description="Walls of rough-hewn stone stretch on in every direction, identical enough to make the way back uncertain.",
     )
     cavern_of_the_cyclops = Room(
         name="Cavern of the Cyclops",
-        description="A vast, uneven cave with a single great boulder rolled aside from what was once its entrance."
+        description="A vast, uneven cave with a single great boulder rolled aside from what was once its entrance.",
     )
     stony_lair = Room(
         name="Stony Lair",
-        description="Statues in twisted, frozen poses fill every corner — a warning, if you look closely enough. Something about the air here feels thin, like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it."
+        description="Statues in twisted, frozen poses fill every corner — a warning, if you look closely enough. One of "
+        "them died kneeling beside a small chest, a hand still resting on the lif. Something about the air here feels thin, "
+        "like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.",
     )
     mossy_grove = Room(
         name="Mossy Grove",
-        description="Soft green moss carpets everything, and the air smells faintly of wine and something wilder underneath."
+        description="Soft green moss carpets everything, and the air smells faintly of wine and something wilder underneath.",
     )
     shadowy_corner = Room(
         name="Shadowy Corner",
-        description="A cramped, lightless space where the shadows seem to move independently of anything casting them."
+        description="A cramped, lightless space where the shadows seem to move independently of anything casting them.",
     )
     sandy_expanse = Room(
         name="Sandy Expanse",
-        description="Dry, cracked earth stretches out under an oppressive heat that shouldn't exist this far underground."
+        description="Dry, cracked earth stretches out under an oppressive heat that shouldn't exist this far underground.",
     )
     maze_of_pillars = Room(
         name="Maze of Pillars",
@@ -362,7 +366,7 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
     )
     lair_of_medusa = Room(
         name="Lair of Medusa",
-        description="Stone figures, frozen mid-stride, litter the chamber — every one of them was once someone like you."
+        description="Stone figures, frozen mid-stride, litter the chamber — every one of them was once someone like you.",
     )
 
     labyrinth_of_the_minotaur.connect("west", stony_lair)
@@ -400,6 +404,8 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
     daedalus_workshop.add_item(create_clockwork_crossbow())
     daedalus_workshop.add_item(create_daedalus_notes())
     icarus_shaft.add_ally(create_icarus())
+
+    add_random_chest(stony_lair, MIDDLE_LOOT)
 
     return labyrinth_of_the_minotaur, {
         room.name: room for room in (labyrinth_of_the_minotaur, stony_lair, cavern_of_the_cyclops, mossy_grove, shadowy_corner, sandy_expanse, maze_of_pillars, daedalus_workshop, icarus_shaft, lair_of_medusa)

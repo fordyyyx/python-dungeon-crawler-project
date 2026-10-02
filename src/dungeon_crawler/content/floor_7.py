@@ -176,7 +176,8 @@ def create_persephone() -> Ally:
     """Create Persephone - in her bedchamber, the last room on floor 7, and the first branching dialogue. Gives a Pomegranate the first time
     you speak to her, whatever you choose. Gives her side of the twist (why Hades stopped judging the dead) as one topic, and asks you to spare
     him - setting 'promised_mercy' or 'refused_mercy', a final choice. Either answer opens the descent to floor 8, which is story-gated on it
-    (build_world()); which one is planned to decide whether Hades can yield and become a companion there."""
+    (build_world()); which one decides how the Hades fight ends - 'promised_mercy' is his yield_condition_flag, so a promise means he yields and
+    becomes a companion (floor_8.py)."""
     back = DialogueOption("Ask something else", "start")
     leave = DialogueOption("Leave her be", None)
     return Ally(

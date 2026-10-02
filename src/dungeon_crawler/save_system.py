@@ -105,7 +105,8 @@ def serialise_player(player: Player, current_room) -> dict:
         "ancestry_key": player.ancestry_key,
         "secondary_ancestry_key": player.secondary_ancestry_key,
         "seen_lines": sorted(player.seen_lines),
-        "story_flags": sorted(player.story_flags)
+        "story_flags": sorted(player.story_flags),
+        "run_seed": player.run_seed,
     }
 
 def _ancestry_key_for_label(label: str, field: str = "label") -> str | None:
@@ -177,6 +178,9 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
     player.seen_hints = set(data.get("seen_hints", []))
     player.story_flags = set(data.get("story_flags", []))
 
+    if "run_seed" in data:
+        player.run_seed = data["run_seed"]
+
     current_room = world.get_room(data["current_room"])
     if current_room is None:
         room_name = data["current_room"]
@@ -219,7 +223,8 @@ def serialise_room(room) -> dict:
     always-empty placeholders, kept only so existing saves keep the same shape. A wave add's wave_gate_factory can't be saved
     as a function, so it's stored as the name of the phase it would spawn, and re-linked through ENEMY_REGISTRY by apply_room_data().
     Every companion still in the room is saved via serialise_companion(), so a won duel - or a recruited companion's absence - survives.
-    flags (the permanent changes a room interaction has made, e.g. the Sirens' bargain) are saved too, since build_world() starts them empty."""
+    flags (the permanent changes a room interaction has made, e.g. the Sirens' bargain or an opened chest) are saved too, since build_world()
+    starts them empty - and hidden_exits as the directions still hidden, so an exit found by examining stays found."""
     return {
         "enemies": [
             {
@@ -245,8 +250,8 @@ def serialise_room(room) -> dict:
 def apply_room_data(room, data: dict) -> None:
     """Patch a freshly-built room to match its saved snapshot: restore the room's living enemies, replace the item list, mark completed
     trades, restore fast_travel_locks, unlock any locked exit the save no longer lists as locked, and replace the room's companions with
-    the saved ones, and restore the room's flags (the last four only when the save has them - an older save without "locked_exits",
-    "companions" or "flags" leaves what build_world() made in place).
+    the saved ones, restore the room's flags, and reveal any hidden exit the save no longer lists as hidden (the last four only when the save
+    has them - an older save without "locked_exits", "companions", "flags" or "hidden_exits" leaves what build_world() made in place).
 
     Enemies: each saved enemy first claims an unclaimed same-named enemy already in the fresh room (in order, so two same-named enemies
     each get their own saved HP), keeping the exact instance build_world() made - which matters for any enemy ENEMY_REGISTRY doesn't

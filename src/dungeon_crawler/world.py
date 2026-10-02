@@ -40,7 +40,7 @@ class Room:
         """Room-specific verbs -> RoomInteraction. Set at world-build time and never saved - like exits. Checked before global commands in main(),
         so a verb must never clash with a core command."""
         self.flags: set[str] = set()
-        """Permanent changes an interaction has made to this room (e.g. 'sirens_bargain_taken'). Saved, like fast_travel_locks."""
+        """Permanent changes an interaction has made to this room (e.g. 'sirens_bargain_taken', 'chest_opened'). Saved, like fast_travel_locks."""
         self.cleared_story_flag: str | None = None
         """A story flag (player.story_flags) to set the first time this room has no living, non-respawning enemies left - e.g. the Throne
         Room's 'suitors_cleared', which makes Odysseus recruitable. Checked after every defeat, so kill order never matters. Set at world-build

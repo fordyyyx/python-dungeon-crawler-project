@@ -9,6 +9,11 @@ from dungeon_crawler.content import PROMETHEUS_OFFER_MADE, HARDCORE, LETHE_GOLD_
 from dungeon_crawler.content import create_ledger_of_the_unjudged, create_clockwork_crossbow, create_daedalus_notes, create_feather_of_icarus, create_icarus, create_spear_of_pelion, create_nymphs_honey, NYMPHS_TREASURE_GOLD, NYMPHS_TREASURE_TAKEN
 from dungeon_crawler.items import IntellectReward, EscapeItem, Consumable
 from dungeon_crawler.exploration import has_unfinished_trade
+from dungeon_crawler.content import create_obol_of_return, create_bronze_buckler, create_bronze_greataxe, create_hoplite_sword
+from dungeon_crawler.items import Reviver
+from dungeon_crawler.exchange import item_value, sale_price, SHOP_MARKUP
+from dungeon_crawler.content import EARLY_LOOT, MIDDLE_LOOT, LATE_LOOT
+from dungeon_crawler.exploration import CHEST_OPENED, room_is_clear
 from dungeon_crawler.content import create_typhon, create_serpent_of_typhon, create_typhon_storm_unleashed, create_serpent_venom, create_storm_of_ash, create_heart_of_typhon, TYPHON_DEFEATED
 from dungeon_crawler.exploration import floor_traits
 from dungeon_crawler.items import Trophy
@@ -53,7 +58,7 @@ def test_create_centaur_has_correct_stats():
     assert centaur.armour == 1
     assert len(centaur.loot) == 1
     assert centaur.experience_reward == 10
-    assert centaur.gold_reward == 5
+    assert centaur.gold_reward == 20
 
 def test_create_centaur_drops_centaurs_broken_bow():
     centaur = create_centaur()
@@ -83,7 +88,7 @@ def test_create_shade_has_correct_stats():
     assert shade.armour == 0
     assert len(shade.loot) == 1
     assert shade.experience_reward == 4
-    assert shade.gold_reward == 1
+    assert shade.gold_reward == 8
 
 def test_create_shade_drops_weathered_helm():
     shade = create_shade()
@@ -98,7 +103,7 @@ def test_create_crypt_keeper_has_correct_stats():
     assert keeper.armour == 1
     assert len(keeper.loot) == 2
     assert keeper.experience_reward == 12
-    assert keeper.gold_reward == 6
+    assert keeper.gold_reward == 18
 
 def test_create_crypt_keeper_drops_vial_of_grave_rot():
     keeper = create_crypt_keeper()
@@ -133,7 +138,7 @@ def test_create_harpy_has_correct_stats():
     assert harpy.armour == 0
     assert len(harpy.loot) == 1
     assert harpy.experience_reward == 11
-    assert harpy.gold_reward == 4
+    assert harpy.gold_reward == 15
 
 def test_create_harpy_has_raised_aggression_weight():
     harpy = create_harpy()
@@ -169,7 +174,7 @@ def test_create_fanatic_has_correct_stats():
     assert fanatic.armour == 0
     assert len(fanatic.loot) == 1
     assert fanatic.experience_reward == 13
-    assert fanatic.gold_reward == 7
+    assert fanatic.gold_reward == 18
 
 def test_create_fanatic_drops_tome_of_old_prayers():
     fanatic = create_fanatic()
@@ -201,7 +206,7 @@ def test_create_lurker_has_correct_stats():
     assert lurker.armour == 1
     assert len(lurker.loot) == 1
     assert lurker.experience_reward == 14
-    assert lurker.gold_reward == 8
+    assert lurker.gold_reward == 20
 
 def test_create_lurker_drops_small_healing_potion():
     lurker = create_lurker()
@@ -426,7 +431,7 @@ def test_create_skeleton_warrior_has_correct_stats():
     assert skeleton_warrior.armour == 0
     assert len(skeleton_warrior.loot) == 2
     assert skeleton_warrior.experience_reward == 5
-    assert skeleton_warrior.gold_reward == 2
+    assert skeleton_warrior.gold_reward == 10
 
 def test_create_skeleton_warrior_drops_small_healing_potion():
     skeleton_warrior = create_skeleton_warrior()
@@ -2471,9 +2476,12 @@ def test_build_floor_6_calm_waters_offers_the_sirens_three_verbs():
     calm_waters = rooms["Calm Waters"]
     assert calm_waters.available_interactions(Player(name="Hero", hp=20)) == ["listen", "give in", "resist"]
 
-def test_build_floor_6_only_calm_waters_narrow_river_and_the_nymphs_cave_have_interactions():
+def test_build_floor_6_rooms_with_interactions():
+    """The Sirens, Charybdis and the Nymphs' gifts - plus the two rooms with a chest."""
     _, rooms = build_floor_6()
-    assert [name for name, room in rooms.items() if room.interactions] == ["Calm Waters", "Narrow River", "Cave of the Nymphs"]
+    assert [name for name, room in rooms.items() if room.interactions] == [
+        "Bright Cave", "Calm Waters", "Narrow River", "Cave of the Nymphs", "Throne Room of Odysseus",
+    ]
 
 def test_sirens_listen_changes_nothing():
     _, rooms = build_floor_6()
@@ -3006,11 +3014,11 @@ def test_create_circe_makes_six_offers():
     offers = create_circe().offers
     assert len(offers) == 6
     assert [offer.describe() for offer in offers[:5]] == [
-        "Bronze Xiphos + 20 gold -> Kelp Poultice",
-        "Weathered Helm + 20 gold -> Kelp Poultice",
-        "Bronze Breastplate + 30 gold -> Cup of Kykeon",
-        "Harpy-fletched Bow + 30 gold -> Cup of Kykeon",
-        "Small Healing Potion + 10 gold -> Kelp Poultice",
+        "Bronze Xiphos -> Kelp Poultice",
+        "Weathered Helm -> Kelp Poultice",
+        "Bronze Breastplate -> Cup of Kykeon",
+        "Harpy-fletched Bow -> Cup of Kykeon",
+        "Small Healing Potion + 5 gold -> Kelp Poultice",
     ]
 
 def test_create_circe_has_nothing_to_trade():
@@ -3043,7 +3051,7 @@ def test_every_circe_offer_asks_for_a_real_item():
         assert item.name == offer.input_name
 
 def test_create_circe_sixth_offer_turns_the_wineskin_into_kykeon():
-    assert create_circe().offers[5].describe() == "Wineskin of Dionysus + 20 gold -> Cup of Kykeon"
+    assert create_circe().offers[5].describe() == "Wineskin of Dionysus + 10 gold -> Cup of Kykeon"
 
 def test_possessive_named_items_take_no_article():
     for factory in (create_mentors_token, create_charons_coin, create_lamias_fang, create_talos_bronze_plating, create_serpents_kiss,
@@ -4265,3 +4273,181 @@ def test_build_world_every_room_an_exit_leads_to_is_in_the_map():
         if dungeon.get_room(destination.name) is not destination
     }
     assert missing == set()
+
+# ---- floor 1: Charon's shop ----
+
+def test_create_charon_buys_items():
+    assert create_charon().buys_items is True
+
+def test_create_charon_points_at_offers_and_sell():
+    hint = create_charon().hint
+    assert "'offers'" in hint
+    assert "'sell'" in hint
+
+def test_create_charon_stock_and_prices():
+    assert [offer.describe() for offer in create_charon().offers] == [
+        "12 gold -> Small Healing Potion",
+        "15 gold -> Field Dressing",
+        "25 gold -> Kelp Poultice",
+        "96 gold -> Bronze Buckler",
+        "70 gold -> Bronze Greataxe",
+        "100 gold -> Obol of Return",
+        "40 gold -> Cup of Kykeon",
+        "100 gold -> Hoplite Sword",
+    ]
+
+def test_create_charon_stock_unlocks_with_the_deepest_floor_reached():
+    assert [offer.min_floor for offer in create_charon().offers] == [0, 3, 4, 4, 3, 5, 6, 4]
+
+def test_create_charon_only_ever_asks_for_gold():
+    assert all(offer.input_factory is None for offer in create_charon().offers)
+
+def test_create_charon_never_sells_anything_for_less_than_he_buys_it_back():
+    """Otherwise buying and selling straight back would print gold."""
+    for offer in create_charon().offers:
+        assert sale_price(offer.output_factory()) < offer.gold_cost, offer.describe()
+
+def test_create_charon_never_sells_a_weapon_with_a_signature_property():
+    """Signature properties stay boss-drop privileges."""
+    weapons = [o.output_factory() for o in create_charon().offers if isinstance(o.output_factory(), Weapon)]
+    assert weapons != []
+    for weapon in weapons:
+        assert (weapon.lifesteal, weapon.cleave, weapon.poison_chance, weapon.blind_chance, weapon.armour_pierce) == (False, False, 0.0, 0.0, 0), weapon.name
+
+def test_buying_from_charon_and_upgrading_at_circe_never_turns_a_profit():
+    """Circe takes some of what Charon sells: Charon's price plus hers must come to more than the result sells for."""
+    charon_prices = {offer.output_name: offer.gold_cost for offer in create_charon().offers}
+    checked = 0
+    for offer in create_circe().offers:
+        if offer.input_name in charon_prices:
+            checked += 1
+            assert charon_prices[offer.input_name] + offer.gold_cost > sale_price(offer.output_factory()), offer.describe()
+    assert checked > 0
+
+def test_create_obol_of_return_is_a_reviver_with_a_hand_set_value():
+    obol = create_obol_of_return()
+    assert isinstance(obol, Reviver)
+    assert obol.heal_amount == 20
+    assert item_value(obol) == 25
+
+def test_create_obol_of_return_revives_a_downed_companion():
+    player = Player(name="Hero", hp=20)
+    companion = Companion(name="Imp", hp=30, home_room=Room("Camp"))
+    companion.hp = 0
+    player.companion = companion
+    create_obol_of_return().use(player)
+    assert companion.hp == 20
+
+def test_create_bronze_buckler_is_a_medium_shield_between_the_wooden_shield_and_the_aegis():
+    buckler = create_bronze_buckler()
+    assert (buckler.slot, buckler.weight, buckler.defence, buckler.max_durability) == ("shield", "medium", 2, 12)
+    assert create_wooden_shield().defence < buckler.defence < create_chipped_stone_aegis().defence
+
+def test_create_bronze_greataxe_is_a_plain_heavy_weapon_below_the_labrys():
+    axe = create_bronze_greataxe()
+    assert (axe.weapon_class, axe.two_handed, axe.damage, axe.cleave) == ("heavy", True, 6, False)
+    assert axe.damage < create_labrys().damage
+
+def test_create_hoplite_sword_is_a_plain_blade_below_serpents_kiss():
+    sword = create_hoplite_sword()
+    assert (sword.weapon_class, sword.damage, sword.poison_chance) == ("blade", 5, 0.0)
+    assert create_bronze_xiphos().damage < sword.damage < create_serpents_kiss().damage
+
+def test_charon_healing_gets_dearer_as_it_heals_more():
+    """Regression: the Kelp Poultice (12 HP) first cost 96 gold beside the Field Dressing (10 HP) at 15, so nobody would ever buy it."""
+    heals = [(o.output_factory().heal_amount, o.gold_cost) for o in create_charon().offers if type(o.output_factory()) is Consumable]
+    assert heals == sorted(heals)
+    assert max(price / healed for healed, price in heals) < 3
+
+def test_charon_sells_the_greataxe_before_the_minotaur_drops_the_labrys():
+    """Regression: it first unlocked on floor 4 for 240 gold - nobody could afford it before the Minotaur, and beating him gives the better
+    Labrys. It has to be on sale by floor 3 to be worth anything."""
+    axe = next(o for o in create_charon().offers if o.output_name == "Bronze Greataxe")
+    assert axe.min_floor < 4
+
+def test_charon_and_the_myrmidons_share_the_field_dressing_factory():
+    """Used by two floors now, so it lives in content/common.py - as does the Kelp Poultice."""
+    dressing = next(o for o in create_charon().offers if o.output_name == "Field Dressing").output_factory()
+    assert type(dressing) is type(create_myrmidon_soldier().loot[0])
+    assert dressing.heal_amount == create_myrmidon_soldier().loot[0].heal_amount == 10
+
+def test_create_odysseus_warns_about_the_five_suitors_before_the_fight():
+    hint = create_odysseus().hint
+    assert "five of them" in hint
+    assert "Drinking one in a fight costs you nothing" in hint
+
+# ---- chests and loot tables ----
+
+def _chest_rooms():
+    dungeon, start, floors = build_world()
+    return [(floor, room) for floor, rooms in floors.items() for room in rooms.values() if "open chest" in room.interactions]
+
+def test_build_world_places_six_chests():
+    assert [(floor, room.name) for floor, room in _chest_rooms()] == [
+        ("floor_1", "Sunken Vault"), ("floor_3", "Cave of Harpies"), ("floor_4", "Stony Lair"),
+        ("floor_5", "Shadow of Troy (Central)"), ("floor_6", "Bright Cave"), ("floor_6", "Throne Room of Odysseus"),
+    ]
+
+def test_every_chest_starts_closed_behind_a_fight():
+    """A chest is a reward for clearing its room, so each is placed with something to clear."""
+    for _, room in _chest_rooms():
+        assert CHEST_OPENED not in room.flags, room.name
+        assert room_is_clear(room) is False, room.name
+
+def test_every_chest_can_be_opened_once_its_room_is_cleared():
+    for _, room in _chest_rooms():
+        for enemy in list(room.enemies):
+            room.remove_enemy(enemy)
+        player = Player(name="Hero", hp=20)
+        message = room.interactions["open chest"].handler(player, room)
+        assert message.startswith("You force the lid open. Inside: "), room.name
+        assert room.available_interactions(player) == [], room.name
+
+def test_sunken_vault_chest_holds_two_potions_and_fifteen_gold():
+    dungeon, start, floors = build_world()
+    vault = floors["floor_1"]["Sunken Vault"]
+    for enemy in list(vault.enemies):
+        vault.remove_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    vault.interactions["open chest"].handler(player, vault)
+    assert [item.name for item in vault.items] == ["Small Healing Potion", "Small Healing Potion"]
+    assert player.gold == 15
+
+def test_throne_room_chest_holds_kykeon_a_poultice_and_forty_gold():
+    _, rooms = build_floor_6()
+    throne_room = rooms["Throne Room of Odysseus"]
+    for enemy in list(throne_room.enemies):
+        throne_room.remove_enemy(enemy)
+    player = Player(name="Hero", hp=20)
+    throne_room.interactions["open chest"].handler(player, throne_room)
+    assert [item.name for item in throne_room.items] == ["Cup of Kykeon", "Kelp Poultice"]
+    assert player.gold == 40
+
+def test_loot_tables_pay_more_gold_the_deeper_they_are():
+    assert EARLY_LOOT.gold == (10, 25)
+    assert MIDDLE_LOOT.gold == (20, 40)
+    assert LATE_LOOT.gold == (30, 55)
+
+def test_loot_tables_item_names():
+    assert [factory().name for _, factory in EARLY_LOOT.items] == ["Small Healing Potion", "Field Dressing", "Bronze Xiphos"]
+    assert [factory().name for _, factory in MIDDLE_LOOT.items] == ["Field Dressing", "Kelp Poultice", "Bronze Buckler", "Bronze Greataxe"]
+    assert [factory().name for _, factory in LATE_LOOT.items] == ["Kelp Poultice", "Cup of Kykeon", "Obol of Return", "Hoplite Sword"]
+
+def test_loot_tables_never_hold_a_unique_item():
+    """Random chests stay within the shop's limit: everything in a table is something Charon sells, or the plain Bronze Xiphos."""
+    plain = {offer.output_name for offer in create_charon().offers} | {"Bronze Xiphos"}
+    for table in (EARLY_LOOT, MIDDLE_LOOT, LATE_LOOT):
+        for _, factory in table.items:
+            assert factory().name in plain, factory().name
+
+def test_loot_tables_make_gear_rarer_than_healing():
+    for table in (EARLY_LOOT, MIDDLE_LOOT, LATE_LOOT):
+        gear = sum(weight for weight, factory in table.items if isinstance(factory(), (Weapon, Armour)))
+        assert gear < sum(weight for weight, _ in table.items) / 2
+
+def test_loot_tables_never_roll_anything_charon_only_sells_deeper():
+    """A chest shouldn't hand out stock before the shop would sell it: early loot is from floors 1-3, middle from 4-5, late from 6 on."""
+    unlocks = {offer.output_name: offer.min_floor for offer in create_charon().offers}
+    for table, deepest in ((EARLY_LOOT, 3), (MIDDLE_LOOT, 5), (LATE_LOOT, 9)):
+        for _, factory in table.items:
+            assert unlocks.get(factory().name, 0) <= deepest, factory().name

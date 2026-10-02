@@ -16,7 +16,7 @@ Chamber of Chiron (West) {Mentor - Friendly}
 Cave Entrance {Wounded Soldier - Friendly}
 * descend -> Styx Crossing
 
-Styx Crossing {Charon - Friendly}
+Styx Crossing {Charon - Friendly} [NOTE: built - the ferryman's shop: 'offers' / 'exchange <number>' for healing and plain gear that unlocks by the deepest floor reached, and 'sell <item>' - he buys anything with a value at half price]
 * east -> Fields of Asphodel
 * down -> Sunken Vault
 * descend -> Library of Athena
@@ -26,7 +26,7 @@ Fields of Asphodel {Shade - Enemy}
 * south -> Banks of the Lethe [NOTE: hidden exit, revealed by 'examine' - the examine text hints at a river to the south]
 Banks of the Lethe {the river - room interaction} [NOTE: built - no enemy; 'drink' (the price, changes nothing) / 'drink deeply' (forget every skill, every point refunded, for 25 gold per floor of the deepest floor reached)]
 * north -> Fields of Asphodel
-Sunken Vault {Skeleton Warrior - Enemy}
+Sunken Vault {Skeleton Warrior - Enemy} [NOTE: chest - 'open chest' once the room is clear: fixed, two Small Healing Potions and 15 gold]
 * up -> Styx Crossing
 
 Library of Athena {Athena - Friendly}
@@ -62,7 +62,7 @@ Bony Crypt {Crypt Keeper - Enemy}
 * down -> Ossuary [NOTE: hidden exit, revealed by 'examine']
 Ossuary [NOTE: built - no enemy or ally; the Ledger of the Unjudged (+2 intellect, an IntellectReward) on the lectern]
 * up -> Bony Crypt
-Cave of Harpies {Harpy - Enemy}
+Cave of Harpies {Harpy - Enemy} [NOTE: chest - 'open chest' once the room is clear: random, early loot table]
 * north -> Bony Crypt
 * east -> Prayer Room
 * south -> Dim Corridor
@@ -83,7 +83,7 @@ Labyrinth of the Minotaur {Minotaur - Enemy}
 * south -> Mossy Grove [NOTE: guarded - blocked while the Minotaur lives; west/east/ascend stay open]
 Cavern of the Cyclops {Cyclops - Enemy}
 * west -> Labyrinth of the Minotaur
-Stony Lair {Petrified Guardian - Enemy}
+Stony Lair {Petrified Guardian - Enemy} [NOTE: chest - 'open chest' once the room is clear: random, middle loot table]
 * east -> Labyrinth of the Minotaur
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 Mossy Grove {Satyr - Enemy}
@@ -118,7 +118,7 @@ Belly of the Wooden Horse [NOTE: built - no enemy or ally; the Spear of Pelion (
 Shadow of Troy (North) {Shade of Hector - Enemy} [NOTE: built - 32 HP / 9 ATK / 5 armour / pierce 3, drops Hector's Helm; guards 'south']
 * north -> Shadow of Army Camp
 * south -> Shadow of Troy (Central)
-Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 12 ATK / 1 armour / pierce 3, drops the Tower Shield of Ajax; guards 'west']
+Shadow of Troy (Central) {Shade of Ajax - Enemy} [NOTE: built - 46 HP / 12 ATK / 1 armour / pierce 3, drops the Tower Shield of Ajax; guards 'west'] [NOTE: chest - 'open chest' once the room is clear: random, middle loot table]
 * north -> Shadow of Troy (North)
 * west -> Shadow of Troy (Alleyway)
 Shadow of Troy (Alleyway) {Myrmidon Soldier ×2 - Enemy} [NOTE: built - a pair, 9 ATK / pierce 2, each dropping a Field Dressing; 'south' deliberately unguarded - skipping them costs the dressings]
@@ -132,7 +132,7 @@ Shadow of Pylos {Nestor - Friendly} [NOTE: built - advice, no trade; gives away 
 * descend -> Bright Cave
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
 
-Bright Cave {Antiphates, Laestrygonian - Enemy} [NOTE: built - two boulder-throwing giants with pierce 2; Antiphates drops his Club (heavy, 8), the Laestrygonian the Laestrygonian Hide (medium, 5 DEF); exit not guarded]
+Bright Cave {Antiphates, Laestrygonian - Enemy} [NOTE: built - two boulder-throwing giants with pierce 2; Antiphates drops his Club (heavy, 8), the Laestrygonian the Laestrygonian Hide (medium, 5 DEF); exit not guarded] [NOTE: chest - 'open chest' once the room is clear: random, late loot table]
 * ascend -> Shadow of Pylos
 * south -> Calm Waters
 Calm Waters {Sirens - room interaction} [NOTE: built - no enemy; 'listen' / 'give in' / 'resist', the Sirens' bargain: +2 skill points for -5 max HP, permanently. Also the fork - west (Scylla) and south (Charybdis) are two parallel routes to Poseidon's Depths; only one has to be passed, as Nestor's advice says]
@@ -160,9 +160,9 @@ Shadow of Ithaca {Odysseus - Companion} [NOTE: built - a ranged companion who gi
 * west -> Cave of the Nymphs [NOTE: hidden exit, revealed by 'examine', required_intellect=6]
 Cave of the Nymphs {the Phaeacians' gifts - room interaction} [NOTE: built - no enemy or ally; 'gather the gifts' gives 200 gold once (saved in Room.flags); Nymphs' Honey (25 HP heal) on the floor; Odysseus has an advice line for it]
 * east -> Shadow of Ithaca
-Muddy Pigsty {Circe - Friendly} [NOTE: built - the first merchant: six exchanges ('offers' / 'exchange <number>'), outgrown gear and weak consumables into Kelp Poultices and Cups of Kykeon]
+Muddy Pigsty {Circe - Friendly} [NOTE: built - six exchanges ('offers' / 'exchange <number>'): outgrown gear into Kelp Poultices and Cups of Kykeon for no gold, and weak consumables into the same for 5-10]
 * west -> Shadow of Ithaca
-Throne Room of Odysseus {Antinous, Eurymachus, Suitor x3 - Enemy} [NOTE: built - the floor's last fight; guards 'west'; clearing it sets 'suitors_cleared', which lets Odysseus join]
+Throne Room of Odysseus {Antinous, Eurymachus, Suitor x3 - Enemy} [NOTE: built - the floor's last fight; guards 'west'; clearing it sets 'suitors_cleared', which lets Odysseus join] [NOTE: chest - 'open chest' once the room is clear: fixed, a Cup of Kykeon, a Kelp Poultice and 40 gold]
 * north -> Shadow of Ithaca
 * west -> Bedchamber of Odysseus
 Bedchamber of Odysseus {Penelope - Friendly} [NOTE: built - no trade; gives away Penelope's Thread, the first LoyaltyToken; has lines for Odysseus and Achilles]
@@ -294,3 +294,11 @@ Ledger of the Unjudged), Daedalus' Workshop and Icarus' Shaft (floor 4, intellec
 Icarus), the Belly of the Wooden Horse (floor 5, the Spear of Pelion) and the Cave
 of the Nymphs (floor 6, intellect 6 - Nymphs' Honey and 200 gold) - alongside the
 older Sunken Vault (floor 1) and Trophy Room of Zeus (floor 2, intellect 3).
+Charon (Styx Crossing, floor 1) is a shop now: he sells eight items - potions and
+dressings, a Kelp Poultice and Cup of Kykeon, the Bronze Buckler, Bronze Greataxe and
+Hoplite Sword, and the Obol of Return (the first real Reviver) - unlocking between
+floors 0 and 6, and buys anything sellable. Every forge shortcut is three rooms from him.
+Six rooms hold a chest, opened with 'open chest' once the room is clear: Sunken Vault
+(floor 1) and the Throne Room of Odysseus (floor 6) have fixed contents; Cave of Harpies
+(floor 3), Stony Lair (floor 4), Shadow of Troy (Central) (floor 5) and Bright Cave
+(floor 6) roll theirs from a loot table, once per playthrough.
