@@ -14,6 +14,7 @@ from dungeon_crawler.content import create_shade_of_achilles, create_odysseus, c
 from dungeon_crawler.content import create_collar_of_cerberus, create_helm_of_darkness, create_heart_of_typhon, create_phaeacian_tripod, create_conch_of_poseidon, create_fleece_of_the_ram, create_bridle_of_the_wooden_horse, create_keepers_lantern, create_phial_of_the_lethe, create_daedalus_compass, create_head_of_medusa, create_bronze_nail_of_talos, create_horn_of_the_minotaur
 from dungeon_crawler.content import create_test_companion, create_test_spell, create_test_spellbook, create_test_healing_tonic, create_test_venom_vial
 from dungeon_crawler.combat import handle_enemy_defeat, apply_room_cleared_flag
+from dungeon_crawler.difficulty import scale_for, scale_rooms, DIFFICULTIES
 from dungeon_crawler.exceptions import ActionRefused
 
 # Every new create_*() item/enemy/ally/companion/spell function in the content/ package needs a matching line in the relevant
@@ -426,6 +427,7 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
         character_name = command.removeprefix("spawn ").strip()
         enemy = find_enemy_by_name(character_name)
         if enemy is not None:
+            scale_for(enemy, player)
             room.add_enemy(enemy)
             return f"[DEV] Spawned {enemy.name}.", None
         ally = find_ally_by_name(character_name)
@@ -510,6 +512,13 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
         player.story_flags.add(flag)
         return f"[DEV] Story flag set: {flag}", None
 
+    if command.startswith("difficulty "):
+        key = command.removeprefix("difficulty ").strip()
+        if key not in DIFFICULTIES:
+            return f"[DEV] Unknown difficulty '{key}' - use {', '.join(DIFFICULTIES)}.", None
+        player.difficulty = key
+        return f"[DEV] Difficulty set to {DIFFICULTIES[key].label}. The world will rescale.", None
+
     if command == "help":
         return (
             "[DEV] Commands: dev add <item>, dev set <stat> <n>\n"
@@ -518,7 +527,8 @@ def handle_dev_command(command: str, player: Player, room: Room, dungeon: Map) -
             "dev remove <character/all>, dev clear room\n"
             "dev afflict <target> <effect> <amount> <duration>\n"
             "dev kill <enemy>, dev teleport <room>, dev learn <skill>\n"
-            "dev grant spell <name>, dev flag <story flag>"
+            "dev grant spell <name>, dev flag <story flag>\n"
+            "dev difficulty <story/easy/normal/hard>"
         ), None
 
     return f"[DEV] Unrecognised dev command: {command}. Try 'dev help'.", None

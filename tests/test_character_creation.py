@@ -1,6 +1,6 @@
 from dungeon_crawler.character_creation import (
     choose_ancestry, choose_secondary_ancestry, create_player,
-    choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm,
+    choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm, choose_difficulty,
 )
 from dungeon_crawler import save_system
 from dungeon_crawler.characters import Player
@@ -321,3 +321,33 @@ def test_create_player_with_no_secondary_gift_leaves_the_secondary_key_unset():
 def test_create_player_with_the_same_secondary_as_primary_leaves_the_secondary_key_unset():
     player = create_player("Hero", "athena", "athena")
     assert player.secondary_ancestry_key is None
+
+# ---- choose_difficulty ----
+
+def test_choose_difficulty_returns_the_key_typed(monkeypatch):
+    for key in ("story", "easy", "normal", "hard"):
+        monkeypatch.setattr("builtins.input", lambda prompt="", key=key: key)
+        assert choose_difficulty() == key
+
+def test_choose_difficulty_ignores_case_and_surrounding_spaces(monkeypatch):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "  HaRd ")
+    assert choose_difficulty() == "hard"
+
+def test_choose_difficulty_reprompts_on_an_unknown_setting_before_accepting_a_valid_one(monkeypatch, capsys):
+    responses = iter(["impossible", "", "easy"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    assert choose_difficulty() == "easy"
+    assert capsys.readouterr().out.count("Choose one of: story, easy, normal, hard") == 2
+
+def test_choose_difficulty_says_the_choice_is_permanent(monkeypatch, capsys):
+    monkeypatch.setattr("builtins.input", lambda prompt="": "normal")
+    choose_difficulty()
+    assert "Choose your difficulty. It can't be changed later." in capsys.readouterr().out
+
+def test_choose_difficulty_lists_every_setting_with_its_description(monkeypatch, capsys):
+    from dungeon_crawler.difficulty import DIFFICULTIES
+    monkeypatch.setattr("builtins.input", lambda prompt="": "normal")
+    choose_difficulty()
+    out = capsys.readouterr().out
+    for key, setting in DIFFICULTIES.items():
+        assert f"{key} - {setting.label}: {setting.description}" in out

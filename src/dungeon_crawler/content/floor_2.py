@@ -131,15 +131,6 @@ def _make_offer(player) -> str:
     player.story_flags.add(PROMETHEUS_OFFER_MADE)
     return ""
 
-def _accept_hardcore(player) -> str:
-    """Turn hardcore on for this save, and fully repair every piece of armour the player is carrying, equipped or not. No other reward -
-    hardcore is an optional challenge, not a trade."""
-    player.story_flags.add(HARDCORE)
-    for item in player.inventory.items:
-        if isinstance(item, Armour):
-            item.durability = item.max_durability
-    return "(Hardcore mode is now on for this save. All your armour has been fully repaired.)"
-
 def create_prometheus() -> Ally:
     """Create Prometheus - in the Forge of Prometheus. Makes a one-time offer: hardcore mode for the rest of the playthrough, in exchange for a
     full repair of the player's armour. The offer counts as made as soon as it's shown. Accepting takes two steps, since it can't be undone. A
@@ -167,7 +158,9 @@ def create_prometheus() -> Ally:
             "confirm": DialogueNode(
                 text=(
                     "\"Be sure,\" he says. \"From this moment, if you die, this journey is over. Your save is gone, and there's no reloading it. "
-                    "Nothing in this world will undo that.\""
+                    "And whatever you've faced so far, what comes next will be harder.\"\n\n"
+                    "(Hardcore raises your difficulty to Hard, and you can no longer load an earlier save. The game saves every time you move to "
+                    "another room. Always leave with 'quit', which saves first - closing the window loses everything since your last move.)"
                 ),
                 options=[
                     DialogueOption("Accept - no second chances", "accepted", effect=_accept_hardcore),
@@ -202,6 +195,18 @@ def create_prometheus() -> Ally:
             ),
         },
     )
+
+def _accept_hardcore(player) -> str:
+    """Turn hardcore on for this save, raise the run to Hard - the one exception to a fixed difficulty, and only ever upwards - and fully repair
+    every piece of armour the player is carrying. The world is rescaled by ensure_world_scaled() on the next command."""
+    player.story_flags.add(HARDCORE)
+    already_hard = player.difficulty == "hard"
+    player.difficulty = "hard"
+    for item in player.inventory.items:
+        if isinstance(item, Armour):
+            item.durability = item.max_durability
+    raised = "" if already_hard else " Your difficulty is now Hard."
+    return f"(Hardcore mode is now on for this save.{raised} All your armour has been fully repaired.)"
 
 def create_breastplate_of_athena() -> Armour:
     """Create the Breastplate of Athena armour - Athena's trade reward, reachable now that create_athena() is placed in build_floor_2()."""

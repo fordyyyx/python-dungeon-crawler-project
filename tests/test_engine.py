@@ -305,6 +305,7 @@ def test_main_happy_path_smoke_test(monkeypatch, capsys, tmp_path):
         "Hero",
         "basic",
         "ares",
+        "normal",
         "north",
         "take wooden sword",
         "use wooden sword",
@@ -352,6 +353,7 @@ def test_main_developer_mode_toggle_command_smoke_test(monkeypatch, capsys, tmp_
         "Hero",
         "basic",
         "ares",
+        "normal",
         "dev set hp 999",  # blocked - dev_mode starts False for a normal player
         "developer mode",  # toggles dev_mode on
         "dev set hp 999",  # now works
@@ -461,6 +463,7 @@ def test_main_recruit_and_dismiss_routing_smoke_test(monkeypatch, capsys, tmp_pa
         "Hero",
         "basic",
         "ares",
+        "normal",
         "recruit nobody",
         "dismiss",
         "quit",
@@ -617,6 +620,7 @@ def test_main_quit_after_death_reload_confirmation_is_not_conflated_with_dying_a
         "Hero",
         "basic",
         "ares",
+        "normal",
         "quit",
     ])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
@@ -660,14 +664,14 @@ def test_main_new_game_prompts_overwrite_confirmation_for_occupied_slot(monkeypa
 
     main()
 
-    assert save_system.slot_summary(1, 1) == "Old Hero - LVL 1  - Chamber"
+    assert save_system.slot_summary(1, 1) == "Old Hero - LVL 1  - Chamber (Normal)"
 
 def test_main_save_command_writes_to_active_slot(monkeypatch, capsys, tmp_path):
     """The bare 'save' command persists to whichever profile/slot was chosen at the title screen."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
         "1", "1", "1",
-        "Hero", "basic", "ares",
+        "Hero", "basic", "ares", "normal",
         "save",
         "quit",
     ])
@@ -1174,7 +1178,7 @@ def test_main_dropping_a_key_behind_its_own_door_does_not_lock_you_out(monkeypat
     relock the door with the only sword behind it - Chiron's trade needs the sword, so floor 0 could never be left."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
-        "1", "1", "1", "Hero", "basic", "ares",
+        "1", "1", "1", "Hero", "basic", "ares", "normal",
         "north", "take wooden sword", "south",
         "east", "drop wooden sword", "west",
         "east", "take wooden sword",
@@ -1192,7 +1196,7 @@ def test_main_an_opened_door_stays_open_after_saving_and_loading(monkeypatch, ca
     """The permanent unlock is saved: after a reload, the east door still opens without the sword."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
     responses = iter([
-        "1", "1", "1", "Hero", "basic", "ares",
+        "1", "1", "1", "Hero", "basic", "ares", "normal",
         "north", "take wooden sword", "south",
         "east", "west", "drop wooden sword",
         "save", "load 1 1", "yes",
@@ -1336,7 +1340,7 @@ def test_print_room_with_auto_talk_shows_the_allys_ancestry_line(capsys):
 def test_main_talk_with_no_one_present_says_so(monkeypatch, capsys, tmp_path):
     """Regression: the 'no one here' branch was dropped when talk moved to talk_to(), so talk in an empty room printed nothing."""
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
-    responses = iter(["1", "1", "1", "Hero", "basic", "ares", "north", "talk", "quit"])
+    responses = iter(["1", "1", "1", "Hero", "basic", "ares", "normal", "north", "talk", "quit"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
 
     main()
@@ -2239,3 +2243,247 @@ def test_main_place_trophies_in_the_trophy_room(monkeypatch, capsys, tmp_path):
 
 def test_get_controls_text_lists_place():
     assert "place <trophy> / place all - " in get_controls_text()
+
+# ---- difficulty ----
+
+def test_main_new_game_asks_for_a_difficulty_and_scales_the_world(monkeypatch, capsys, tmp_path):
+    """A Hard new game: the prompt appears, the choice is saved with the player, and the world's enemies are scaled before play starts."""
+    import json
+    from dungeon_crawler.save_system import slot_path
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "Hero", "basic", "ares", "hard", "save", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    assert "Choose your difficulty. It can't be changed later." in capsys.readouterr().out
+    with open(slot_path(1, 1), encoding="utf-8") as f:
+        data = json.load(f)
+    assert data["player"]["difficulty"] == "hard"
+    assert data["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 9  # the Shade's 7 HP x 1.3
+
+def test_main_new_game_reprompts_until_a_real_difficulty_is_chosen(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "Hero", "basic", "ares", "nightmare", "easy", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    assert "Choose one of: story, easy, normal, hard" in capsys.readouterr().out
+
+def test_main_dev_mode_new_game_skips_the_difficulty_prompt(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, [])
+    assert "Choose your difficulty" not in out
+
+def test_main_slot_list_shows_each_saves_difficulty(monkeypatch, capsys, tmp_path):
+    """The title screen's slot picker shows the setting - a second New Game sees the first one's save listed with it."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    responses = iter(["1", "1", "1", "Hero", "basic", "ares", "story", "save", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    main()
+    capsys.readouterr()
+
+    responses = iter(["2", "1", "1", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    main()
+
+    assert "(Story)" in capsys.readouterr().out
+
+def test_main_passive_regen_on_normal_stops_at_three_quarters(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev set hp 15", "north"])
+    assert "You catch your breath" not in out
+
+def test_main_passive_regen_on_hard_stops_at_half(monkeypatch, capsys, tmp_path):
+    """10 of 20 HP regenerates on Normal (the cap is 15) but not on Hard (the cap is 10)."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 10", "north"])
+    assert "You catch your breath" not in out
+
+def test_main_passive_regen_on_hard_still_works_below_half(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 9", "north"])
+    assert "You catch your breath as you move on. (+1 HP)" in out
+
+def test_main_passive_regen_on_easy_carries_on_to_full(monkeypatch, capsys, tmp_path):
+    """18 of 20 HP is above Normal's cap, but Easy regenerates all the way."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty easy", "dev set hp 18", "north"])
+    assert "You catch your breath as you move on. (+1 HP)" in out
+
+def test_main_passive_regen_on_story_restores_two_a_move(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty story", "dev set hp 10", "north", "stats"])
+    assert "You catch your breath as you move on. (+2 HP)" in out
+    assert "12 HP" in out.split("(+2 HP)")[-1]
+
+def test_main_passive_regen_message_reports_what_was_actually_restored(monkeypatch, capsys, tmp_path):
+    """Regression: on Story (2 HP a move) a player 1 HP short of full was told '+2 HP' while gaining 1."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty story", "dev set hp 19", "north", "stats"])
+    assert "You catch your breath as you move on. (+1 HP)" in out
+    assert "(+2 HP)" not in out
+    assert "20 HP" in out.split("(+1 HP)")[-1]
+
+def test_main_passive_regen_hint_on_normal_explains_the_cap(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev set hp 5", "north"])
+    assert "[Hint] Moving between rooms slowly restores HP, but only part of the way" in out
+    assert "all the way back to full" not in out
+
+def test_main_passive_regen_hint_on_hard_explains_the_cap(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 5", "north"])
+    assert "half on Hard" in out
+
+def test_main_passive_regen_hint_on_easy_and_story_says_it_goes_to_full(monkeypatch, capsys, tmp_path):
+    """Regression: the one hint said 'only up to three quarters' on every setting, which is untrue where regeneration has no cap."""
+    for difficulty in ("easy", "story"):
+        out = _run(monkeypatch, capsys, tmp_path, [f"dev difficulty {difficulty}", "dev set hp 5", "north"])
+        assert "[Hint] Moving between rooms slowly restores HP - on this difficulty, all the way back to full." in out, difficulty
+        assert "three quarters" not in out, difficulty
+
+def test_main_passive_regen_hint_is_shown_only_once(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty easy", "dev set hp 5", "north", "south"])
+    assert out.count("You catch your breath") == 2
+    assert out.count("all the way back to full") == 1
+
+# ---- difficulty changes mid-run, and hardcore's saving rules ----
+
+def _saved_game(tmp_path):
+    """The save file in profile 1, slot 1, as a dictionary."""
+    import json
+    with open(save_system.slot_path(1, 1), encoding="utf-8") as f:
+        return json.load(f)
+
+def _run_until_the_window_closes(monkeypatch, capsys, tmp_path, responses):
+    """Feed main() responses and let it run out - what closing the window (or a crash) is to the game: no 'quit', nothing saved on the way out."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    inputs = iter(responses)
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(inputs))
+    try:
+        main()
+        assert False, "Expected main() to run out of input"
+    except StopIteration:
+        pass
+    return capsys.readouterr().out
+
+def test_main_dev_difficulty_rescales_the_world_before_the_next_command(monkeypatch, capsys, tmp_path):
+    _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "save"])
+    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 9  # the Shade's 7 HP x 1.3
+
+def test_main_accepting_prometheus_offer_raises_the_run_to_hard_and_rescales_the_world(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport forge of prometheus", "talk", "say 1", "say 1"])
+    data = _saved_game(tmp_path)  # hardcore saves on 'quit'
+    assert "Your difficulty is now Hard." in out
+    assert data["player"]["difficulty"] == "hard"
+    assert data["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 9
+
+def test_main_hardcore_quit_saves_first(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore", "north"])
+    assert "(saved)" in out
+    assert _saved_game(tmp_path)["player"]["current_room"] == "Chamber of Chiron (North)"
+
+def test_main_ordinary_quit_does_not_save(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["north"])
+    assert "(saved)" not in out
+    assert save_system.slot_exists(1, 1) is False
+
+def test_main_hardcore_saves_on_every_move(monkeypatch, capsys, tmp_path):
+    """So closing the window costs the current room at most - the save on disk is from the last move, with no 'quit' needed."""
+    start = ["1", "1", "1", "developer mode", "basic", "ares", "floor_0"]
+    _run_until_the_window_closes(monkeypatch, capsys, tmp_path, start + ["dev flag hardcore", "north", "south", "north"])
+    assert _saved_game(tmp_path)["player"]["current_room"] == "Chamber of Chiron (North)"
+
+def test_main_ordinary_run_does_not_save_on_every_move(monkeypatch, capsys, tmp_path):
+    start = ["1", "1", "1", "developer mode", "basic", "ares", "floor_0"]
+    _run_until_the_window_closes(monkeypatch, capsys, tmp_path, start + ["north", "south", "north"])
+    assert save_system.slot_exists(1, 1) is False
+
+def test_main_loading_a_hardcore_save_then_quitting_saves_it_again(monkeypatch, capsys, tmp_path):
+    _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore"])
+    responses = iter(["2", "1", "1", "north", "quit"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    assert "(saved)" in capsys.readouterr().out
+    assert _saved_game(tmp_path)["player"]["current_room"] == "Chamber of Chiron (North)"
+
+def test_main_hardcore_quit_mid_fight_flees_before_saving(monkeypatch, capsys, tmp_path):
+    """Quitting a fight counts as an ordinary flee first - every enemy gets its parting blow - and what's saved is out of combat."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore", "dev teleport fields of asphodel", "attack"])
+    after_quit = out.split("Shade attacks Dev")[-1]
+    assert "The Shade gets a hit in as you go" in after_quit
+    assert "(saved)" in after_quit
+    data = _saved_game(tmp_path)
+    assert data["world"]["Fields of Asphodel"]["enemies"][0]["has_been_fled_from"] is True
+    assert data["player"]["hp"] < 20
+
+def test_main_ordinary_quit_mid_fight_does_not_flee(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport fields of asphodel", "attack"])
+    assert "gets a hit in as you go" not in out
+    assert "(saved)" not in out
+
+def test_main_loading_a_hardcore_save_leaves_it_on_disk(monkeypatch, capsys, tmp_path):
+    """Load Game on a hardcore save, then the window closes before anything saves again - the save is still there to come back to."""
+    _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore"])
+
+    _run_until_the_window_closes(monkeypatch, capsys, tmp_path, ["2", "1", "1", "look"])
+
+    assert save_system.slot_summary(1, 1).endswith(" (Hardcore)")
+
+def test_main_load_is_refused_in_hardcore(monkeypatch, capsys, tmp_path):
+    """Regression: fleeing a losing fight and loading the run's own slot put the player back at the room's entrance on full health."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore", "north", "dev set hp 3", "load 1 1", "stats"])
+    assert "There's no going back in hardcore." in out
+    assert "Loading will discard any unsaved progress" not in out
+    assert "3 HP" in out.split("There's no going back in hardcore.")[-1]
+
+def test_main_load_is_refused_in_hardcore_for_any_slot(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["save 1 2", "dev flag hardcore", "load 1 2", "load", "load nonsense"])
+    assert out.count("There's no going back in hardcore.") == 2
+    assert "Usage: load" not in out
+
+def test_main_load_still_works_outside_hardcore(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["save", "dev set hp 3", "load 1 1", "yes", "stats"])
+    assert "There's no going back in hardcore." not in out
+    assert "20 HP" in out.split("Loading will discard")[-1]
+
+def test_main_dying_while_quitting_a_hardcore_fight_deletes_the_save(monkeypatch, capsys, tmp_path):
+    """Regression: a parting blow that killed the player on 'quit' printed that the run was over, then left through the ordinary quit path -
+    skipping the death handling, so the save from the last move was still on disk and could be loaded."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_1",
+        "dev flag hardcore",
+        "dev teleport styx crossing", "descend", "ascend",  # a real move, so the hardcore save is on disk
+        "dev teleport fields of asphodel",
+        "dev set hp 4",
+        "attack",  # the Shade hits back for 3: 1 HP left
+        "quit",    # ...and its parting blow kills
+        "4",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    out = capsys.readouterr().out
+    assert "You fall as you try to escape." in out
+    assert "(saved)" not in out.split("You fall as you try to escape.")[-1]
+    assert save_system.slot_exists(1, 1) is False
+
+def test_main_dying_while_quitting_a_hardcore_fight_offers_no_reload(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    responses = iter([
+        "1", "1", "1", "developer mode", "basic", "ares", "floor_1",
+        "dev flag hardcore", "dev teleport fields of asphodel", "dev set hp 4", "attack", "quit", "4",
+    ])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+
+    main()
+
+    assert "Reload your last save?" not in capsys.readouterr().out
+
+def test_main_quit_on_an_ordinary_run_is_not_treated_as_a_death(monkeypatch, capsys, tmp_path):
+    """Regression: with the 'quit requested' flag set only on the hardcore path, an ordinary 'quit' fell through to the death handling and
+    asked whether to reload the last save."""
+    out = _run(monkeypatch, capsys, tmp_path, ["save"])
+    assert "You have died" not in out
+    assert "Reload your last save?" not in out

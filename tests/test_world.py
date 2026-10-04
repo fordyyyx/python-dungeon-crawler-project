@@ -481,3 +481,7 @@ def test_rooms_do_not_share_their_trophy_state():
     first.placed_trophies.add("Horn")
     first.trophy_plinths.append(("Horn", "A notch."))
     assert (second.placed_trophies, second.trophy_plinths) == (set(), [])
+
+def test_map_starts_not_scaled_for_any_difficulty():
+    """scaled_for is set by scale_world() (difficulty.py) - a fresh Map hasn't been scaled yet."""
+    assert Map().scaled_for is None

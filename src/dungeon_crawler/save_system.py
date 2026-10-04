@@ -19,6 +19,7 @@ from dungeon_crawler.dev_tools import find_item_by_name, find_spell_by_name, fin
 from dungeon_crawler.character_creation import ANCESTRIES
 from dungeon_crawler.exceptions import SaveFileError
 from dungeon_crawler.content import HARDCORE
+from dungeon_crawler.difficulty import scale_world, get_difficulty
 
 PROFILE_LIMIT = 3
 SAVE_SLOTS_PER_PROFILE = 5
@@ -62,7 +63,8 @@ def slot_summary(profile_num: int, slot_num: int) -> str | None:
         with open(slot_path(profile_num, slot_num), "r", encoding="utf-8") as f:
             data = json.load(f)
         p = data["player"]
-        summary = f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']}"
+        label = get_difficulty(p.get("difficulty", "normal")).label
+        summary = f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']} ({label})"
         if HARDCORE in p.get("story_flags", []):
             summary += " (Hardcore)"
         return summary
@@ -107,6 +109,8 @@ def serialise_player(player: Player, current_room) -> dict:
         "seen_lines": sorted(player.seen_lines),
         "story_flags": sorted(player.story_flags),
         "run_seed": player.run_seed,
+        "difficulty": player.difficulty,
+        "ng_plus_cycle": player.ng_plus_cycle,
     }
 
 def _ancestry_key_for_label(label: str, field: str = "label") -> str | None:
@@ -181,6 +185,9 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
 
     if "run_seed" in data:
         player.run_seed = data["run_seed"]
+
+    player.difficulty = data.get("difficulty", "normal")
+    player.ng_plus_cycle = data.get("ng_plus_cycle", 0)
 
     current_room = world.get_room(data["current_room"])
     if current_room is None:
@@ -366,14 +373,21 @@ def load_game(profile_num: int, slot_num: int, world: Map) -> tuple[Player, Room
     or rebuilt; the original error is chained with 'from', so it's still visible when debugging.
 
     world may be left partly patched if loading fails part-way, so callers must build a fresh world for every load, and discard it if loading
-    raises."""
+    raises.
+
+    A hardcore save is loaded like any other and stays on disk - only dying deletes it (main()). What stops a hardcore player going back is
+    main() refusing the mid-game 'load' command, and saving on 'quit' and on every move."""
     try:
         with open(slot_path(profile_num, slot_num), "r", encoding="utf-8") as f:
             data = json.load(f)
+        saved_player = data["player"]
         apply_world_data(world, data["world"])
-        return player_from_save_data(data["player"], world)
+        scale_world(world, saved_player.get("difficulty", "normal"), saved_player.get("ng_plus_cycle", 0), keep_hp=True)
+        player, current_room = player_from_save_data(saved_player, world)
     except SAVE_READ_ERRORS as error:
         raise SaveFileError(_damaged_save_message(profile_num, slot_num)) from error
+
+    return player, current_room
 
 def delete_save(profile_num: int, slot_num: int) -> bool:
     """Delete one save slot. Returns False if there was nothing to delete."""

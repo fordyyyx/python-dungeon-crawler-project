@@ -13,15 +13,22 @@ run.
 
 ## Context to establish first
 
-- **No difficulty-scaling system exists yet** (see roadmap.md's "Difficulty
-  system" item — a future global multiplier with per-boss overrides). Every
-  number in the game right now (enemy hp/attack/armour, loot, XP/gold
-  rewards, player starting stats) is therefore the single baseline tuning
-  everything else will eventually scale from. Frame every suggestion around:
-  **this baseline should read as a standard "medium" difficulty** — beatable
-  by a reasonably careful player without grinding, capable of real player
-  deaths on a careless one — since easier/harder modes will only ever be a
-  multiplier away from these numbers, not a separate tuning pass.
+- **The game has difficulty settings** (`difficulty.py`'s `DIFFICULTIES` —
+  read it on this run for the settings that exist, what each multiplies, and
+  how each changes passive regeneration). **Normal is the baseline**: every
+  number written in the content files (enemy hp/attack/armour, loot, XP/gold
+  rewards, player starting stats) is Normal's tuning, and every other setting
+  is only a multiplier away from it, not a separate tuning pass. So:
+  - **Phases 1-4 measure Normal**, and frame every suggestion there around:
+    **Normal should read as a standard "medium" difficulty** — beatable by a
+    reasonably careful player without grinding, capable of real player
+    deaths on a careless one.
+  - **Phase 5 measures every other setting** against what that setting is
+    meant to be.
+  - A problem that shows up on every setting is a baseline problem: suggest
+    a change to the enemy or item itself. A problem on one setting only is
+    that setting's problem: suggest a change to its multipliers or its
+    regeneration, never to an enemy's own stats.
 - Build the player's expected power curve directly from the real code, not
   from memory or from this file:
   - `content/ancestries.py`'s `ANCESTRIES` for starting `attack`/`armour`/
@@ -168,6 +175,84 @@ The names above are examples of what exists today. Find the sinks, offers
 and rewards by reading the code on this run, so anything added since is
 measured too and anything removed isn't reported from memory.
 
+## Phase 5 — Difficulty settings
+
+Measure every setting in `DIFFICULTIES` other than Normal, which Phases 1-4
+already covered. Take the settings, their multipliers and their regeneration
+rules from the code on this run — if a setting has been added, removed or
+retuned, measure what's there.
+
+**Scale the world the way the game does.** Use the real scaling functions
+(`scale_world()`/`scale_for()`, or whatever the code now calls them) rather
+than multiplying stats by hand, so every enemy the simulation fights —
+including wave adds and later boss phases, which are created mid-fight —
+goes through the same route it does in play. If any enemy turns up
+unscaled, that's a correctness bug: report it under bugs, not as balance.
+Apply the setting's own regeneration (its cap, and how much a move
+restores) wherever the simulated player paces between fights, and anything
+else the setting scales (today, Charybdis' puzzle damage).
+
+**Run the same simulated players as Phase 4** on each setting — the careful
+player and the rushing explorer, across the same builds — plus a careless
+full-clearer (clears everything, but doesn't pace and drinks late). For each
+setting, report:
+
+- **Survival** for each player type and build, and where the deaths happen.
+- **The lowest HP reached** in each gating fight and each boss, as a
+  fraction of max HP, beside Normal's figure for the same fight.
+- **Healing items used, and still held at the end**, and **gold spent on
+  repairs** — gold and loot are the same on every setting, so these two are
+  where a setting shows up in the economy. Don't repeat Phase 4's full gold
+  tables; report only what differs from Normal.
+- **How much of the setting's effect is the stat multipliers and how much is
+  regeneration** — rerun one build with Normal's regeneration to separate
+  them, so a suggestion can name the right lever.
+
+**Judge each setting against its own description** (`Difficulty.description`
+and the module's docstring — read them, don't assume the wording):
+
+- The easiest setting should let a careless player finish; if a careful one
+  never drops below most of their HP, say so, but that's what it's for.
+- A setting between the easiest and Normal should be clearly more forgiving
+  than Normal for every player type while still being able to kill a
+  careless one.
+- The hardest setting should punish carelessness hard and take a careful
+  player close in the boss fights, without making any single fight a coin
+  flip for a careful player — flag any gating fight a careful player loses
+  more than about one time in ten.
+- The settings should be **ordered, with real gaps between them**: flag two
+  neighbouring settings that play almost the same, and any fight that is
+  *easier* on a harder setting (rounding of scaled stats can do this).
+
+Check these specifically:
+
+- **The gap between explorers and rushers** on each setting. Easier settings
+  are meant to help players who don't explore, through enemy stats and
+  regeneration, since gear upgrades only reach players who do. Report whether
+  the rusher's survival actually improves on the easier settings, and by how
+  much compared with the careful player's.
+- **The skill gate** (today the Minotaur, meant to stop a player who has
+  invested no skill points). Report whether it still holds on each setting.
+  Whether it *should* hold on the easiest one is the user's decision — state
+  what happens and ask, rather than calling it a fault.
+- **Rounding and floors.** Low stats scale coarsely: list any enemy whose
+  scaled attack rounds to the same value on two settings, or to 0, and any
+  fight where the scaled attack falls to or below the player's expected
+  armour, so every hit lands only the minimum damage and the multiplier does
+  nothing.
+- **Hardcore.** It raises a run to the hardest setting part-way through
+  (read `floor_2.py` for when and how), and one death ends the run. Report
+  the chance a careful and a careless player finish a hardcore run — the
+  earlier floors on Normal, the rest on the hardest setting — since that's
+  the number a hardcore achievement would rest on.
+- **New Game+ cycles**, only once New Game+ can actually be started in play:
+  measure the first few cycles with the carried-over character. Until then,
+  just note the per-cycle multiplier from the code and that it's unmeasured.
+
+Report one table per setting (a row per floor, as in Phase 4), plus one
+comparison table across all settings: survival by player type, lowest HP at
+the last boss, and healing items left over.
+
 ## Rules
 
 - Read-only pass — do not modify any file under `src/` or `tests/`, and
@@ -178,7 +263,10 @@ measured too and anything removed isn't reported from memory.
   CLAUDE.md/map.md's own descriptions.
 - Suggestions, not fixes: phrase findings as "consider lowering X's armour
   from 3 to 2" or "consider giving room Y an alternate route," not as a
-  diff to apply. Don't touch any source file.
+  diff to apply. Don't touch any source file. For a setting other than
+  Normal, phrase them as changes to that setting ("consider raising Hard's
+  attack multiplier from 1.2 to 1.3"), and say what the change would do to
+  the figures you measured.
 - If something looks like a genuine correctness bug rather than a balance
   opinion (e.g. a stat that's clearly a typo, or a gate that's unreachable
   by any means at all) call that out separately from balance suggestions,
@@ -189,15 +277,23 @@ measured too and anything removed isn't reported from memory.
 Structure the final report as:
 1. **Baseline assumptions** — the player power curve you derived and from
    what (ancestry, XP/level formula, skill point value, expected gear per
-   floor), so the user can sanity-check the assumptions themselves.
-2. **Per-floor difficulty notes** — floor by floor, each populated encounter
-   with a one-line verdict (too easy / on-target / too hard / spike) and a
-   short reason; unpopulated floors get a one-line "not yet populated" note.
+   floor), and the difficulty settings as the code defines them, so the user
+   can sanity-check the assumptions themselves.
+2. **Per-floor difficulty notes (Normal)** — floor by floor, each populated
+   encounter with a one-line verdict (too easy / on-target / too hard /
+   spike) and a short reason; unpopulated floors get a one-line "not yet
+   populated" note.
 3. **Forced-path / softlock findings** — one entry per finding, each stating
    the gate, its single source, and the consequence of missing it.
-4. **Gold economy** — Phase 4's per-floor table for each player type, the
-   sink/offer/reward figures, and any floor flagged as short of a repair.
-5. **Correctness bugs found, if any** — kept separate from balance opinions.
-6. A short closing summary: overall read on whether the current baseline
-   sits at "medium," and the handful of changes that would matter most if
-   the user only made a few.
+4. **Gold economy (Normal)** — Phase 4's per-floor table for each player
+   type, the sink/offer/reward figures, and any floor flagged as short of a
+   repair.
+5. **Difficulty settings** — Phase 5's table for each setting, the
+   comparison table across settings, a one-line verdict per setting against
+   its own description, and the specific checks (explorer/rusher gap, the
+   skill gate, rounding, hardcore, New Game+).
+6. **Correctness bugs found, if any** — kept separate from balance opinions.
+7. A short closing summary: whether Normal sits at "medium", whether each
+   other setting does what it says, and the handful of changes that would
+   matter most if the user only made a few — saying for each whether it's a
+   change to the baseline or to one setting.

@@ -41,7 +41,7 @@ Trophy Room of Zeus {Zeus - Companion} [NOTE: built - is_trophy_room=True: thirt
 Hall of Hermes {Hermes - Friendly}
 * north -> Library of Athena
 * south -> Forge of Prometheus
-Forge of Prometheus {Prometheus - Friendly} [NOTE: built - a one-time hardcore offer (permadeath, for a full armour repair); no trade]
+Forge of Prometheus {Prometheus - Friendly} [NOTE: built - a one-time hardcore offer (permadeath, and the run raised to Hard, for a full armour repair); no trade]
 * north -> Hall of Hermes
 * east -> Practice Chamber
 * descend -> Bony Crypt

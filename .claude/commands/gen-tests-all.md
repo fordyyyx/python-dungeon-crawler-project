@@ -3,7 +3,8 @@ files, in this order, one at a time:
 characters.py, items.py, world.py, content/ (the whole package), combat.py,
 exploration.py, exchange.py, chests.py, upgrades.py, trophies.py, dialogue.py,
 character_creation.py,
-save_system.py, dev_tools.py, engine.py, status_effects.py, spells.py, hints.py
+save_system.py, dev_tools.py, engine.py, status_effects.py, spells.py, hints.py,
+difficulty.py
 
 (The engine.py reorganisation is complete, status effects/spells, the
 save/load system, one-off contextual hints (hints.py), the exchange
@@ -14,14 +15,13 @@ exceptions.py also exists, but holds only the two exception classes
 (ActionRefused, SaveFileError) - they're tested where they're raised, and
 test_save_system.py already checks their hierarchy, so it has no test file
 of its own. Add new files to the list as future roadmap items introduce
-them, e.g. skills.py, achievements.py, difficulty.py - none of these exist
-yet. Charon's shop is planned to reuse exchange.py rather than get a
+them, e.g. skills.py, achievements.py - neither exists yet. Charon's shop is planned to reuse exchange.py rather than get a
 shop.py of its own.)
 
 For each file, use its matching test file under tests/ (exchange.py ->
 tests/test_exchange.py, chests.py -> tests/test_chests.py, upgrades.py ->
 tests/test_upgrades.py, trophies.py -> tests/test_trophies.py, dialogue.py ->
-tests/test_dialogue.py). The content/
+tests/test_dialogue.py, difficulty.py -> tests/test_difficulty.py). The content/
 package (one module per floor, plus common.py, dev_content.py,
 ancestries.py and world_builder.py) is still covered by the single
 tests/test_content.py - every name is re-exported from

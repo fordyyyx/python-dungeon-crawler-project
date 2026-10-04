@@ -1999,3 +1999,19 @@ def test_repair_item_names_an_upgraded_piece_with_its_level():
     plate.durability = 5
     player.inventory.add(plate)
     assert repair_item("plate", player, forge) == "Plate +1 is fully repaired for 10 gold."
+
+# ---- difficulty: the duel form ----
+
+def test_start_duel_scales_the_combat_form_to_the_players_difficulty():
+    room, _ = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "hard"
+    start_duel("imp", room, player)
+    opponent = room.enemies[0]
+    assert (opponent.hp, opponent.max_hp, opponent.attack_damage) == (39, 39, 6)
+
+def test_start_duel_on_normal_leaves_the_combat_form_unscaled():
+    room, _ = _camp_with_duelling_companion()
+    start_duel("imp", room, Player(name="Hero", hp=20))
+    opponent = room.enemies[0]
+    assert (opponent.hp, opponent.max_hp, opponent.attack_damage) == (30, 30, 5)

@@ -4,6 +4,7 @@ and yes/no confirmation) that main() drives."""
 from dungeon_crawler.characters import Player
 from dungeon_crawler.content import ANCESTRIES
 from dungeon_crawler import save_system
+from dungeon_crawler.difficulty import DIFFICULTIES
 
 def choose_ancestry() -> str:
     """Prompt the player to pick an ancestry, looping until a valid key is entered. Returns the ancestry's dict key (e.g. 'athena'), not its display label."""
@@ -117,3 +118,14 @@ def confirm(prompt: str) -> bool:
         if choice in ("no", "n"):
             return False
         print("Please answer yes or no.")
+
+def choose_difficulty() -> str:
+    """Ask for a difficulty setting. It's fixed for the whole run, so the prompt says so."""
+    print("\nChoose your difficulty. It can't be changed later.")
+    for key, setting in DIFFICULTIES.items():
+        print(f"    {key} - {setting.label}: {setting.description}")
+    while True:
+        choice = input("> ").strip().lower()
+        if choice in DIFFICULTIES:
+            return choice
+        print(f"Choose one of: {', '.join(DIFFICULTIES)}")

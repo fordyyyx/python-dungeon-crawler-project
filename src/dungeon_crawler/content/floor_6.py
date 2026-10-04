@@ -10,6 +10,7 @@ from dungeon_crawler.chests import add_random_chest, add_fixed_chest
 from dungeon_crawler.content.loot_tables import LATE_LOOT
 from .common import create_cup_of_kykeon, create_small_healing_potion, create_kelp_poultice
 from dungeon_crawler.content import create_bronze_xiphos, create_weathered_helm, create_bronze_breastplate, create_harpy_fletched_bow, create_wineskin_of_dionysus
+from dungeon_crawler.difficulty import enemy_multipliers
 
 SIRENS_SKILL_POINTS = 2
 SIRENS_HP_COST = 5
@@ -268,9 +269,11 @@ def _charybdis_verb(verb: str):
         outcome, message = resolve_charybdis_action(verb, phase, state)
 
         if outcome == "fail":
-            player.hp = max(0, player.hp - CHARYBDIS_FAIL_DAMAGE)
+            _, attack_multiplier = enemy_multipliers(player.difficulty, player.ng_plus_cycle)
+            damage = round(CHARYBDIS_FAIL_DAMAGE * attack_multiplier)
+            player.hp = max(0, player.hp - damage)
             room.transient_state.pop("charybdis", None)
-            lines = [message, f"(You take {CHARYBDIS_FAIL_DAMAGE} damage.)"]
+            lines = [message, f"(You take {damage} damage.)"]
             lines.append("The sea closes over you." if not player.is_alive() else "The river spits you back out where you started, gasping.")
             return "\n".join(lines)
 

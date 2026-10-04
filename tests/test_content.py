@@ -3962,7 +3962,44 @@ def test_prometheus_confirming_turns_hardcore_on():
     continue_dialogue("1", forge, player)
     message = continue_dialogue("1", forge, player)
     assert HARDCORE in player.story_flags
+    assert "(Hardcore mode is now on for this save. Your difficulty is now Hard. All your armour has been fully repaired.)" in message
+
+def test_prometheus_confirming_raises_the_run_to_hard():
+    """The one exception to a fixed difficulty, and only ever upwards."""
+    for difficulty in ("story", "easy", "normal", "hard"):
+        forge, player, prometheus = _meet_prometheus()
+        player.difficulty = difficulty
+        continue_dialogue("1", forge, player)
+        continue_dialogue("1", forge, player)
+        assert player.difficulty == "hard", difficulty
+
+def test_prometheus_confirming_on_hard_does_not_announce_a_change():
+    forge, player, prometheus = _meet_prometheus()
+    player.difficulty = "hard"
+    continue_dialogue("1", forge, player)
+    message = continue_dialogue("1", forge, player)
     assert "(Hardcore mode is now on for this save. All your armour has been fully repaired.)" in message
+    assert "Your difficulty is now Hard." not in message
+
+def test_prometheus_thinking_again_leaves_the_difficulty_alone():
+    forge, player, prometheus = _meet_prometheus()
+    player.difficulty = "easy"
+    continue_dialogue("1", forge, player)
+    continue_dialogue("2", forge, player)
+    assert player.difficulty == "easy"
+    assert HARDCORE not in player.story_flags
+
+def test_prometheus_warns_what_hardcore_changes_before_it_is_accepted():
+    """The 'be sure' step has to say all four: it gets harder, there's no loading an earlier save, the game saves on every move, and 'quit' is
+    the safe way out. It must not promise the old rule - a loaded save is no longer used up."""
+    forge, player, prometheus = _meet_prometheus()
+    message = continue_dialogue("1", forge, player)
+    assert "what comes next will be harder" in message
+    assert "Hardcore raises your difficulty to Hard" in message
+    assert "you can no longer load an earlier save" in message
+    assert "The game saves every time you move to another room" in message
+    assert "Always leave with 'quit', which saves first" in message
+    assert "used up" not in message
 
 def test_prometheus_confirming_repairs_every_armour_piece_carried():
     player = Player(name="Hero", hp=20)
@@ -4651,3 +4688,72 @@ def test_zeus_has_a_line_for_his_brother_hades():
     second = talk_to(room.companions[0], player, room)
     assert "\"Brother.\"" in first
     assert "\"Brother.\"" not in second
+
+# ---- difficulty ----
+
+def test_build_world_every_enemy_starts_unscaled():
+    """build_world() never scales - main() and load_game() do, from these values."""
+    dungeon, start, floors = build_world()
+    for room in dungeon.rooms.values():
+        for enemy in room.enemies:
+            assert (enemy.max_hp, enemy.attack_damage) == (enemy.unscaled_max_hp, enemy.unscaled_attack), enemy.name
+
+def test_no_real_enemy_becomes_harmless_on_story():
+    """Story halves attack - an enemy that could hurt the player must still be able to."""
+    from dungeon_crawler.difficulty import scale_rooms
+    dungeon, start, floors = build_world()
+    scale_rooms(dungeon.rooms.values(), "story", 0)
+    for room in dungeon.rooms.values():
+        for enemy in room.enemies:
+            if enemy.unscaled_attack > 0:
+                assert enemy.attack_damage > 0, enemy.name
+
+def test_charybdis_failure_damage_scales_with_the_difficultys_attack():
+    for difficulty, expected in (("story", 6), ("easy", 10), ("normal", 12), ("hard", 14)):
+        _, rooms = build_floor_6()
+        river = rooms["Narrow River"]
+        player = Player(name="Hero", hp=30)
+        player.difficulty = difficulty
+        messages = run_charybdis_verbs(river, player, ["climb", "let go"])
+        assert player.hp == 30 - expected, difficulty
+        assert f"(You take {expected} damage.)" in messages[-1], difficulty
+
+def test_charybdis_failure_damage_scales_with_the_ng_plus_cycle():
+    _, rooms = build_floor_6()
+    river = rooms["Narrow River"]
+    player = Player(name="Hero", hp=30)
+    player.ng_plus_cycle = 1
+    messages = run_charybdis_verbs(river, player, ["climb", "let go"])
+    assert player.hp == 15
+    assert "(You take 15 damage.)" in messages[-1]
+
+def test_every_boss_chain_is_scaled_all_the_way_through_on_hard():
+    """Regression: play each multi-stage fight to its end on Hard - every enemy that appears, by whichever route (a next phase, a wave, or
+    the phase after a wave), must have Hard's stats. Medusa (Awakened), Poseidon (Earth-Shaker), Hades (Helm of Darkness) and Typhon (Storm
+    Unleashed) all used to appear unscaled."""
+    from dungeon_crawler.difficulty import scale_rooms
+    from dungeon_crawler.combat import handle_enemy_defeat
+    last_phases = {
+        "Lair of Medusa": "Medusa (Awakened)",
+        "Poseidon's Depths": "Poseidon (Earth-Shaker)",
+        "Gate of Cerberus": "Cerberus (Last Head)",
+        "Hall of Hades": "Hades (Helm of Darkness)",
+        "Tartarus": "Typhon (Storm Unleashed)",
+    }
+    for room_name, last_phase in last_phases.items():
+        dungeon, start, floors = build_world()
+        scale_rooms(dungeon.rooms.values(), "hard", 0)
+        player = Player(name="Hero", hp=20)
+        player.difficulty = "hard"
+        room = dungeon.get_room(room_name)
+        assert room is not None
+        seen = []
+        while room.enemies:
+            for enemy in room.enemies:
+                assert enemy.max_hp == round(enemy.unscaled_max_hp * 1.3), enemy.name
+                assert enemy.attack_damage == round(enemy.unscaled_attack * 1.2), enemy.name
+            enemy = room.enemies[0]
+            seen.append(enemy.name)
+            enemy.hp = 0
+            handle_enemy_defeat(room, enemy, player)
+        assert seen[-1] == last_phase, room_name

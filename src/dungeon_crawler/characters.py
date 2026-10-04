@@ -413,6 +413,10 @@ class Player(Character):
         """A random number fixed for the whole playthrough, saved with the player. Random chests roll from it and their room's name, so reloading
         before a chest can never change what's inside. Every new Player gets one; a save from before it existed gets a fresh one on loading, which
         is then saved like everything else."""
+        self.difficulty: str = "normal"
+        """A key in DIFFICULTIES - chosen at a new game, fixed for the run, saved. See difficulty.py."""
+        self.ng_plus_cycle: int = 0
+        """How many times this character has started New Game+ - adds to enemy HP and attack each cycle. Saved."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -564,6 +568,10 @@ class Enemy(Character):
         - each add gets wave_gate_factory set to this phase's own next_phase_factory (the deferred transition), carried on the adds
         themselves rather than tracked on Room/Player. See handle_enemy_defeat()."""
         super().__init__(name, hp, attack_damage, armour)
+        self.unscaled_max_hp: int = hp
+        self.unscaled_attack: int = attack_damage
+        """The enemy's stats as written in its factory - what difficulty scaling always works from (see scale_enemy(), difficulty.py) so scaling
+        never compounds. Changing max_hp or attack_damage directly, as 'dev set' does, is undone by the next rescale."""
         self.loot = loot or []
         self.description = description
         self.next_phase_factory = next_phase_factory

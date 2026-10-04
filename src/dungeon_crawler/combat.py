@@ -12,6 +12,7 @@ from dungeon_crawler.world import Room
 from dungeon_crawler.exploration import pick_up, check_equippable, take_all, get_advice, room_is_clear
 from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.items import EscapeItem
+from dungeon_crawler.difficulty import scale_for
 from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
@@ -262,6 +263,7 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         room.remove_enemy(enemy)
         adds = [factory() for factory in enemy.next_wave_factories]
         for add in adds:
+            scale_for(add, player)
             add.wave_gate_factory = enemy.next_phase_factory
             room.add_enemy(add)
         player.in_combat = True
@@ -276,6 +278,7 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
 
     if enemy.next_phase_factory is not None:
         next_phase = enemy.next_phase_factory()
+        scale_for(next_phase, player)
         room.remove_enemy(enemy)
         room.add_enemy(next_phase)
         # transition stays seamless (roadmap.md's boss-fights decision) - combat stays locked in,
@@ -343,6 +346,7 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         )
         if not siblings_remaining:
             next_phase = enemy.wave_gate_factory()
+            scale_for(next_phase, player)
             room.add_enemy(next_phase)
             player.in_combat = True
             player.current_target = next_phase

@@ -3773,3 +3773,84 @@ def test_handle_combat_command_use_escape_item_mid_duel_ends_the_duel(monkeypatc
     assert companion in room.companions
     assert player.hp == 20
     assert companion.duel_won is False
+
+# ---- difficulty: enemies created mid-fight ----
+
+def test_handle_enemy_defeat_scales_the_next_phase_to_the_players_difficulty():
+    room = Room("Throne Room")
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, next_phase_factory=lambda: Enemy(name="Hades (Enraged)", hp=40, attack_damage=20))
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+    player.difficulty = "hard"
+
+    handle_enemy_defeat(room, enemy, player)
+
+    next_phase = room.enemies[0]
+    assert (next_phase.hp, next_phase.max_hp, next_phase.attack_damage) == (52, 52, 24)
+
+def test_handle_enemy_defeat_scales_the_next_phase_to_the_ng_plus_cycle():
+    room = Room("Throne Room")
+    enemy = Enemy(name="Hades", hp=0, attack_damage=15, next_phase_factory=lambda: Enemy(name="Hades (Enraged)", hp=40, attack_damage=20))
+    room.add_enemy(enemy)
+    player = Player(name="Hero", hp=50)
+    player.ng_plus_cycle = 2
+
+    handle_enemy_defeat(room, enemy, player)
+
+    next_phase = room.enemies[0]
+    assert (next_phase.max_hp, next_phase.attack_damage) == (60, 30)
+
+def test_handle_enemy_defeat_scales_every_wave_add_to_the_players_difficulty():
+    room = Room("Lair")
+    boss = Enemy(
+        name="Boss", hp=0, attack_damage=10,
+        next_wave_factories=[lambda: Enemy(name="Add", hp=20, attack_damage=10), lambda: Enemy(name="Add", hp=20, attack_damage=10)],
+        next_phase_factory=lambda: Enemy(name="Boss (Phase 2)", hp=40, attack_damage=20),
+    )
+    room.add_enemy(boss)
+    player = Player(name="Hero", hp=50)
+    player.difficulty = "story"
+
+    handle_enemy_defeat(room, boss, player)
+
+    assert [(add.hp, add.max_hp, add.attack_damage) for add in room.enemies] == [(10, 10, 5), (10, 10, 5)]
+
+def test_handle_enemy_defeat_scales_the_phase_that_follows_a_cleared_wave():
+    """Regression: the phase spawned once a wave is cleared comes from wave_gate_factory, a third route - it was never scaled, so on any
+    setting but Normal a boss's last phase appeared with its Normal stats."""
+    room = Room("Lair")
+    boss = Enemy(
+        name="Boss", hp=0, attack_damage=10,
+        next_wave_factories=[lambda: Enemy(name="Add", hp=20, attack_damage=10)],
+        next_phase_factory=lambda: Enemy(name="Boss (Phase 2)", hp=40, attack_damage=20),
+    )
+    room.add_enemy(boss)
+    player = Player(name="Hero", hp=50)
+    player.difficulty = "hard"
+    handle_enemy_defeat(room, boss, player)
+    add = room.enemies[0]
+    add.hp = 0
+
+    handle_enemy_defeat(room, add, player)
+
+    phase_two = room.enemies[0]
+    assert phase_two.name == "Boss (Phase 2)"
+    assert (phase_two.hp, phase_two.max_hp, phase_two.attack_damage) == (52, 52, 24)
+
+def test_handle_enemy_defeat_scales_the_phase_after_a_wave_to_the_ng_plus_cycle():
+    room = Room("Lair")
+    boss = Enemy(
+        name="Boss", hp=0, attack_damage=10,
+        next_wave_factories=[lambda: Enemy(name="Add", hp=20, attack_damage=10)],
+        next_phase_factory=lambda: Enemy(name="Boss (Phase 2)", hp=40, attack_damage=20),
+    )
+    room.add_enemy(boss)
+    player = Player(name="Hero", hp=50)
+    player.ng_plus_cycle = 1
+    handle_enemy_defeat(room, boss, player)
+    add = room.enemies[0]
+    add.hp = 0
+
+    handle_enemy_defeat(room, add, player)
+
+    assert (room.enemies[0].max_hp, room.enemies[0].attack_damage) == (50, 25)

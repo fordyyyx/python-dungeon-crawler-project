@@ -197,6 +197,9 @@ class Map:
     def __init__(self):
         """Start with an empty room collection."""
         self.rooms: dict[str, Room] = {}
+        self.scaled_for: tuple[str, int] | None = None
+        """(difficulty, New Game+ cycle) the world's enemies were last scaled for - see ensure_world_scaled(). Never saved: a loaded world is scaled
+        from the save which records both."""
 
     def add_room(self, room: Room) -> None:
         """Add room to the map, keyed by its name."""

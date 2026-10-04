@@ -287,6 +287,12 @@ something occurs to you mid-build.
   figure was already picked as primary would read more clearly than the
   text version's "you've already claimed that blood, try again" reprompt.
 
+- **Difficulty is chosen once, at a new game, and can't be changed** (`choose_difficulty()`) - a screen of four cards (Story, Easy,
+  Normal, Hard), each saying in plain words what it changes (how tough enemies are, how much walking heals) and that the choice is
+  final, rather than a typed word. The setting belongs on the save slot beside the level and room, as the text version's "(Hard)"
+  does. The one mid-run change - Prometheus raising a hardcore run to Hard - wants to be seen: the forge flaring, the HUD's
+  difficulty mark changing.
+
 ## Save / Load
 - **Hardcore needs to be visible everywhere it matters** - a mark on the save slot (the text version's "(Hardcore)"), a small
   persistent HUD marker during play, and a death screen that says plainly the save is gone. Prometheus' two-step accept maps onto

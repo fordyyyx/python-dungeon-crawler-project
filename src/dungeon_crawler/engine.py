@@ -3,10 +3,10 @@
 from dungeon_crawler.characters import Player
 from dungeon_crawler.world import Room
 from dungeon_crawler.content import build_world, HADES_SPARED, HADES_DEFEATED, TYPHON_DEFEATED, HARDCORE
-from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command
+from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command, resolve_flee
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines, get_advice, is_exit_concealed, get_story_gate
-from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm
+from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm, choose_difficulty
 from dungeon_crawler import save_system
 from dungeon_crawler.hints import show_hint
 from dungeon_crawler.exchange import list_offers, make_exchange, sell_item
@@ -14,10 +14,9 @@ from dungeon_crawler.exceptions import ActionRefused, SaveFileError
 from dungeon_crawler.dialogue import continue_dialogue
 from dungeon_crawler.upgrades import upgrade_item, list_upgrades
 from dungeon_crawler.trophies import place_trophies, describe_plinths
+from dungeon_crawler.difficulty import scale_world, get_difficulty, DEFAULT_DIFFICULTY, ensure_world_scaled
 
 REST_MANA_AMOUNT = 10
-PASSIVE_REGEN_PER_MOVE = 1
-PASSIVE_REGEN_CAP_FRACTION = 0.75
 ENDING_SHOWN = "ending_shown"
 TRUE_ENDING_SHOWN = "true_ending_shown"
 RESERVED_COMMAND_WORDS: frozenset[str] = frozenset({
@@ -271,9 +270,12 @@ def main() -> None:
             ancestry_key = choose_ancestry()
             secondary_ancestry_key = choose_secondary_ancestry(ancestry_key)
             player = create_player(name, ancestry_key, secondary_ancestry_key)
+            player.difficulty = DEFAULT_DIFFICULTY if dev_mode_requested else choose_difficulty()
             player.dev_mode = dev_mode_requested
 
             dungeon, current_room, all_floors = build_world()
+
+            scale_world(dungeon, player.difficulty, player.ng_plus_cycle,)
 
             if player.dev_mode:
                 print("\n[DEV] Which floor should you start on?")
@@ -302,6 +304,7 @@ def main() -> None:
 
             quit_requested = False
             while player.is_alive():
+                ensure_world_scaled(dungeon, player)
                 if player.skill_tree.skill_points > 0:
                     skill_hint = show_hint(player, "skill_points")
                     if skill_hint:
@@ -312,7 +315,15 @@ def main() -> None:
                 print("\n\n")
 
                 if command in ("quit", "exit"):
-                    quit_requested = True
+                    if HARDCORE in player.story_flags and active_profile is not None:
+                        if player.in_combat:
+                            print(resolve_flee(player, current_room.enemies, current_room))
+                        if player.is_alive():
+                            save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
+                            print("(saved)")
+                        else:
+                            print("\nYou fall as you try to escape. There's no second chance this time.\n(Hardcore: this run is over.)")
+                    quit_requested = player.is_alive()
                     break
 
                 elif command in current_room.interactions and not player.in_combat:
@@ -350,6 +361,9 @@ def main() -> None:
                                 print(f"Saved to profile {profile_num}, slot {slot_num}.")
 
                 elif command.startswith("load ") and not player.in_combat:
+                    if HARDCORE in player.story_flags:
+                        print("There's no going back in hardcore. The only ways out of this run are 'quit', which saves first - or death.")
+                        continue
                     parts = command.removeprefix("load ").split()
                     if len(parts) != 2 or not all(p.isdigit() for p in parts):
                         print("Usage: load <profile> <slot>")
@@ -466,6 +480,7 @@ def main() -> None:
                     print(display_map(current_room, player))
 
                 elif command in current_room.exits and not is_exit_concealed(current_room, command, player):
+                    autosaved = False
                     guardian = get_exit_guardian(current_room, command)
                     if command in current_room.fast_travel_locks:
                         print("You haven't opened this shortcut yet - reach it from the other side first.")
@@ -492,11 +507,14 @@ def main() -> None:
                         current_room.on_leave()
                         current_room = current_room.exits[command]
                         player.visited_rooms.add(current_room.name)
-                        regen_cap = int(player.max_hp * PASSIVE_REGEN_CAP_FRACTION)
+                        setting = get_difficulty(player.difficulty)
+                        regen_cap = int(player.max_hp * setting.regen_cap)
                         if player.hp < regen_cap:
-                            player.hp = min(player.max_hp, player.hp + PASSIVE_REGEN_PER_MOVE)
-                            print(f"You catch your breath as you move on. (+{PASSIVE_REGEN_PER_MOVE} HP)")
-                            regen_hint = show_hint(player, "passive_regen")
+                            hp_before = player.hp
+                            player.hp = min(player.max_hp, player.hp + setting.regen_per_move)
+                            print(f"You catch your breath as you move on. (+{player.hp - hp_before} HP)")
+                            # a setting that regenerates to full gets its own hint - "only part of the way" would be untrue there
+                            regen_hint = show_hint(player, "passive_regen" if setting.regen_cap < 1 else "passive_regen_full")
                             if regen_hint:
                                 print(regen_hint)
                         found_floor = find_floor_for_room(current_room, all_floors)
@@ -507,9 +525,12 @@ def main() -> None:
                                 if active_profile is not None:
                                     save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
                                     print("(autosaved)")
+                                    autosaved = True
                                     autosave_hint = show_hint(player, "autosave")
                                     if autosave_hint:
                                         print(autosave_hint)
+                            if HARDCORE in player.story_flags and active_profile is not None and not autosaved:
+                                save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
                         print_room(current_room, player)
 
                 elif command == "look":

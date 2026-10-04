@@ -4,6 +4,7 @@ from dungeon_crawler.dev_tools import find_room_by_name_ci, handle_dev_remove, h
 from dungeon_crawler.content import build_world, create_test_boss
 from dungeon_crawler.items import Weapon, Armour
 from dungeon_crawler.dev_tools import ITEM_REGISTRY, ENEMY_REGISTRY, ALLY_REGISTRY, COMPANION_REGISTRY, SPELL_REGISTRY, find_item_by_name, handle_dev_command, handle_dev_set, handle_dummy_set, find_enemy_by_name, find_ally_by_name, find_companion_by_name, find_spell_by_name, handle_dev_kill, find_room_by_name_ci, handle_dev_remove, handle_dev_remove_all, handle_dev_clear_room, handle_dev_afflict, handle_dev_set_durability
+from dungeon_crawler.difficulty import DIFFICULTIES, ensure_world_scaled
 
 def test_find_item_by_name_returns_item_for_known_name():
     item = find_item_by_name("wooden sword")
@@ -209,7 +210,8 @@ def test_handle_dev_command_help_returns_help_text():
         "dev remove <character/all>, dev clear room\n"
         "dev afflict <target> <effect> <amount> <duration>\n"
         "dev kill <enemy>, dev teleport <room>, dev learn <skill>\n"
-        "dev grant spell <name>, dev flag <story flag>"
+        "dev grant spell <name>, dev flag <story flag>\n"
+        "dev difficulty <story/easy/normal/hard>"
     )
 
 def test_handle_dev_command_unrecognised_command_returns_error_message():
@@ -1396,3 +1398,79 @@ def test_handle_dev_kill_on_a_boss_keeps_combat_on_its_first_add():
     assert player.in_combat is True
     assert player.current_target is room.enemies[0]
     assert player.current_target.name == "Test Add"
+
+# ---- difficulty ----
+
+def test_handle_dev_command_spawn_scales_the_enemy_to_the_players_difficulty():
+    player = Player(name="Dev", hp=20)
+    player.difficulty = "hard"
+    room = Room("Hall")
+    handle_dev_command("spawn minotaur", player, room, Map())
+    minotaur = room.enemies[0]
+    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 1.3)
+    assert minotaur.hp == minotaur.max_hp
+    assert minotaur.attack_damage == round(minotaur.unscaled_attack * 1.2)
+
+def test_handle_dev_command_spawn_on_normal_leaves_the_enemy_unscaled():
+    room = Room("Hall")
+    handle_dev_command("spawn minotaur", Player(name="Dev", hp=20), room, Map())
+    minotaur = room.enemies[0]
+    assert (minotaur.max_hp, minotaur.attack_damage) == (minotaur.unscaled_max_hp, minotaur.unscaled_attack)
+
+def _dungeon_with_an_enemy_in_each_of_two_rooms():
+    dungeon = Map()
+    hall, cellar = Room("Hall"), Room("Cellar")
+    dungeon.add_room(hall)
+    dungeon.add_room(cellar)
+    here, elsewhere = Enemy(name="Goblin", hp=100, attack_damage=10), Enemy(name="Rat", hp=20, attack_damage=10)
+    hall.add_enemy(here)
+    cellar.add_enemy(elsewhere)
+    return dungeon, hall, here, elsewhere
+
+def test_handle_dev_command_difficulty_sets_the_players_difficulty():
+    dungeon, hall, _, _ = _dungeon_with_an_enemy_in_each_of_two_rooms()
+    player = Player(name="Dev", hp=20)
+    message, new_room = handle_dev_command("difficulty hard", player, hall, dungeon)
+    assert player.difficulty == "hard"
+    assert message == "[DEV] Difficulty set to Hard. The world will rescale."
+    assert new_room is None
+
+def test_handle_dev_command_difficulty_leaves_the_rescaling_to_the_game_loop():
+    """The command only changes the setting - main() rescales before the next command (ensure_world_scaled())."""
+    dungeon, hall, here, _ = _dungeon_with_an_enemy_in_each_of_two_rooms()
+    handle_dev_command("difficulty story", Player(name="Dev", hp=20), hall, dungeon)
+    assert (here.max_hp, here.attack_damage) == (100, 10)
+
+def test_handle_dev_command_difficulty_then_the_game_loops_check_rescales_every_room():
+    dungeon, hall, here, elsewhere = _dungeon_with_an_enemy_in_each_of_two_rooms()
+    player = Player(name="Dev", hp=20)
+    handle_dev_command("difficulty story", player, hall, dungeon)
+    ensure_world_scaled(dungeon, player)
+    assert (here.max_hp, here.attack_damage) == (50, 5)
+    assert (elsewhere.max_hp, elsewhere.attack_damage) == (10, 5)
+
+def test_handle_dev_command_difficulty_unknown_setting_changes_nothing():
+    dungeon, hall, here, _ = _dungeon_with_an_enemy_in_each_of_two_rooms()
+    player = Player(name="Dev", hp=20)
+    message, _ = handle_dev_command("difficulty brutal", player, hall, dungeon)
+    assert message == "[DEV] Unknown difficulty 'brutal' - use story, easy, normal, hard."
+    assert player.difficulty == "normal"
+    assert here.max_hp == 100
+
+def test_handle_dev_command_help_lists_every_difficulty():
+    message, _ = handle_dev_command("help", Player(name="Dev", hp=20), Room("Hall"), Map())
+    assert "dev difficulty <" + "/".join(DIFFICULTIES) + ">" in message
+
+def test_handle_dev_command_spawn_a_non_enemy_works_on_every_difficulty():
+    """Regression: 'dev spawn' scaled whatever the enemy lookup returned before checking it had found one, so spawning an ally, a companion
+    or an unknown name crashed the game."""
+    for difficulty in DIFFICULTIES:
+        player = Player(name="Dev", hp=20)
+        player.difficulty = difficulty
+        room = Room("Hall")
+        ally_message, _ = handle_dev_command("spawn chiron", player, room, Map())
+        companion_message, _ = handle_dev_command("spawn test companion", player, room, Map())
+        unknown_message, _ = handle_dev_command("spawn nonexistent", player, room, Map())
+        assert ally_message == "[DEV] Spawned Chiron."
+        assert companion_message.startswith("[DEV] Spawned Test Companion.")
+        assert unknown_message == "[DEV] No known character names nonexistent."

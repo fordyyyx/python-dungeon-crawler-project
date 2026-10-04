@@ -3200,3 +3200,23 @@ def test_companions_do_not_share_their_companion_lines():
     second = Companion(name="Sprite", hp=20, home_room=Room("Camp"))
     first.companion_lines["Hades"] = "Brother."
     assert second.companion_lines == {}
+
+# ---- difficulty fields ----
+
+def test_player_starts_on_normal_difficulty_with_no_ng_plus_cycles():
+    player = Player(name="Hero", hp=20)
+    assert player.difficulty == "normal"
+    assert player.ng_plus_cycle == 0
+
+def test_enemy_remembers_the_hp_and_attack_it_was_created_with():
+    enemy = Enemy(name="Goblin", hp=30, attack_damage=7)
+    assert enemy.unscaled_max_hp == 30
+    assert enemy.unscaled_attack == 7
+
+def test_enemy_unscaled_values_do_not_follow_later_changes():
+    """Difficulty scaling always works from these, so changing the live stats must never move them."""
+    enemy = Enemy(name="Goblin", hp=30, attack_damage=7)
+    enemy.max_hp = 60
+    enemy.hp = 12
+    enemy.attack_damage = 14
+    assert (enemy.unscaled_max_hp, enemy.unscaled_attack) == (30, 7)

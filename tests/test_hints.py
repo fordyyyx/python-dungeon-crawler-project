@@ -42,16 +42,31 @@ def test_show_hint_with_unknown_key_raises_key_error():
 
 def test_hints_defines_every_key_the_game_triggers():
     """Every show_hint() call site in engine.py uses one of these keys - a missing one would raise KeyError mid-game."""
-    assert set(HINTS) == {"combat", "passive_regen", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave", "evasive", "room_interactions", "workshop"}
+    assert set(HINTS) == {"combat", "passive_regen", "passive_regen_full", "guarded_exit", "forge", "forge_shortcut", "practice_chamber", "skill_points", "autosave", "evasive", "room_interactions", "workshop"}
 
 def test_hints_all_have_non_empty_text():
     assert all(text.strip() for text in HINTS.values())
 
 def test_passive_regen_hint_matches_the_real_regen_cap():
-    """The hint text hard-codes 'three quarters' - this fails if PASSIVE_REGEN_CAP_FRACTION changes without the wording being updated."""
-    from dungeon_crawler.engine import PASSIVE_REGEN_CAP_FRACTION
-    assert PASSIVE_REGEN_CAP_FRACTION == 0.75
-    assert "three quarters" in HINTS["passive_regen"]
+    """The hint text hard-codes 'three quarters' - this fails if Normal's regen cap changes without the wording being updated."""
+    from dungeon_crawler.difficulty import DIFFICULTIES
+    assert DIFFICULTIES["normal"].regen_cap == 0.75
+    assert "three quarters of your maximum on Normal" in HINTS["passive_regen"]
+
+def test_passive_regen_hint_matches_hards_regen_cap():
+    """The same hint hard-codes 'half on Hard'."""
+    from dungeon_crawler.difficulty import DIFFICULTIES
+    assert DIFFICULTIES["hard"].regen_cap == 0.5
+    assert "half on Hard" in HINTS["passive_regen"]
+
+def test_passive_regen_hints_cover_every_difficulty():
+    """Every setting with a cap must be named in the capped hint - a new capped setting needs adding to its wording. The rest regenerate
+    to full and get the other hint (see main()'s movement branch)."""
+    from dungeon_crawler.difficulty import DIFFICULTIES
+    for setting in DIFFICULTIES.values():
+        if setting.regen_cap < 1:
+            assert f"on {setting.label}" in HINTS["passive_regen"], setting.label
+    assert "all the way back to full" in HINTS["passive_regen_full"]
 
 def test_evasive_hint_points_at_ranged_attacks_and_spells():
     """The hint must name the counters that actually bypass melee dodge - see take_damage()'s melee flag."""

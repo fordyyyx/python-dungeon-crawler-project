@@ -8,7 +8,11 @@ HINTS: dict[str, str] = {
         "'attack ranged' needs a ranged weapon equipped; 'cast <spell>' uses mana. Drinking a healing item or grabbing loot with "
         "'take' doesn't cost your turn. 'flee' gets you out, at the risk of a parting blow."
     ),
-    "passive_regen": "Moving between rooms slowly restores HP, but only up to three quarters of your maximum - beyond that you'll need healing items.",
+    "passive_regen": (
+        "Moving between rooms slowly restores HP, but only part of the way - up to three quarters of your maximum on Normal, and half on "
+        "Hard. Beyond that you'll need healing items."
+    ),
+    "passive_regen_full": "Moving between rooms slowly restores HP - on this difficulty, all the way back to full.",
     "guarded_exit": (
         "Some ways forward are guarded - you can't pass until everything in the room is defeated. The way you came in stays open "
         "if you need to retreat and recover."

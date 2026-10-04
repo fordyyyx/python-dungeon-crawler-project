@@ -6,6 +6,7 @@ from dungeon_crawler.characters import Player, Ally, Companion, Enemy
 from dungeon_crawler.items import Armour, Weapon
 from dungeon_crawler.world import Room, StoryGate
 from dungeon_crawler.dialogue import start_dialogue
+from dungeon_crawler.difficulty import scale_for
 
 REPAIR_COST_PER_POINT = 2
 TRAIT_ORDER = ("heavy_armour", "evasive", "heals", "pierces", "numerous", "puzzle")
@@ -474,6 +475,7 @@ def start_duel(name: str, room: Room, player: Player) -> str:
         return f"{companion.name} has already measured you - there's nothing left to prove."
 
     opponent = companion.duel_enemy_factory()
+    scale_for(opponent, player)
     opponent.duel_companion = companion
     opponent.duel_return_hp = player.hp
     room.remove_companion(companion)

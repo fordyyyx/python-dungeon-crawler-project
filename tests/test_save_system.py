@@ -18,6 +18,7 @@ from dungeon_crawler.save_system import (
     serialise_world, apply_world_data,
     save_game, load_game, delete_save, delete_profile,
 )
+from dungeon_crawler.difficulty import scale_rooms
 
 def base_player_data(**overrides) -> dict:
     """A complete, minimal-but-valid save dict for player_from_save_data() - every field player_from_save_data()
@@ -554,7 +555,7 @@ def test_slot_summary_formats_saved_slot(monkeypatch, tmp_path):
     room = Room("Chamber")
     dungeon.add_room(room)
     save_game(1, 1, player, room, dungeon)
-    assert slot_summary(1, 1) == "Hero - LVL 3 Descendant of Ares - Chamber"
+    assert slot_summary(1, 1) == "Hero - LVL 3 Descendant of Ares - Chamber (Normal)"
 
 def test_save_game_then_load_game_restores_player_name(monkeypatch, tmp_path):
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
@@ -1285,7 +1286,7 @@ def test_load_game_a_field_of_the_wrong_kind_raises_save_file_error(monkeypatch,
     data = valid_save_data(monkeypatch, tmp_path)
     data["player"] = ["not", "a", "dictionary"]
     write_raw_save(tmp_path, 1, 1, json.dumps(data))
-    assert isinstance(assert_load_refused().__cause__, TypeError)
+    assert isinstance(assert_load_refused().__cause__, (TypeError, AttributeError))
 
 def test_load_game_an_unknown_room_raises_save_file_error(monkeypatch, tmp_path):
     data = valid_save_data(monkeypatch, tmp_path)
@@ -1733,3 +1734,199 @@ def test_save_and_load_keeps_a_recruited_zeus(monkeypatch, tmp_path):
     assert (loaded.companion.name, loaded.companion.max_hp) == ("Zeus", create_zeus().max_hp)
     assert loaded.companion.home_room is room
     assert room.companions == []
+
+# ---- difficulty ----
+
+def _hard_world():
+    """A real world scaled to Hard, with a player on Hard - what a Hard new game starts as."""
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "hard"
+    scale_rooms(dungeon.rooms.values(), "hard", 0)
+    return dungeon, start, player
+
+def test_slot_summary_shows_the_difficulty(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, player = _hard_world()
+    save_game(1, 1, player, start, dungeon)
+    assert slot_summary(1, 1).endswith(" (Hard)")
+
+def test_slot_summary_puts_hardcore_after_the_difficulty(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, player = _hard_world()
+    player.story_flags.add("hardcore")
+    save_game(1, 1, player, start, dungeon)
+    assert slot_summary(1, 1).endswith(" (Hard) (Hardcore)")
+
+def test_slot_summary_of_an_older_save_without_a_difficulty_shows_normal(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    del data["player"]["difficulty"]
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    assert slot_summary(1, 1).endswith(" (Normal)")
+
+def test_slot_summary_with_an_unknown_difficulty_is_a_damaged_save(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    data["player"]["difficulty"] = "impossible"
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    assert slot_summary(1, 1) == "Damaged save - can't be loaded."
+
+def test_serialise_player_saves_the_difficulty_and_ng_plus_cycle():
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "easy"
+    player.ng_plus_cycle = 3
+    data = serialise_player(player, Room("Chamber"))
+    assert data["difficulty"] == "easy"
+    assert data["ng_plus_cycle"] == 3
+
+def test_player_from_save_data_restores_the_difficulty_and_ng_plus_cycle():
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "story"
+    player.ng_plus_cycle = 2
+    reloaded, _ = player_from_save_data(serialise_player(player, room), dungeon)
+    assert reloaded.difficulty == "story"
+    assert reloaded.ng_plus_cycle == 2
+
+def test_player_from_an_older_save_is_on_normal_with_no_cycles():
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    data = serialise_player(Player(name="Hero", hp=20), room)
+    del data["difficulty"]
+    del data["ng_plus_cycle"]
+    reloaded, _ = player_from_save_data(data, dungeon)
+    assert reloaded.difficulty == "normal"
+    assert reloaded.ng_plus_cycle == 0
+
+def test_load_game_scales_the_fresh_world_to_the_saved_difficulty(monkeypatch, tmp_path):
+    """Loading always rebuilds the world unscaled - load_game() has to scale it again."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, player = _hard_world()
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    load_game(1, 1, fresh)
+
+    for room in fresh.rooms.values():
+        for enemy in room.enemies:
+            if not enemy.respawns:
+                assert enemy.max_hp == max(1, round(enemy.unscaled_max_hp * 1.3)), enemy.name
+                assert enemy.attack_damage == round(enemy.unscaled_attack * 1.2), enemy.name
+
+def test_load_game_keeps_a_full_health_enemy_full_on_hard(monkeypatch, tmp_path):
+    """Its saved HP is above the unscaled maximum - loading must not clip it back."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, player = _hard_world()
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    load_game(1, 1, fresh)
+
+    room = fresh.get_room("Labyrinth of the Minotaur")
+    assert room is not None
+    minotaur = room.enemies[0]
+    assert minotaur.hp == minotaur.max_hp == round(minotaur.unscaled_max_hp * 1.3)
+
+def test_load_game_keeps_a_wounded_enemys_saved_hp_exactly(monkeypatch, tmp_path):
+    """Saved HP is already scaled - it must not be scaled a second time on loading."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, player = _hard_world()
+    room = dungeon.get_room("Labyrinth of the Minotaur")
+    assert room is not None
+    room.enemies[0].hp = 11
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    load_game(1, 1, fresh)
+
+    fresh_room = fresh.get_room("Labyrinth of the Minotaur")
+    assert fresh_room is not None
+    assert fresh_room.enemies[0].hp == 11
+
+def test_load_game_scales_enemies_rebuilt_from_the_registry(monkeypatch, tmp_path):
+    """Wave adds spawned mid-fight aren't in a fresh world - they're rebuilt on loading, and must be scaled like the rest."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, player = _hard_world()
+    lair = dungeon.get_room("Lair of Medusa")
+    assert lair is not None
+    medusa = lair.enemies[0]
+    medusa.hp = 0
+    handle_enemy_defeat(lair, medusa, player)
+    saved = [(enemy.name, enemy.hp, enemy.max_hp, enemy.attack_damage) for enemy in lair.enemies]
+    player.in_combat = False
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    load_game(1, 1, fresh)
+
+    fresh_lair = fresh.get_room("Lair of Medusa")
+    assert fresh_lair is not None
+    assert [(enemy.name, enemy.hp, enemy.max_hp, enemy.attack_damage) for enemy in fresh_lair.enemies] == saved
+    assert saved[0][2] > ENEMY_REGISTRY["gorgon"]().max_hp
+
+def test_load_game_scales_the_world_to_the_saved_ng_plus_cycle(monkeypatch, tmp_path):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.ng_plus_cycle = 2
+    scale_rooms(dungeon.rooms.values(), "normal", 2)
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    load_game(1, 1, fresh)
+
+    room = fresh.get_room("Labyrinth of the Minotaur")
+    assert room is not None
+    minotaur = room.enemies[0]
+    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 1.5)
+
+def test_load_game_of_an_older_save_leaves_the_world_unscaled(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    del data["player"]["difficulty"]
+    del data["player"]["ng_plus_cycle"]
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+
+    fresh, _, _ = build_world()
+    player, _ = load_game(1, 1, fresh)
+
+    assert player.difficulty == "normal"
+    for room in fresh.rooms.values():
+        for enemy in room.enemies:
+            assert (enemy.max_hp, enemy.attack_damage) == (enemy.unscaled_max_hp, enemy.unscaled_attack), enemy.name
+
+def test_load_game_with_an_unknown_difficulty_raises_save_file_error(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    data["player"]["difficulty"] = "impossible"
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    assert isinstance(assert_load_refused().__cause__, KeyError)
+
+def test_load_game_records_what_the_world_was_scaled_for(monkeypatch, tmp_path):
+    """So main()'s check before each command (ensure_world_scaled()) doesn't rescale a freshly loaded world - which would move every wounded
+    enemy's HP."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, player = _hard_world()
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, _, _ = build_world()
+    load_game(1, 1, fresh)
+
+    assert fresh.scaled_for == ("hard", 0)
+
+# ---- hardcore: loading ----
+
+def test_load_game_leaves_a_hardcore_save_in_place(monkeypatch, tmp_path):
+    """Loading doesn't use a hardcore save up - only dying deletes it (main()), so a crash straight after loading can't cost the whole run."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("hardcore")
+    save_game(1, 1, player, start, dungeon)
+
+    fresh, fresh_start, _ = build_world()
+    reloaded, room = load_game(1, 1, fresh)
+
+    assert slot_exists(1, 1) is True
+    assert "hardcore" in reloaded.story_flags
+    assert room is fresh_start

@@ -115,6 +115,12 @@ content getting in the way.
   suitors_cleared` to make Odysseus recruitable without fighting the Suitors.
   Emptying a room with `dev kill`, `dev remove`, `dev remove all` or `dev
   clear room` sets that room's own cleared flag too, just like a real clear.
+- `dev difficulty <story/easy/normal/hard>` — changes the run's difficulty.
+  Every enemy in the world is rescaled before your next command, keeping its
+  share of its HP; passive regeneration follows the new setting at once. A
+  developer-mode New Game skips the difficulty prompt and starts on Normal, so
+  this is how to reach the others. `dev spawn` scales what it creates to the
+  current setting. Respawning enemies (the practice dummy) are never scaled.
 - `dev unlock <direction>` — removes one locked exit from the current room.
 - `dev unlock all` — removes every locked exit from the current room.
   Both go through `Room.unlock_exit()`, the same permanent unlock as walking
@@ -701,12 +707,36 @@ save 1 2
 dev set hp 0
 ```
 The first `talk` makes the offer (once - talk again and he refers back to your
-answer). `say 1` twice accepts, repairing all your armour. `save 1 2` is refused -
-a hardcore run can only save to its own slot. Dying then skips the reload prompt
-and deletes the save; the title screen's slot list no longer shows it. `dev flag
-hardcore` switches it on without Prometheus, and a hardcore save shows
-"(Hardcore)" in the slot list. To see the offer again, start a New Game - a used-up
-offer is saved (`prometheus_offer_made`).
+answer). `say 1` twice accepts, repairing all your armour and raising the run to
+Hard - every enemy is rescaled before your next command. `save 1 2` is refused -
+a hardcore run can only save to its own slot - and so is `load`, for any slot.
+Dying then skips the reload prompt and deletes the save; the title screen's slot
+list no longer shows it. Other things to try before dying: move between rooms
+(each move saves silently), `quit` (prints "(saved)"), and `quit` in the middle
+of a fight (you flee first, parting blows and all, then it saves - or, if a
+blow kills you, the run ends). `dev flag hardcore` switches hardcore on without
+Prometheus, but leaves the difficulty alone. A hardcore save shows "(Hard)
+(Hardcore)" in the slot list. To see the offer again, start a New Game - a
+used-up offer is saved (`prometheus_offer_made`).
+
+**Try each difficulty setting:**
+```
+dev teleport fields of asphodel
+dev difficulty hard
+attack
+dev difficulty story
+attack
+dev set hp 5
+west
+```
+The Shade has 7 HP and 4 attack on Normal: 9 and 5 on Hard, 4 and 2 on Story.
+The HP line after the first `attack` shows Hard's 9; switching to Story turns
+its 5 of 9 HP into 2 of 4 - a wounded enemy keeps its share - so the second
+`attack` finishes it. On Story, walking restores 2 HP a move, all the
+way to full, and the first tick shows the "all the way back to full" hint; on
+Normal and Hard it's 1 HP, up to three quarters and half. To see the real
+prompt, start a New Game with an ordinary name - it comes after the two
+ancestry picks, and the choice shows in the slot list ("(Easy)").
 
 **Fill the Trophy Room of Zeus:**
 ```
