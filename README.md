@@ -1,4 +1,4 @@
-# Greek Mythology Dungeon Crawler
+# Descent from Olympus
 ## A text-based dungeon crawler RPG set in Greek mythology, built in pure Python to demonstrate OOP design
 
 This game follows a hero (you) on the descent into the Underworld, facing monsters and mortals from legend on your path to defeat Hades. Choose your ancestry, train under Chiron, gather relics blessed by the Gods, trade with the friendly and the fallen alike, recruit a companion to fight at your side, and grow stronger through a branching skill tree and a spellbook as you push deeper.
