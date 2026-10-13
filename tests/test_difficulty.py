@@ -79,19 +79,20 @@ def test_enemy_multipliers_are_the_settings_own_with_no_cycles():
     assert enemy_multipliers("hard", 0) == (1.3, 1.2)
     assert enemy_multipliers("story", 0) == (0.5, 0.5)
 
-def test_ng_plus_adds_a_quarter_per_cycle():
-    assert NG_PLUS_MULTIPLIER_PER_CYCLE == 0.25
-    assert enemy_multipliers("normal", 1) == (1.25, 1.25)
-    assert enemy_multipliers("normal", 2) == (1.5, 1.5)
+def test_ng_plus_adds_a_half_per_cycle():
+    """Raised from a quarter: the balance check found the first two cycles easier than a first run."""
+    assert NG_PLUS_MULTIPLIER_PER_CYCLE == 0.5
+    assert enemy_multipliers("normal", 1) == (1.5, 1.5)
+    assert enemy_multipliers("normal", 2) == (2.0, 2.0)
 
 def test_ng_plus_cycles_add_rather_than_compound():
-    """Four cycles is +100%, not 1.25 to the fourth power."""
-    assert enemy_multipliers("normal", 4) == (2.0, 2.0)
+    """Four cycles is +200%, not 1.5 to the fourth power."""
+    assert enemy_multipliers("normal", 4) == (3.0, 3.0)
 
 def test_ng_plus_multiplies_on_top_of_the_setting():
     hp_multiplier, attack_multiplier = enemy_multipliers("hard", 1)
-    assert abs(hp_multiplier - 1.625) < 1e-9
-    assert abs(attack_multiplier - 1.5) < 1e-9
+    assert abs(hp_multiplier - 1.95) < 1e-9
+    assert abs(attack_multiplier - 1.8) < 1e-9
 
 # ---- scale_enemy ----
 
@@ -121,8 +122,8 @@ def test_scale_enemy_on_normal_changes_nothing():
 def test_scale_enemy_applies_the_ng_plus_cycle():
     enemy = make_enemy(hp=100, attack_damage=10)
     scale_enemy(enemy, "normal", 2)
-    assert enemy.max_hp == 150
-    assert enemy.attack_damage == 15
+    assert enemy.max_hp == 200
+    assert enemy.attack_damage == 20
 
 def test_scale_enemy_keeps_a_full_health_enemy_full():
     enemy = make_enemy(hp=100)
@@ -266,7 +267,7 @@ def test_scale_for_uses_the_players_ng_plus_cycle():
     player.ng_plus_cycle = 2
     enemy = make_enemy()
     scale_for(enemy, player)
-    assert (enemy.max_hp, enemy.attack_damage) == (150, 15)
+    assert (enemy.max_hp, enemy.attack_damage) == (200, 20)
 
 def test_scale_for_a_new_player_changes_nothing():
     """A fresh Player is on Normal with no cycles - so every test that builds one sees unscaled enemies."""
@@ -347,7 +348,7 @@ def test_ensure_world_scaled_rescales_when_the_ng_plus_cycle_changes():
     ensure_world_scaled(world, player)
     player.ng_plus_cycle = 1
     ensure_world_scaled(world, player)
-    assert (goblin.max_hp, goblin.attack_damage) == (125, 12)
+    assert (goblin.max_hp, goblin.attack_damage) == (150, 15)
     assert world.scaled_for == ("normal", 1)
 
 def test_ensure_world_scaled_keeps_a_wounded_enemys_share_of_its_hp():
@@ -366,3 +367,96 @@ def test_ensure_world_scaled_changing_setting_twice_does_not_compound():
         player.difficulty = difficulty
         ensure_world_scaled(world, player)
     assert (goblin.hp, goblin.max_hp, goblin.attack_damage) == (100, 100, 10)
+
+# ---- gatekeepers ----
+
+def make_gatekeeper(hp: int = 100, attack_damage: int = 10) -> Enemy:
+    enemy = make_enemy(hp=hp, attack_damage=attack_damage)
+    enemy.gatekeeper = True
+    return enemy
+
+def test_only_easy_leaves_gatekeepers_at_full_strength():
+    softens = {key: setting.softens_gatekeepers for key, setting in DIFFICULTIES.items()}
+    assert softens == {"story": True, "easy": False, "normal": True, "hard": True}
+
+def test_a_difficulty_softens_gatekeepers_unless_told_otherwise():
+    assert Difficulty("Custom", "", 0.5, 0.5, 1.0, 1).softens_gatekeepers is True
+
+def test_scale_enemy_on_easy_leaves_a_gatekeeper_at_normal_strength():
+    enemy = make_gatekeeper()
+    scale_enemy(enemy, "easy", 0)
+    assert (enemy.hp, enemy.max_hp, enemy.attack_damage) == (100, 100, 10)
+
+def test_scale_enemy_on_easy_still_weakens_an_ordinary_enemy():
+    enemy = make_enemy()
+    scale_enemy(enemy, "easy", 0)
+    assert (enemy.max_hp, enemy.attack_damage) == (75, 8)
+
+def test_scale_enemy_on_story_weakens_a_gatekeeper_like_anyone_else():
+    enemy = make_gatekeeper()
+    scale_enemy(enemy, "story", 0)
+    assert (enemy.max_hp, enemy.attack_damage) == (50, 5)
+
+def test_scale_enemy_on_hard_strengthens_a_gatekeeper_like_anyone_else():
+    enemy = make_gatekeeper()
+    scale_enemy(enemy, "hard", 0)
+    assert (enemy.max_hp, enemy.attack_damage) == (130, 12)
+
+def test_scale_enemy_on_easy_still_raises_a_gatekeeper_in_new_game_plus():
+    """The floor is 'never easier than Normal', not 'always Normal': two cycles on Easy is x1.5 HP and x1.6 attack."""
+    enemy = make_gatekeeper()
+    scale_enemy(enemy, "easy", 2)
+    assert (enemy.max_hp, enemy.attack_damage) == (150, 16)
+
+def test_scale_enemy_rescaling_a_gatekeeper_from_easy_to_story_softens_it():
+    """Always from the unscaled values, so the gatekeeper floor leaves nothing behind."""
+    enemy = make_gatekeeper()
+    scale_enemy(enemy, "easy", 0)
+    scale_enemy(enemy, "story", 0)
+    assert (enemy.max_hp, enemy.attack_damage) == (50, 5)
+
+# ---- scale_for: never harder than Normal (the duel form) ----
+
+def test_scale_for_never_harder_than_normal_leaves_an_enemy_alone_on_hard():
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "hard"
+    enemy = make_enemy()
+    scale_for(enemy, player, never_harder_than_normal=True)
+    assert (enemy.hp, enemy.max_hp, enemy.attack_damage) == (100, 100, 10)
+
+def test_scale_for_never_harder_than_normal_still_weakens_on_story():
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "story"
+    enemy = make_enemy()
+    scale_for(enemy, player, never_harder_than_normal=True)
+    assert (enemy.hp, enemy.max_hp, enemy.attack_damage) == (50, 50, 5)
+
+def test_scale_for_never_harder_than_normal_still_weakens_on_easy():
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "easy"
+    enemy = make_enemy()
+    scale_for(enemy, player, never_harder_than_normal=True)
+    assert (enemy.max_hp, enemy.attack_damage) == (75, 8)
+
+def test_scale_for_never_harder_than_normal_ignores_the_ng_plus_cycle():
+    player = Player(name="Hero", hp=20)
+    player.ng_plus_cycle = 3
+    enemy = make_enemy()
+    scale_for(enemy, player, never_harder_than_normal=True)
+    assert (enemy.max_hp, enemy.attack_damage) == (100, 10)
+
+def test_scale_for_never_harder_than_normal_caps_story_in_new_game_plus_at_normal():
+    """Story x0.5 with four cycles is x1.5 - capped at Normal's x1."""
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "story"
+    player.ng_plus_cycle = 4
+    enemy = make_enemy()
+    scale_for(enemy, player, never_harder_than_normal=True)
+    assert (enemy.max_hp, enemy.attack_damage) == (100, 10)
+
+def test_scale_for_without_the_cap_scales_as_usual():
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "hard"
+    enemy = make_enemy()
+    scale_for(enemy, player, never_harder_than_normal=False)
+    assert (enemy.max_hp, enemy.attack_damage) == (130, 12)

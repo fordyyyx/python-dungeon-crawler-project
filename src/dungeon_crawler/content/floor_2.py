@@ -299,6 +299,30 @@ def create_zeus(home_room: Room | None = None) -> Companion:
         }
     )
 
+def _new_game_plus_available(player, room) -> bool:
+    return TROPHY_ROOM_COMPLETE in player.story_flags
+
+def _zeus_speaks(player, room) -> str:
+    """How Zeus delivers the offer - from his throne, or from beside the player."""
+    if player.companion is not None and player.companion.home_room is room:
+        return "Zeus looks round the full room, then at you."
+    return "Zeus leans forward on his throne."
+
+def _begin_anew(player, room) -> str:
+    """Explain New Game+. Changes nothing."""
+    return (
+        f"{_zeus_speaks(player, room)} \"You could stop here. Most would. Or you could go back to the beginning and do it all again - harder, and "
+        "knowing what you know now.\"\n\n"
+        "(New Game+ starts the game again from the beginning, in this save slot. You keep your level, skills, stats, and every companion you've "
+        "recruited. You leave behind your gear, upgrades, gold, trophies, and everything you've done. Enemies are stronger each time. Say 'begin "
+        "anew now' to start - this can't be undone.)"
+    )
+
+def _begin_anew_now(player, room) -> str:
+    """Request New Game+ - carried out by main() after this command."""
+    player.new_game_plus_requested = True
+    return f"{_zeus_speaks(player, room)} \"Good.\" Thunder rolls, somewhere far above, and the room starts to fade."
+
 def build_floor_2() -> tuple[Room, dict[str, Room]]:
     """Domains of the Gods - Library of Athena, Armoury of Ares, Hall of Hermes, Forge of Prometheus and the Practice Chamber, plus the Trophy
     Room of Zeus, hidden north of the Armoury: Zeus himself, a plinth for every trophy in the game (TROPHY_PLINTHS), the milestone rewards for
@@ -362,6 +386,9 @@ def build_floor_2() -> tuple[Room, dict[str, Room]]:
         can_open=lambda player, room: TROPHY_ROOM_COMPLETE in player.story_flags,
         locked_message="The chest won't move. Zeus doesn't even look up. \"When every plinth is filled.\"",
     )
+
+    trophy_room_of_zeus.add_interaction("begin anew", _begin_anew, _new_game_plus_available)
+    trophy_room_of_zeus.add_interaction("begin anew now", _begin_anew_now, _new_game_plus_available)
 
     return library_of_athena, {
         room.name: room for room in (library_of_athena, armoury_of_ares, hall_of_hermes, forge_of_prometheus, trophy_room_of_zeus, practice_chamber)

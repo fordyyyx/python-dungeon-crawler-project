@@ -4629,7 +4629,7 @@ def test_trophy_room_chest_holds_the_thunderbolt_once_the_room_is_complete():
     _complete_the_trophy_room(room, player)
     room.interactions["open chest"].handler(player, room)
     assert [item.name for item in room.items] == ["Thunderbolt of Zeus", "Vial of Ambrosia", "Vial of Ambrosia"]
-    assert room.available_interactions(player) == []
+    assert "open chest" not in room.available_interactions(player)
 
 def test_create_thunderbolt_of_zeus_is_the_best_ranged_weapon():
     bolt = create_thunderbolt_of_zeus()
@@ -4724,8 +4724,8 @@ def test_charybdis_failure_damage_scales_with_the_ng_plus_cycle():
     player = Player(name="Hero", hp=30)
     player.ng_plus_cycle = 1
     messages = run_charybdis_verbs(river, player, ["climb", "let go"])
-    assert player.hp == 15
-    assert "(You take 15 damage.)" in messages[-1]
+    assert player.hp == 12
+    assert "(You take 18 damage.)" in messages[-1]
 
 def test_every_boss_chain_is_scaled_all_the_way_through_on_hard():
     """Regression: play each multi-stage fight to its end on Hard - every enemy that appears, by whichever route (a next phase, a wave, or
@@ -4757,3 +4757,548 @@ def test_every_boss_chain_is_scaled_all_the_way_through_on_hard():
             enemy.hp = 0
             handle_enemy_defeat(room, enemy, player)
         assert seen[-1] == last_phase, room_name
+
+# ---- New Game+: the Trophy Room's offer ----
+
+from dungeon_crawler.content import (
+    create_thanatos, create_hypnos, create_touch_of_sleep, create_thanatos_helm_of_darkness, create_sword_of_thanatos, install_thanatos,
+    create_zeus, create_hades_companion, create_persephone,
+)
+from dungeon_crawler.exploration import get_exit_guardian
+
+def test_begin_anew_is_not_offered_until_the_trophy_room_is_complete():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    assert "begin anew" not in room.available_interactions(player)
+    assert "begin anew now" not in room.available_interactions(player)
+
+def test_begin_anew_is_offered_once_the_trophy_room_is_complete():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    _complete_the_trophy_room(room, player)
+    assert room.available_interactions(player) == ["open chest", "begin anew", "begin anew now"]
+
+def test_begin_anew_explains_new_game_plus_and_changes_nothing():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    message = room.interactions["begin anew"].handler(player, room)
+    assert "New Game+ starts the game again from the beginning, in this save slot." in message
+    assert "You keep your level, skills, stats, and every companion you've recruited." in message
+    assert "You leave behind your gear, upgrades, gold, trophies, and everything you've done." in message
+    assert "Say 'begin anew now' to start - this can't be undone." in message
+    assert player.new_game_plus_requested is False
+
+def test_begin_anew_now_requests_new_game_plus():
+    """The verb only asks - main() carries it out after the command, since it has to swap the whole world."""
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    message = room.interactions["begin anew now"].handler(player, room)
+    assert player.new_game_plus_requested is True
+    assert "Thunder rolls, somewhere far above, and the room starts to fade." in message
+    assert player.ng_plus_cycle == 0
+
+def test_begin_anew_zeus_speaks_from_his_throne_when_he_is_in_the_room():
+    room, _ = _trophy_room()
+    message = room.interactions["begin anew"].handler(Player(name="Hero", hp=20), room)
+    assert message.startswith("Zeus leans forward on his throne.")
+
+def test_begin_anew_zeus_speaks_from_beside_the_player_when_he_is_in_the_party():
+    """The offer works whether Zeus is on his throne or travelling with the player."""
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    player.companion = room.companions[0]      # the real Zeus, whose home is this room
+    room.remove_companion(player.companion)
+    for verb in ("begin anew", "begin anew now"):
+        assert room.interactions[verb].handler(player, room).startswith("Zeus looks round the full room, then at you."), verb
+
+def test_begin_anew_with_another_companion_in_the_party_zeus_is_still_on_his_throne():
+    room, _ = _trophy_room()
+    player = Player(name="Hero", hp=20)
+    player.companion = create_hades_companion()
+    assert room.interactions["begin anew"].handler(player, room).startswith("Zeus leans forward on his throne.")
+
+# ---- New Game+: Thanatos, who holds the Hall when Hades travels with the player ----
+
+def test_create_thanatos_is_a_piercing_first_phase_with_no_rewards():
+    thanatos = create_thanatos()
+    assert (thanatos.name, thanatos.hp, thanatos.attack_damage, thanatos.armour) == ("Thanatos", 62, 17, 4)
+    assert thanatos.armour_pierce == 6
+    assert thanatos.caution_weight == 0.8
+    assert thanatos.loot == []
+    assert (thanatos.experience_reward, thanatos.gold_reward) == (0, 0)
+    assert thanatos.with_article() == "Thanatos"
+
+def test_create_thanatos_summons_hypnos_then_becomes_the_helm_of_darkness_phase():
+    thanatos = create_thanatos()
+    assert [factory().name for factory in thanatos.next_wave_factories] == ["Hypnos"]
+    assert thanatos.next_phase_factory().name == "Thanatos (Helm of Darkness)"
+
+def test_create_thanatos_wave_and_phase_are_factories_not_enemies():
+    """The Poseidon and Typhon mistake - an Enemy in place of a factory crashes the fight when the first phase falls."""
+    thanatos = create_thanatos()
+    assert thanatos.next_wave_factories[0]() is not thanatos.next_wave_factories[0]()
+    assert thanatos.next_phase_factory() is not thanatos.next_phase_factory()
+
+def test_create_hypnos_carries_the_fights_recovery():
+    hypnos = create_hypnos()
+    assert (hypnos.hp, hypnos.attack_damage, hypnos.armour) == (40, 10, 2)
+    assert [item.name for item in hypnos.loot] == ["Vial of Ambrosia"] * 3
+    assert (hypnos.experience_reward, hypnos.gold_reward) == (30, 15)
+    assert hypnos.with_article() == "Hypnos"
+
+def test_create_hypnos_fights_with_the_touch_of_sleep_and_never_drops_it():
+    hypnos = create_hypnos()
+    assert hypnos.equipped_melee_weapon is not None
+    assert hypnos.equipped_melee_weapon.name == "Touch of Sleep"
+    assert "Touch of Sleep" not in [item.name for item in hypnos.loot]
+
+def test_create_touch_of_sleep_makes_its_target_drowsy():
+    touch = create_touch_of_sleep()
+    assert touch.damage == 0
+    assert touch.blind_chance == 0.4
+    assert touch.blind_effect_name == "Drowsy"
+
+def test_hypnos_attack_can_make_the_player_drowsy(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    player = Player(name="Hero", hp=50)
+    message = create_hypnos().attack(player)
+    assert [effect.name for effect in player.active_effects] == ["Drowsy"]
+    assert "Hero is afflicted with Drowsy." in message
+
+def test_create_thanatos_helm_of_darkness_is_evasive_and_piercing():
+    helm = create_thanatos_helm_of_darkness()
+    assert (helm.hp, helm.attack_damage, helm.armour) == (72, 19, 4)
+    assert helm.armour_pierce == 6
+    assert helm.melee_dodge_chance == 0.35
+    assert helm.aggression_weight == 1.4
+    assert (helm.experience_reward, helm.gold_reward) == (150, 80)
+    assert helm.next_phase_factory is None
+
+def test_create_thanatos_helm_of_darkness_drops_his_sword_and_the_helm_trophy():
+    """The Helm of Darkness has to drop here too - otherwise a cycle with Hades in the party could never complete the Trophy Room."""
+    loot = create_thanatos_helm_of_darkness().loot
+    assert [item.name for item in loot] == ["Sword of Thanatos", "Helm of Darkness"]
+    assert isinstance(loot[1], Trophy)
+
+def test_thanatos_defeat_gives_hades_reveal_and_restores_the_player_and_companion():
+    player = Player(name="Hero", hp=30)
+    player.hp = 4
+    player.companion = create_hades_companion()
+    player.companion.hp = 0
+    message = create_thanatos_helm_of_darkness().defeat_effect(player)
+    assert player.hp == 30
+    assert player.companion.hp == player.companion.max_hp
+    assert "Hades picks it up" in message
+    assert "Typhon is waking again" in message
+    assert "(You are fully restored.)" in message
+
+def test_create_sword_of_thanatos_is_a_lifesteal_blade():
+    sword = create_sword_of_thanatos()
+    assert sword.weapon_class == "blade"
+    assert sword.damage == 11
+    assert sword.lifesteal is True
+    assert sword.with_article() == "the Sword of Thanatos"
+
+def test_install_thanatos_replaces_whoever_holds_the_hall():
+    dungeon, start, floors = build_world()
+    hall = floors["floor_8"]["Hall of Hades"]
+    install_thanatos(hall, Player(name="Hero", hp=20))
+    assert [enemy.name for enemy in hall.enemies] == ["Thanatos"]
+
+def test_install_thanatos_scales_him_for_the_players_run():
+    dungeon, start, floors = build_world()
+    hall = floors["floor_8"]["Hall of Hades"]
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "hard"
+    player.ng_plus_cycle = 1
+    install_thanatos(hall, player)
+    thanatos = hall.enemies[0]
+    assert thanatos.max_hp == round(62 * 1.3 * 1.5)
+    assert thanatos.hp == thanatos.max_hp
+    assert thanatos.attack_damage == round(17 * 1.2 * 1.5)
+
+def test_install_thanatos_leaves_the_halls_guard_and_cleared_flag_alone():
+    dungeon, start, floors = build_world()
+    hall = floors["floor_8"]["Hall of Hades"]
+    install_thanatos(hall, Player(name="Hero", hp=20))
+    assert hall.cleared_story_flag == HADES_DEFEATED
+    assert get_exit_guardian(hall, "descend") is hall.enemies[0]
+
+def test_build_world_never_places_thanatos():
+    """He only ever appears through install_thanatos(), in a New Game+ cycle with Hades carried."""
+    dungeon, start, floors = build_world()
+    names = {enemy.name for room in dungeon.rooms.values() for enemy in room.enemies}
+    assert "Thanatos" not in names
+
+def test_persephone_has_a_line_for_hades_at_her_side():
+    assert set(create_persephone().companion_lines) == {"Hades"}
+
+def test_persephone_greets_a_carried_hades_once():
+    dungeon, start, floors = build_world()
+    bedchamber = floors["floor_7"]["Bedchamber of Persephone"]
+    persephone = next(ally for ally in bedchamber.allies if ally.name == "Persephone")
+    player = Player(name="Hero", hp=20)
+    player.companion = create_hades_companion()
+    first = talk_to(persephone, player, bedchamber)
+    second = talk_to(persephone, player, bedchamber)
+    assert "\"You came back,\" she says." in first
+    assert "\"You came back,\" she says." not in second
+
+def test_hades_companion_makes_his_new_game_plus_home_with_persephone():
+    """Data on the companion, not a name check in new_game_plus.py - and it has to name a room that exists."""
+    hades = create_hades_companion()
+    dungeon, start, floors = build_world()
+    assert hades.new_game_plus_home == "Bedchamber of Persephone"
+    assert dungeon.get_room(hades.new_game_plus_home) is not None
+
+def test_hades_companion_carried_into_new_game_plus_installs_thanatos_and_keeps_the_promise():
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    create_hades_companion().new_game_plus_effect(player, floors)
+    assert [enemy.name for enemy in floors["floor_8"]["Hall of Hades"].enemies] == ["Thanatos"]
+    assert player.story_flags == {"promised_mercy", "hades_spared"}
+
+def test_only_hades_changes_the_world_when_carried_into_new_game_plus():
+    from dungeon_crawler.dev_tools import COMPANION_REGISTRY
+    special = {name for name, factory in COMPANION_REGISTRY.items() if factory().new_game_plus_home or factory().new_game_plus_effect}
+    assert special == {"hades"}
+
+# ---- floor 5: the Funeral Games of Patroclus ----
+
+from dungeon_crawler.content import (
+    FUNERAL_GAMES, FUNERAL_GAMES_WON, create_ajax_the_lesser, create_epeius, create_polypoetes, create_meriones, create_teucer, create_diomedes,
+    create_shield_of_achilles,
+)
+from dungeon_crawler.trials import trial_active, awaiting_next_contest, next_contest, protect_trial_loser
+from dungeon_crawler.combat import handle_enemy_defeat as _defeat
+from dungeon_crawler.exploration import start_duel
+
+def _army_camp():
+    dungeon, start, floors = build_world()
+    return floors["floor_5"]["Shadow of Army Camp"]
+
+def _win_the_current_contest(camp, player) -> str:
+    message = ""
+    for opponent in list(camp.enemies):
+        opponent.hp = 0
+        message = _defeat(camp, opponent, player)
+    return message
+
+def _win_the_funeral_games(camp, player) -> str:
+    camp.interactions["enter the games"].handler(player, camp)
+    message = _win_the_current_contest(camp, player)
+    while awaiting_next_contest(camp):
+        camp.interactions["next contest"].handler(player, camp)
+        message = _win_the_current_contest(camp, player)
+    return message
+
+def test_funeral_games_have_five_contests_in_the_iliads_order():
+    assert [contest.title for contest in FUNERAL_GAMES.contests] == ["The foot race", "Boxing", "The weight-throw", "Archery", "Armed combat"]
+
+def test_funeral_games_opponents_by_contest():
+    names = [[factory().name for factory in contest.opponents] for contest in FUNERAL_GAMES.contests]
+    assert names == [["Ajax the Lesser"], ["Epeius"], ["Polypoetes"], ["Meriones", "Teucer"], ["Diomedes"]]
+
+def test_funeral_games_every_contest_is_announced():
+    assert all(contest.announcement.strip() for contest in FUNERAL_GAMES.contests)
+
+def test_funeral_games_contestants_give_no_rewards():
+    """A trial can be entered again and again - if a contestant paid XP, gold or loot it could be farmed."""
+    for contest in FUNERAL_GAMES.contests:
+        for factory in contest.opponents:
+            opponent = factory()
+            assert (opponent.experience_reward, opponent.gold_reward, opponent.loot) == (0, 0, []), opponent.name
+
+def test_funeral_games_contestants_are_proper_names():
+    for contest in FUNERAL_GAMES.contests:
+        for factory in contest.opponents:
+            opponent = factory()
+            assert opponent.with_article() == opponent.name
+
+def test_create_ajax_the_lesser_is_hard_to_hit_in_melee():
+    ajax = create_ajax_the_lesser()
+    assert (ajax.hp, ajax.attack_damage, ajax.armour) == (30, 9, 2)
+    assert ajax.melee_dodge_chance == 0.4
+
+def test_create_epeius_hits_hard_with_no_armour():
+    epeius = create_epeius()
+    assert (epeius.hp, epeius.attack_damage, epeius.armour) == (38, 14, 0)
+    assert epeius.aggression_weight == 1.5
+
+def test_create_polypoetes_is_an_armoured_wall():
+    polypoetes = create_polypoetes()
+    assert (polypoetes.hp, polypoetes.attack_damage, polypoetes.armour) == (46, 10, 7)
+    assert polypoetes.brace_amount == 5
+    assert polypoetes.caution_weight == 1.3
+
+def test_create_meriones_and_teucer_are_evasive_archers():
+    meriones, teucer = create_meriones(), create_teucer()
+    assert (meriones.hp, meriones.attack_damage, meriones.armour) == (26, 9, 1)
+    assert (teucer.hp, teucer.attack_damage, teucer.armour) == (26, 10, 1)
+    for archer in (meriones, teucer):
+        assert archer.melee_dodge_chance == 0.3
+        assert archer.armour_pierce == 4
+
+def test_create_diomedes_is_the_champion():
+    diomedes = create_diomedes()
+    assert (diomedes.hp, diomedes.attack_damage, diomedes.armour) == (60, 13, 4)
+    assert (diomedes.armour_pierce, diomedes.heal_amount, diomedes.brace_amount) == (3, 5, 3)
+
+def test_create_shield_of_achilles_is_the_best_shield():
+    shield = create_shield_of_achilles()
+    assert (shield.slot, shield.weight, shield.defence, shield.max_durability) == ("shield", "heavy", 5, 26)
+    assert shield.with_article() == "the Shield of Achilles"
+    other_shields = [item for item in (factory() for factory in ITEM_REGISTRY.values()) if isinstance(item, Armour) and item.slot == "shield" and item.name != shield.name]
+    assert all(other.defence < shield.defence for other in other_shields)
+
+def test_funeral_games_every_contest_has_a_prize_of_its_own():
+    assert all(contest.prize is not None for contest in FUNERAL_GAMES.contests)
+
+def test_funeral_games_every_prize_is_recorded_under_a_different_flag():
+    """Two contests sharing a flag would mean winning one used up the other's prize."""
+    flags = [contest.prize_flag for contest in FUNERAL_GAMES.contests]
+    assert all(flags)
+    assert len(set(flags)) == len(flags)
+
+def test_funeral_games_last_prize_is_recorded_as_the_games_won():
+    assert FUNERAL_GAMES.contests[-1].prize_flag == FUNERAL_GAMES_WON == "funeral_games_won"
+
+def _win_contests(camp, player, count) -> list[str]:
+    """Enter the Games and win the first count contests - returns each win's message."""
+    messages = []
+    camp.interactions["enter the games"].handler(player, camp)
+    for index in range(count):
+        if index:
+            camp.interactions["next contest"].handler(player, camp)
+        messages.append(_win_the_current_contest(camp, player))
+    return messages
+
+def test_the_foot_race_pays_fifty_gold():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    messages = _win_contests(camp, player, 1)
+    assert player.gold == 50
+    assert "(+50 gold)" in messages[0]
+
+def test_the_boxing_adds_five_max_hp():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    messages = _win_contests(camp, player, 2)
+    assert player.max_hp == 25
+    assert "(+5 max HP)" in messages[1]
+
+def test_the_weight_throw_adds_a_point_of_intellect():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    before = player.intellect
+    messages = _win_contests(camp, player, 3)
+    assert player.intellect == before + 1
+    assert "(+1 intellect)" in messages[2]
+
+def test_the_archery_adds_a_point_of_attack():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20, attack_damage=4)
+    messages = _win_contests(camp, player, 4)
+    assert player.attack_damage == 5
+    assert "(+1 ATK)" in messages[3]
+
+def test_the_boxing_prize_survives_the_end_of_the_games():
+    """The Games put the player's HP back to what they entered with - the extra max HP is a prize, and stays."""
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    _win_the_funeral_games(camp, player)
+    assert (player.hp, player.max_hp) == (20, 25)
+
+def test_funeral_games_prizes_are_kept_when_a_later_contest_is_lost():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    _win_contests(camp, player, 2)
+    camp.interactions["next contest"].handler(player, camp)
+    player.hp = 0
+    protect_trial_loser(player, camp)
+    assert (player.gold, player.max_hp) == (50, 25)
+    assert player.is_alive()
+
+def test_funeral_games_prizes_are_never_paid_twice():
+    """Every prize is a permanent gain, and the Games can be entered as often as the player likes."""
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20, attack_damage=4)
+    intellect = player.intellect
+    _win_the_funeral_games(camp, player)
+    _win_the_funeral_games(camp, player)
+    assert (player.gold, player.max_hp, player.intellect, player.attack_damage) == (50, 25, intellect + 1, 5)
+
+def test_funeral_games_prizes_are_recorded_in_the_rooms_flags():
+    """Room flags are saved, so a reload can't pay a prize again."""
+    camp = _army_camp()
+    _win_the_funeral_games(camp, Player(name="Hero", hp=20))
+    assert camp.flags == {
+        "funeral_games_won:foot race", "funeral_games_won:boxing", "funeral_games_won:weight-throw", "funeral_games_won:archery",
+        "funeral_games_won",
+    }
+
+def test_army_camp_offers_the_games():
+    camp = _army_camp()
+    assert camp.available_interactions(Player(name="Hero", hp=20)) == ["enter the games"]
+
+def test_army_camps_examine_text_points_at_the_games():
+    assert "a field has been cleared and marked out for the Games" in _army_camp().examine_text
+
+def test_enter_the_games_starts_the_first_contest():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    message = camp.interactions["enter the games"].handler(player, camp)
+    assert [enemy.name for enemy in camp.enemies] == ["Ajax the Lesser"]
+    assert message.endswith("(Contest 1 of 5: The foot race)")
+    assert player.in_combat is True
+
+def test_achilles_hosts_from_the_edge_of_the_field_when_he_is_in_his_camp():
+    camp = _army_camp()
+    message = camp.interactions["enter the games"].handler(Player(name="Hero", hp=20), camp)
+    assert message.startswith("Achilles raises a hand from his place at the edge of the field.")
+
+def test_achilles_hosts_from_beside_the_player_when_he_is_in_the_party():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    player.companion = camp.companions[0]
+    camp.remove_companion(player.companion)
+    message = camp.interactions["enter the games"].handler(player, camp)
+    assert message.startswith("Achilles steps back to the edge of the field, grinning.")
+
+def test_the_games_cannot_be_entered_twice_at_once():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    camp.interactions["enter the games"].handler(player, camp)
+    assert "enter the games" not in camp.available_interactions(player)
+
+def test_the_games_cannot_be_entered_during_achilles_duel():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    start_duel("shade of achilles", camp, player)
+    assert "enter the games" not in camp.available_interactions(player)
+
+def test_next_contest_is_only_offered_between_contests():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    assert "next contest" not in camp.available_interactions(player)
+    camp.interactions["enter the games"].handler(player, camp)
+    assert "next contest" not in camp.available_interactions(player)
+    _win_the_current_contest(camp, player)
+    assert camp.available_interactions(player) == ["next contest"]
+
+def test_winning_the_funeral_games_leaves_the_shield_of_achilles():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    message = _win_the_funeral_games(camp, player)
+    assert [item.name for item in camp.items] == ["Shield of Achilles"]
+    assert FUNERAL_GAMES_WON in camp.flags
+    assert "\"For Patroclus,\" he says" in message
+    assert "(The Shield of Achilles lies on the ground.)" in message
+    assert trial_active(camp) is False
+
+def test_winning_the_funeral_games_mentions_the_shield_being_set_down_once():
+    """Regression: the prize's own line and the victory text both ended with Achilles setting the shield at the player's feet."""
+    camp = _army_camp()
+    message = _win_the_funeral_games(camp, Player(name="Hero", hp=20))
+    assert message.count("sets a shield at your feet") == 1
+    assert message.endswith("\"He'd have liked you.\"")
+
+def test_winning_the_funeral_games_goes_through_all_six_opponents():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    seen = []
+    camp.interactions["enter the games"].handler(player, camp)
+    while camp.enemies:
+        seen.extend(enemy.name for enemy in camp.enemies)
+        _win_the_current_contest(camp, player)
+        if awaiting_next_contest(camp):
+            next_contest(player, camp)
+    assert seen == ["Ajax the Lesser", "Epeius", "Polypoetes", "Meriones", "Teucer", "Diomedes"]
+
+def test_winning_the_funeral_games_a_second_time_gives_no_second_shield():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    _win_the_funeral_games(camp, player)
+    message = _win_the_funeral_games(camp, player)
+    assert [item.name for item in camp.items] == ["Shield of Achilles"]
+    assert message.endswith("\"Again, and better. Patroclus would be laughing.\"")
+
+def test_the_funeral_games_pay_nothing_but_their_prizes():
+    """No XP, and no gold beyond the foot race's purse."""
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    _win_the_funeral_games(camp, player)
+    assert (player.experience, player.gold, player.level) == (0, 50, 1)
+
+def test_funeral_games_opponents_are_scaled_for_the_run():
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "story"
+    camp.interactions["enter the games"].handler(player, camp)
+    ajax = camp.enemies[0]
+    assert (ajax.max_hp, ajax.attack_damage) == (15, 4)
+
+def test_achilles_duel_still_works_between_contests_and_the_games_carry_on():
+    """Nothing stops the player challenging Achilles while the Games wait - the duel's own opponent isn't a contestant, so it doesn't move
+    the trial on, and 'next contest' is still there afterwards."""
+    camp = _army_camp()
+    player = Player(name="Hero", hp=20)
+    camp.interactions["enter the games"].handler(player, camp)
+    _win_the_current_contest(camp, player)
+    start_duel("shade of achilles", camp, player)
+    duellist = next(enemy for enemy in camp.enemies if enemy.duel_companion is not None)
+    assert duellist.trial_contestant is False
+    duellist.hp = 0
+    _defeat(camp, duellist, player)
+    assert awaiting_next_contest(camp) is True
+    next_contest(player, camp)
+    assert [enemy.name for enemy in camp.enemies] == ["Epeius"]
+
+# ---- gatekeepers: the enemies meant to stop a player who skips the side content ----
+
+from dungeon_crawler.difficulty import scale_enemy
+from dungeon_crawler.dev_tools import ENEMY_REGISTRY as _ENEMY_REGISTRY
+
+def test_the_minotaur_and_talos_are_gatekeepers():
+    assert create_minotaur().gatekeeper is True
+    assert create_talos().gatekeeper is True
+
+def test_no_other_enemy_is_a_gatekeeper():
+    gatekeepers = sorted(name for name, factory in _ENEMY_REGISTRY.items() if factory().gatekeeper)
+    assert gatekeepers == ["minotaur", "talos"]
+
+def test_the_gatekeepers_placed_in_the_world_are_flagged():
+    """The flag is set by the factory, so the Minotaur a save rebuilds is a gatekeeper too."""
+    dungeon, start, floors = build_world()
+    placed = sorted(enemy.name for room in dungeon.rooms.values() for enemy in room.enemies if enemy.gatekeeper)
+    assert placed == ["Minotaur", "Talos"]
+
+def test_easy_does_not_soften_the_minotaur():
+    """The balance check found the skill gate didn't hold on Easy: a rusher passed the Minotaur 93-95% of the time."""
+    minotaur = create_minotaur()
+    normal = (minotaur.max_hp, minotaur.attack_damage)
+    scale_enemy(minotaur, "easy", 0)
+    assert (minotaur.max_hp, minotaur.attack_damage) == normal
+
+def test_easy_does_not_soften_talos():
+    talos = create_talos()
+    normal = (talos.max_hp, talos.attack_damage)
+    scale_enemy(talos, "easy", 0)
+    assert (talos.max_hp, talos.attack_damage) == normal
+
+def test_story_still_softens_the_gatekeepers():
+    """Story is for the myths - nothing gates it."""
+    minotaur = create_minotaur()
+    scale_enemy(minotaur, "story", 0)
+    assert (minotaur.max_hp, minotaur.attack_damage) == (round(minotaur.unscaled_max_hp * 0.5), round(minotaur.unscaled_attack * 0.5))
+
+def test_hard_still_strengthens_the_gatekeepers():
+    minotaur = create_minotaur()
+    scale_enemy(minotaur, "hard", 0)
+    assert (minotaur.max_hp, minotaur.attack_damage) == (round(minotaur.unscaled_max_hp * 1.3), round(minotaur.unscaled_attack * 1.2))
+
+def test_easy_still_softens_everything_between_the_gatekeepers():
+    dungeon, start, floors = build_world()
+    medusa = floors["floor_4"]["Lair of Medusa"].enemies[0]
+    scale_enemy(medusa, "easy", 0)
+    assert medusa.max_hp == round(medusa.unscaled_max_hp * 0.75)

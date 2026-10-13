@@ -2,6 +2,8 @@
 from dungeon_crawler.world import Room
 from dungeon_crawler.items import Armour, Consumable, Weapon, Trophy
 from dungeon_crawler.characters import Enemy, Companion
+from dungeon_crawler.difficulty import scale_for
+from dungeon_crawler.content.floor_7 import PROMISED_MERCY
 from .common import create_ambrosia
 
 HADES_SPARED = "hades_spared"
@@ -189,6 +191,8 @@ def create_hades_companion(home_room: Room | None = None) -> Companion:
                 "have I.\""
             ),
         },
+        new_game_plus_home="Bedchamber of Persephone",
+        new_game_plus_effect=_hades_carried_into_new_game_plus,
     )
 
 def create_bident_of_hades() -> Weapon:
@@ -219,6 +223,109 @@ def create_helm_of_darkness() -> Trophy:
         description="His helm, no longer making anyone invisible. It drops whether he is spared or not.",
         article="the",
     )
+
+def create_thanatos() -> Enemy:
+    """Create Thanatos - Death himself, holding the Hall's throne in New Game+ when Hades travels with the player (see install_thanatos()). Phase 1:
+    patient and relentless, his attacks pierce heavily - death doesn't care how well armoured you are. His defeat brings Hypnos, then Thanatos
+    (Helm of Darkness). No rewards on this phase."""
+    return Enemy(
+        name="Thanatos",
+        hp=62,
+        attack_damage=17,
+        armour=4,
+        armour_pierce=6,
+        caution_weight=0.8,
+        article="",
+        next_wave_factories=[create_hypnos],
+        next_phase_factory=create_thanatos_helm_of_darkness,
+        description="He sits on Hades' throne as though it's always been his - pale, calm, a sword across his knees. He doesn't seem angry. Only certain.",
+    )
+
+def create_hypnos() -> Enemy:
+    """Create Hypnos - Sleep, Thanatos' twin, who steps in between his phases. His touch makes the player drowsy (a miss-chance effect, through a
+    natural weapon). Drops three Vials of Ambrosia - the fight's recovery window."""
+    hypnos = Enemy(
+        name="Hypnos",
+        hp=40,
+        attack_damage=10,
+        armour=2,
+        article="",
+        loot=[create_ambrosia(), create_ambrosia(), create_ambrosia()],
+        description="Softer-faced than his brother, poppies woven in his hair. Every time he moves, your eyelids grow heavier.",
+        experience_reward=30,
+        gold_reward=15,
+    )
+    create_touch_of_sleep().use(hypnos)
+    return hypnos
+
+def create_touch_of_sleep() -> Weapon:
+    """Natural weapon for Hypnos - makes the target drowsy, never dropped."""
+    return Weapon(
+        name="Touch of Sleep",
+        description="Gentle, and impossible to shake off.",
+        damage=0,
+        blind_chance=0.4,
+        blind_effect_name="Drowsy",
+    )
+
+def create_thanatos_helm_of_darkness() -> Enemy:
+    """Create Thanatos (Helm of Darkness) - the final phase, wearing the helm Hades left on the throne: its invisibility (melee dodge) on top of his
+    piercing, combining both threats. Drops the Sword of Thanatos and the Helm of Darkness, so the Trophy Room stays completable. His defeat_effect
+    is Hades' own reveal, and the guaranteed recovery."""
+    return Enemy(
+        name="Thanatos (Helm of Darkness)",
+        hp=72,
+        attack_damage=19,
+        armour=4,
+        armour_pierce=6,
+        melee_dodge_chance=0.35,
+        aggression_weight=1.4,
+        article="",
+        loot=[create_sword_of_thanatos(), create_helm_of_darkness()],
+        description="He sets his master's helm on his head and vanishes - there's only the whisper of a blade, and the cold that comes with it.",
+        experience_reward=150,
+        gold_reward=80,
+        defeat_effect=_thanatos_reveal,
+    )
+
+def create_sword_of_thanatos() -> Weapon:
+    """Create the Sword of Thanatos - his signature drop: a blade with lifesteal. In a New Game+ cycle where Hades travels with the player, there's
+    no Hades fight and so no Bident of Hades, so this fills that end-game place."""
+    return Weapon(
+        name="Sword of Thanatos",
+        description="Long, pale and perfectly balanced. It doesn't cut so much as take.",
+        damage=11,
+        lifesteal=True,
+        article="the",
+    )
+
+def _thanatos_reveal(player) -> str:
+    """Thanatos' defeat_effect - the reveal, given by Hades himself, since he's there. Fully restores the player and their companion, as Hades'
+    own reveal does."""
+    player.hp = player.max_hp
+    if player.companion is not None:
+        player.companion.hp = player.companion.max_hp
+    return (
+        "Thanatos falls, and the helm rolls from his head across the floor. Hades picks it up, turning it over in his hands.\n\n"
+        "\"He kept the throne warm,\" he says quietly. \"He never understood what it was for.\" Far below, something vast shifts in the dark. "
+        "\"And with nobody holding the door, Typhon is waking again. Some things don't stay finished.\"\n\n"
+        "He sets a hand on your shoulder, and clean, cold strength floods through you.\n\n(You are fully restored.)"
+    )
+
+def install_thanatos(hall, player) -> None:
+    """Put Thanatos on the Hall of Hades' throne in place of Hades - called at the start of a New Game+ cycle when Hades travels with the player.
+    Removes Hades' fight from the room, adds Thanatos, and scales him for the player's run, since the world may already have been scaled. The Hall's
+    guard and cleared_story_flag are untouched, so clearing it still sets 'hades_defeated' and opens Tartarus."""
+    for enemy in list(hall.enemies):
+        hall.remove_enemy(enemy)
+    thanatos = create_thanatos()
+    scale_for(thanatos, player)
+    hall.add_enemy(thanatos)
+
+def _hades_carried_into_new_game_plus(player, all_floors) -> None:
+    """With Hades travelling with the player, Thanatos holds his throne, and Persephone's promise counts as kept - see create_hades_companion()."""
+    install_thanatos(all_floors["floor_8"]["Hall of Hades"], player)
+    player.story_flags.update({PROMISED_MERCY, HADES_SPARED})
 
 def build_floor_8() -> tuple[Room, dict[str, Room]]:
     """Final Descent - Gate of Cerberus and Hall of Hades."""

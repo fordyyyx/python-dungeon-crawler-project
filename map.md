@@ -36,7 +36,7 @@ Library of Athena {Athena - Friendly}
 Armoury of Ares {Ares - Friendly}
 * east -> Library of Athena
 * north -> Trophy Room of Zeus [NOTE: hidden exit in actual code, add_hidden_exit(), required_intellect=3 — this plain-text notation has no way to mark that]
-Trophy Room of Zeus {Zeus - Companion} [NOTE: built - is_trophy_room=True: thirteen plinths, 'place <trophy>' / 'place all'; rewards at 5 (+5 max HP), 10 (a skill point) and 13 trophies; a chest that opens only when every plinth is filled (the Thunderbolt of Zeus, two Vials of Ambrosia); Zeus joins as a companion once the room is complete]
+Trophy Room of Zeus {Zeus - Companion} [NOTE: built - is_trophy_room=True: thirteen plinths, 'place <trophy>' / 'place all'; rewards at 5 (+5 max HP), 10 (a skill point) and 13 trophies; a chest that opens only when every plinth is filled (the Thunderbolt of Zeus, two Vials of Ambrosia); Zeus joins as a companion once the room is complete; then 'begin anew' / 'begin anew now' start New Game+]
 * south -> Armoury of Ares
 Hall of Hermes {Hermes - Friendly}
 * north -> Library of Athena
@@ -76,7 +76,7 @@ Overgrown Forest {Centaur - Enemy}
 * north -> Dim Corridor
 * descend -> Labyrinth of the Minotaur [NOTE: guarded (Room.guarded_exits) - blocked while the Centaur lives, see CLAUDE.md's "Guarded exits"]
 
-Labyrinth of the Minotaur {Minotaur - Enemy}
+Labyrinth of the Minotaur {Minotaur - Enemy} [NOTE: a gatekeeper (Enemy.gatekeeper) - Easy never makes him easier than Normal]
 * ascend -> Overgrown Forest
 * east -> Cavern of the Cyclops
 * west -> Stony Lair
@@ -95,7 +95,7 @@ Shadowy Corner {Lamia - Enemy}
 Sandy Expanse {Ember Wraith - Enemy}
 * north -> Mossy Grove
 * east -> Maze of Pillars
-Maze of Pillars {Talos - Enemy}
+Maze of Pillars {Talos - Enemy} [NOTE: a gatekeeper, like the Minotaur]
 * west -> Sandy Expanse
 * south -> Lair of Medusa [NOTE: guarded - blocked while Talos lives]
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
@@ -109,7 +109,7 @@ Lair of Medusa {Medusa - Enemy}
 * north -> Maze of Pillars
 * descend -> Shadow of Army Camp [NOTE: guarded - blocked until the whole Medusa chain (Phase 1, both Gorgons, Awakened) is defeated]
 
-Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable after beating him in a duel ('challenge shade of achilles')]
+Shadow of Army Camp {Shade of Achilles - Companion} [NOTE: built - recruitable after beating him in a duel ('challenge shade of achilles')] [NOTE: the Funeral Games - 'enter the games' / 'next contest': five contests fought alone (Ajax the Lesser, Epeius, Polypoetes, Meriones and Teucer, Diomedes); losing is never a death, and win or lose the player leaves as they entered; a prize for each contest the first time it's won - 50 gold, +5 max HP, +1 intellect, +1 attack, then the Shield of Achilles]
 * ascend -> Lair of Medusa
 * south -> Shadow of Troy (North)
 * in -> Belly of the Wooden Horse [NOTE: hidden exit, revealed by 'examine' - the examine text points at the horse]
@@ -175,7 +175,7 @@ Chamber of the Oracle {Oracle of Delphi - Friendly} [NOTE: built - the twist pro
 Shadow of Thebes {Tiresias - Friendly} [NOTE: built - free, unlimited readings of what the player isn't ready for on the floor below]
 * north -> Chamber of the Oracle
 * south -> Bedchamber of Persephone
-Bedchamber of Persephone {Persephone - Friendly} [NOTE: built - the first branching dialogue ('say <number>'); gives a Pomegranate (full heal) once, and asks the player to spare Hades - 'promised_mercy' or 'refused_mercy'; 'promised_mercy' makes Hades yield on floor 8]
+Bedchamber of Persephone {Persephone - Friendly} [NOTE: built - the first branching dialogue ('say <number>'); gives a Pomegranate (full heal) once, and asks the player to spare Hades - 'promised_mercy' or 'refused_mercy'; 'promised_mercy' makes Hades yield on floor 8. In New Game+ a carried Hades makes his home here, and she has a line for him]
 * north -> Shadow of Thebes
 * descend -> Gate of Cerberus [NOTE: story-gated - shut until the player answers Persephone either way]
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
@@ -184,7 +184,7 @@ Gate of Cerberus {Cerberus - Enemy} [NOTE: built - three phases (Cerberus, Two H
 * ascend -> Bedchamber of Persephone
 * south -> Hall of Hades
 * forge -> Forge of Prometheus [NOTE: one-way shortcut, no lock]
-Hall of Hades {Hades - Enemy} [NOTE: built - Hades, three Restless Shades (Vials of Ambrosia), then Hades (Helm of Darkness), who drops the Bident of Hades; with 'promised_mercy' he yields and stays as a recruitable companion. Clearing the Hall sets 'hades_defeated' and shows the ending]
+Hall of Hades {Hades - Enemy} [NOTE: built - Hades, three Restless Shades (Vials of Ambrosia), then Hades (Helm of Darkness), who drops the Bident of Hades; with 'promised_mercy' he yields and stays as a recruitable companion. Clearing the Hall sets 'hades_defeated' and shows the ending. In a New Game+ cycle with Hades carried over, Thanatos holds the throne instead: Thanatos, Hypnos, then Thanatos (Helm of Darkness), who drops the Sword of Thanatos and the Helm of Darkness]
 * north -> Gate of Cerberus
 * descend -> Tartarus [NOTE: concealed until 'hades_defeated', and guarded by the Hades chain]
 
@@ -258,7 +258,8 @@ Labyrinth of the Minotaur's `south` (Minotaur), Maze of Pillars' `south`
 fight on floors 0-4 is still optional to walk past.
 
 Floor 5 is fully populated: the Shade of Achilles (a recruitable Companion,
-duel first) in Shadow of Army Camp, then one encounter per room down the
+duel first) in Shadow of Army Camp - where he also holds the Funeral Games, a
+trial of five contests - then one encounter per room down the
 Shadow of Troy - Hector, Ajax, a pair of Myrmidons, and Paris - with Nestor
 in Shadow of Pylos before the descent. Hector, Ajax and Paris guard the way on;
 the Myrmidons' exit is deliberately left open.

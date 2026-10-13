@@ -1249,7 +1249,19 @@ def test_start_duel_records_the_players_hp_to_restore_afterwards():
     player = Player(name="Hero", hp=20)
     player.hp = 13
     start_duel("imp", room, player)
-    assert room.enemies[0].duel_return_hp == 13
+    assert room.enemies[0].duel_snapshot.hp == 13
+
+def test_start_duel_records_what_the_player_is_carrying():
+    """The snapshot is what lets the duel return a potion drunk during it, and the durability it wore away."""
+    room, _ = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    shield = Armour(name="Shield", description="", defence=2, slot="shield", max_durability=10)
+    shield.durability = 6
+    player.inventory.add(shield)
+    start_duel("imp", room, player)
+    snapshot = room.enemies[0].duel_snapshot
+    assert snapshot.items == [shield]
+    assert snapshot.durabilities == [(shield, 6)]
 
 def test_start_duel_puts_the_player_into_combat_with_the_opponent():
     room, _ = _camp_with_duelling_companion()
@@ -2002,16 +2014,58 @@ def test_repair_item_names_an_upgraded_piece_with_its_level():
 
 # ---- difficulty: the duel form ----
 
-def test_start_duel_scales_the_combat_form_to_the_players_difficulty():
+def test_start_duel_never_makes_the_combat_form_harder_than_normal():
+    """The balance check found Achilles' duel couldn't be won on Hard by two of three builds - and losing costs nothing, so there was nothing to
+    do but come back later. On Hard the duel form keeps its Normal stats."""
     room, _ = _camp_with_duelling_companion()
     player = Player(name="Hero", hp=20)
     player.difficulty = "hard"
     start_duel("imp", room, player)
     opponent = room.enemies[0]
-    assert (opponent.hp, opponent.max_hp, opponent.attack_damage) == (39, 39, 6)
+    assert (opponent.hp, opponent.max_hp, opponent.attack_damage) == (30, 30, 5)
+
+def test_start_duel_still_softens_the_combat_form_on_an_easier_setting():
+    room, _ = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    player.difficulty = "story"
+    start_duel("imp", room, player)
+    opponent = room.enemies[0]
+    assert (opponent.hp, opponent.max_hp, opponent.attack_damage) == (15, 15, 2)
+
+def test_start_duel_does_not_scale_the_combat_form_with_the_ng_plus_cycle():
+    room, _ = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    player.ng_plus_cycle = 2
+    start_duel("imp", room, player)
+    opponent = room.enemies[0]
+    assert (opponent.hp, opponent.max_hp, opponent.attack_damage) == (30, 30, 5)
 
 def test_start_duel_on_normal_leaves_the_combat_form_unscaled():
     room, _ = _camp_with_duelling_companion()
     start_duel("imp", room, Player(name="Hero", hp=20))
     opponent = room.enemies[0]
     assert (opponent.hp, opponent.max_hp, opponent.attack_damage) == (30, 30, 5)
+
+# ---- recruited companions are remembered (for New Game+) ----
+
+def test_recruit_companion_records_the_companions_name():
+    room = Room("Camp")
+    room.add_companion(Companion(name="Imp", hp=20, home_room=room))
+    player = Player(name="Hero", hp=20)
+    recruit_companion("imp", room, player)
+    assert player.recruited_companions == {"Imp"}
+
+def test_dismissing_a_companion_does_not_forget_they_were_recruited():
+    room = Room("Camp")
+    room.add_companion(Companion(name="Imp", hp=20, home_room=room))
+    player = Player(name="Hero", hp=20)
+    recruit_companion("imp", room, player)
+    dismiss_companion(player)
+    assert player.recruited_companions == {"Imp"}
+
+def test_a_refused_recruit_is_not_recorded():
+    room, _ = _camp_with_duelling_companion()
+    player = Player(name="Hero", hp=20)
+    recruit_companion("imp", room, player)
+    assert player.companion is None
+    assert player.recruited_companions == set()

@@ -8,8 +8,9 @@ from dungeon_crawler.content.loot_tables import MIDDLE_LOOT
 from .common import create_small_healing_potion
 
 def create_minotaur() -> Enemy:
-    """Create the Minotaur enemy, placed in the Labyrinth of the Minotaur (floor 4) by build_floor_4()."""
-    return Enemy(
+    """Create the Minotaur enemy, placed in the Labyrinth of the Minotaur (floor 4) by build_floor_4(). A gatekeeper (Enemy.gatekeeper):
+    the skill gate for players who skip the side rooms, so Easy never softens him."""
+    minotaur = Enemy(
         name="Minotaur",
         hp=28,
         attack_damage=8,
@@ -27,6 +28,8 @@ def create_minotaur() -> Enemy:
         brace_amount=3,
         article="the",
     )
+    minotaur.gatekeeper = True
+    return minotaur
 
 def create_labrys() -> Weapon:
     """Create the Labrys - a double-headed Minoan axe, dropped by the Minotaur. The labyrinth is traditionally said to take its name from this
@@ -170,8 +173,8 @@ def create_sunscorched_dagger() -> Weapon:
 def create_talos() -> Enemy:
     """Create the Talos enemy for Maze of Pillars (floor 4) - the toughest regular enemy on this floor, a bronze automaton guardian rather
     than a living creature. Single-stage by design (see roadmap.md's multi-stage boss fights item for the mechanism that this deliberately
-    doesn't use)."""
-    return Enemy(
+    doesn't use). A gatekeeper, like the Minotaur: Easy never softens him."""
+    talos = Enemy(
         name="Talos",
         hp=30,
         attack_damage=9,
@@ -182,6 +185,8 @@ def create_talos() -> Enemy:
         gold_reward=20,
         article="",
     )
+    talos.gatekeeper = True
+    return talos
 
 def create_talos_bronze_plating() -> Armour:
     """Create Talos' Bronze Plating armour - the best body-slot defence in the game so far. Dropped by Talos."""

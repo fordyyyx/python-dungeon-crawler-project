@@ -1,16 +1,16 @@
-from dungeon_crawler.characters import Player, Enemy, Companion
+from dungeon_crawler.characters import Player, Enemy, Companion, PlayerSnapshot
 from dungeon_crawler.world import Room
-from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver, QuestItem, EscapeItem
+from dungeon_crawler.items import Weapon, Armour, Consumable, StatusEffectItem, Reviver, QuestItem, EscapeItem, IntellectReward, SkillPointReward
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.content import create_polyphemus, create_polyphemus_blinded, create_charybdis, create_poseidon
-from dungeon_crawler.combat import apply_room_cleared_flag, get_duel, restore_duel_hp, end_duel, protect_duel_loser, resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, resolve_flee, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
+from dungeon_crawler.combat import fighting_team, describe_arrivals, apply_room_cleared_flag, get_duel, restore_duel_hp, end_duel, protect_duel_loser, resolve_pending_defeats, resolve_combat_round, resolve_companion_and_enemy_turns, handle_enemy_defeat, flee_combat, resolve_flee, handle_combat_command, resolve_attack_and_check_defeat, tick_start_of_turn_if_needed, format_hp_line, get_enemy_display_name, handle_target_command, choose_enemy_action, choose_enemy_target, choose_companion_action, choose_companion_target, _score_candidate_actions, _score_companion_candidate_actions, _candidate_attack_score, _best_attack_score, _greatest_threat_to_self
 
 def test_resolve_combat_round_reduces_enemy_hp():
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    resolve_combat_round(player, enemy, [player], [enemy])
+    resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert enemy.hp == 10
 
@@ -19,7 +19,7 @@ def test_resolve_combat_round_with_heavy_attack_type_passes_through_to_player_at
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=100, attack_damage=5)
 
-    resolve_combat_round(player, enemy, [player], [enemy], attack_type="heavy")
+    resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"), attack_type="heavy")
 
     assert enemy.hp == 82  # 100 - round(10 * 1.75)
 
@@ -29,7 +29,7 @@ def test_resolve_combat_round_with_ranged_attack_type_passes_through_to_player_a
     bow.use(player)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    resolve_combat_round(player, enemy, [player], [enemy], attack_type="ranged")
+    resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"), attack_type="ranged")
 
     assert enemy.hp == 6  # 20 - (10 attack_damage + 4 bow)
 
@@ -41,7 +41,7 @@ def test_resolve_combat_round_reduces_player_hp_when_enemy_survives(monkeypatch)
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
 
-    resolve_combat_round(player, enemy, [player], [enemy])
+    resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert player.hp == 95
 
@@ -50,7 +50,7 @@ def test_resolve_combat_round_returns_both_attack_messages_when_both_survive(mon
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert "Hero attacks Goblin" in result
     assert "Goblin attacks Hero" in result
@@ -59,7 +59,7 @@ def test_resolve_combat_round_enemy_defeated_does_not_counter_attack():
     player = Player(name="Hero", hp=100, attack_damage=20)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
 
-    resolve_combat_round(player, enemy, [player], [enemy])
+    resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert player.hp == 100
 
@@ -67,7 +67,7 @@ def test_resolve_combat_round_returns_fallen_message_when_enemy_defeated():
     player = Player(name="Hero", hp=100, attack_damage=20)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert "Goblin has been defeated." in result
 
@@ -75,7 +75,7 @@ def test_resolve_combat_round_returns_fallen_message_when_player_defeated():
     player = Player(name="Hero", hp=5, attack_damage=1)
     enemy = Enemy(name="Goblin", hp=100, attack_damage=20)
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert "Hero has fallen." in result
 
@@ -84,7 +84,7 @@ def test_resolve_combat_round_returns_full_message_when_both_survive(monkeypatch
     player = Player(name="Hero", hp=100, attack_damage=10)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert result == "Hero attacks Goblin for 10 damage.\nGoblin attacks Hero for 5 damage.\nHero: 95/100 HP   |   Goblin: 10/20 HP"
 
@@ -92,7 +92,7 @@ def test_resolve_combat_round_returns_full_message_when_enemy_defeated():
     player = Player(name="Hero", hp=100, attack_damage=20)
     enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert result == "Hero attacks Goblin for 20 damage.\nGoblin has been defeated.\nHero: 100/100 HP"
 
@@ -104,7 +104,7 @@ def test_resolve_combat_round_every_living_enemy_in_team_attacks_player(monkeypa
     target = Enemy(name="Goblin", hp=20, attack_damage=5, caution_weight=0)
     teammate = Enemy(name="Imp", hp=20, attack_damage=3, caution_weight=0)
 
-    result = resolve_combat_round(player, target, [player], [target, teammate])
+    result = resolve_combat_round(player, target, [player], [target, teammate], Room("Arena"))
 
     assert "Goblin attacks Hero for 5 damage." in result
     assert "Imp attacks Hero for 3 damage." in result
@@ -117,7 +117,7 @@ def test_resolve_combat_round_dead_teammate_in_enemy_team_does_not_attack(monkey
     dead_teammate = Enemy(name="Imp", hp=20, attack_damage=3)
     dead_teammate.hp = 0
 
-    result = resolve_combat_round(player, target, [player], [target, dead_teammate])
+    result = resolve_combat_round(player, target, [player], [target, dead_teammate], Room("Arena"))
 
     assert "Imp attacks" not in result
     assert player.hp == 95
@@ -130,7 +130,7 @@ def test_resolve_combat_round_enemy_defend_sets_pending_damage_reduction_and_mes
     enemy = Enemy(name="Goblin", hp=10, attack_damage=0, caution_weight=5.0, brace_amount=3)
     enemy.hp = 5
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert "Goblin braces for incoming damage." in result
     assert enemy.pending_damage_reduction == 3
@@ -145,7 +145,7 @@ def test_resolve_combat_round_enemy_heal_action_restores_hp_capped_at_max(monkey
     values = iter([0.0, 0.0, 1.0]) # attack, defend roll low noise; heal rolls high noise, per dict insertion order
     monkeypatch.setattr("random.random", lambda: next(values))
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert "Priest recovers 15 HP." in result
     assert enemy.hp == 20
@@ -158,7 +158,7 @@ def test_resolve_combat_round_stops_rolling_further_enemies_once_player_defeated
     lethal_enemy = Enemy(name="Cyclops", hp=20, attack_damage=50, caution_weight=0)
     second_enemy = Enemy(name="Harpy", hp=20, attack_damage=5, caution_weight=0)
 
-    result = resolve_combat_round(player, lethal_enemy, [player], [lethal_enemy, second_enemy])
+    result = resolve_combat_round(player, lethal_enemy, [player], [lethal_enemy, second_enemy], Room("Arena"))
 
     assert "Cyclops attacks Hero" in result
     assert "Harpy attacks" not in result # format_hp_line still lists it (still alive) - it just never got a turn
@@ -175,7 +175,7 @@ def test_resolve_combat_round_enemy_attacks_most_attractive_team_target(monkeypa
     companion.hp = 1
     enemy = Enemy(name="Goblin", hp=10, attack_damage=3)
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert "Goblin attacks Imp for 3 damage." in result
     assert player.hp == 100
@@ -193,7 +193,7 @@ def test_resolve_combat_round_target_selection_excludes_a_companion_downed_earli
     first_enemy = Enemy(name="Goblin", hp=10, attack_damage=5)
     second_enemy = Enemy(name="Harpy", hp=10, attack_damage=5)
 
-    result = resolve_combat_round(player, first_enemy, [player, companion], [first_enemy, second_enemy])
+    result = resolve_combat_round(player, first_enemy, [player, companion], [first_enemy, second_enemy], Room("Arena"))
 
     assert "Goblin attacks Imp for 5 damage." in result
     assert "Harpy attacks Hero for 5 damage." in result
@@ -206,7 +206,7 @@ def test_resolve_combat_round_ticks_player_status_effects_before_attack():
     player.apply_status_effect(StatusEffect("Poison", -3, 4))
     enemy = Enemy(name="Goblin", hp=20, attack_damage=0)
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert "Hero takes 3 damage from Poison." in result
     assert player.hp == 17
@@ -217,7 +217,7 @@ def test_resolve_combat_round_lethal_player_status_effect_tick_prevents_player_a
     player.apply_status_effect(StatusEffect("Poison", -10, 4))
     enemy = Enemy(name="Goblin", hp=20, attack_damage=0)
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert player.hp == 0
     assert "Hero attacks Goblin" not in result
@@ -232,7 +232,7 @@ def test_resolve_combat_round_ticks_companion_status_effects_before_its_turn(mon
     player.companion = companion
     enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert "Imp takes 3 damage from Poison." in result
     assert companion.hp == 17
@@ -249,7 +249,7 @@ def test_resolve_combat_round_lethal_companion_status_effect_tick_prevents_its_t
     player.companion = companion
     enemy = Enemy(name="Goblin", hp=100, attack_damage=0)
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert companion.hp == 0
     assert "Imp attacks" not in result
@@ -262,7 +262,7 @@ def test_resolve_combat_round_ticks_enemy_status_effects_before_its_turn(monkeyp
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
     enemy.apply_status_effect(StatusEffect("Poison", -3, 4))
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert "Goblin takes 3 damage from Poison." in result
     assert enemy.hp == 17
@@ -276,7 +276,7 @@ def test_resolve_combat_round_lethal_enemy_status_effect_tick_prevents_its_turn(
     enemy = Enemy(name="Goblin", hp=5, attack_damage=5)
     enemy.apply_status_effect(StatusEffect("Poison", -10, 4))
 
-    result = resolve_combat_round(player, enemy, [player], [enemy])
+    result = resolve_combat_round(player, enemy, [player], [enemy], Room("Arena"))
 
     assert enemy.hp == 0
     assert "Goblin attacks" not in result
@@ -566,7 +566,7 @@ def test_handle_enemy_defeat_with_next_wave_factories_returns_wave_summon_messag
 
     message = handle_enemy_defeat(room, enemy, player)
 
-    assert message == "Necromancer falls, but conjures 2 lesser foes to bar your path!"
+    assert message == "A Skeleton A and a Skeleton B step forwards to take the Necromancer's place!"
 
 def test_handle_enemy_defeat_with_next_wave_factories_takes_priority_over_next_phase_factory():
     """When both next_wave_factories and next_phase_factory are set, the wave spawns first - the phase
@@ -1440,7 +1440,7 @@ def test_resolve_companion_and_enemy_turns_returns_empty_string_when_player_dead
     player = Player(name="Hero", hp=0, attack_damage=1)
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    result = resolve_companion_and_enemy_turns(player, [player], [enemy])
+    result = resolve_companion_and_enemy_turns(player, [player], [enemy], Room("Arena"))
 
     assert result == ""
 
@@ -2553,7 +2553,7 @@ def test_resolve_combat_round_companion_attacks_when_present(monkeypatch):
     companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
     player.companion = companion
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert "Imp attacks Goblin for 5 damage." in result
 
@@ -2566,7 +2566,7 @@ def test_resolve_combat_round_companion_acts_before_enemies(monkeypatch):
     companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
     player.companion = companion
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert result.index("Imp attacks") < result.index("Goblin attacks")
 
@@ -2579,7 +2579,7 @@ def test_resolve_combat_round_downed_companion_does_not_act(monkeypatch):
     companion.hp = 0
     player.companion = companion
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert "Imp attacks" not in result
     assert "Imp braces" not in result
@@ -2598,7 +2598,7 @@ def test_resolve_combat_round_thorns_killing_player_during_their_own_attack_skip
     companion = Companion(name="Imp", hp=10, home_room=home, attack_damage=5)
     player.companion = companion
 
-    result = resolve_combat_round(player, target_enemy, [player, companion], [target_enemy, second_enemy])
+    result = resolve_combat_round(player, target_enemy, [player, companion], [target_enemy, second_enemy], Room("Arena"))
 
     assert "Hero takes 25 damage from the counter-strike." in result
     assert player.hp == 0
@@ -2682,7 +2682,7 @@ def test_resolve_companion_and_enemy_turns_resets_turn_started_when_player_dead(
     player.turn_started = True
     enemy = Enemy(name="Goblin", hp=20, attack_damage=5)
 
-    resolve_companion_and_enemy_turns(player, [player], [enemy])
+    resolve_companion_and_enemy_turns(player, [player], [enemy], Room("Arena"))
 
     assert player.turn_started is False
 
@@ -2704,7 +2704,7 @@ def test_resolve_combat_round_companion_defend_braces_and_reports_it(monkeypatch
     companion.hp = 5 # enemy could finish it off in one hit -> defend dominates
     player.companion = companion
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert "Imp braces for incoming damage." in result
 
@@ -2719,7 +2719,7 @@ def test_resolve_combat_round_companion_brace_reduces_the_enemy_hit_that_follows
     companion.hp = 5
     player.companion = companion
 
-    resolve_combat_round(player, enemy, [player, companion], [enemy])
+    resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert companion.hp == 2
 
@@ -2732,7 +2732,7 @@ def test_resolve_combat_round_companion_heal_restores_hp_and_reports_it(monkeypa
     companion.hp = 2
     player.companion = companion
 
-    result = resolve_combat_round(player, enemy, [player, companion], [enemy])
+    result = resolve_combat_round(player, enemy, [player, companion], [enemy], Room("Arena"))
 
     assert "Imp recovers 5 HP." in result
     assert companion.hp == 7
@@ -2912,13 +2912,13 @@ def test_handle_enemy_defeat_wave_message_describes_each_distinct_add_once():
     """Two same-named adds (e.g. Medusa's pair of Gorgons) share one description line, not two."""
     room = Room("Lair")
     add_factory = lambda: Enemy(name="Gorgon", hp=12, attack_damage=5, description="Snake-haired and hissing.")
-    enemy = Enemy(name="Medusa", hp=0, attack_damage=6, next_wave_factories=[add_factory, add_factory])
+    enemy = Enemy(name="Medusa", hp=0, attack_damage=6, article="", next_wave_factories=[add_factory, add_factory])
     room.add_enemy(enemy)
     player = Player(name="Hero", hp=50)
 
     message = handle_enemy_defeat(room, enemy, player)
 
-    assert message == "Medusa falls, but conjures 2 lesser foes to bar your path!\nGorgon: Snake-haired and hissing."
+    assert message == "Gorgon x2 step forwards to take Medusa's place!\nGorgon: Snake-haired and hissing."
 
 def test_handle_enemy_defeat_wave_message_describes_differently_named_adds_separately():
     room = Room("Crypt")
@@ -3201,14 +3201,15 @@ def test_resolve_attack_and_check_defeat_processes_an_enemy_killed_by_cleave(mon
     assert player.current_target is target
 
 def _duel(player_hp: int = 20, return_hp: int = 20, opponent_hp: int = 30, opponent_attack: int = 5):
-    """Test helper - a room mid-duel: the companion is out of the room, its combat form is in, and the player is in combat with it."""
+    """Test helper - a room mid-duel: the companion is out of the room, its combat form is in, and the player is in combat with it. The
+    player began the duel on return_hp and is on player_hp now."""
     room = Room("Camp")
     player = Player(name="Hero", hp=return_hp)
-    player.hp = player_hp
     companion = Companion(name="Imp", hp=20, home_room=room, duel_won_message="Well fought.", duel_lost_message="Not yet.")
     opponent = Enemy(name="Imp", hp=opponent_hp, attack_damage=opponent_attack)
     opponent.duel_companion = companion
-    opponent.duel_return_hp = return_hp
+    opponent.duel_snapshot = PlayerSnapshot.take(player)
+    player.hp = player_hp
     room.add_enemy(opponent)
     player.in_combat = True
     player.current_target = opponent
@@ -3226,19 +3227,16 @@ def test_get_duel_with_only_ordinary_enemies_returns_none():
     assert get_duel(room) is None
 
 def test_restore_duel_hp_puts_the_players_hp_back():
-    _, player, _, opponent = _duel(player_hp=4, return_hp=20)
-    message = restore_duel_hp(opponent, player)
+    room, player, _, opponent = _duel(player_hp=4, return_hp=20)
+    message = restore_duel_hp(opponent, player, room)
     assert player.hp == 20
     assert message == "You catch your breath - the duel's wounds fade. (20/20 HP)"
 
-def test_restore_duel_hp_with_hp_unchanged_returns_nothing():
-    _, player, _, opponent = _duel(player_hp=20, return_hp=20)
-    assert restore_duel_hp(opponent, player) == ""
-
-def test_restore_duel_hp_for_an_ordinary_enemy_returns_nothing():
+def test_restore_duel_hp_for_an_ordinary_enemy_leaves_the_player_alone():
+    """An enemy with no snapshot - anything that isn't a duel opponent - restores nothing."""
     player = Player(name="Hero", hp=20)
     player.hp = 5
-    assert restore_duel_hp(Enemy(name="Goblin", hp=10), player) == ""
+    restore_duel_hp(Enemy(name="Goblin", hp=10), player, Room("Hall"))
     assert player.hp == 5
 
 def test_end_duel_swaps_the_combat_form_back_for_the_companion():
@@ -3408,7 +3406,7 @@ def test_resolve_companion_and_enemy_turns_skips_the_companion_when_no_enemy_is_
     player = Player(name="Hero", hp=30)
     player.companion = Companion(name="Imp", hp=20, home_room=room, brace_amount=2)
     dead = Enemy(name="Goblin", hp=0)
-    result = resolve_companion_and_enemy_turns(player, player.team, [dead])
+    result = resolve_companion_and_enemy_turns(player, player.team, [dead], Room("Arena"))
     assert "Imp" not in result
     assert player.companion.pending_damage_reduction == 0
 
@@ -3431,7 +3429,7 @@ def test_resolve_companion_and_enemy_turns_companion_still_acts_while_an_enemy_l
     player = Player(name="Hero", hp=30)
     player.companion = Companion(name="Imp", hp=20, home_room=room, attack_damage=4)
     enemy = Enemy(name="Goblin", hp=50, attack_damage=1)
-    resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    resolve_companion_and_enemy_turns(player, player.team, [enemy], Room("Arena"))
     assert enemy.hp < 50
 
 def test_resolve_companion_and_enemy_turns_a_blinded_enemy_can_miss(monkeypatch):
@@ -3439,7 +3437,7 @@ def test_resolve_companion_and_enemy_turns_a_blinded_enemy_can_miss(monkeypatch)
     player = Player(name="Hero", hp=30)
     enemy = Enemy(name="Cyclops", hp=30, attack_damage=5)
     enemy.apply_status_effect(StatusEffect("Blinded", 0, 3, miss_chance=0.35))
-    result = resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    result = resolve_companion_and_enemy_turns(player, player.team, [enemy], Room("Arena"))
     assert "Cyclops attacks Hero - but misses!" in result
     assert player.hp == 30
 
@@ -3448,7 +3446,7 @@ def test_resolve_companion_and_enemy_turns_reports_an_enemys_blindness_wearing_o
     player = Player(name="Hero", hp=30)
     enemy = Enemy(name="Cyclops", hp=30, attack_damage=5)
     enemy.apply_status_effect(StatusEffect("Blinded", 0, 1, miss_chance=0.35))
-    result = resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    result = resolve_companion_and_enemy_turns(player, player.team, [enemy], Room("Arena"))
     assert "Cyclops is no longer blinded." in result
 
 def test_handle_enemy_defeat_polyphemus_gives_way_to_his_blinded_phase():
@@ -3481,7 +3479,7 @@ def test_resolve_companion_and_enemy_turns_a_two_turn_blind_makes_two_enemy_atta
     player = Player(name="Hero", hp=30)
     enemy = Enemy(name="Cyclops", hp=30, attack_damage=5)
     enemy.apply_status_effect(StatusEffect("Blinded", 0, 2, miss_chance=0.3))
-    rounds = [resolve_companion_and_enemy_turns(player, player.team, [enemy]) for _ in range(3)]
+    rounds = [resolve_companion_and_enemy_turns(player, player.team, [enemy], Room("Arena")) for _ in range(3)]
     assert "but misses!" in rounds[0]
     assert "but misses!" in rounds[1]
     assert "Cyclops is no longer blinded." in rounds[1]
@@ -3528,7 +3526,7 @@ def test_resolve_companion_and_enemy_turns_a_ranged_companion_hits_an_evasive_en
     player = Player(name="Hero", hp=30)
     player.companion = Companion(name="Archer", hp=20, home_room=room, attack_damage=5, attack_type="ranged")
     enemy = Enemy(name="Paris", hp=30, attack_damage=0, melee_dodge_chance=0.9)
-    resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    resolve_companion_and_enemy_turns(player, player.team, [enemy], Room("Arena"))
     assert enemy.hp == 25
 
 def test_resolve_companion_and_enemy_turns_a_melee_companion_is_evaded(monkeypatch):
@@ -3537,7 +3535,7 @@ def test_resolve_companion_and_enemy_turns_a_melee_companion_is_evaded(monkeypat
     player = Player(name="Hero", hp=30)
     player.companion = Companion(name="Brute", hp=20, home_room=room, attack_damage=5)
     enemy = Enemy(name="Paris", hp=30, attack_damage=0, melee_dodge_chance=0.9)
-    resolve_companion_and_enemy_turns(player, player.team, [enemy])
+    resolve_companion_and_enemy_turns(player, player.team, [enemy], Room("Arena"))
     assert enemy.hp == 30
 
 def test_handle_combat_command_advice_works_mid_combat_without_ending_the_turn():
@@ -3798,7 +3796,7 @@ def test_handle_enemy_defeat_scales_the_next_phase_to_the_ng_plus_cycle():
     handle_enemy_defeat(room, enemy, player)
 
     next_phase = room.enemies[0]
-    assert (next_phase.max_hp, next_phase.attack_damage) == (60, 30)
+    assert (next_phase.max_hp, next_phase.attack_damage) == (80, 40)
 
 def test_handle_enemy_defeat_scales_every_wave_add_to_the_players_difficulty():
     room = Room("Lair")
@@ -3853,4 +3851,303 @@ def test_handle_enemy_defeat_scales_the_phase_after_a_wave_to_the_ng_plus_cycle(
 
     handle_enemy_defeat(room, add, player)
 
-    assert (room.enemies[0].max_hp, room.enemies[0].attack_damage) == (50, 25)
+    assert (room.enemies[0].max_hp, room.enemies[0].attack_damage) == (60, 30)
+
+# ---- describe_arrivals, and the wave message built from it ----
+
+def test_describe_arrivals_a_single_proper_name_stands_alone():
+    assert describe_arrivals([Enemy(name="Hypnos", hp=40, article="")]) == "Hypnos"
+
+def test_describe_arrivals_a_single_ordinary_enemy_gets_a_capitalised_article():
+    """It always starts the wave's sentence."""
+    assert describe_arrivals([Enemy(name="Gorgon", hp=12)]) == "A Gorgon"
+
+def test_describe_arrivals_uses_an_before_a_vowel():
+    assert describe_arrivals([Enemy(name="Imp", hp=5)]) == "An Imp"
+
+def test_describe_arrivals_a_titled_enemy_takes_the():
+    assert describe_arrivals([Enemy(name="Shade of Hector", hp=30, article="the")]) == "The Shade of Hector"
+
+def test_describe_arrivals_groups_repeats_the_way_a_room_lists_them():
+    assert describe_arrivals([Enemy(name="Gorgon", hp=12), Enemy(name="Gorgon", hp=12)]) == "Gorgon x2"
+
+def test_describe_arrivals_joins_two_kinds_with_and():
+    assert describe_arrivals([Enemy(name="Skeleton", hp=10), Enemy(name="Wraith", hp=10)]) == "A Skeleton and a Wraith"
+
+def test_describe_arrivals_joins_three_kinds_with_commas_then_and():
+    adds = [Enemy(name="Skeleton", hp=10), Enemy(name="Imp", hp=5), Enemy(name="Shade", hp=7, article="the")]
+    assert describe_arrivals(adds) == "A Skeleton, an Imp and the Shade"
+
+def test_describe_arrivals_only_capitalises_the_first_arrival():
+    adds = [Enemy(name="Gorgon", hp=12), Enemy(name="Gorgon", hp=12), Enemy(name="Imp", hp=5), Enemy(name="Hypnos", hp=40, article="")]
+    assert describe_arrivals(adds) == "Gorgon x2, an Imp and Hypnos"
+
+def test_describe_arrivals_keeps_the_order_the_wave_was_built_in():
+    adds = [Enemy(name="Wraith", hp=10), Enemy(name="Gorgon", hp=12), Enemy(name="Wraith", hp=10)]
+    assert describe_arrivals(adds) == "Wraith x2 and a Gorgon"
+
+def test_handle_enemy_defeat_a_wave_of_one_steps_forwards():
+    """Regression: the old message always said 'lesser foes' - 'conjures 1 lesser foes' for Thanatos' twin."""
+    room = Room("Hall")
+    thanatos = Enemy(name="Thanatos", hp=0, attack_damage=17, article="", next_wave_factories=[lambda: Enemy(name="Hypnos", hp=40, article="")])
+    room.add_enemy(thanatos)
+
+    message = handle_enemy_defeat(room, thanatos, Player(name="Hero", hp=50))
+
+    assert message == "Hypnos steps forwards to take Thanatos's place!"
+
+def test_handle_enemy_defeat_a_wave_of_several_step_forwards():
+    room = Room("Hall")
+    boss = Enemy(name="Hades", hp=0, attack_damage=15, article="", next_wave_factories=[lambda: Enemy(name="Restless Shade", hp=15)] * 3)
+    room.add_enemy(boss)
+
+    message = handle_enemy_defeat(room, boss, Player(name="Hero", hp=50))
+
+    assert message == "Restless Shade x3 step forwards to take Hades's place!"
+
+def test_handle_enemy_defeat_wave_message_names_a_titled_boss_in_lower_case():
+    """The boss comes mid-sentence, so its article isn't capitalised."""
+    room = Room("Labyrinth")
+    boss = Enemy(name="Minotaur", hp=0, attack_damage=8, article="the", next_wave_factories=[lambda: Enemy(name="Calf", hp=5)])
+    room.add_enemy(boss)
+
+    message = handle_enemy_defeat(room, boss, Player(name="Hero", hp=50))
+
+    assert message == "A Calf steps forwards to take the Minotaur's place!"
+
+# ---- trials: the player fights alone ----
+
+def _trial_room_with_companion():
+    """A room with a one-contest trial underway, and a player who has a companion."""
+    from dungeon_crawler.trials import Contest, Trial, start_trial
+    room = Room("Field")
+    player = Player(name="Hero", hp=50)
+    player.companion = Companion(name="Imp", hp=20, home_room=room, attack_damage=9)
+    def prize(player, room) -> str:
+        room.add_item(Armour("Laurel Shield", "", 3, slot="shield"))
+        return "A shield is set at your feet."
+    trial = Trial(
+        contests=[Contest("The race", [lambda: Enemy(name="Runner", hp=40, attack_damage=3)], "\"Run.\"", prize, "games_won")],
+        host_line=lambda player, room: "The host raises a hand.",
+        victory_text="Won.", repeat_victory_text="Won again.", defeat_text="Lost.",
+    )
+    start_trial(trial, player, room)
+    return room, player
+
+def test_fighting_team_is_the_player_and_their_companion_outside_a_trial():
+    room = Room("Field")
+    player = Player(name="Hero", hp=50)
+    player.companion = Companion(name="Imp", hp=20, home_room=room)
+    assert fighting_team(player, room) == [player, player.companion]
+
+def test_fighting_team_is_the_player_alone_during_a_trial():
+    room, player = _trial_room_with_companion()
+    assert fighting_team(player, room) == [player]
+
+def test_fighting_team_leaves_out_a_downed_companion_as_usual():
+    room = Room("Field")
+    player = Player(name="Hero", hp=50)
+    player.companion = Companion(name="Imp", hp=20, home_room=room)
+    player.companion.hp = 0
+    assert fighting_team(player, room) == [player]
+
+def test_a_companion_takes_no_turn_during_a_trial(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    room, player = _trial_room_with_companion()
+    runner = room.enemies[0]
+    message = resolve_companion_and_enemy_turns(player, fighting_team(player, room), room.enemies, room)
+    assert "Imp" not in message
+    assert runner.hp == 40
+
+def test_a_companion_is_never_attacked_during_a_trial(monkeypatch):
+    """The enemy's only target is the player - the companion isn't on the field."""
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    room, player = _trial_room_with_companion()
+    for _ in range(5):
+        resolve_companion_and_enemy_turns(player, fighting_team(player, room), room.enemies, room)
+    assert player.companion.hp == 20
+    assert player.hp < 50
+
+def test_the_hp_line_during_a_trial_shows_only_the_player(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    room, player = _trial_room_with_companion()
+    message = resolve_attack_and_check_defeat(player, room.enemies[0], fighting_team(player, room), room.enemies, room)
+    assert "Imp" not in message.split("\n")[-1]
+
+def test_a_companion_fights_again_once_the_trial_is_over(monkeypatch):
+    from dungeon_crawler.trials import forfeit_trial
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    room, player = _trial_room_with_companion()
+    forfeit_trial(room, player)
+    goblin = Enemy(name="Goblin", hp=40, attack_damage=1)
+    room.add_enemy(goblin)
+    message = resolve_companion_and_enemy_turns(player, fighting_team(player, room), room.enemies, room)
+    assert "Imp attacks Goblin" in message
+
+def test_resolve_flee_forfeits_a_trial():
+    from dungeon_crawler.trials import trial_active
+    room, player = _trial_room_with_companion()
+    message = resolve_flee(player, room.enemies, room, guaranteed=True)
+    assert message.endswith("You've left the field. The contest is forfeit.")
+    assert trial_active(room) is False
+    assert room.enemies == []
+    assert player.in_combat is False
+
+def test_resolve_flee_outside_a_trial_says_nothing_about_a_contest():
+    room = Room("Field")
+    goblin = Enemy(name="Goblin", hp=10)
+    room.add_enemy(goblin)
+    player = Player(name="Hero", hp=50)
+    assert "forfeit" not in resolve_flee(player, room.enemies, room, guaranteed=True)
+
+def test_defeating_a_trials_last_opponent_reports_the_win_in_the_defeat_message():
+    """check_trial_progress() runs inside handle_enemy_defeat(), so whatever kills the opponent - attack, spell, poison - moves the trial on."""
+    room, player = _trial_room_with_companion()
+    runner = room.enemies[0]
+    runner.hp = 0
+    message = handle_enemy_defeat(room, runner, player)
+    assert "Won." in message
+    assert [item.name for item in room.items] == ["Laurel Shield"]
+
+def test_fleeing_a_trial_never_costs_a_parting_blow(monkeypatch):
+    """Regression: a contestant's parting blow could kill a fleeing player - and since fleeing ends the trial first, nothing pulled them out.
+    A roll of 0.0 would land every parting blow there is."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    room, player = _trial_room_with_companion()
+    player.hp = 1
+    message = resolve_flee(player, room.enemies, room)
+    assert player.is_alive()
+    assert "gets a hit in" not in message
+
+def test_fleeing_a_trial_returns_the_player_to_the_hp_they_entered_with():
+    room, player = _trial_room_with_companion()
+    player.hp = 1
+    resolve_flee(player, room.enemies, room)
+    assert player.hp == 50
+
+def test_fleeing_an_ordinary_fight_can_still_cost_a_parting_blow(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    room = Room("Field")
+    goblin = Enemy(name="Goblin", hp=10, attack_damage=4)
+    room.add_enemy(goblin)
+    player = Player(name="Hero", hp=50)
+    message = resolve_flee(player, room.enemies, room)
+    assert player.hp == 46
+    assert "The Goblin gets a hit in as you go - 4 damage." in message
+
+def test_flee_combat_names_a_proper_named_enemy_without_an_article(monkeypatch):
+    """Regression: the parting-blow line always began 'The' - 'The Ajax the Lesser gets a hit in as you go'."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    player = Player(name="Hero", hp=50)
+    message = flee_combat(player, [Enemy(name="Talos", hp=10, attack_damage=4, article="")])
+    assert "Talos gets a hit in as you go - 4 damage." in message
+    assert "The Talos" not in message
+
+def test_flee_combat_names_a_titled_enemy_with_the(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    player = Player(name="Hero", hp=50)
+    message = flee_combat(player, [Enemy(name="Minotaur", hp=10, attack_damage=4, article="the")])
+    assert "The Minotaur gets a hit in as you go - 4 damage." in message
+
+# ---- a duel puts back everything it cost, however it ends ----
+
+def _duel_with_gear(return_hp: int = 20):
+    """A duel in which the player carries a potion and wears a shield - returns (room, player, companion, opponent, potion, shield)."""
+    room = Room("Camp")
+    player = Player(name="Hero", hp=return_hp)
+    potion = Consumable(name="Potion", description="", heal_amount=5)
+    shield = Armour(name="Shield", description="", defence=2, slot="shield", max_durability=10)
+    player.inventory.add(potion)
+    player.inventory.add(shield)
+    player.inventory.use_item("shield", player)
+    companion = Companion(name="Imp", hp=20, home_room=room, duel_won_message="Well fought.", duel_lost_message="Not yet.")
+    opponent = Enemy(name="Imp", hp=30, attack_damage=5)
+    opponent.duel_companion = companion
+    opponent.duel_snapshot = PlayerSnapshot.take(player)
+    room.add_enemy(opponent)
+    player.in_combat = True
+    player.current_target = opponent
+    return room, player, companion, opponent, potion, shield
+
+def test_winning_a_duel_returns_a_potion_drunk_during_it():
+    room, player, _, opponent, potion, _ = _duel_with_gear()
+    player.hp = 6
+    player.inventory.use_item("potion", player)
+    opponent.hp = 0
+    handle_enemy_defeat(room, opponent, player)
+    assert potion in player.inventory.items
+    assert player.hp == 20
+
+def test_winning_a_duel_restores_the_armour_it_wore_down():
+    """Regression for the balance check's finding: a duel restored HP but left armour worn, so each try cost a repair bill."""
+    room, player, _, opponent, _, shield = _duel_with_gear()
+    shield.durability = 3
+    opponent.hp = 0
+    handle_enemy_defeat(room, opponent, player)
+    assert shield.durability == 10
+
+def test_losing_a_duel_returns_what_it_cost_too():
+    room, player, _, opponent, potion, shield = _duel_with_gear()
+    player.inventory.remove(potion)
+    shield.durability = 0
+    player.hp = 0
+    protect_duel_loser(player, room)
+    assert potion in player.inventory.items
+    assert shield.durability == 10
+    assert player.armour == 2
+
+def test_fleeing_a_duel_returns_what_it_cost_too(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    room, player, _, opponent, potion, shield = _duel_with_gear()
+    player.inventory.remove(potion)
+    shield.durability = 4
+    handle_combat_command("flee", player, opponent, player.team, room.enemies, room)
+    assert potion in player.inventory.items
+    assert shield.durability == 10
+
+def test_a_duel_restores_mana_spent_during_it():
+    room, player, _, opponent, _, _ = _duel_with_gear()
+    player.mana = 2
+    opponent.hp = 0
+    handle_enemy_defeat(room, opponent, player)
+    assert player.mana == 20
+
+def test_winning_a_duel_keeps_what_the_defeat_effect_gave():
+    """The snapshot puts back what the fight cost - not what winning it earned."""
+    room, player, _, opponent, _, _ = _duel_with_gear()
+    def reward(p):
+        p.skill_tree.skill_points += 1
+        return "A skill point."
+    opponent.defeat_effect = reward
+    opponent.hp = 0
+    handle_enemy_defeat(room, opponent, player)
+    assert player.skill_tree.skill_points == 1
+
+def test_a_duel_cannot_be_used_to_farm_an_intellect_item(monkeypatch):
+    """Regression: the snapshot returned every item used during a duel - including one whose effect is permanent. Reading the Ledger mid-duel
+    and then fleeing gave the intellect *and* the Ledger back, as often as the player liked. Either is fine; both is not."""
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    room, player, _, opponent, _, _ = _duel_with_gear()
+    ledger = IntellectReward(name="Ledger", description="", amount=2)
+    player.inventory.add(ledger)
+    opponent.duel_snapshot = PlayerSnapshot.take(player)
+    before = player.intellect
+    handle_combat_command("use ledger", player, opponent, player.team, room.enemies, room)
+    if player.in_combat:
+        handle_combat_command("flee", player, opponent, player.team, room.enemies, room)
+    kept_the_intellect = player.intellect > before
+    kept_the_ledger = ledger in player.inventory.items
+    assert not (kept_the_intellect and kept_the_ledger)
+
+def test_a_duel_cannot_be_used_to_farm_a_skill_point_item(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    room, player, _, opponent, _, _ = _duel_with_gear()
+    scroll = SkillPointReward(name="Scroll", description="")
+    player.inventory.add(scroll)
+    opponent.duel_snapshot = PlayerSnapshot.take(player)
+    handle_combat_command("use scroll", player, opponent, player.team, room.enemies, room)
+    if player.in_combat:
+        handle_combat_command("flee", player, opponent, player.team, room.enemies, room)
+    kept_the_point = player.skill_tree.skill_points > 0
+    kept_the_scroll = scroll in player.inventory.items
+    assert not (kept_the_point and kept_the_scroll)

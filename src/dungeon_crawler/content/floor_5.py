@@ -5,7 +5,11 @@ from dungeon_crawler.characters import Companion, Enemy, Ally
 from dungeon_crawler.items import Armour, Weapon, Trophy
 from dungeon_crawler.chests import add_random_chest
 from dungeon_crawler.content.loot_tables import MIDDLE_LOOT
+from dungeon_crawler.trials import Contest, Trial, trial_active, awaiting_next_contest, start_trial, next_contest
+from dungeon_crawler.combat import get_duel
 from .common import create_cup_of_kykeon, create_field_dressing
+
+FUNERAL_GAMES_WON = "funeral_games_won"
 
 def _grant_achilles_skill_point(player) -> str:
     """Achilles' duel reward - a free skill point."""
@@ -244,6 +248,163 @@ def create_bridle_of_the_wooden_horse() -> Trophy:
         article="the",
     )
 
+def create_ajax_the_lesser() -> Enemy:
+    """Funeral Games, contest 1 - the foot race. Quick and slippery: hard to hit in melee."""
+    return Enemy(
+        name="Ajax the Lesser",
+        hp=30,
+        attack_damage=9,
+        armour=2,
+        melee_dodge_chance=0.4,
+        article="",
+        description="Small, quick, and furious about something already - he never stays where you aimed.",
+    )
+
+def create_epeius() -> Enemy:
+    """Funeral Games, contest 2 - boxing. Hits very hard, but barely armoured."""
+    return Enemy(
+        name="Epeius",
+        hp=38,
+        attack_damage=14,
+        armour=0,
+        aggression_weight=1.5,
+        article="",
+        description="Built the Wooden Horse with those hands. He's prouder of what they do in the ring.",
+    )
+
+def create_polypoetes() -> Enemy:
+    """Funeral Games, contest 3 - the weight-throw. Heavy armour and bracing - a test of piercing and heavy attacks."""
+    return Enemy(
+        name="Polypoetes",
+        hp=46,
+        attack_damage=10,
+        armour=7,
+        brace_amount=5,
+        armour_pierce=2,
+        caution_weight=1.3,
+        article="",
+        description="The strongest man at the Games, wearing bronze like it weighs nothing.",
+    )
+
+def create_meriones() -> Enemy:
+    """Funeral Games, contest 4 - archery, with Teucer. Evasive, and his arrows pierce armour."""
+    return Enemy(
+        name="Meriones",
+        hp=26,
+        attack_damage=9,
+        armour=1,
+        melee_dodge_chance=0.3,
+        armour_pierce=4,
+        article="",
+        description="He won the archery in life. He hasn't forgotten how.",
+    )
+
+def create_teucer() -> Enemy:
+    """Funeral Games, contest 4 - archery, with Meriones. Evasive, and his arrows pierce armour."""
+    return Enemy(
+        name="Teucer",
+        hp=26,
+        attack_damage=10,
+        armour=1,
+        melee_dodge_chance=0.3,
+        armour_pierce=4,
+        article="",
+        description="The finest archer among the Greeks - and still sore about losing to Meriones.",
+    )
+
+def create_diomedes() -> Enemy:
+    """Funeral Games, contest 5 - armed combat. The champion: strong, balanced, and heals himself. Above anything else on floor 5."""
+    return Enemy(
+        name="Diomedes",
+        hp=60,
+        attack_damage=13,
+        armour=4,
+        armour_pierce=3,
+        heal_amount=5,
+        brace_amount=3,
+        article="",
+        description="The man who wounded two gods at Troy. He salutes you with his spear before he lifts his shield.",
+    )
+
+def create_shield_of_achilles() -> Armour:
+    """Create the Shield of Achilles - forged by Hephaestus in Iliad 18, the prize of the Funeral Games' last contest, the first time it's won. The best shield in
+    the game: heavy, 5 defence."""
+    return Armour(
+        name="Shield of Achilles",
+        description="Bronze worked with the whole world - cities at war and at peace, fields, dancers, the river Ocean round the rim. It's heavier than it looks.",
+        defence=5,
+        slot="shield",
+        weight="heavy",
+        max_durability=26,
+        article="the",
+    )
+
+def _achilles_hosts(player, room) -> str:
+    """How Achilles introduces each contest - from beside the player, or from the edge of the field."""
+    if player.companion is not None and player.companion.home_room is room:
+        return "Achilles steps back to the edge of the field, grinning."
+    return "Achilles raises a hand from his place at the edge of the field."
+
+def _gold_prize(amount):
+    """A contest prize of gold."""
+    def prize(player, room) -> str:
+        player.gold += amount
+        return f"Achilles tosses you a heavy purse. (+{amount} gold)"
+    return prize
+
+def _max_hp_prize(amount):
+    """A contest prize of max HP, permanently - current HP rises with it, though the trial's end puts current HP back."""
+    def prize(player, room) -> str:
+        player.max_hp += amount
+        player.hp += amount
+        return f"Achilles grips your arm. \"Harder to put down than you look.\" (+{amount} max HP)"
+    return prize
+
+def _intellect_prize(amount):
+    """A contest prize of intellect, permanently."""
+    def prize(player, room) -> str:
+        player.intellect += amount
+        return f"\"Strength's nothing without knowing where to put it.\" (+{amount} intellect)"
+    return prize
+
+def _attack_prize(amount):
+    """A contest prize of attack, permanently."""
+    def prize(player, room) -> str:
+        player.attack_damage += amount
+        return f"\"Every arrow you didn't dodge taught you something.\" (+{amount} ATK)"
+    return prize
+
+def _shield_prize(player, room) -> str:
+    """The last contest's prize - the Shield of Achilles, left on the floor."""
+    shield = create_shield_of_achilles()
+    room.add_item(shield)
+    return f"Achilles sets a shield at your feet - the one Hephaestus made for him. ({shield.with_article(definite=True, capitalise=True)} lies on the ground.)"
+
+
+FUNERAL_GAMES = Trial(
+    contests=[
+        Contest("The foot race", [create_ajax_the_lesser], "\"Ajax the Lesser - who lost this race in life, and has never forgiven the ground he slipped on.\"", _gold_prize(50), f"{FUNERAL_GAMES_WON}:foot race"),
+        Contest("Boxing", [create_epeius], "\"Epeius. Build a horse, win a war - and he's still proudest of his fists.\"", _max_hp_prize(5), f"{FUNERAL_GAMES_WON}:boxing"),
+        Contest("The weight-throw", [create_polypoetes], "\"Polypoetes. Strongest man at the Games. Good luck moving him.\"", _intellect_prize(1), f"{FUNERAL_GAMES_WON}:weight-throw"),
+        Contest("Archery", [create_meriones, create_teucer], "\"Meriones and Teucer, together. Keep moving.\"", _attack_prize(1), f"{FUNERAL_GAMES_WON}:archery"),
+        Contest("Armed combat", [create_diomedes], "\"And our champion: Diomedes, who wounded two gods at Troy. For Patroclus.\"", _shield_prize, FUNERAL_GAMES_WON),
+    ],
+    host_line=_achilles_hosts,
+    victory_text=(
+        "Diomedes lowers his spear, and nods once. Achilles is beside you before you've caught your breath. \"For Patroclus,\" he says, quieter "
+        "than you've ever heard him. \"He'd have liked you.\""
+    ),
+    repeat_victory_text="Achilles claps you on the shoulder. \"Again, and better. Patroclus would be laughing.\"",
+    defeat_text=(
+        "Strong hands haul you off the field before the last blow lands. \"Not today,\" Achilles says, not unkindly. \"The Games will still be "
+        "here.\" (You're back to the health you entered with.)"
+    ),
+)
+
+def _games_can_start(player, room) -> bool:
+    """Whether 'enter the games' is offered - not while a trial or Achilles' duel is underway."""
+    return not trial_active(room) and get_duel(room) is None
+
 def build_floor_5() -> tuple[Room, dict[str, Room]]:
     """Shadow of Troy - Shadow of Army Camp, Shadow of Troy (North), Shadow of Troy (Central), Shadow of Troy (Alleyway), Shadow of Troy (South), and Shadow of Pylos, plus the Belly of the Wooden Horse, hidden inside the Army Camp. Shadow of Troy (Central) holds a random chest."""
     shadow_of_army_camp = Room(
@@ -251,7 +412,8 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
         description="Rows of ghostly tents flicker at the edge of sight, campfires burning cold and without heat.",
         examine_text=(
             "Among the ghostly tents stands something enormous: a wooden horse, taller than the tents around it. Look closely at its flank, and "
-            "there's a seam in the timber that no carpenter left by accident."
+            "there's a seam in the timber that no carpenter left by accident. Beyond the tents, a field has been cleared and marked out for the "
+            "Games - Achilles has never stopped holding them."
         ),
     )
     belly_of_the_wooden_horse = Room(
@@ -313,6 +475,13 @@ def build_floor_5() -> tuple[Room, dict[str, Room]]:
     belly_of_the_wooden_horse.add_item(create_bridle_of_the_wooden_horse())
 
     add_random_chest(shadow_of_troy_central, MIDDLE_LOOT)
+
+    shadow_of_army_camp.add_interaction(
+        "enter the games", lambda player, room: start_trial(FUNERAL_GAMES, player, room), _games_can_start,
+    )
+    shadow_of_army_camp.add_interaction(
+        "next contest", next_contest, lambda player, room: awaiting_next_contest(room),
+    )
 
     return shadow_of_army_camp, {
         room.name: room for room in (shadow_of_army_camp, belly_of_the_wooden_horse, shadow_of_troy_north, shadow_of_troy_central, shadow_of_troy_alleyway, shadow_of_troy_south, shadow_of_pylos)

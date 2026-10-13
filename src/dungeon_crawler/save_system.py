@@ -63,11 +63,13 @@ def slot_summary(profile_num: int, slot_num: int) -> str | None:
         with open(slot_path(profile_num, slot_num), "r", encoding="utf-8") as f:
             data = json.load(f)
         p = data["player"]
-        label = get_difficulty(p.get("difficulty", "normal")).label
-        summary = f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']} ({label})"
+        tags = [get_difficulty(p.get("difficulty", "normal")).label]
+        cycle = p.get("ng_plus_cycle", 0)
+        if cycle:
+            tags.append(f"NG+{cycle}")
         if HARDCORE in p.get("story_flags", []):
-            summary += " (Hardcore)"
-        return summary
+            tags.append("Hardcore")
+        return f"{p['name']} - LVL {p['level']} {p['ancestry_label']} - {p['current_room']} ({', '.join(tags)})"
     except SAVE_READ_ERRORS:
         return "Damaged save - can't be loaded."
 
@@ -92,6 +94,7 @@ def serialise_player(player: Player, current_room) -> dict:
         "dodge_chance": player.dodge_chance,
         "ability_flags": {flag: getattr(player, flag) for flag in ABILITY_FLAG_NAMES},
         "skill_tree": {name: path.unlocked_count for name, path in player.skill_tree.paths.items()},
+        "mastery_count": {name: path.mastery_count for name, path in player.skill_tree.paths.items()},
         "skill_points": player.skill_tree.skill_points,
         "known_spells": [spell.name for spell in player.known_spells],
         "spell_cooldowns": dict(player.spell_cooldowns),
@@ -111,6 +114,7 @@ def serialise_player(player: Player, current_room) -> dict:
         "run_seed": player.run_seed,
         "difficulty": player.difficulty,
         "ng_plus_cycle": player.ng_plus_cycle,
+        "recruited_companions": sorted(player.recruited_companions),
     }
 
 def _ancestry_key_for_label(label: str, field: str = "label") -> str | None:
@@ -153,6 +157,10 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
             player.skill_tree.paths[path_name].unlocked_count = unlocked_count
     player.skill_tree.skill_points = data["skill_points"]
 
+    for path_name, mastery_count in data.get("mastery_count", {}).items():
+        if path_name in player.skill_tree.paths:
+            player.skill_tree.paths[path_name].mastery_count = mastery_count
+
     player.known_spells = [s for s in (find_spell_by_name(n) for n in data["known_spells"]) if s is not None]
     player.spell_cooldowns = dict(data["spell_cooldowns"])
     player.active_effects = [StatusEffect(e["name"], e["amount"], e["duration"], e.get("miss_chance", 0.0)) for e in data["active_effects"]]
@@ -188,6 +196,10 @@ def player_from_save_data(data: dict, world: Map) -> tuple[Player, Room]:
 
     player.difficulty = data.get("difficulty", "normal")
     player.ng_plus_cycle = data.get("ng_plus_cycle", 0)
+
+    player.recruited_companions = set(data.get("recruited_companions", []))
+    if player.companion is not None:
+        player.recruited_companions.add(player.companion.name)
 
     current_room = world.get_room(data["current_room"])
     if current_room is None:

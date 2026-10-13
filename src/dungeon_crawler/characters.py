@@ -1,6 +1,6 @@
 """Character classes - Character, Player, Enemy, Ally - and the skill tree system (Skill, SkillPath, SkillTree) that lets a Player unlock permanent stat/ability upgrades."""
 
-from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem, LoyaltyToken
+from dungeon_crawler.items import Inventory, Item, Weapon, Armour, QuestItem, LoyaltyToken, SkillPointReward, SpellBook, IntellectReward
 from dungeon_crawler.status_effects import StatusEffect
 from dungeon_crawler.spells import Spell
 from dungeon_crawler.world import Room
@@ -8,6 +8,7 @@ from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.dialogue import DialogueNode
 from textwrap import dedent
 from typing import Sequence, Callable, TYPE_CHECKING
+from dataclasses import dataclass
 if TYPE_CHECKING:
     from dungeon_crawler.exchange import Offer
 import random
@@ -226,8 +227,8 @@ class Character:
             message += f"\n{target.apply_status_effect(StatusEffect('Poison', WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION))}"
 
         if weapon is not None and weapon.blind_chance > 0 and random.random() < weapon.blind_chance:
-            blind = StatusEffect(BLINDED_EFFECT_NAME, 0, WEAPON_BLIND_DURATION, miss_chance=WEAPON_BLIND_MISS_CHANCE)
-            message += f"\n{target.apply_status_effect(blind)}"
+            effect = StatusEffect(weapon.blind_effect_name, 0, WEAPON_BLIND_DURATION, miss_chance=WEAPON_BLIND_MISS_CHANCE)
+            message += f"\n{target.apply_status_effect(effect)}"
 
         if getattr(self, "has_double_strike", False):
             # second strike deals half of base_damage (weapon- and Berserking-inclusive, but before the heavy multiplier/Bull Rush), ignoring armour
@@ -417,6 +418,10 @@ class Player(Character):
         """A key in DIFFICULTIES - chosen at a new game, fixed for the run, saved. See difficulty.py."""
         self.ng_plus_cycle: int = 0
         """How many times this character has started New Game+ - adds to enemy HP and attack each cycle. Saved."""
+        self.recruited_companions: set[str] = set()
+        """Names of every companion the player has ever recruited - what New Game+ carries over. Saved. Updated by recruit_companion()."""
+        self.new_game_plus_requested: bool = False
+        """Set by the Trophy Room's 'begin anew now', and acted on by main() after the command. Never saved."""
 
     def on_death(self) -> str:
         """Player-specific defeat message, shown when HP reaches zero."""
@@ -499,14 +504,17 @@ class Player(Character):
         return "\n".join(lines)
 
     def get_skills_display(self) -> str:
-        """Format skill tree progress - next unlock per path, points available."""
+        """Format skill tree progress - each path's next unlock, or its mastery once every skill is learned (with how many times it's been
+        bought), and the points available."""
         lines = []
         for path in self.skill_tree.paths.values():
             next_skill = path.next_skill
             if next_skill is not None:
                 lines.append(f"{path.name}: next unlock is {next_skill.name} - {next_skill.description}")
+            elif path.mastery is not None:
+                lines.append(f"{path.name}: {path.mastery.name} - {path.mastery.description} (Current: {path.mastery_count})")
             else:
-                lines.append(f"{path.name}: fully unlocked.")
+                lines.append(f"{path.name}: Fully unlocked.")
         lines.append(f"Skill Points available: {self.skill_tree.skill_points}")
         return "\n".join(lines)
 
@@ -596,9 +604,6 @@ class Enemy(Character):
         self.duel_companion: "Companion | None" = None
         """Set by start_duel() (exploration.py) on the combat form of a companion who's being duelled - the companion to put back in the room when
         the duel ends, whichever way it goes. None for every ordinary enemy."""
-        self.duel_return_hp: int | None = None
-        """The player's HP when this duel began - set by start_duel(), restored whenever the duel ends (win, loss, or flee), so a friendly fight
-        never leaves the player worse off. None for every ordinary enemy."""
         self.ancestry_lines = ancestry_lines or {}
         """ANCESTRIES key -> a line shown once, the first time a player of that lineage sees this enemy - see get_enemy_ancestry_lines() (exploration.py).
         Same shape as Ally/Companion.ancestry_lines, but triggered on sight rather than by 'talk', since enemies can't be talked to."""
@@ -621,6 +626,14 @@ class Enemy(Character):
         leaves the room and still gives its XP, gold, and loot, but a companion built by yield_companion_factory takes its place, recruitable,
         with this room as its home. yield_result_flag, if set, records that it happened. Checked at the moment of defeat, not at creation, since
         the world is built before the player has made any choices. Hades is the first to use it."""
+        self.trial_contestant: bool = False
+        """Set on opponents brought out by a trial (trials.py) - removed when the trial ends, however it ends."""
+        self.duel_snapshot: "PlayerSnapshot | None" = None
+        """Everything the player had when this duel began - HP, mana, items, and armour durability - put back however the duel ends. Only set on
+        a duel opponent. See PlayerSnapshot."""
+        self.gatekeeper: bool = False
+        """An enemy meant to stop players who skip side content - set on the Minotaur and Talos. Settings whose Difficulty.softens_gatekeepers is
+        False never make one easier than Normal."""
 
     def on_death(self) -> str:
         """Enemy-specific defeat message, listing any dropped loot."""
@@ -630,15 +643,19 @@ class Enemy(Character):
             message += f"\nIt dropped: {item_names}"
         return message
 
-    def with_article(self, definite: bool = False) -> str:
+    def with_article(self, definite: bool = False, capitalise: bool = True) -> str:
         """This enemy's name with the right article, capitalised to start a sentence. definite=True asks for the form used when the enemy has
         already been met ('The Goblin is still here...'); a proper name never takes an article either way. 'An' is chosen by the first letter
         alone, which is right for every current name but would need an exception for a name like 'Unicorn'."""
         if self.article == "":
             return self.name
         if self.article == "the" or definite:
-            return f"The {self.name}"
-        return f"{'An' if self.name[0].lower() in 'aeiou' else 'A'} {self.name}"
+            word = "the"
+        else:
+            word = "an" if self.name[0].lower() in "aeiou" else "a"
+        if capitalise:
+            word = word.capitalize()
+        return f"{word} {self.name}"
 
 
 class Ally():
@@ -709,7 +726,7 @@ class Companion(Character):
     Companion IS a Character - it needs real combat stats to sit in Player.team and act via choose_companion_action() (combat.py),
     home_room is where a dismissed Companion reappears - see dismiss_companion()."""
 
-    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = "", ancestry_lines: dict[str, str] | None = None, rival_lines: dict[str, str] | None = None, required_story_flag: str | None = None, recruit_blocked_message: str = "", attack_type: str = "light", gives_advice: bool = False, companion_lines: dict[str, str] | None = None):
+    def __init__(self, name: str, hp: int, home_room: Room, description: str = "", attack_damage: int = 5, armour: int = 0, required_items: list[str] | None = None, aggression_weight: float = 1.0, caution_weight: float = 1.0, randomness_weight: float = 0.3, brace_amount: int = 0, heal_amount: int =0, hint: str = "", hint_recruitable: str = "", duel_enemy_factory: "Callable[[], Enemy] | None" = None, duel_won_message: str = "", duel_lost_message: str = "", ancestry_lines: dict[str, str] | None = None, rival_lines: dict[str, str] | None = None, required_story_flag: str | None = None, recruit_blocked_message: str = "", attack_type: str = "light", gives_advice: bool = False, companion_lines: dict[str, str] | None = None, new_game_plus_home: str | None = None, new_game_plus_effect: "Callable | None" = None):
         """required_items are what the player must hold to recruit this companion (see recruit_companion()) - mirrors Ally.required_items.
         aggression_weight/caution_weight/randomness_weight/brace_amount/heal_amount feed choose_companion_action()'s utility scoring (combat.py)
         - same shape and same defaults as Enemy's equivalent fields. hint/hint_recruitable are this companion's talk() lines, and
@@ -753,6 +770,11 @@ class Companion(Character):
         the player isn't in combat - to whether they hold a LoyaltyToken - so it's readied once per fight. Never saved: it's always recalculated
         before the next fight can start."""
         self.companion_lines = companion_lines or {}
+        self.new_game_plus_home = new_game_plus_home
+        """The name of the room this companion calls home in a New Game+ cycle, if it differs from their usual home - see new_game_plus.py."""
+        self.new_game_plus_effect = new_game_plus_effect
+        """A function(player, all_floors), run at the start of a New Game+ cycle this companion is carried into, for changes their presence makes
+        to the new world. Both are content data, so New Game+ never names a particular companion."""
 
     def on_death(self) -> str:
         """Companion-specific 'downed' message - distinct from a permanent death. Fires through take_damage() exactly as it does for
@@ -766,6 +788,8 @@ class Companion(Character):
 
     def can_be_recruited(self, player) -> bool:
         """Whether nothing stands in the way of recruiting this companion: no duel left to win, and any required story flag set."""
+        if self.name in player.recruited_companions:
+            return True
         if self.requires_duel:
             return False
         return self.required_story_flag is None or self.required_story_flag in player.story_flags
@@ -858,33 +882,49 @@ class DefenceBoostSkill(Skill):
         character.armour -= self.bonus
 
 class SkillPath:
-    """One branch of the skill tree (e.g. Attack, Defence, Abilities) - an ordered list of skills unlocked one at a time."""
+    """One branch of the skill tree (e.g. Attack, Defence, Abilities) - an ordered list of skills unlocked one at a time, and optionally a
+    mastery that further points buy once they're all unlocked."""
 
-    def __init__(self, name: str, skills: list[Skill]):
-        """Store this path's name and its skills in unlock order."""
+    def __init__(self, name: str, skills: list[Skill], mastery: Skill | None = None):
+        """Store this path's name, its skills in unlock order, and its mastery (None for a path that simply ends)."""
         self.name = name
         self._skills = skills
         self.unlocked_count = 0
+        self.mastery = mastery
+        """Bought with points spent on this path once every skill is unlocked - a small bonus, applied once per point, with no limit. Gives spare
+        points a use, since levelling never stops."""
+        self.mastery_count: int = 0
+        """How many times mastery has been bought. Saved."""
 
     def unlock_next(self, character) -> str:
-        """Apply and unlock this path's next skill in order. Raises ActionRefused if every skill in the path is already unlocked."""
+        """Apply and unlock this path's next skill in order. Once every skill is unlocked, each further call buys the path's mastery instead -
+        applied again and counted in mastery_count. Raises ActionRefused only if the path is finished and has no mastery."""
         if self.unlocked_count >= len(self._skills):
-            raise ActionRefused(f"{self.name} path is fully unlocked.")
+            if self.mastery is None:
+                raise ActionRefused(f"{self.name} path is fully unlocked.")
+            message = self.mastery.apply(character)
+            self.mastery_count += 1
+            return f"{self.mastery.name} ({self.mastery_count}): {message}"
         skill = self._skills[self.unlocked_count]
         self.unlocked_count += 1
         return skill.apply(character)
 
     def forget_all(self, character) -> int:
-        """Undo every unlocked skill on this path, most recent first, and reset it to nothing unlocked. Returns how many were forgotten."""
-        forgotten = self.unlocked_count
+        """Undo everything bought on this path, most recent first - every mastery, then every unlocked skill - and reset it to nothing
+        unlocked. Returns how many points' worth were forgotten."""
+        forgotten = self.unlocked_count + self.mastery_count
+        if self.mastery is not None:
+            for _ in range(self.mastery_count):
+                self.mastery.remove(character)
         for skill in reversed(self._skills[:self.unlocked_count]):
             skill.remove(character)
         self.unlocked_count = 0
+        self.mastery_count = 0
         return forgotten
 
     @property
     def next_skill(self) -> "Skill | None":
-        """The next skill this path would unlock, or None if the path is fully unlocked."""
+        """The next skill this path would unlock, or None if every skill is unlocked. Mastery is never a next skill - see unlock_next()."""
         if self.unlocked_count >= len(self._skills):
             return None
         return self._skills[self.unlocked_count]
@@ -898,7 +938,7 @@ class SkillTree:
     """A player's full set of skill paths, plus the skill_points available to spend on them."""
 
     def __init__(self):
-        """Build the tree with its three fixed paths (Attack, Defence, Abilities) and their skills."""
+        """Build the tree with its three fixed paths (Attack, Defence, Abilities), their skills, and each path's mastery."""
         self.skill_points = 0
         self.paths: dict[str, SkillPath] = {
             "attack": SkillPath("Attack", [
@@ -907,24 +947,30 @@ class SkillTree:
                 AttackBoostSkill("Warrior's Fury", "A hero's strength awakens. (+4 ATK)", bonus=4),
                 AttackBoostSkill("Spartan Discipline", "Years of drilling, spent in a single moment. (+5 ATK)", bonus=5),
                 AttackBoostSkill("Blessing of Ares", "The war god lends his might. (+6 ATK)", bonus=6),
-            ]),
+            ],
+            mastery=AttackBoostSkill("Attack Mastery", "+1 ATK", 1),
+            ),
             "defence": SkillPath("Defence", [
                 DefenceBoostSkill("Hardened Skin", "Blows land softer. (+2 DEF)", bonus=2),
                 DefenceBoostSkill("Steady Stance", "Harder to knock off your feet. (+3 DEF)", bonus=3),
                 DefenceBoostSkill("Aegis Ward", "A sliver of divine protection. (+4 DEF)", bonus=4),
                 DefenceBoostSkill("Tempered Bronze", "Hammered, heated, and hammered again. (+5 DEF)", bonus=5),
                 DefenceBoostSkill("Bronze Resolve", "Nearly unbreakable. (+6 DEF)", bonus=6),
-            ]),
+            ],
+            mastery=DefenceBoostSkill("Defence Mastery", "+1 DEF",1 ),
+            ),
             "abilities": SkillPath("Abilities", [
                 DoubleStrikeSkill("Twin Strike", "A second blow follows the first, fast and true."),
                 ThornsSkill("Retribution", "Every blow against you leaves a mark of its own."),
                 LastStandSkill("Last Stand", "Even death hesitates before one so stubborn."),
                 DodgeSkill("Nimble Grace", "A hero's step, quick enough to slip past death's reach.", chance=0.35)
-            ])
+            ],
+            mastery=MaxHpBoostSkill("Endurance Mastery", "+3 max HP", 3),
+            ),
         }
 
     def invest(self, path_name: str, character) -> str:
-        """Spend one skill point unlocking the next skill on path_name. Raises ActionRefused if no points are available or the path name doesn't exist."""
+        """Spend one skill point unlocking the next skill on path_name - or buying its mastery, once the path is finished. Raises ActionRefused if no points are available or the path name doesn't exist."""
         if self.skill_points <= 0:
             raise ActionRefused("No skill points available.")
         path = self.paths.get(path_name)
@@ -936,11 +982,12 @@ class SkillTree:
 
     @property
     def total_unlocked(self) -> int:
-        """How many skills have been learned across every path."""
-        return sum(path.unlocked_count for path in self.paths.values())
+        """How many points have been spent across every path - skills learned, plus mastery bought."""
+        return sum(path.unlocked_count + path.mastery_count for path in self.paths.values())
 
     def forget_all(self, character) -> int:
-        """Forget every learned skill on every path, undoing their effects, and refund one skill point for each. Returns how many were refunded.
+        """Forget every learned skill and every mastery on every path, undoing their effects, and refund one skill point for each. Returns how
+        many were refunded.
         The skill tree's saved unlock counts and the character's saved stats both change here, so a save made afterwards is already consistent."""
         refunded = sum(path.forget_all(character) for path in self.paths.values())
         self.skill_points += refunded
@@ -998,3 +1045,57 @@ class DodgeSkill(Skill):
     def remove(self, character) -> None:
         """Take this skill's chance back off character's dodge_chance."""
         character.dodge_chance -= self.chance
+
+class MaxHpBoostSkill(Skill):
+    """A permanent rise in max HP (and current HP with it) - the abilities path's mastery."""
+
+    def __init__(self, name: str, description: str, bonus: int):
+        """Store the max HP this skill grants."""
+        super().__init__(name, description)
+        self.bonus = bonus
+
+    def apply(self, character) -> str:
+        """Raise character's max HP and current HP by this skill's bonus."""
+        character.max_hp += self.bonus
+        character.hp += self.bonus
+        return f"{character.name} gains +{self.bonus} max HP."
+
+    def remove(self, character) -> None:
+        """Take this skill's bonus back off character's max HP. Current HP only drops if it's now above the maximum."""
+        character.max_hp -= self.bonus
+        character.hp = min(character.hp, character.max_hp)
+
+@dataclass
+class PlayerSnapshot:
+    """What a consequence-free fight - a duel or a trial - puts back when it ends, however it ends: HP, mana, the items carried in (so
+    consumables used during it are returned), and each armour piece's durability. Status effects and spell cooldowns are cleared. Two kinds of
+    item are never handed back: one whose effect is permanent (a skill point, intellect or spell already gained), and one lying on the room's
+    floor (dropped, not used). Never saved: neither a duel nor a trial can be saved mid-fight."""
+
+    hp: int
+    mana: int
+    items: list
+    durabilities: list
+
+    @classmethod
+    def take(cls, player) -> "PlayerSnapshot":
+        """Record player's HP, mana, every item they're carrying, and the durability of each piece of armour among them."""
+        items = list(player.inventory.items)
+        durabilities = [(item, item.durability) for item in items if isinstance(item, Armour)]
+        return cls(player.hp, player.mana, items, durabilities)
+
+    def restore(self, player, room) -> None:
+        """Put player back as they were when the snapshot was taken. An item they no longer hold is returned unless it's lying in room (they
+        dropped it - returning it too would make two of it) or its effect was permanent (they'd keep the effect and the item). Anything gained
+        since - a prize, max HP, gold - is left alone. Never restores to 0 HP."""
+        player.hp = max(1, self.hp)
+        player.mana = self.mana
+        player.active_effects = []
+        player.spell_cooldowns = {}
+        for item in self.items:
+            if item not in player.inventory.items and item not in room.items:
+                if isinstance(item, SkillPointReward) or isinstance(item, SpellBook) or isinstance(item, IntellectReward):
+                    continue
+                player.inventory.add(item)
+        for item, durability in self.durabilities:
+            item.durability = durability

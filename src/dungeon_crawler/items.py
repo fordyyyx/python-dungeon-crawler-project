@@ -81,7 +81,7 @@ class Weapon(Item):
     poison_chance, blind_chance and cleave are signature properties for unique boss drops. All of these are read from the equipped weapon during attack() -
     never copied onto the character as ability flags, so unequipping can never wipe an ability granted by something else (e.g. an ancestry)."""
 
-    def __init__(self, name: str, description: str, damage: int, slot: str = "melee", weapon_class: str = "blade", armour_pierce: int = 0, lifesteal: bool = False, poison_chance: float = 0.0, cleave: bool = False, blind_chance: float = 0.0, article: str = "a"):
+    def __init__(self, name: str, description: str, damage: int, slot: str = "melee", weapon_class: str = "blade", armour_pierce: int = 0, lifesteal: bool = False, poison_chance: float = 0.0, cleave: bool = False, blind_chance: float = 0.0, article: str = "a", blind_effect_name: str = "Blinded"):
         """Store the weapon's damage, slot, class, and any signature properties. Raises ValueError for an unknown weapon_class."""
         super().__init__(name, description, article)
         if weapon_class not in WEAPON_CLASSES:
@@ -94,6 +94,9 @@ class Weapon(Item):
         self.poison_chance = poison_chance
         self.cleave = cleave
         self.blind_chance = blind_chance
+        self.blind_effect_name = blind_effect_name
+        """The name of the miss-chance effect blind_chance applies - 'Blinded' by default, 'Drowsy' for Hypnos. Only the name differs; the effect
+        works the same way. See Character.attack()."""
 
     @property
     def two_handed(self) -> bool:
@@ -123,7 +126,8 @@ class Weapon(Item):
         if self.poison_chance:
             parts.append(f"{round(self.poison_chance * 100)}% poison")
         if self.blind_chance:
-            parts.append(f"{round(self.blind_chance * 100)}% blind")
+            label = "blind" if self.blind_effect_name == "Blinded" else self.blind_effect_name.lower()
+            parts.append(f"{round(self.blind_chance * 100)}% {label}")
         if self.cleave:
             parts.append("cleave")
         parts.append(f"{self.damage} DMG")

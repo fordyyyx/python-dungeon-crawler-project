@@ -1568,3 +1568,24 @@ def test_inventory_drop_item_refusal_names_an_upgraded_item_with_its_level():
 
 def test_item_repr_keeps_the_plain_name():
     assert repr(_upgraded_sword()) == "Weapon(name='Sword')"
+
+# ---- Weapon.blind_effect_name ----
+
+def test_weapon_blind_effect_is_called_blinded_by_default():
+    assert Weapon("Stake", "", 5, blind_chance=0.2).blind_effect_name == "Blinded"
+
+def test_weapon_blind_effect_can_be_given_another_name():
+    assert Weapon("Touch", "", 0, blind_chance=0.4, blind_effect_name="Drowsy").blind_effect_name == "Drowsy"
+
+def test_weapon_details_calls_the_default_effect_blind():
+    assert "20% blind" in Weapon("Stake", "", 5, blind_chance=0.2).details()
+
+def test_weapon_details_names_a_renamed_effect():
+    details = Weapon("Touch", "", 0, blind_chance=0.4, blind_effect_name="Drowsy").details()
+    assert "40% drowsy" in details
+    assert "blind" not in details
+
+def test_weapon_details_has_no_stray_space_after_the_blind_chance():
+    """Regression: the label was built with a trailing space - 'pierces 3, 20% blind , 7 DMG'."""
+    assert Weapon("Stake", "", 7, weapon_class="piercing", armour_pierce=3, blind_chance=0.2).details() == "piercing, pierces 3, 20% blind, 7 DMG"
+    assert Weapon("Touch", "", 0, blind_chance=0.4, blind_effect_name="Drowsy").details() == "blade, 40% drowsy, 0 DMG"

@@ -417,7 +417,7 @@ def test_main_multi_stage_boss_wave_and_phase_transition_smoke_test(monkeypatch,
     main()
 
     captured = capsys.readouterr()
-    assert "Test Boss falls, but conjures 2 lesser foes to bar your path!" in captured.out
+    assert "Test Add x2 step forwards to take the Test Boss's place!" in captured.out
     assert captured.out.count("something greater emerges") == 1
     assert "something greater emerges: Test Boss (Phase 2)." in captured.out
     assert "Test Boss (Phase 2) has been defeated." in captured.out
@@ -1136,8 +1136,8 @@ def test_main_fleeing_mid_boss_wave_then_saving_and_reloading_keeps_the_wave_and
     main()
 
     captured = capsys.readouterr()
-    assert "conjures 2 lesser foes" in captured.out
-    after_reload = captured.out.split("conjures 2 lesser foes")[-1]
+    assert "Gorgon x2 step forwards to take Medusa's place!" in captured.out
+    after_reload = captured.out.split("Gorgon x2 step forwards to take Medusa's place!")[-1]
     assert "Gorgon bars the way - you'll have to deal with it first." in after_reload
 
 def test_main_mid_game_load_rebuilds_the_world_instead_of_patching_the_live_one(monkeypatch, capsys, tmp_path):
@@ -2425,7 +2425,7 @@ def test_main_loading_a_hardcore_save_leaves_it_on_disk(monkeypatch, capsys, tmp
 
     _run_until_the_window_closes(monkeypatch, capsys, tmp_path, ["2", "1", "1", "look"])
 
-    assert save_system.slot_summary(1, 1).endswith(" (Hardcore)")
+    assert save_system.slot_summary(1, 1).endswith(", Hardcore)")
 
 def test_main_load_is_refused_in_hardcore(monkeypatch, capsys, tmp_path):
     """Regression: fleeing a losing fight and loading the run's own slot put the player back at the room's entrance on full health."""
@@ -2487,3 +2487,232 @@ def test_main_quit_on_an_ordinary_run_is_not_treated_as_a_death(monkeypatch, cap
     out = _run(monkeypatch, capsys, tmp_path, ["save"])
     assert "You have died" not in out
     assert "Reload your last save?" not in out
+
+# ---- New Game+ ----
+
+def test_main_dev_newgameplus_starts_the_next_cycle(monkeypatch, capsys, tmp_path):
+    """The whole flow: gear and gold gone, back in the first room, the cycle counted, and the new run autosaved."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev add wooden sword", "use wooden sword", "dev set gold 500", "north", "dev newgameplus", "inventory"])
+    after = out.split("[DEV] Starting New Game+ after this command.")[-1]
+    assert "New Game+ (cycle 1). You wake on a cold stone floor, and you remember everything." in after
+    assert "(autosaved)" in after
+    assert "Chamber of Chiron:" in after
+    assert "Wooden Sword" not in after
+    data = _saved_game(tmp_path)
+    assert data["player"]["ng_plus_cycle"] == 1
+    assert data["player"]["gold"] == 0
+    assert data["player"]["inventory"] == []
+    assert data["player"]["current_room"] == "Chamber of Chiron"
+
+def test_main_new_game_plus_scales_the_new_world_before_the_next_command(monkeypatch, capsys, tmp_path):
+    _run(monkeypatch, capsys, tmp_path, ["dev newgameplus", "save"])
+    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 10  # the Shade's 7 HP x 1.5, rounded to even
+
+def test_main_each_new_game_plus_counts_another_cycle(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev newgameplus", "dev newgameplus", "save"])
+    assert "New Game+ (cycle 2)." in out
+    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 14  # 7 x 2
+
+def test_main_begin_anew_does_nothing_until_the_trophy_room_is_complete(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport trophy room of zeus", "begin anew", "begin anew now"])
+    assert "New Game+" not in out
+    assert out.count("Nothing happens.") == 2
+
+def test_main_begin_anew_now_starts_new_game_plus_from_the_trophy_room(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev flag trophy_room_complete", "dev teleport trophy room of zeus", "begin anew", "begin anew now",
+    ])
+    assert "(You could: open chest, begin anew, begin anew now)" in out
+    assert "Say 'begin anew now' to start - this can't be undone." in out
+    after = out.split("the room starts to fade.")[-1]
+    assert "New Game+ (cycle 1)." in after
+    assert "Chamber of Chiron:" in after
+
+def test_main_new_game_plus_keeps_the_level_and_carries_hardcore(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev set level 7", "dev flag hardcore", "dev flag suitors_cleared", "dev newgameplus"])
+    data = _saved_game(tmp_path)
+    assert data["player"]["level"] == 7
+    assert data["player"]["story_flags"] == ["hardcore", "prometheus_offer_made"]
+
+def test_main_the_new_game_plus_autosave_holds_a_scaled_world(monkeypatch, capsys, tmp_path):
+    """Regression: the cycle's autosave was written before the world was scaled, so loading it - start a cycle, close the game, come back -
+    left every enemy on its old HP against a higher maximum (the Shade on 7 of 10)."""
+    start = ["1", "1", "1", "developer mode", "basic", "ares", "floor_0"]
+    _run_until_the_window_closes(monkeypatch, capsys, tmp_path, start + ["dev newgameplus"])
+    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 10
+
+    world, _, _ = build_world()
+    save_system.load_game(1, 1, world)
+    shade = world.get_room("Fields of Asphodel").enemies[0]
+    assert (shade.hp, shade.max_hp) == (10, 10)
+
+def test_main_new_game_plus_starting_room_counts_as_visited(monkeypatch, capsys, tmp_path):
+    """Regression: 'uncleared' left the first room out, and the first move printed '(autosaved)' as though floor 0 were new."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev newgameplus", "north", "south"])
+    after = out.split("New Game+ (cycle 1).")[-1]
+    assert after.count("(autosaved)") == 1  # the cycle's own autosave, and none for 'reaching' floor 0
+    assert "Chamber of Chiron" in _saved_game(tmp_path)["player"]["visited_rooms"]
+
+def test_main_slot_list_shows_the_new_game_plus_cycle(monkeypatch, capsys, tmp_path):
+    """A save that has begun again says so in the slot list - seen by starting a second New Game in the same profile."""
+    _run(monkeypatch, capsys, tmp_path, ["dev newgameplus", "dev newgameplus"])
+
+    responses = iter(["1", "1", "1", "no", "4"])
+    monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
+    main()
+
+    assert "(Normal, NG+2)" in capsys.readouterr().out
+
+def test_main_thanatos_fight_reads_naturally_through_the_wave_of_one(monkeypatch, capsys, tmp_path):
+    """Thanatos is the first boss with a single add - the wave line must not count 'foes'."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev spawn thanatos", "dev kill", "dev kill", "dev kill"])
+    assert "Hypnos steps forwards to take Thanatos's place!" in out
+    assert "lesser foes" not in out
+    assert "The last of them falls - something greater emerges: Thanatos (Helm of Darkness)." in out
+
+# ---- trials: the Funeral Games through main() ----
+
+GAMES = ["dev teleport shadow of army camp", "enter the games", "dev kill", "next contest", "dev kill", "next contest", "dev kill",
+         "next contest", "dev kill", "dev kill", "next contest", "dev kill"]
+
+def test_main_winning_the_funeral_games_gives_the_shield_of_achilles(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, GAMES + ["take all", "inventory"])
+    assert "(You could: enter the games)" in out
+    assert "(Contest 1 of 5: The foot race)" in out
+    assert "(Contest 5 of 5: Armed combat)" in out
+    assert out.count("The contest is yours. You catch your breath.") == 4
+    assert "(The Shield of Achilles lies on the ground.)" in out
+    assert "Shield of Achilles - shield, heavy, 5 DEF, 26/26 durability" in out
+
+def test_main_next_contest_is_listed_between_contests(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport shadow of army camp", "enter the games", "dev kill", "look"])
+    assert "(You could: next contest)" in out.split("The contest is yours.")[-1]
+
+def test_main_losing_a_contest_is_not_a_death(monkeypatch, capsys, tmp_path):
+    """The whole point of a trial: beaten, the player is pulled out at the HP they walked in with, and the game carries on."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport shadow of army camp", "dev set hp 2", "enter the games", "attack", "stats", "look"])
+    after = out.split("Strong hands haul you off the field")[-1]
+    assert "Strong hands haul you off the field" in out
+    assert "2 HP" in after
+    assert "(You could: enter the games)" in after
+    assert "Ajax the Lesser" not in after
+    assert "Reload your last save?" not in out
+
+def test_main_losing_a_contest_in_hardcore_keeps_the_save(monkeypatch, capsys, tmp_path):
+    """A failed attempt, never a real death - in hardcore too."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore", "north", "dev teleport shadow of army camp", "dev set hp 2",
+                                               "enter the games", "attack"])
+    assert "Strong hands haul you off the field" in out
+    assert "this save has been deleted" not in out
+    assert "(saved)" in out
+    assert save_system.slot_exists(1, 1) is True
+
+def test_main_a_companion_sits_out_the_funeral_games(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport shadow of army camp", "dev spawn companion test companion",
+                                               "recruit test companion", "enter the games", "attack"])
+    fight = out.split("(Contest 1 of 5: The foot race)")[-1]
+    assert "Dev attacks Ajax the Lesser" in fight
+    assert "Test Companion" not in fight
+
+def test_main_walking_away_forfeits_the_games(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport shadow of army camp", "enter the games", "dev kill", "south", "north", "next contest"])
+    after = out.split("Shadow of Army Camp:")[-1]
+    assert "(You could: enter the games)" in after
+    assert "Nothing happens." in after
+
+def test_main_fleeing_a_contest_forfeits_it(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport shadow of army camp", "enter the games", "flee", "look"])
+    assert "You've left the field. The contest is forfeit." in out
+    assert "(You could: enter the games)" in out.split("The contest is forfeit.")[-1]
+
+def test_main_fleeing_a_contest_on_two_hp_is_not_a_death(monkeypatch, capsys, tmp_path):
+    """Regression: 'flee' gave the contestant a parting blow, which killed for real - 'Game Over', then the reload prompt."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev teleport shadow of army camp", "dev set hp 2", "enter the games", "flee", "stats"])
+    after = out.split("(Contest 1 of 5: The foot race)")[-1]
+    assert "You've left the field. The contest is forfeit." in after
+    assert "has fallen" not in after
+    assert "Reload your last save?" not in out
+    assert "2 HP" in after
+
+def test_main_quitting_a_hardcore_run_mid_contest_cannot_kill(monkeypatch, capsys, tmp_path):
+    """Hardcore's 'quit' flees first. In a trial that flee has no parting blows, so the save is written, not deleted."""
+    monkeypatch.setattr("random.random", lambda: 0.0)
+    out = _run(monkeypatch, capsys, tmp_path, ["dev flag hardcore", "dev teleport shadow of army camp", "dev set hp 1", "enter the games"])
+    assert "(saved)" in out
+    assert "this run is over" not in out
+    assert _saved_game(tmp_path)["player"]["hp"] == 1
+    assert _saved_game(tmp_path)["world"]["Shadow of Army Camp"]["enemies"] == []
+
+def test_main_every_contest_of_the_funeral_games_pays_its_own_prize(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, GAMES + ["save"])
+    for prize in ("(+50 gold)", "(+5 max HP)", "(+1 intellect)", "(+1 ATK)"):
+        assert out.count(prize) == 1, prize
+    player = _saved_game(tmp_path)["player"]
+    assert player["gold"] == 50
+    assert player["max_hp"] == 25
+
+def test_main_winning_the_funeral_games_twice_pays_no_prize_twice(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, GAMES + GAMES[1:] + ["save"])
+    assert out.count("(+50 gold)") == 1
+    assert "\"Again, and better. Patroclus would be laughing.\"" in out
+    assert _saved_game(tmp_path)["player"]["gold"] == 50
+
+def test_main_an_item_dropped_between_contests_is_not_duplicated_by_walking_out(monkeypatch, capsys, tmp_path):
+    """Regression: leaving a trial puts back every item the player entered with that they no longer hold - including one they dropped on the
+    floor between contests, which was then both in the room and in the inventory. Drop, walk out, walk back, pick it up: two potions from
+    one, and they sell."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev add small healing potion", "dev teleport shadow of army camp", "enter the games", "dev kill",
+        "drop small healing potion", "south", "north", "take all", "save",
+    ])
+    assert "You've left the field. The contest is forfeit." in out
+    held = [item["name"] for item in _saved_game(tmp_path)["player"]["inventory"]]
+    assert held.count("Small Healing Potion") == 1
+
+def test_main_an_intellect_item_read_between_contests_is_not_handed_back(monkeypatch, capsys, tmp_path):
+    """Regression: between contests the player is out of combat, so 'use' works as it does anywhere - and leaving the trial returned the item
+    with its permanent effect kept. Either the intellect or the Notes; never both."""
+    _run(monkeypatch, capsys, tmp_path, [
+        "dev add daedalus' notes", "dev set intellect 2", "dev teleport shadow of army camp", "enter the games", "dev kill",
+        "use daedalus' notes", "south", "save",
+    ])
+    player = _saved_game(tmp_path)["player"]
+    kept_the_intellect = player["intellect"] > 2
+    kept_the_notes = "Daedalus' Notes" in [item["name"] for item in player["inventory"]]
+    assert not (kept_the_intellect and kept_the_notes)
+
+def test_main_walking_out_of_the_funeral_games_returns_the_hp_you_entered_with(monkeypatch, capsys, tmp_path):
+    """Regression for the balance check's finding: win the foot race, rest, walk out, come back - a free heal past the regen cap."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev set hp 8", "dev teleport shadow of army camp", "enter the games", "dev kill", "south", "save",
+    ])
+    assert "You catch your breath. (+5 HP." in out
+    assert _saved_game(tmp_path)["player"]["hp"] == 9  # back to 8, plus the one HP every move restores
+
+# ---- mastery through main() ----
+
+def test_main_learn_on_a_finished_path_buys_mastery(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev set skillpoints 7"] + ["learn attack"] * 7 + ["learn attack", "save"])
+    assert "Attack Mastery (1): " in out
+    assert "Attack Mastery (2): " in out
+    assert "Attack path is fully unlocked." not in out
+    assert out.count("No skill points available.") == 1
+    player = _saved_game(tmp_path)["player"]
+    assert player["mastery_count"] == {"attack": 2, "defence": 0, "abilities": 0}
+    assert player["skill_points"] == 0
+
+def test_main_hardcore_quit_between_contests_forfeits_before_it_saves(monkeypatch, capsys, tmp_path):
+    """Between contests the player isn't in combat, so 'quit' has nothing to flee - but the trial still has to end before the save is written,
+    or the save would keep the rest's HP and whatever the contests had used up."""
+    out = _run(monkeypatch, capsys, tmp_path, [
+        "dev flag hardcore", "dev set hp 8", "dev teleport shadow of army camp", "enter the games", "dev kill",
+    ])
+    after = out.split("The contest is yours.")[-1]
+    assert "You've left the field. The contest is forfeit." in after
+    assert "(saved)" in after
+    assert _saved_game(tmp_path)["player"]["hp"] == 8

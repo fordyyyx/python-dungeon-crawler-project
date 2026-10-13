@@ -211,7 +211,7 @@ def test_handle_dev_command_help_returns_help_text():
         "dev afflict <target> <effect> <amount> <duration>\n"
         "dev kill <enemy>, dev teleport <room>, dev learn <skill>\n"
         "dev grant spell <name>, dev flag <story flag>\n"
-        "dev difficulty <story/easy/normal/hard>"
+        "dev difficulty <story/easy/normal/hard>, dev newgameplus"
     )
 
 def test_handle_dev_command_unrecognised_command_returns_error_message():
@@ -1474,3 +1474,29 @@ def test_handle_dev_command_spawn_a_non_enemy_works_on_every_difficulty():
         assert ally_message == "[DEV] Spawned Chiron."
         assert companion_message.startswith("[DEV] Spawned Test Companion.")
         assert unknown_message == "[DEV] No known character names nonexistent."
+
+# ---- New Game+ ----
+
+def test_handle_dev_command_newgameplus_requests_a_new_cycle():
+    """Like the Trophy Room's verb, it only asks - main() starts the cycle after the command."""
+    player = Player(name="Dev", hp=20)
+    message, new_room = handle_dev_command("newgameplus", player, Room("Hall"), Map())
+    assert player.new_game_plus_requested is True
+    assert player.ng_plus_cycle == 0
+    assert message == "[DEV] Starting New Game+ after this command."
+    assert new_room is None
+
+def test_find_enemy_by_name_finds_thanatos_and_hypnos():
+    for name in ("Thanatos", "Hypnos", "Thanatos (Helm of Darkness)"):
+        enemy = find_enemy_by_name(name.lower())
+        assert enemy is not None
+        assert enemy.name == name
+
+def test_find_item_by_name_finds_the_sword_of_thanatos():
+    sword = find_item_by_name("sword of thanatos")
+    assert sword is not None
+    assert sword.name == "Sword of Thanatos"
+
+def test_handle_dev_command_help_lists_newgameplus():
+    message, _ = handle_dev_command("help", Player(name="Dev", hp=20), Room("Hall"), Map())
+    assert "dev newgameplus" in message

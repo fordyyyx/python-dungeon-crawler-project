@@ -13,6 +13,7 @@ from dungeon_crawler.exploration import pick_up, check_equippable, take_all, get
 from dungeon_crawler.exceptions import ActionRefused
 from dungeon_crawler.items import EscapeItem
 from dungeon_crawler.difficulty import scale_for
+from dungeon_crawler.trials import check_trial_progress, forfeit_trial, companion_sits_out, trial_active
 from typing import Sequence
 
 def get_enemy_display_name(enemy: Enemy, enemy_team: list[Enemy]) -> str:
@@ -173,7 +174,7 @@ def tick_start_of_turn_if_needed(player: Player) -> list[str]:
     player.tick_spell_cooldowns()
     return messages
 
-def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], attack_type: str = "light") -> str:
+def resolve_combat_round(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room, attack_type: str = "light") -> str:
     """One full round: player attacks target, then their companion (if any, and still alive) takes its own turn via
     choose_companion_action(), then every enemy in enemy_team still alive takes its own turn via choose_enemy_action() -
     attack (with real target selection once either side has more than one living member), defend, or heal throughout.
@@ -184,7 +185,7 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
     if player.is_alive():
         messages.append(player.attack(target, attack_type, others=enemy_team))
 
-    tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
+    tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team, room)
     if tail:
         messages.append(tail)
     messages.append(format_hp_line(player_team, enemy_team))
@@ -192,13 +193,19 @@ def resolve_combat_round(player: Player, target: Enemy, player_team: list[Charac
 
 def resolve_attack_and_check_defeat(player: Player, target: Enemy, player_team: list[Character], enemy_team: list[Enemy], room: Room, attack_type: str = "light") -> str:
     """The single correct way to resolve an attack - see CLAUDE.md's rule against calling resolve_combat_round() directly."""
-    result = resolve_combat_round(player, target, player_team, enemy_team, attack_type)
+    result = resolve_combat_round(player, target, player_team, enemy_team, room, attack_type)
     defeat_messages = resolve_pending_defeats(player, room)
     if defeat_messages:
         result += f"\n{defeat_messages}"
     return result
 
-def resolve_companion_and_enemy_turns(player: Player, player_team: list[Character], enemy_team: list[Enemy]) -> str:
+def fighting_team(player, room) -> list:
+    """Who's on the player's side in a fight here: the player, and their companion if alive and not sitting out a trial."""
+    if companion_sits_out(room):
+        return [player]
+    return player.team
+
+def resolve_companion_and_enemy_turns(player, player_team, enemy_team, room) -> str:
     """Companion's turn (if present and alive), then every living enemy's turn, in enemy_team order - the shared tail common
     to attack/use/cast, always called after the player's own action and tick have already happened. Returns a message, does not print.
     Safe to call even if the player is already dead (returns "" immediately) - though the real guard for that should already exist
@@ -210,20 +217,23 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
     enemies_remain = any(enemy.is_alive() for enemy in enemy_team)
 
     messages = []
-    if player.companion is not None and player.companion.is_alive():
-        messages.extend(player.companion.tick_status_effects())
-    if enemies_remain and player.is_alive() and player.companion is not None and player.companion.is_alive():
-        companion_action = choose_companion_action(player.companion, enemy_team)
+    companion = player.companion
+    if companion is not None and (not companion.is_alive() or companion_sits_out(room)):
+        companion = None
+    if companion is not None and companion.is_alive() and not companion_sits_out(room):
+        messages.extend(companion.tick_status_effects())
+    if enemies_remain and player.is_alive() and companion is not None and companion.is_alive() and not companion_sits_out(room):
+        companion_action = choose_companion_action(companion, enemy_team)
         if companion_action == "attack":
-            companion_target = choose_companion_target(player.companion, enemy_team)
-            messages.append(player.companion.attack(companion_target, attack_type=player.companion.attack_type))
+            companion_target = choose_companion_target(companion, enemy_team)
+            messages.append(companion.attack(companion_target, attack_type=companion.attack_type))
         elif companion_action == "defend":
-            player.companion.pending_damage_reduction = player.companion.brace_amount
-            messages.append(f"{player.companion.name} braces for incoming damage.")
+            companion.pending_damage_reduction = companion.brace_amount
+            messages.append(f"{companion.name} braces for incoming damage.")
         elif companion_action == "heal":
-            healed = min(player.companion.heal_amount, player.companion.max_hp - player.companion.hp)
-            player.companion.hp += healed
-            messages.append(f"{player.companion.name} recovers {healed} HP.")
+            healed = min(companion.heal_amount, companion.max_hp - companion.hp)
+            companion.hp += healed
+            messages.append(f"{companion.name} recovers {healed} HP.")
 
     if player.is_alive():
         for enemy in enemy_team:
@@ -247,6 +257,21 @@ def resolve_companion_and_enemy_turns(player: Player, player_team: list[Characte
     player.turn_started = False
     return "\n".join(messages)
 
+def describe_arrivals(adds) -> str:
+    """Describe a wave's arrivals for its spawn message - 'Hypnos', 'a Gorgon', 'Gorgon x2', or several kinds joined with commas and 'and'.
+    Repeats are grouped the way print_room() groups them."""
+    counts: dict[str, int] = {}
+    firsts = {}
+    for add in adds:
+        counts[add.name] = counts.get(add.name, 0) + 1
+        firsts.setdefault(add.name, add)
+    parts = []
+    for index, (name, count) in enumerate(counts.items()):
+        parts.append(f"{name} x{count}" if count > 1 else firsts[name].with_article(capitalise=index == 0))
+    if len(parts) == 1:
+        return parts[0]
+    return ", ".join(parts[:-1]) + " and " + parts[-1]
+
 def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
     """Remove the defeated enemy, drop loot (or trigger a phase transition), and grant XP/gold. Assembles one combined message, does not print.
     A phase with next_wave_factories spawns those adds instead of firing its own next_phase_factory immediately - the deferred factory
@@ -256,8 +281,8 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
     kill order, and exactly once even when a whole wave dies in the same round (e.g. one add to an attack, another to Thorns). Whenever a wave or a new phase spawns,
     the message also includes the newcomers' descriptions - each distinct add name once, so a pair of identical adds gets one line.
     On a normal defeat, the player's companion gains the same experience, and the enemy's defeat_effect runs. A duel opponent
-    (duel_companion set) is handled first instead: the companion returns to the room as won, its defeat_effect runs, and the player's
-    pre-duel HP is restored - with no XP, gold or loot, so a duel can't be farmed."""
+    (duel_companion set) is handled first instead: the companion returns to the room as won, its defeat_effect runs, and the player is
+    put back as they were when the duel began (see PlayerSnapshot) - with no XP, gold or loot, so a duel can't be farmed."""
     if enemy.next_wave_factories is not None:
         room.remove_enemy(enemy)
         adds = [factory() for factory in enemy.next_wave_factories]
@@ -267,7 +292,8 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
             room.add_enemy(add)
         player.in_combat = True
         player.current_target = adds[0]
-        message = f"{enemy.name} falls, but conjures {len(adds)} lesser foes to bar your path!"
+        verb = "steps" if len(adds) == 1 else "step"
+        message = f"{describe_arrivals(adds)} {verb} forwards to take {enemy.with_article(definite=True, capitalise=False)}'s place!"
         described: set[str] = set()
         for add in adds:
             if add.description and add.name not in described:
@@ -303,7 +329,7 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
         messages = [companion.duel_won_message] if companion.duel_won_message else []
         if enemy.defeat_effect is not None:
             messages.append(enemy.defeat_effect(player))
-        restored = restore_duel_hp(enemy, player)
+        restored = restore_duel_hp(enemy, player, room)
         if restored:
             messages.append(restored)
         return "\n".join(messages)
@@ -354,6 +380,9 @@ def handle_enemy_defeat(room: Room, enemy: Enemy, player: Player) -> str:
                 messages.append(next_phase.description)
 
     cleared = apply_room_cleared_flag(room, player)
+    progress = check_trial_progress(room, player)
+    if progress:
+        messages.append(progress)
     if cleared:
         messages.append(cleared)
 
@@ -424,7 +453,7 @@ def flee_combat(player: Player, enemy_team: list[Enemy], guaranteed: bool = Fals
         if random.random() < chance_of_free_hit:
             hit_landed = True
             damage_dealt, death_message = player.take_damage(enemy.attack_damage, attacker=enemy)
-            messages.append(f"The {enemy.name} gets a hit in as you go - {damage_dealt} damage.")
+            messages.append(f"{enemy.with_article(definite=True)} gets a hit in as you go - {damage_dealt} damage.")
             if death_message:
                 messages.append(death_message)
             if not player.is_alive():
@@ -437,12 +466,17 @@ def flee_combat(player: Player, enemy_team: list[Enemy], guaranteed: bool = Fals
 
 def resolve_flee(player: Player, enemy_team: list[Enemy], room: Room, guaranteed: bool = False) -> str:
     """Leave the current fight - the shared ending for the 'flee' command and escape items. guaranteed skips every enemy's parting blow. A duel
-    in progress ends without a win, returning the companion and restoring the player's pre-duel HP."""
+    in progress ends without a win, returning the companion and putting the player back as they began it. Leaving a trial is always a guaranteed
+    escape - a contest must never be able to kill - and forfeits it."""
+    guaranteed = guaranteed or trial_active(room)
     result = flee_combat(player, enemy_team, guaranteed=guaranteed)
     duel = get_duel(room)
     if duel is not None:
         opponent, companion = duel
         result += "\n" + end_duel(opponent, companion, room, player, f"{companion.name} lets you go, unimpressed.")
+    forfeited = forfeit_trial(room, player)
+    if forfeited:
+        result += "\n" + forfeited
     player.in_combat = False
     player.current_target = None
     player.turn_started = False
@@ -456,26 +490,26 @@ def get_duel(room: Room) -> tuple[Enemy, Companion] | None:
             return enemy, enemy.duel_companion
     return None
 
-def restore_duel_hp(opponent: Enemy, player: Player) -> str:
-    """Put the player's HP back to what it was when the duel began. Returns a message line, or '' if nothing changed."""
-    if opponent.duel_return_hp is None or player.hp == opponent.duel_return_hp:
-        return ""
-    player.hp = opponent.duel_return_hp
+def restore_duel_hp(opponent: Enemy, player: Player, room: Room) -> str:
+    """Put the player back as they were when the duel began - HP, mana, items used and armour worn down (see PlayerSnapshot.restore(), which
+    needs the room to tell a dropped item from a used one). Does nothing for an enemy with no snapshot. Always returns the message line."""
+    if opponent.duel_snapshot is not None:
+        opponent.duel_snapshot.restore(player, room)
     return f"You catch your breath - the duel's wounds fade. ({player.hp}/{player.max_hp} HP)"
 
 def end_duel(opponent: Enemy, companion: Companion, room: Room, player: Player, message: str) -> str:
     """End a duel without a win: remove the combat form, put the companion back in the room (not marked as won, so they can be challenged again),
-    restore the player's pre-duel HP, and release them from combat."""
+    put the player back as they were when it began, and release them from combat."""
     room.remove_enemy(opponent)
     room.add_companion(companion)
     player.in_combat = False
     player.current_target = None
-    lines = [message, restore_duel_hp(opponent, player)]
+    lines = [message, restore_duel_hp(opponent, player, room)]
     return "\n".join(line for line in lines if line)
 
 def protect_duel_loser(player: Player, room: Room) -> str:
     """A duel is non-lethal: if the player drops to 0 HP during one, they never actually die. If the opponent is still standing, the duel ends as
-    a loss; if both fell on the same turn, the defeat sweep processes it as a win. Either way their pre-duel HP is restored. HP is set to 1
+    a loss; if both fell on the same turn, the defeat sweep processes it as a win. Either way they're put back as they began it. HP is set to 1
     first so that nothing between here and that restore can ever see the player at 0."""
     duel = get_duel(room)
     if duel is None or player.is_alive():
@@ -569,7 +603,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
 
         result = "\n".join(tick_messages + [result]) if tick_messages else result
 
-        tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
+        tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team, room)
         if tail:
             result += f"\n{tail}"
 
@@ -610,7 +644,7 @@ def handle_combat_command(command: str, player: Player, target: Enemy, player_te
         result = "\n".join(tick_messages + [result]) if tick_messages else result
 
         if item.ends_turn(player):
-            tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team)
+            tail = resolve_companion_and_enemy_turns(player, player_team, enemy_team, room)
             if tail:
                 result += f"\n{tail}"
 

@@ -7,7 +7,8 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Difficulty:
     """One difficulty setting: its name and one-line description for the new-game prompt, what it multiplies enemy HP and attack by, and how
-    passive regeneration behaves - the fraction of max HP that walking restores up to (regen_cap), and the HP restored per move."""
+    passive regeneration behaves - the fraction of max HP that walking restores up to (regen_cap), and the HP restored per move.
+    softens_gatekeepers is False on a setting that must never make a gatekeeper (Enemy.gatekeeper) easier than Normal - only Easy."""
 
     label: str
     description: str
@@ -15,16 +16,17 @@ class Difficulty:
     attack_multiplier: float
     regen_cap: float
     regen_per_move: int
+    softens_gatekeepers: bool = True
 
 DIFFICULTIES: dict[str, Difficulty] = {
     "story": Difficulty("Story", "for the myths, not the fighting", 0.5, 0.5, 1.0, 2),
-    "easy": Difficulty("Easy", "forgiving, but not effortless", 0.75, 0.8, 1.0, 1),
+    "easy": Difficulty("Easy", "forgiving, but not effortless", 0.75, 0.8, 1.0, 1, softens_gatekeepers=False),
     "normal": Difficulty("Normal", "the game as it was designed", 1.0, 1.0, 0.75, 1),
     "hard": Difficulty("Hard", "for those who know what's coming", 1.3, 1.2, 0.5, 1),
 }
 
 DEFAULT_DIFFICULTY = "normal"
-NG_PLUS_MULTIPLIER_PER_CYCLE = 0.25
+NG_PLUS_MULTIPLIER_PER_CYCLE = 0.5
 """Each New Game+ cycle adds this much to enemy HP and attack, stacking - on top of the setting's own multipliers."""
 
 def get_difficulty(key: str) -> Difficulty:
@@ -46,6 +48,20 @@ def scale_enemy(enemy, difficulty: str, cycle: int, keep_hp: bool = False) -> No
     if enemy.respawns:
         return
     hp_multiplier, attack_multiplier = enemy_multipliers(difficulty, cycle)
+    setting = get_difficulty(difficulty)
+    if enemy.gatekeeper and not setting.softens_gatekeepers:
+        hp_multiplier, attack_multiplier = max(1.0, hp_multiplier), max(1.0, attack_multiplier)
+    share = enemy.hp / enemy.max_hp if enemy.max_hp else 1.0
+    enemy.max_hp = max(1, round(enemy.unscaled_max_hp * hp_multiplier))
+    enemy.attack_damage = round(enemy.unscaled_attack * attack_multiplier)
+    if keep_hp:
+        enemy.hp = min(enemy.hp, enemy.max_hp)
+    elif enemy.hp > 0:
+        enemy.hp = max(1, round(share * enemy.max_hp))
+
+def _apply_multipliers(enemy, hp_multiplier, attack_multiplier, keep_hp=False):
+    """Set enemy's max HP and attack from its unscaled values and the given multipliers - scale_enemy()'s arithmetic, for a caller that has
+    worked out its own multipliers."""
     share = enemy.hp / enemy.max_hp if enemy.max_hp else 1.0
     enemy.max_hp = max(1, round(enemy.unscaled_max_hp * hp_multiplier))
     enemy.attack_damage = round(enemy.unscaled_attack * attack_multiplier)
@@ -60,9 +76,15 @@ def scale_rooms(rooms, difficulty: str, cycle: int, keep_hp: bool = False) -> No
         for enemy in room.enemies:
             scale_enemy(enemy, difficulty, cycle, keep_hp)
 
-def scale_for(enemy, player) -> None:
-    """Scale a single newly created enemy for the player's run - the call every mid-game route uses."""
-    scale_enemy(enemy, player.difficulty, player.ng_plus_cycle)
+def scale_for(enemy, player, never_harder_than_normal: bool = False) -> None:
+    """Scale a single newly created enemy for the player's run - the call every mid-game route uses. never_harder_than_normal caps both
+    multipliers at 1, so the enemy is softened on an easier setting but never raised by Hard or a New Game+ cycle - for a companion's duel
+    form, where losing costs nothing and the only way past is to win."""
+    if never_harder_than_normal:
+        hp_multiplier, attack_multiplier = enemy_multipliers(player.difficulty, player.ng_plus_cycle)
+        _apply_multipliers(enemy, min(1.0, hp_multiplier), min(1.0, attack_multiplier))
+    else:
+        scale_enemy(enemy, player.difficulty, player.ng_plus_cycle)
 
 def scale_world(world, difficulty: str, cycle: int, keep_hp: bool = False) -> None:
     """Scale every enemy in the world, and record the setting it was scaled for - see ensure_world_scaled()."""

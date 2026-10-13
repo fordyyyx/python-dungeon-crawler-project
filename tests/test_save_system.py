@@ -1439,7 +1439,7 @@ def test_slot_summary_marks_a_hardcore_save(monkeypatch, tmp_path):
     player = Player(name="Hero", hp=20)
     player.story_flags.add("hardcore")
     save_game(1, 1, player, start, dungeon)
-    assert slot_summary(1, 1).endswith(" (Hardcore)")
+    assert slot_summary(1, 1).endswith(", Hardcore)")
 
 def test_slot_summary_of_an_ordinary_save_has_no_hardcore_mark(monkeypatch, tmp_path):
     monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
@@ -1756,7 +1756,7 @@ def test_slot_summary_puts_hardcore_after_the_difficulty(monkeypatch, tmp_path):
     dungeon, start, player = _hard_world()
     player.story_flags.add("hardcore")
     save_game(1, 1, player, start, dungeon)
-    assert slot_summary(1, 1).endswith(" (Hard) (Hardcore)")
+    assert slot_summary(1, 1).endswith(" (Hard, Hardcore)")
 
 def test_slot_summary_of_an_older_save_without_a_difficulty_shows_normal(monkeypatch, tmp_path):
     data = valid_save_data(monkeypatch, tmp_path)
@@ -1880,7 +1880,7 @@ def test_load_game_scales_the_world_to_the_saved_ng_plus_cycle(monkeypatch, tmp_
     room = fresh.get_room("Labyrinth of the Minotaur")
     assert room is not None
     minotaur = room.enemies[0]
-    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 1.5)
+    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 2.0)
 
 def test_load_game_of_an_older_save_leaves_the_world_unscaled(monkeypatch, tmp_path):
     data = valid_save_data(monkeypatch, tmp_path)
@@ -1930,3 +1930,250 @@ def test_load_game_leaves_a_hardcore_save_in_place(monkeypatch, tmp_path):
     assert slot_exists(1, 1) is True
     assert "hardcore" in reloaded.story_flags
     assert room is fresh_start
+
+# ---- New Game+ ----
+
+def test_serialise_player_saves_recruited_companions_in_order():
+    player = Player(name="Hero", hp=20)
+    player.recruited_companions = {"Odysseus", "Hades", "Shade of Achilles"}
+    assert serialise_player(player, Room("Chamber"))["recruited_companions"] == ["Hades", "Odysseus", "Shade of Achilles"]
+
+def test_serialise_player_does_not_save_a_new_game_plus_request():
+    """It's acted on straight after the command that sets it, so it never needs to survive a save."""
+    player = Player(name="Hero", hp=20)
+    player.new_game_plus_requested = True
+    assert "new_game_plus_requested" not in serialise_player(player, Room("Chamber"))
+
+def test_player_from_save_data_restores_recruited_companions():
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    player = Player(name="Hero", hp=20)
+    player.recruited_companions = {"Odysseus", "Hades"}
+    reloaded, _ = player_from_save_data(serialise_player(player, room), dungeon)
+    assert reloaded.recruited_companions == {"Odysseus", "Hades"}
+    assert reloaded.new_game_plus_requested is False
+
+def test_player_from_an_older_save_has_recruited_nobody():
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    data = serialise_player(Player(name="Hero", hp=20), room)
+    del data["recruited_companions"]
+    reloaded, _ = player_from_save_data(data, dungeon)
+    assert reloaded.recruited_companions == set()
+
+def test_player_from_an_older_save_counts_the_companion_in_the_party_as_recruited(monkeypatch, tmp_path):
+    """A save from before recruits were recorded: whoever is in the party was clearly recruited, so New Game+ still carries them."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.companion = create_odysseus()
+    player.companion.home_room = floors["floor_6"]["Shadow of Ithaca"]
+    data = serialise_player(player, start)
+    del data["recruited_companions"]
+    fresh, _, _ = build_world()
+    reloaded, _ = player_from_save_data(data, fresh)
+    assert reloaded.recruited_companions == {"Odysseus"}
+
+def _new_game_plus_with_hades(monkeypatch, tmp_path, dismissed):
+    """Spare and recruit Hades, start New Game+, save, and load into a fresh world."""
+    from dungeon_crawler.exploration import recruit_companion, dismiss_companion
+    from dungeon_crawler.new_game_plus import start_new_game_plus
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    player = Player(name="Hero", hp=20)
+    player.story_flags.add("promised_mercy")
+    hall = dungeon.get_room("Hall of Hades")
+    assert hall is not None
+    while hall.enemies:
+        enemy = hall.enemies[0]
+        enemy.hp = 0
+        handle_enemy_defeat(hall, enemy, player)
+    recruit_companion("hades", hall, player)
+    player.companion.gain_experience(500)
+    level = player.companion.level
+    if dismissed:
+        dismiss_companion(player)
+    new_world, new_floors, new_start = start_new_game_plus(player, floors)
+    scale_rooms(new_world.rooms.values(), player.difficulty, player.ng_plus_cycle)
+    save_game(1, 1, player, new_start, new_world)
+    fresh, _, _ = build_world()
+    reloaded, _ = load_game(1, 1, fresh)
+    return fresh, reloaded, level
+
+def test_save_and_load_in_new_game_plus_keeps_thanatos_on_the_throne(monkeypatch, tmp_path):
+    """A fresh world is always built with Hades in the Hall - the save has to put Thanatos back, and not Hades beside him."""
+    fresh, reloaded, _ = _new_game_plus_with_hades(monkeypatch, tmp_path, dismissed=False)
+    hall = fresh.get_room("Hall of Hades")
+    assert hall is not None
+    assert [enemy.name for enemy in hall.enemies] == ["Thanatos"]
+    assert hall.enemies[0].max_hp == round(62 * 1.5)
+    assert hall.enemies[0].next_phase_factory is not None
+
+def test_save_and_load_in_new_game_plus_keeps_the_cycle_and_the_carried_companion(monkeypatch, tmp_path):
+    fresh, reloaded, level = _new_game_plus_with_hades(monkeypatch, tmp_path, dismissed=False)
+    assert reloaded.ng_plus_cycle == 1
+    assert reloaded.companion is not None
+    assert reloaded.companion.name == "Hades"
+    assert reloaded.companion.level == level
+    assert reloaded.companion.home_room is fresh.get_room("Bedchamber of Persephone")
+
+def test_save_and_load_in_new_game_plus_keeps_a_waiting_hades_with_persephone(monkeypatch, tmp_path):
+    fresh, reloaded, level = _new_game_plus_with_hades(monkeypatch, tmp_path, dismissed=True)
+    bedchamber = fresh.get_room("Bedchamber of Persephone")
+    assert bedchamber is not None
+    assert [(companion.name, companion.level) for companion in bedchamber.companions] == [("Hades", level)]
+    assert reloaded.companion is None
+
+def test_a_reloaded_companion_keeps_their_new_game_plus_data(monkeypatch, tmp_path):
+    """Content data, rebuilt by the companion's factory on loading - without it a second cycle would put Hades back in the Hall."""
+    fresh, reloaded, _ = _new_game_plus_with_hades(monkeypatch, tmp_path, dismissed=False)
+    assert reloaded.companion.new_game_plus_home == "Bedchamber of Persephone"
+    assert reloaded.companion.new_game_plus_effect is not None
+
+# ---- slot_summary: one bracket of tags - difficulty, New Game+ cycle, hardcore ----
+
+def _summary_of(monkeypatch, tmp_path, difficulty="normal", cycle=0, hardcore=False):
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon = Map()
+    room = Room("Chamber")
+    dungeon.add_room(room)
+    player = Player(name="Hero", hp=50, ancestry_label="Descendant of Ares")
+    player.difficulty = difficulty
+    player.ng_plus_cycle = cycle
+    if hardcore:
+        player.story_flags.add("hardcore")
+    save_game(1, 1, player, room, dungeon)
+    return slot_summary(1, 1)
+
+def test_slot_summary_of_a_first_run_shows_only_the_difficulty(monkeypatch, tmp_path):
+    assert _summary_of(monkeypatch, tmp_path) == "Hero - LVL 1 Descendant of Ares - Chamber (Normal)"
+
+def test_slot_summary_shows_the_new_game_plus_cycle(monkeypatch, tmp_path):
+    assert _summary_of(monkeypatch, tmp_path, cycle=2) == "Hero - LVL 1 Descendant of Ares - Chamber (Normal, NG+2)"
+
+def test_slot_summary_does_not_mention_new_game_plus_before_the_first_cycle(monkeypatch, tmp_path):
+    assert "NG+" not in _summary_of(monkeypatch, tmp_path, difficulty="hard")
+
+def test_slot_summary_lists_hardcore_as_a_tag(monkeypatch, tmp_path):
+    """Regression: 'Hardcore' was added to the tag list with +=, which adds a string one character at a time."""
+    assert _summary_of(monkeypatch, tmp_path, difficulty="hard", hardcore=True) == "Hero - LVL 1 Descendant of Ares - Chamber (Hard, Hardcore)"
+
+def test_slot_summary_orders_the_tags_difficulty_then_cycle_then_hardcore(monkeypatch, tmp_path):
+    summary = _summary_of(monkeypatch, tmp_path, difficulty="hard", cycle=3, hardcore=True)
+    assert summary == "Hero - LVL 1 Descendant of Ares - Chamber (Hard, NG+3, Hardcore)"
+
+def test_slot_summary_of_a_readable_save_is_never_called_damaged(monkeypatch, tmp_path):
+    """Regression: the summary read the player's name under the wrong key, so every save in the slot list showed as damaged."""
+    for difficulty in ("story", "easy", "normal", "hard"):
+        assert _summary_of(monkeypatch, tmp_path, difficulty=difficulty) != "Damaged save - can't be loaded."
+
+def test_slot_summary_of_an_older_save_without_a_cycle_shows_none(monkeypatch, tmp_path):
+    data = valid_save_data(monkeypatch, tmp_path)
+    del data["player"]["ng_plus_cycle"]
+    write_raw_save(tmp_path, 1, 1, json.dumps(data))
+    summary = slot_summary(1, 1)
+    assert summary.endswith(" (Normal)")
+
+# ---- trials ----
+
+def test_save_and_load_remembers_that_the_funeral_games_prize_was_won(monkeypatch, tmp_path):
+    """The prize flag is in the room's saved flags - without it a reload would hand out a second Shield of Achilles."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    camp = floors["floor_5"]["Shadow of Army Camp"]
+    camp.flags.add("funeral_games_won")
+    save_game(1, 1, Player(name="Hero", hp=20), start, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    load_game(1, 1, fresh)
+
+    assert "funeral_games_won" in fresh_floors["floor_5"]["Shadow of Army Camp"].flags
+
+def test_save_between_contests_does_not_save_the_trial(monkeypatch, tmp_path):
+    """A trial lives in transient_state - saving while it waits for 'next contest' and reloading simply ends it."""
+    from dungeon_crawler.trials import awaiting_next_contest, trial_active
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, floors = build_world()
+    camp = floors["floor_5"]["Shadow of Army Camp"]
+    player = Player(name="Hero", hp=20)
+    camp.interactions["enter the games"].handler(player, camp)
+    for opponent in list(camp.enemies):
+        opponent.hp = 0
+        handle_enemy_defeat(camp, opponent, player)
+    assert awaiting_next_contest(camp) is True
+    player.in_combat = False
+    save_game(1, 1, player, camp, dungeon)
+
+    fresh, _, fresh_floors = build_world()
+    load_game(1, 1, fresh)
+
+    fresh_camp = fresh_floors["floor_5"]["Shadow of Army Camp"]
+    assert trial_active(fresh_camp) is False
+    assert fresh_camp.enemies == []
+
+# ---- mastery ----
+
+def _player_with_mastery(path_name: str, bought: int) -> Player:
+    """A player who has finished one path and bought its mastery some number of times."""
+    player = Player(name="Hero", hp=20, attack_damage=4)
+    path = player.skill_tree.paths[path_name]
+    player.skill_tree.skill_points = len(path.skills) + bought
+    for _ in range(len(path.skills) + bought):
+        player.skill_tree.invest(path_name, player)
+    return player
+
+def test_serialise_player_includes_mastery_counts_for_every_path():
+    player = _player_with_mastery("attack", 3)
+    data = serialise_player(player, Room("Chamber"))
+    assert data["mastery_count"] == {"attack": 3, "defence": 0, "abilities": 0}
+
+def test_player_from_save_data_reconstructs_mastery_counts():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    data = base_player_data(mastery_count={"attack": 2, "abilities": 4})
+    player, _ = player_from_save_data(data, dungeon)
+    assert player.skill_tree.paths["attack"].mastery_count == 2
+    assert player.skill_tree.paths["abilities"].mastery_count == 4
+    assert player.skill_tree.paths["defence"].mastery_count == 0
+
+def test_player_from_save_data_older_save_without_mastery_counts_starts_at_none():
+    """Regression: the mastery counts were read with data["mastery_count"], so every save made before mastery existed raised KeyError - which
+    load_game() reports as a damaged save. Every existing save was refused."""
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    data = base_player_data()
+    assert "mastery_count" not in data
+    player, _ = player_from_save_data(data, dungeon)
+    assert all(path.mastery_count == 0 for path in player.skill_tree.paths.values())
+
+def test_player_from_save_data_ignores_mastery_for_an_unknown_path():
+    dungeon = Map()
+    dungeon.add_room(Room("Chamber"))
+    data = base_player_data(mastery_count={"Forgotten Arts": 2})
+    player, _ = player_from_save_data(data, dungeon)
+    assert "Forgotten Arts" not in player.skill_tree.paths
+
+def test_save_and_load_keeps_mastery_and_the_stats_it_gave(monkeypatch, tmp_path):
+    """Stats are saved as they stand, so loading must not apply the mastery bonus a second time."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, _ = build_world()
+    player = _player_with_mastery("abilities", 2)
+    save_game(1, 1, player, start, dungeon)
+    fresh, _, _ = build_world()
+    reloaded, _ = load_game(1, 1, fresh)
+    assert reloaded.skill_tree.paths["abilities"].mastery_count == 2
+    assert (reloaded.hp, reloaded.max_hp) == (player.hp, player.max_hp) == (26, 26)
+
+def test_mastery_can_be_forgotten_after_a_reload(monkeypatch, tmp_path):
+    """The Lethe after loading: the reloaded counts are what forget_all() undoes, so the stats come back down by exactly what mastery gave."""
+    monkeypatch.setattr("dungeon_crawler.save_system.SAVES_DIR", str(tmp_path))
+    dungeon, start, _ = build_world()
+    player = _player_with_mastery("attack", 3)
+    save_game(1, 1, player, start, dungeon)
+    fresh, _, _ = build_world()
+    reloaded, _ = load_game(1, 1, fresh)
+    refunded = reloaded.skill_tree.forget_all(reloaded)
+    assert refunded == 8
+    assert reloaded.attack_damage == 4

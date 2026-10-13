@@ -485,3 +485,13 @@ def test_rooms_do_not_share_their_trophy_state():
 def test_map_starts_not_scaled_for_any_difficulty():
     """scaled_for is set by scale_world() (difficulty.py) - a fresh Map hasn't been scaled yet."""
     assert Map().scaled_for is None
+
+def test_on_leave_sends_trial_contestants_away_and_keeps_everyone_else():
+    """Walking out of a room mid-contest ends the contest - its opponents don't wait there for the player to come back."""
+    room = Room("Field")
+    contestant, resident = Enemy(name="Runner", hp=10), Enemy(name="Goblin", hp=10)
+    contestant.trial_contestant = True
+    room.add_enemy(contestant)
+    room.add_enemy(resident)
+    room.on_leave()
+    assert room.enemies == [resident]

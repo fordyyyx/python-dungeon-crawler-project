@@ -221,6 +221,13 @@ def create_persephone() -> Ally:
                 options=[leave]
             ),
         },
+        companion_lines={
+            "Hades": (
+                "Persephone looks up as you come in - and then past you, at the man beside you. For a long moment she doesn't move at all.\n\n"
+                "\"You came back,\" she says. Hades kneels beside her chair, and for once he doesn't seem to know what to say. \"I had help.\" She "
+                "looks at you over his shoulder. \"So I see.\""
+            ),
+        }
     )
 
 def wire_floor_7_seers(all_floors: dict[str, dict[str, Room]]) -> None:

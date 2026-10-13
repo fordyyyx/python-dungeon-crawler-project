@@ -165,6 +165,9 @@ class Room:
     def on_leave(self) -> None:
         """Called whenever the player leaves this room, by any route - walking out or dev teleport. Clears transient_state, so per-visit state
         like a half-finished puzzle always starts fresh on the next visit."""
+        for enemy in list(self.enemies):
+            if enemy.trial_contestant:
+                self.remove_enemy(enemy)
         self.transient_state.clear()
 
     @property

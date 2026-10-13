@@ -1,8 +1,9 @@
 from dungeon_crawler.exceptions import ActionRefused
-from dungeon_crawler.characters import HP_PER_LEVEL, COMPANION_HP_PER_LEVEL, COMPANION_ATTACK_PER_LEVEL, STARTING_EXPERIENCE_TO_NEXT_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, SkillPath, SkillTree
-from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem, LoyaltyToken, Consumable
+from dungeon_crawler.characters import HP_PER_LEVEL, COMPANION_HP_PER_LEVEL, COMPANION_ATTACK_PER_LEVEL, STARTING_EXPERIENCE_TO_NEXT_LEVEL, WEAPON_LIFESTEAL_CAP, HEAVY_ATTACK_MISS_CHANCE, BLADE_HEAVY_MISS_MODIFIER, ARMOUR_WEIGHT_MISS_PENALTY, WEAPON_POISON_AMOUNT, WEAPON_POISON_DURATION, Character, Player, Enemy, Ally, Companion, Skill, AttackBoostSkill, DefenceBoostSkill, DoubleStrikeSkill, LastStandSkill, ThornsSkill, DodgeSkill, MaxHpBoostSkill, SkillPath, SkillTree, PlayerSnapshot
+from dungeon_crawler.items import Weapon, Armour, Inventory, QuestItem, LoyaltyToken, Consumable, IntellectReward, SkillPointReward, SpellBook
 from dungeon_crawler.world import Room
 from dungeon_crawler.status_effects import StatusEffect
+from dungeon_crawler.spells import Spell
 from dungeon_crawler.characters import BLINDED_EFFECT_NAME, WEAPON_BLIND_MISS_CHANCE, WEAPON_BLIND_DURATION, MINIMUM_DAMAGE, MINIMUM_DAMAGE_FRACTION
 
 def test_character_initialises_with_correct_stats():
@@ -1475,13 +1476,43 @@ def test_display_skills_shows_next_skill_for_each_path():
     assert "Defence: next unlock is Hardened Skin - Blows land softer." in result
     assert "Abilities: next unlock is Twin Strike - A second blow follows the first, fast and true." in result
 
-def test_display_skills_shows_fully_unlocked_when_path_exhausted():
+def test_display_skills_shows_the_mastery_once_a_path_is_finished():
+    """Regression: a finished path used to read 'fully unlocked.', so nothing told the player that 'learn attack' still did something."""
     player = Player(name="Hero", hp=50, attack_damage=10)
     player.skill_tree.skill_points = 5
     for _ in range(5):
         player.skill_tree.invest("attack", player)
     result = player.get_skills_display()
-    assert "Attack: fully unlocked" in result
+    assert "Attack: Attack Mastery - +1 ATK (Current: 0)" in result
+    assert "fully unlocked" not in result
+
+def test_display_skills_counts_the_mastery_bought_so_far():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 8
+    for _ in range(8):
+        player.skill_tree.invest("attack", player)
+    assert "Attack: Attack Mastery - +1 ATK (Current: 3)" in player.get_skills_display()
+
+def test_display_skills_shows_each_finished_paths_own_mastery():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 9
+    for _ in range(5):
+        player.skill_tree.invest("defence", player)
+    for _ in range(4):
+        player.skill_tree.invest("abilities", player)
+    result = player.get_skills_display()
+    assert "Defence: Defence Mastery - +1 DEF (Current: 0)" in result
+    assert "Abilities: Endurance Mastery - +3 max HP (Current: 0)" in result
+    assert "Attack: next unlock is Iron Grip" in result
+
+def test_display_skills_does_not_show_mastery_while_a_skill_is_still_locked():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    player.skill_tree.skill_points = 4
+    for _ in range(4):
+        player.skill_tree.invest("attack", player)
+    result = player.get_skills_display()
+    assert "Attack: next unlock is Blessing of Ares" in result
+    assert "Mastery" not in result
 
 def test_display_skills_shows_available_skill_points():
     player = Player(name="Hero", hp=50, attack_damage=10)
@@ -2340,7 +2371,7 @@ def test_enemy_initialises_with_a_custom_defeat_effect():
 def test_enemy_initialises_with_no_duel_link():
     enemy = Enemy(name="Goblin", hp=10)
     assert enemy.duel_companion is None
-    assert enemy.duel_return_hp is None
+    assert enemy.duel_snapshot is None
 
 def test_player_starts_with_the_starting_experience_threshold():
     player = Player(name="Hero", hp=20)
@@ -3220,3 +3251,451 @@ def test_enemy_unscaled_values_do_not_follow_later_changes():
     enemy.hp = 12
     enemy.attack_damage = 14
     assert (enemy.unscaled_max_hp, enemy.unscaled_attack) == (30, 7)
+
+# ---- New Game+ fields, and a renamed blinding effect ----
+
+def test_player_starts_with_no_recruited_companions_and_no_new_game_plus_request():
+    player = Player(name="Hero", hp=20)
+    assert player.recruited_companions == set()
+    assert player.new_game_plus_requested is False
+
+def test_attack_with_a_renamed_blinding_weapon_applies_the_effect_under_its_own_name(monkeypatch):
+    """Hypnos' Touch of Sleep: the same miss-chance effect as blindness, called Drowsy."""
+    monkeypatch.setattr("random.random", lambda: 0.1)
+    attacker = Enemy(name="Hypnos", hp=40, attack_damage=10)
+    touch = Weapon("Touch of Sleep", "", 0, blind_chance=0.4, blind_effect_name="Drowsy")
+    touch.use(attacker)
+    target = Player(name="Hero", hp=50)
+    message = attacker.attack(target)
+    assert [effect.name for effect in target.active_effects] == ["Drowsy"]
+    assert target.active_effects[0].miss_chance == WEAPON_BLIND_MISS_CHANCE
+    assert target.active_effects[0].duration == WEAPON_BLIND_DURATION
+    assert "Hero is afflicted with Drowsy." in message
+
+def test_a_renamed_blinding_effect_wears_off_under_its_own_name(monkeypatch):
+    monkeypatch.setattr("random.random", lambda: 0.99)
+    player = Player(name="Hero", hp=50)
+    player.apply_status_effect(StatusEffect("Drowsy", 0, 1, miss_chance=0.3))
+    message = player.attack(Enemy(name="Goblin", hp=50))
+    assert "Hero is no longer drowsy." in message
+    assert player.active_effects == []
+
+def test_drowsy_and_blinded_are_separate_effects_that_both_add_miss_chance():
+    player = Player(name="Hero", hp=50)
+    player.apply_status_effect(StatusEffect(BLINDED_EFFECT_NAME, 0, 2, miss_chance=0.3))
+    player.apply_status_effect(StatusEffect("Drowsy", 0, 2, miss_chance=0.3))
+    assert len(player.active_effects) == 2
+    assert abs(player.get_miss_chance("light") - 0.6) < 1e-9
+
+# ---- Companion: New Game+ data, and rejoining once recruited ----
+
+def test_companion_has_no_new_game_plus_home_or_effect_by_default():
+    companion = Companion(name="Imp", hp=20, home_room=Room("Camp"))
+    assert companion.new_game_plus_home is None
+    assert companion.new_game_plus_effect is None
+
+def test_companion_stores_its_new_game_plus_home_and_effect():
+    effect = lambda player, all_floors: None
+    companion = Companion(name="Imp", hp=20, home_room=Room("Camp"), new_game_plus_home="Cellar", new_game_plus_effect=effect)
+    assert companion.new_game_plus_home == "Cellar"
+    assert companion.new_game_plus_effect is effect
+
+def test_can_be_recruited_is_always_true_for_a_companion_already_recruited_once():
+    """New Game+ resets the story flags - a carried companion mustn't be locked behind theirs a second time."""
+    companion = Companion(name="Imp", hp=20, home_room=Room("Camp"), required_story_flag="imp_freed")
+    player = Player(name="Hero", hp=20)
+    assert companion.can_be_recruited(player) is False
+    player.recruited_companions.add("Imp")
+    assert companion.can_be_recruited(player) is True
+
+def test_can_be_recruited_ignores_other_companions_having_been_recruited():
+    companion = Companion(name="Imp", hp=20, home_room=Room("Camp"), required_story_flag="imp_freed")
+    player = Player(name="Hero", hp=20)
+    player.recruited_companions.add("Someone Else")
+    assert companion.can_be_recruited(player) is False
+
+# ---- Enemy.with_article: capitalise ----
+
+def test_enemy_with_article_capitalised_starts_a_sentence():
+    assert Enemy(name="Goblin", hp=10).with_article(capitalise=True) == "A Goblin"
+    assert Enemy(name="Ember Wraith", hp=10).with_article(capitalise=True) == "An Ember Wraith"
+    assert Enemy(name="Minotaur", hp=10, article="the").with_article(capitalise=True) == "The Minotaur"
+
+def test_enemy_with_article_not_capitalised_sits_mid_sentence():
+    assert Enemy(name="Goblin", hp=10).with_article(capitalise=False) == "a Goblin"
+    assert Enemy(name="Ember Wraith", hp=10).with_article(capitalise=False) == "an Ember Wraith"
+    assert Enemy(name="Minotaur", hp=10, article="the").with_article(capitalise=False) == "the Minotaur"
+
+def test_enemy_with_article_definite_follows_capitalise_too():
+    goblin = Enemy(name="Goblin", hp=10)
+    assert goblin.with_article(definite=True, capitalise=True) == "The Goblin"
+    assert goblin.with_article(definite=True, capitalise=False) == "the Goblin"
+
+def test_enemy_with_article_a_proper_name_ignores_capitalise():
+    talos = Enemy(name="Talos", hp=10, article="")
+    assert talos.with_article(capitalise=True) == "Talos"
+    assert talos.with_article(capitalise=False) == "Talos"
+    assert talos.with_article(definite=True, capitalise=False) == "Talos"
+
+def test_enemy_is_not_a_trial_contestant_by_default():
+    assert Enemy(name="Goblin", hp=10).trial_contestant is False
+
+def test_enemy_is_not_a_gatekeeper_by_default():
+    assert Enemy(name="Goblin", hp=10).gatekeeper is False
+
+# ---- mastery: what a finished path's spare points buy ----
+
+def _mastery_path() -> SkillPath:
+    """A one-skill Attack path with a +1 ATK mastery."""
+    return SkillPath(
+        name="Attack",
+        skills=[AttackBoostSkill(name="Iron Grip", description="", bonus=2)],
+        mastery=AttackBoostSkill(name="Attack Mastery", description="+1 ATK", bonus=1),
+    )
+
+def test_skill_path_has_no_mastery_by_default():
+    path = SkillPath(name="Attack", skills=[AttackBoostSkill(name="Iron Grip", description="", bonus=2)])
+    assert path.mastery is None
+    assert path.mastery_count == 0
+
+def test_skill_path_stores_its_mastery():
+    """Regression: the constructor assigned self.mastery to itself instead of the parameter, so building any SkillPath - and so any Player -
+    raised AttributeError."""
+    mastery = AttackBoostSkill(name="Attack Mastery", description="+1 ATK", bonus=1)
+    path = SkillPath(name="Attack", skills=[], mastery=mastery)
+    assert path.mastery is mastery
+
+def test_skill_path_unlock_next_buys_mastery_once_every_skill_is_unlocked():
+    path = _mastery_path()
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+    message = path.unlock_next(character)
+    assert character.attack_damage == 13
+    assert path.mastery_count == 1
+    assert message == "Attack Mastery (1): Hero gains +1 attack from Attack Mastery."
+
+def test_skill_path_mastery_is_not_bought_while_a_skill_is_still_locked():
+    path = _mastery_path()
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+    assert path.mastery_count == 0
+    assert character.attack_damage == 12
+
+def test_skill_path_mastery_can_be_bought_again_and_again():
+    path = _mastery_path()
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+    for _ in range(4):
+        message = path.unlock_next(character)
+    assert path.mastery_count == 4
+    assert character.attack_damage == 16
+    assert message.startswith("Attack Mastery (4):")
+
+def test_skill_path_buying_mastery_leaves_the_unlocked_count_alone():
+    path = _mastery_path()
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    path.unlock_next(character)
+    path.unlock_next(character)
+    assert path.unlocked_count == 1
+    assert path.next_skill is None
+
+def test_skill_path_forget_all_undoes_mastery_too():
+    path = _mastery_path()
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    for _ in range(4):
+        path.unlock_next(character)
+    forgotten = path.forget_all(character)
+    assert forgotten == 4
+    assert character.attack_damage == 10
+    assert (path.unlocked_count, path.mastery_count) == (0, 0)
+
+def test_skill_tree_gives_every_path_a_mastery():
+    paths = SkillTree().paths
+    assert {name: path.mastery.name for name, path in paths.items()} == {
+        "attack": "Attack Mastery", "defence": "Defence Mastery", "abilities": "Endurance Mastery",
+    }
+    assert (paths["attack"].mastery.bonus, paths["defence"].mastery.bonus, paths["abilities"].mastery.bonus) == (1, 1, 3)
+
+def test_skill_tree_masteries_are_an_attack_a_defence_and_a_max_hp_skill():
+    paths = SkillTree().paths
+    assert isinstance(paths["attack"].mastery, AttackBoostSkill)
+    assert isinstance(paths["defence"].mastery, DefenceBoostSkill)
+    assert isinstance(paths["abilities"].mastery, MaxHpBoostSkill)
+
+def _player_with_a_finished_path(path_name: str, spare_points: int) -> Player:
+    """A player who has learned every skill on one path, with points left over."""
+    player = Player(name="Hero", hp=20, attack_damage=4)
+    path = player.skill_tree.paths[path_name]
+    player.skill_tree.skill_points = len(path.skills) + spare_points
+    for _ in path.skills:
+        player.skill_tree.invest(path_name, player)
+    return player
+
+def test_skill_tree_invest_in_a_finished_attack_path_adds_one_attack():
+    player = _player_with_a_finished_path("attack", 1)
+    before = player.attack_damage
+    message = player.skill_tree.invest("attack", player)
+    assert player.attack_damage == before + 1
+    assert message == "Attack Mastery (1): Hero gains +1 attack from Attack Mastery."
+
+def test_skill_tree_invest_in_a_finished_defence_path_adds_one_armour():
+    player = _player_with_a_finished_path("defence", 1)
+    before = player.armour
+    player.skill_tree.invest("defence", player)
+    assert player.armour == before + 1
+
+def test_skill_tree_invest_in_a_finished_abilities_path_adds_three_max_hp():
+    player = _player_with_a_finished_path("abilities", 1)
+    message = player.skill_tree.invest("abilities", player)
+    assert (player.hp, player.max_hp) == (23, 23)
+    assert message == "Endurance Mastery (1): Hero gains +3 max HP."
+
+def test_skill_tree_mastery_costs_a_skill_point():
+    player = _player_with_a_finished_path("attack", 2)
+    player.skill_tree.invest("attack", player)
+    assert player.skill_tree.skill_points == 1
+
+def test_skill_tree_mastery_with_no_points_is_refused():
+    player = _player_with_a_finished_path("attack", 0)
+    before = player.attack_damage
+    try:
+        player.skill_tree.invest("attack", player)
+        assert False, "Expected an ActionRefused but none was raised"
+    except ActionRefused:
+        pass
+    assert player.attack_damage == before
+    assert player.skill_tree.paths["attack"].mastery_count == 0
+
+def test_skill_tree_total_unlocked_counts_mastery():
+    player = _player_with_a_finished_path("attack", 3)
+    for _ in range(3):
+        player.skill_tree.invest("attack", player)
+    assert player.skill_tree.total_unlocked == 8
+
+def test_skill_tree_forget_all_refunds_mastery_points():
+    """The Lethe gives back every point spent, mastery included."""
+    player = _player_with_a_finished_path("attack", 3)
+    for _ in range(3):
+        player.skill_tree.invest("attack", player)
+    refunded = player.skill_tree.forget_all(player)
+    assert refunded == 8
+    assert player.skill_tree.skill_points == 8
+    assert player.attack_damage == 4
+    assert player.skill_tree.total_unlocked == 0
+
+def test_skill_tree_forget_all_takes_back_endurance_masterys_max_hp():
+    player = _player_with_a_finished_path("abilities", 2)
+    player.skill_tree.invest("abilities", player)
+    player.skill_tree.invest("abilities", player)
+    player.skill_tree.forget_all(player)
+    assert (player.hp, player.max_hp) == (20, 20)
+
+# ---- MaxHpBoostSkill ----
+
+def test_max_hp_boost_skill_raises_max_hp_and_current_hp():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    character.hp = 12
+    message = MaxHpBoostSkill(name="Endurance", description="", bonus=3).apply(character)
+    assert (character.hp, character.max_hp) == (15, 33)
+    assert message == "Hero gains +3 max HP."
+
+def test_max_hp_boost_skill_remove_takes_the_max_hp_back():
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    skill = MaxHpBoostSkill(name="Endurance", description="", bonus=3)
+    skill.apply(character)
+    skill.remove(character)
+    assert (character.hp, character.max_hp) == (30, 30)
+
+def test_max_hp_boost_skill_remove_leaves_a_wounded_characters_hp_alone():
+    """Only HP above the new maximum is lost."""
+    character = Character(name="Hero", hp=30, attack_damage=5)
+    skill = MaxHpBoostSkill(name="Endurance", description="", bonus=3)
+    skill.apply(character)
+    character.hp = 10
+    skill.remove(character)
+    assert (character.hp, character.max_hp) == (10, 30)
+
+# ---- PlayerSnapshot: what a duel or a trial puts back ----
+
+def _snapshot_player() -> Player:
+    player = Player(name="Hero", hp=20)
+    player.hp = 14
+    player.mana = 12
+    return player
+
+def test_player_snapshot_take_records_hp_and_mana():
+    snapshot = PlayerSnapshot.take(_snapshot_player())
+    assert (snapshot.hp, snapshot.mana) == (14, 12)
+
+def test_player_snapshot_take_records_every_carried_item():
+    player = _snapshot_player()
+    potion = Consumable(name="Potion", description="", heal_amount=5)
+    sword = Weapon(name="Sword", description="", damage=3)
+    player.inventory.add(potion)
+    player.inventory.add(sword)
+    snapshot = PlayerSnapshot.take(player)
+    assert snapshot.items == [potion, sword]
+
+def test_player_snapshot_restore_puts_hp_and_mana_back():
+    player = _snapshot_player()
+    snapshot = PlayerSnapshot.take(player)
+    player.hp = 3
+    player.mana = 0
+    snapshot.restore(player, Room("Field"))
+    assert (player.hp, player.mana) == (14, 12)
+
+def test_player_snapshot_restore_lowers_hp_gained_since():
+    """It puts HP back, whichever way it moved - so a fight can't be used to heal."""
+    player = _snapshot_player()
+    snapshot = PlayerSnapshot.take(player)
+    player.hp = 20
+    snapshot.restore(player, Room("Field"))
+    assert player.hp == 14
+
+def test_player_snapshot_restore_never_leaves_the_player_at_zero():
+    player = _snapshot_player()
+    snapshot = PlayerSnapshot.take(player)
+    snapshot.hp = 0
+    snapshot.restore(player, Room("Field"))
+    assert player.hp == 1
+
+def test_player_snapshot_restore_returns_a_healing_item_used_since():
+    player = _snapshot_player()
+    potion = Consumable(name="Potion", description="", heal_amount=5)
+    player.inventory.add(potion)
+    snapshot = PlayerSnapshot.take(player)
+    player.inventory.use_item("potion", player)
+    assert potion not in player.inventory.items
+    snapshot.restore(player, Room("Field"))
+    assert potion in player.inventory.items
+
+def test_player_snapshot_restore_does_not_duplicate_an_item_still_held():
+    player = _snapshot_player()
+    potion = Consumable(name="Potion", description="", heal_amount=5)
+    player.inventory.add(potion)
+    snapshot = PlayerSnapshot.take(player)
+    snapshot.restore(player, Room("Field"))
+    assert player.inventory.items == [potion]
+
+def test_player_snapshot_restore_keeps_an_item_picked_up_since():
+    player = _snapshot_player()
+    snapshot = PlayerSnapshot.take(player)
+    prize = Weapon(name="Spear", description="", damage=5)
+    player.inventory.add(prize)
+    snapshot.restore(player, Room("Field"))
+    assert prize in player.inventory.items
+
+def test_player_snapshot_restore_puts_armour_durability_back():
+    player = _snapshot_player()
+    shield = Armour(name="Shield", description="", defence=2, slot="shield", max_durability=10)
+    player.inventory.add(shield)
+    player.inventory.use_item("shield", player)
+    shield.durability = 7
+    snapshot = PlayerSnapshot.take(player)
+    shield.durability = 0
+    snapshot.restore(player, Room("Field"))
+    assert shield.durability == 7
+    assert player.armour == 2
+
+def test_player_snapshot_restore_covers_armour_that_is_not_being_worn():
+    player = _snapshot_player()
+    spare = Armour(name="Spare Helm", description="", defence=1, slot="helmet", max_durability=5)
+    player.inventory.add(spare)
+    snapshot = PlayerSnapshot.take(player)
+    spare.durability = 2
+    snapshot.restore(player, Room("Field"))
+    assert spare.durability == 5
+
+def test_player_snapshot_restore_does_not_repair_armour_worn_down_beforehand():
+    """It restores what the fight wore away, no more - a duel isn't a free repair."""
+    player = _snapshot_player()
+    shield = Armour(name="Shield", description="", defence=2, slot="shield", max_durability=10)
+    shield.durability = 4
+    player.inventory.add(shield)
+    snapshot = PlayerSnapshot.take(player)
+    snapshot.restore(player, Room("Field"))
+    assert shield.durability == 4
+
+def test_player_snapshot_restore_clears_status_effects_and_spell_cooldowns():
+    player = _snapshot_player()
+    snapshot = PlayerSnapshot.take(player)
+    player.apply_status_effect(StatusEffect("Poison", -3, 3))
+    player.spell_cooldowns["Prayer Bolt"] = 1
+    snapshot.restore(player, Room("Field"))
+    assert player.active_effects == []
+    assert player.spell_cooldowns == {}
+
+def test_player_snapshot_restore_leaves_max_hp_and_gold_alone():
+    """A prize won along the way is kept."""
+    player = _snapshot_player()
+    snapshot = PlayerSnapshot.take(player)
+    player.max_hp += 5
+    player.gold += 50
+    snapshot.restore(player, Room("Field"))
+    assert (player.max_hp, player.gold) == (25, 50)
+
+def test_player_snapshot_restore_does_not_return_an_intellect_item_used_since():
+    """Regression: every used item came back - including one whose effect is permanent, so reading the Ledger in a duel or a trial gave the
+    intellect and the Ledger, as often as the player liked."""
+    player = _snapshot_player()
+    ledger = IntellectReward(name="Ledger", description="", amount=2)
+    player.inventory.add(ledger)
+    snapshot = PlayerSnapshot.take(player)
+    player.inventory.use_item("ledger", player)
+    snapshot.restore(player, Room("Field"))
+    assert ledger not in player.inventory.items
+    assert player.intellect == 2
+
+def test_player_snapshot_restore_does_not_return_a_skill_point_item_used_since():
+    player = _snapshot_player()
+    scroll = SkillPointReward(name="Scroll", description="")
+    player.inventory.add(scroll)
+    snapshot = PlayerSnapshot.take(player)
+    player.inventory.use_item("scroll", player)
+    snapshot.restore(player, Room("Field"))
+    assert scroll not in player.inventory.items
+    assert player.skill_tree.skill_points == 1
+
+def test_player_snapshot_restore_does_not_return_a_spellbook_read_since():
+    player = _snapshot_player()
+    spell = Spell(name="Spark", description="", mana_cost=3, damage=4)
+    book = SpellBook(name="Tome", description="", spell=spell)
+    player.inventory.add(book)
+    snapshot = PlayerSnapshot.take(player)
+    player.inventory.use_item("tome", player)
+    snapshot.restore(player, Room("Field"))
+    assert book not in player.inventory.items
+    assert spell in player.known_spells
+
+def test_player_snapshot_restore_keeps_a_permanent_item_that_was_never_used():
+    player = _snapshot_player()
+    ledger = IntellectReward(name="Ledger", description="", amount=2)
+    player.inventory.add(ledger)
+    snapshot = PlayerSnapshot.take(player)
+    snapshot.restore(player, Room("Field"))
+    assert player.inventory.items == [ledger]
+
+def test_player_snapshot_restore_does_not_return_an_item_lying_in_the_room():
+    """Regression: an item dropped between contests was put back in the inventory while still on the floor - one potion in two places, to be
+    picked up again and sold."""
+    player = _snapshot_player()
+    room = Room("Field")
+    potion = Consumable(name="Potion", description="", heal_amount=5)
+    player.inventory.add(potion)
+    snapshot = PlayerSnapshot.take(player)
+    room.add_item(player.inventory.drop_item("potion"))
+    snapshot.restore(player, room)
+    assert potion not in player.inventory.items
+    assert room.items == [potion]
+
+def test_player_snapshot_restore_still_restores_the_durability_of_armour_left_on_the_floor():
+    player = _snapshot_player()
+    room = Room("Field")
+    helm = Armour(name="Helm", description="", defence=1, slot="helmet", max_durability=5)
+    player.inventory.add(helm)
+    snapshot = PlayerSnapshot.take(player)
+    helm.durability = 1
+    room.add_item(player.inventory.drop_item("helm"))
+    snapshot.restore(player, room)
+    assert helm.durability == 5
+    assert helm not in player.inventory.items

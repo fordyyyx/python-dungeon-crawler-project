@@ -115,6 +115,10 @@ content getting in the way.
   suitors_cleared` to make Odysseus recruitable without fighting the Suitors.
   Emptying a room with `dev kill`, `dev remove`, `dev remove all` or `dev
   clear room` sets that room's own cleared flag too, just like a real clear.
+- `dev newgameplus` — starts a New Game+ cycle at the end of the command, exactly
+  as the Trophy Room's `begin anew now` does, without needing the trophies: your
+  gear and gold go, the world is rebuilt and scaled up, and you wake in the first
+  room with your level, skills and recruited companions.
 - `dev difficulty <story/easy/normal/hard>` — changes the run's difficulty.
   Every enemy in the world is rescaled before your next command, keeping its
   share of its HP; passive regeneration follows the new setting at once. A
@@ -157,7 +161,7 @@ old prayers`, `chipped stone aegis`, `wineskin of dionysus`, `lamia's fang`,
 `bident of hades`, the thirteen trophies (`phial of the lethe`, `keeper's lantern`,
 `horn of the minotaur`, `bronze nail of talos`, `head of medusa`, `daedalus' compass`,
 `bridle of the wooden horse`, `fleece of the ram`, `conch of poseidon`, `phaeacian tripod`,
-`collar of cerberus`, `helm of darkness`, `heart of typhon`), `thunderbolt of zeus`,
+`collar of cerberus`, `helm of darkness`, `heart of typhon`), `thunderbolt of zeus`, `sword of thanatos`, `shield of achilles`,
 `ledger of the unjudged` and `daedalus' notes`
 (both `IntellectReward`s), `clockwork crossbow`, `feather of icarus` (an `EscapeItem`),
 `spear of pelion`, `nymphs' honey`, `obol of return` (a `Reviver`), `bronze buckler`,
@@ -172,7 +176,7 @@ Practice Chamber's respawning dummy), `shade of hector`, `shade of ajax`,
 `polyphemus (blinded)`, `head of scylla`, `poseidon`, `hippocampus`,
 `poseidon (earth-shaker)`, `suitor`, `antinous`, `eurymachus`, `cerberus`, `cerberus (two heads)`,
 `cerberus (last head)`, `restless shade`, `hades (helm of darkness)`, `typhon`, `serpent of typhon`,
-`typhon (storm unleashed)` (`hades` and `typhon` are the
+`typhon (storm unleashed)`, `thanatos`, `hypnos`, `thanatos (helm of darkness)`, the Funeral Games' six - `ajax the lesser`, `epeius`, `polypoetes`, `meriones`, `teucer`, `diomedes` - (`hades`, `typhon` and `thanatos` are the
 first phases, with their waves and final phases attached), `shade of achilles` (his *duel
 form*, unlinked - a real, lethal fight with no HP restore; use `dev spawn companion`
 for the companion), `charybdis` (invulnerable - she can
@@ -440,8 +444,10 @@ talk
 challenge shade of achilles
 attack
 ```
-Losing is safe - the duel ends, your HP is restored, and you can
-`challenge` again. `dev set atk 999` before `attack` wins it in one hit; the
+Losing is safe - the duel ends, you're put back exactly as you began it (HP,
+mana, any potion you drank, any armour worn down), and you can `challenge`
+again. The duel form is never harder than Normal: `dev difficulty hard` first
+and his HP line still starts at 50. `dev set atk 999` before `attack` wins it in one hit; the
 win grants a skill point, and then `recruit shade of achilles` works. To test
 companion levelling, recruit him and `dev kill` a few enemies - he gains the
 same XP you do.
@@ -715,8 +721,8 @@ list no longer shows it. Other things to try before dying: move between rooms
 (each move saves silently), `quit` (prints "(saved)"), and `quit` in the middle
 of a fight (you flee first, parting blows and all, then it saves - or, if a
 blow kills you, the run ends). `dev flag hardcore` switches hardcore on without
-Prometheus, but leaves the difficulty alone. A hardcore save shows "(Hard)
-(Hardcore)" in the slot list. To see the offer again, start a New Game - a
+Prometheus, but leaves the difficulty alone. A hardcore save shows "(Hard,
+Hardcore)" in the slot list. To see the offer again, start a New Game - a
 used-up offer is saved (`prometheus_offer_made`).
 
 **Try each difficulty setting:**
@@ -737,6 +743,9 @@ way to full, and the first tick shows the "all the way back to full" hint; on
 Normal and Hard it's 1 HP, up to three quarters and half. To see the real
 prompt, start a New Game with an ordinary name - it comes after the two
 ancestry picks, and the choice shows in the slot list ("(Easy)").
+The Minotaur and Talos are gatekeepers, which Easy never softens: `dev
+difficulty easy`, `dev teleport labyrinth of the minotaur`, `attack` - his HP
+line is out of his Normal 28, where the rest of the floor is at three quarters.
 
 **Fill the Trophy Room of Zeus:**
 ```
@@ -761,6 +770,71 @@ the chest gives the Thunderbolt of Zeus and Zeus joins. To see the milestones in
 `dev add` five trophies (+5 max HP), ten (a skill point) or all thirteen (the names are
 in the item list above) and `place all`. Milestones are saved - `save`, `load 1 1` and
 placing more never pays one twice.
+
+**Enter the Funeral Games:**
+```
+dev teleport shadow of army camp
+enter the games
+dev kill
+next contest
+dev kill
+next contest
+dev kill
+next contest
+dev kill
+dev kill
+next contest
+dev kill
+take all
+```
+Five contests; `dev kill` wins each (twice for the archery, which has two
+opponents). Each pays a prize the first time it's won - 50 gold, +5 max HP, +1
+intellect, +1 attack, then the Shield of Achilles on the ground - and the game
+rests you a quarter of your health before `next contest`, though never past
+the difficulty's regen cap. Clear it again and Achilles only congratulates you.
+
+However it ends, you leave as you entered. Start with `dev set hp 8`, win the
+foot race (the rest takes you to 13) and walk `south`: you're back on 8, plus
+the 1 HP the move restores. A potion drunk during a contest is back in your
+inventory, and armour worn down is restored - but an item with a permanent
+effect (`dev add daedalus' notes`, `use` it between contests) stays used, and
+one you `drop` stays on the floor. `save` is refused until the trial is over.
+`dev teleport` out skips the restore - walk out, or `flee`, to see it.
+
+To see the safety net, start with `dev set hp 2` and `attack` instead of `dev
+kill`: you're hauled off the field back on 2 HP, not killed - the same in
+hardcore. `flee`, or walking out between contests, forfeits. Recruit a
+companion first (`dev spawn companion test companion`, `recruit test
+companion`) to watch them sit it out. A spawned contestant (`dev spawn
+diomedes`) is an ordinary, lethal enemy - only the Games make it a contest.
+
+**Start New Game+, with Hades carried over, and find Thanatos on his throne:**
+```
+dev flag promised_mercy
+dev teleport hall of hades
+dev kill
+dev kill
+dev kill
+dev kill
+dev kill
+2
+recruit hades
+dev newgameplus
+inventory
+dev teleport bedchamber of persephone
+talk
+dev teleport hall of hades
+```
+The five `dev kill`s take Hades through his whole fight; with `promised_mercy`
+set he yields, and `2` carries on past the ending. After `dev newgameplus` the
+inventory is empty and Hades is still at your side. Persephone greets him
+(once), her stair down is already open, and the Hall of Hades holds Thanatos -
+then Hypnos, then Thanatos (Helm of Darkness), who drops the Sword of Thanatos
+and the Helm of Darkness. `dismiss` sends Hades to the Bedchamber of Persephone,
+his home in New Game+. Without Hades in tow, a cycle has Hades on his throne as
+usual. Each cycle adds 50% to enemy HP and attack. A save that has begun a cycle shows it in the slot list ("(Normal, NG+1)"). The real way in is the Trophy Room: `dev flag trophy_room_complete`,
+`dev teleport trophy room of zeus`, then `begin anew` (explains) and `begin
+anew now` (starts).
 
 **Upgrade gear at Daedalus' Workshop:**
 ```
@@ -810,6 +884,24 @@ empty. Change the seed (`dev set run_seed 2`) before opening to see different lo
 the floor, so `uncleared` lists the room for "items left behind" until it's taken, and
 for "a chest unopened" before that - though only for rooms you've *walked* into, not
 teleported. `dev teleport sunken vault` has a fixed chest (two potions, 15 gold).
+
+**Buy mastery on a finished skill path:**
+```
+dev set skillpoints 7
+learn attack
+learn attack
+learn attack
+learn attack
+learn attack
+learn attack
+learn attack
+skills
+```
+The first five unlock the Attack path; the sixth and seventh buy Attack Mastery
+(+1 ATK each - "Attack Mastery (2): ..."), and `skills` shows "Attack: Attack
+Mastery - +1 ATK (Current: 2)". There's no limit. Defence Mastery is +1 DEF, and
+the Abilities path's Endurance Mastery +3 max HP. `save` and `load 1 1` keep the
+count; the Lethe (next recipe) refunds mastery along with the skills.
 
 **Forget your skills at the Banks of the Lethe:**
 ```

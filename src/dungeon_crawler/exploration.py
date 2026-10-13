@@ -2,7 +2,7 @@
 examining surroundings, map/movement helpers (including locked, guarded, story-gated and concealed exits), talking and companion
 advice, and the enemy-trait analysis shared by Odysseus' advice and the floor 7 seers."""
 
-from dungeon_crawler.characters import Player, Ally, Companion, Enemy
+from dungeon_crawler.characters import Player, Ally, Companion, Enemy, PlayerSnapshot
 from dungeon_crawler.items import Armour, Weapon
 from dungeon_crawler.world import Room, StoryGate
 from dungeon_crawler.dialogue import start_dialogue
@@ -121,6 +121,7 @@ def recruit_companion(name: str, room: Room, player: Player) -> str:
 
     room.remove_companion(companion)
     player.companion = companion
+    player.recruited_companions.add(companion.name)
     return f"{companion.name} joins you."
 
 def dismiss_companion(player: Player):
@@ -464,8 +465,9 @@ def deepest_floor_reached(player: Player) -> int:
 
 def start_duel(name: str, room: Room, player: Player) -> str:
     """Begin a duel with the named companion in the room: they're swapped out for the Enemy their duel_enemy_factory builds, which carries a
-    duel_companion link back to them, and combat starts. The duel ends in handle_enemy_defeat() on a win, or end_duel() on a loss or flee
-    (combat.py) - either way the companion is returned to the room."""
+    duel_companion link back to them and a PlayerSnapshot of the player as they are now, and combat starts. The combat form is never scaled
+    above Normal. The duel ends in handle_enemy_defeat() on a win, or end_duel() on a loss or flee (combat.py) - either way the companion is
+    returned to the room and the snapshot restored."""
     companion = next((c for c in room.companions if c.name.lower() == name.lower()), None)
     if companion is None:
         return f"There's no one named '{name}' here to challenge."
@@ -475,9 +477,9 @@ def start_duel(name: str, room: Room, player: Player) -> str:
         return f"{companion.name} has already measured you - there's nothing left to prove."
 
     opponent = companion.duel_enemy_factory()
-    scale_for(opponent, player)
+    scale_for(opponent, player, never_harder_than_normal=True)
     opponent.duel_companion = companion
-    opponent.duel_return_hp = player.hp
+    opponent.duel_snapshot = PlayerSnapshot.take(player)
     room.remove_companion(companion)
     room.add_enemy(opponent)
     player.in_combat = True

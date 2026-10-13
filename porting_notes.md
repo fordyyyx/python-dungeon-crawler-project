@@ -216,6 +216,12 @@ something occurs to you mid-build.
 - Item descriptions (already written with flavour) are ready-made tooltip
   text.
 
+- **The Funeral Games want to look like games, not five more fights** - a marked field, shades watching from the edge, Achilles
+  calling each contest, and a banner counting them off ("Contest 3 of 5: The weight-throw"). The rest between contests is a
+  natural breathing beat (a "next contest" prompt over the field), a loss is the player being hauled off, not a death screen,
+  and the companion should be seen standing at the rope with Achilles while the player fights alone. Each contest's prize wants its
+  own small ceremony - Achilles tossing the purse, gripping the player's arm - and, since the Games put the player back exactly as
+  they entered, the end of a trial is a visible reset: wounds closing, emptied flasks refilled, dents gone from the armour.
 - **Companion duels want to read as a sparring match, not a death-risk
   fight** - the text version only says so in the controls and the result
   lines. A distinct duel framing (a ring or arena overlay, blunted weapons,
@@ -264,6 +270,8 @@ something occurs to you mid-build.
 - The three-path structure (five tiers each for Attack and Defence, four Abilities) is a natural fit for a visual skill
   tree UI (the genre-standard branching-node look) — `SkillPath.unlocked_count`
   already tracks exactly what a UI would need to show progress per branch.
+- **Mastery is a node that never fills** - the one at the end of each path can be bought again and again, so it wants a counter on it
+  (`SkillPath.mastery_count`) rather than a lit/unlit state, and a different shape from the tiers before it.
 - **Forgetting at the Lethe wants to be seen on the tree itself** - every lit node going dark at once and the
   points flowing back into the pool, with the gold price shown before the player commits, since it undoes
   everything at once.
@@ -297,6 +305,10 @@ something occurs to you mid-build.
 - **Hardcore needs to be visible everywhere it matters** - a mark on the save slot (the text version's "(Hardcore)"), a small
   persistent HUD marker during play, and a death screen that says plainly the save is gone. Prometheus' two-step accept maps onto
   a confirm dialog that names the cost before the button, since it can't be undone.
+- **New Game+ is a moment, not a line of text** - the Trophy Room fading on Zeus' word, a title card ("New Game+ - cycle 2"), then
+  the first room again with the character visibly unchanged and the inventory bare. The cycle belongs on the save slot beside the
+  difficulty (the text version's "(Normal, NG+2)"), and carried companions want to be seen arriving with the player, not just
+  listed.
 - A damaged save (`slot_summary()`'s "Damaged save - can't be loaded.") wants its own slot state in a save-slot picker - greyed
   out with a warning icon and a delete option, rather than a slot that looks normal until it's chosen.
 - Profile/slot selection (3 profiles, 5 slots each) is a natural fit for a

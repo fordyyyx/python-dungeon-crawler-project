@@ -3,7 +3,7 @@
 from dungeon_crawler.characters import Player
 from dungeon_crawler.world import Room
 from dungeon_crawler.content import build_world, HADES_SPARED, HADES_DEFEATED, TYPHON_DEFEATED, HARDCORE
-from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command, resolve_flee
+from dungeon_crawler.combat import handle_combat_command, resolve_attack_and_check_defeat, handle_target_command, resolve_flee, fighting_team
 from dungeon_crawler import dev_tools
 from dungeon_crawler.exploration import pick_up, trade_with_ally, is_exit_locked, display_local_exits, display_map, find_floor_for_room, handle_examine, recruit_companion, dismiss_companion, repair_item, get_exit_guardian, check_equippable, take_all, take_all_from_ally, get_uncleared_rooms, start_duel, talk_to, get_rival_lines, get_enemy_ancestry_lines, get_advice, is_exit_concealed, get_story_gate
 from dungeon_crawler.character_creation import choose_ancestry, choose_secondary_ancestry, create_player, choose_title_screen_action, choose_profile, choose_slot, choose_occupied_slot, confirm, choose_difficulty
@@ -15,6 +15,8 @@ from dungeon_crawler.dialogue import continue_dialogue
 from dungeon_crawler.upgrades import upgrade_item, list_upgrades
 from dungeon_crawler.trophies import place_trophies, describe_plinths
 from dungeon_crawler.difficulty import scale_world, get_difficulty, DEFAULT_DIFFICULTY, ensure_world_scaled
+from dungeon_crawler.new_game_plus import start_new_game_plus
+from dungeon_crawler.trials import protect_trial_loser, forfeit_trial, trial_active
 
 REST_MANA_AMOUNT = 10
 ENDING_SHOWN = "ending_shown"
@@ -318,6 +320,9 @@ def main() -> None:
                     if HARDCORE in player.story_flags and active_profile is not None:
                         if player.in_combat:
                             print(resolve_flee(player, current_room.enemies, current_room))
+                        forfeited = forfeit_trial(current_room, player)
+                        if forfeited:
+                            print(forfeited)
                         if player.is_alive():
                             save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
                             print("(saved)")
@@ -334,6 +339,9 @@ def main() -> None:
                         print(interaction.unavailable_message)
 
                 elif command == "save" and not player.in_combat:
+                    if trial_active(current_room):
+                        print("Finish the contest first - or walk away from it - before you save.")
+                        continue
                     if active_profile is None:
                         print("No active save slot - use 'save <profile> <slot>' first.")
                     else:
@@ -341,6 +349,9 @@ def main() -> None:
                         print(f"Saved to profile {active_profile}, slot {active_slot}")
 
                 elif command.startswith("save ") and not player.in_combat:
+                    if trial_active(current_room):
+                        print("Finish the contest first - or walk away from it - before you save.")
+                        continue
                     parts = command.removeprefix("save ").split()
                     if len(parts) != 2 or not all(p.isdigit() for p in parts):
                         print("Usage: save <profile> <slot>")
@@ -419,7 +430,7 @@ def main() -> None:
 
                 elif player.in_combat:
                     if player.current_target is not None:
-                        print(handle_combat_command(command, player, player.current_target, player.team, current_room.enemies, current_room))
+                        print(handle_combat_command(command, player, player.current_target, fighting_team(player, current_room), current_room.enemies, current_room))
                     else:
                         # defensive fallback - in_combat and current_target should always be set/cleared together;
                         # this only fires if that invariant is ever broken elsewhere
@@ -504,6 +515,9 @@ def main() -> None:
                                 shortcut_hint = show_hint(player, "forge_shortcut")
                                 if shortcut_hint:
                                     print(shortcut_hint)
+                        forfeited = forfeit_trial(current_room, player)
+                        if forfeited:
+                            print(forfeited)
                         current_room.on_leave()
                         current_room = current_room.exits[command]
                         player.visited_rooms.add(current_room.name)
@@ -562,7 +576,7 @@ def main() -> None:
                         enemy = next((e for e in attackable if e is player.current_target), attackable[0])
                         player.in_combat = True
                         player.current_target = enemy
-                        print(resolve_attack_and_check_defeat(player, enemy, player.team, current_room.enemies, current_room))
+                        print(resolve_attack_and_check_defeat(player, enemy, fighting_team(player, current_room), current_room.enemies, current_room))
                     elif current_room.enemies:
                         print(current_room.enemies[0].invulnerable_message)
                     else:
@@ -657,6 +671,10 @@ def main() -> None:
                 else:
                     print("Nothing happens.")
 
+                protected = protect_trial_loser(player, current_room)
+                if protected:
+                    print(protected)
+
                 outcome = None
                 for trigger, shown, text in ENDINGS:
                     if trigger in player.story_flags and shown not in player.story_flags:
@@ -670,6 +688,17 @@ def main() -> None:
                 if outcome == "title":
                     return_to_title = True
                     break
+
+                if player.new_game_plus_requested:
+                    dungeon, all_floors, current_room = start_new_game_plus(player, all_floors)
+                    print(
+                        f"\n===================================\n\nNew Game+ (cycle {player.ng_plus_cycle}). You wake on a cold stone floor, "
+                        "and you remember everything.\n\n===================================\n"
+                    )
+                    if active_profile is not None:
+                        save_system.save_game(active_profile, active_slot, player, current_room, dungeon)
+                        print("(autosaved)")
+                    print_room(current_room, player)
 
             if return_to_title:
                 break
