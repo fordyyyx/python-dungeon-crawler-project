@@ -60,7 +60,7 @@ def _greatest_threat_to_self(self_character: Character, opposing_team: Sequence[
     """The highest self_kill_potential posed by any living member of opposing_team against self_character - used to judge how urgently 'defend' is needed.
     min(1.0, max(0, threat.attack_damage - enemy_armour) / enemy.hp) per candidate, maximised across the team (deterministic - defend
     reacts to the worst-case threat, not a specific target, since defending doesn't target back). Shared by both Enemy's and Companion's scoring -
-    genuinely symmetric, unlike the action-choosing functions themselves, which stay separate per CLAUDE.md's decision."""
+    genuinely symmetric, unlike the action-choosing functions themselves, which stay separate."""
     living_team = [c for c in opposing_team if c.is_alive()]
     if not living_team or self_character.hp == 0:
         return 0.0
@@ -86,8 +86,7 @@ def _score_candidate_actions(enemy: Enemy, player_team: list[Character]) -> dict
     available target in player_team (see _best_attack_score()) - not necessarily who ends up actually attacked, since choose_enemy_target()
     makes that choice independently once 'attack' has already won. 'defend' reacts to the greatest threat posed by any member of player_team
     (see _greatest_threat_to_self()), and is excluded when brace_amount == 0 (a no-op brace, mirrors heal's exclusion pattern below).
-    'heal' only joins when enemy.heal_amount > 0 - both are excluded entirely rather than scored at zero, per CLAUDE.md's "Enemy AI
-    and team combat" section."""
+    'heal' only joins when enemy.heal_amount > 0 - both are excluded entirely rather than scored at zero."""
     self_missing_hp_ratio = 1 - (enemy.hp / enemy.max_hp)
 
     scores = {
