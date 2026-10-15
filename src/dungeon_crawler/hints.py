@@ -9,7 +9,7 @@ HINTS: dict[str, str] = {
         "'take' doesn't cost your turn. 'flee' gets you out, at the risk of a parting blow."
     ),
     "passive_regen": (
-        "Moving between rooms slowly restores HP, but only part of the way - up to three quarters of your maximum on Normal, and half on "
+        "Moving between rooms slowly restores HP, but only part of the way - up to three quarters of your maximum on Normal, and 65% on "
         "Hard. Beyond that you'll need healing items."
     ),
     "passive_regen_full": "Moving between rooms slowly restores HP - on this difficulty, all the way back to full.",

@@ -291,7 +291,7 @@ def create_meriones() -> Enemy:
     return Enemy(
         name="Meriones",
         hp=26,
-        attack_damage=9,
+        attack_damage=11,
         armour=1,
         melee_dodge_chance=0.3,
         armour_pierce=4,
@@ -304,7 +304,7 @@ def create_teucer() -> Enemy:
     return Enemy(
         name="Teucer",
         hp=26,
-        attack_damage=10,
+        attack_damage=12,
         armour=1,
         melee_dodge_chance=0.3,
         armour_pierce=4,
@@ -317,7 +317,7 @@ def create_diomedes() -> Enemy:
     return Enemy(
         name="Diomedes",
         hp=60,
-        attack_damage=13,
+        attack_damage=15,
         armour=4,
         armour_pierce=3,
         heal_amount=5,

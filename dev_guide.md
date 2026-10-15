@@ -740,7 +740,7 @@ The HP line after the first `attack` shows Hard's 9; switching to Story turns
 its 5 of 9 HP into 2 of 4 - a wounded enemy keeps its share - so the second
 `attack` finishes it. On Story, walking restores 2 HP a move, all the
 way to full, and the first tick shows the "all the way back to full" hint; on
-Normal and Hard it's 1 HP, up to three quarters and half. To see the real
+Normal and Hard it's 1 HP, up to three quarters and 0.65 of max HP. To see the real
 prompt, start a New Game with an ordinary name - it comes after the two
 ancestry picks, and the choice shows in the slot list ("(Easy)").
 The Minotaur and Talos are gatekeepers, which Easy never softens: `dev
@@ -832,7 +832,7 @@ inventory is empty and Hades is still at your side. Persephone greets him
 then Hypnos, then Thanatos (Helm of Darkness), who drops the Sword of Thanatos
 and the Helm of Darkness. `dismiss` sends Hades to the Bedchamber of Persephone,
 his home in New Game+. Without Hades in tow, a cycle has Hades on his throne as
-usual. Each cycle adds 50% to enemy HP and attack. A save that has begun a cycle shows it in the slot list ("(Normal, NG+1)"). The real way in is the Trophy Room: `dev flag trophy_room_complete`,
+usual. Each cycle adds 40% to enemy HP and attack. A save that has begun a cycle shows it in the slot list ("(Normal, NG+1)"). The real way in is the Trophy Room: `dev flag trophy_room_complete`,
 `dev teleport trophy room of zeus`, then `begin anew` (explains) and `begin
 anew now` (starts).
 

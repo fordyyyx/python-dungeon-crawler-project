@@ -1880,7 +1880,7 @@ def test_load_game_scales_the_world_to_the_saved_ng_plus_cycle(monkeypatch, tmp_
     room = fresh.get_room("Labyrinth of the Minotaur")
     assert room is not None
     minotaur = room.enemies[0]
-    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 2.0)
+    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 1.8)
 
 def test_load_game_of_an_older_save_leaves_the_world_unscaled(monkeypatch, tmp_path):
     data = valid_save_data(monkeypatch, tmp_path)
@@ -2008,7 +2008,7 @@ def test_save_and_load_in_new_game_plus_keeps_thanatos_on_the_throne(monkeypatch
     hall = fresh.get_room("Hall of Hades")
     assert hall is not None
     assert [enemy.name for enemy in hall.enemies] == ["Thanatos"]
-    assert hall.enemies[0].max_hp == round(62 * 1.5)
+    assert hall.enemies[0].max_hp == round(62 * 1.4)
     assert hall.enemies[0].next_phase_factory is not None
 
 def test_save_and_load_in_new_game_plus_keeps_the_cycle_and_the_carried_companion(monkeypatch, tmp_path):

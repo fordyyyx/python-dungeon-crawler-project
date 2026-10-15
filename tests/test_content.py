@@ -4724,8 +4724,8 @@ def test_charybdis_failure_damage_scales_with_the_ng_plus_cycle():
     player = Player(name="Hero", hp=30)
     player.ng_plus_cycle = 1
     messages = run_charybdis_verbs(river, player, ["climb", "let go"])
-    assert player.hp == 12
-    assert "(You take 18 damage.)" in messages[-1]
+    assert player.hp == 13
+    assert "(You take 17 damage.)" in messages[-1]
 
 def test_every_boss_chain_is_scaled_all_the_way_through_on_hard():
     """Regression: play each multi-stage fight to its end on Hard - every enemy that appears, by whichever route (a next phase, a wave, or
@@ -4913,9 +4913,9 @@ def test_install_thanatos_scales_him_for_the_players_run():
     player.ng_plus_cycle = 1
     install_thanatos(hall, player)
     thanatos = hall.enemies[0]
-    assert thanatos.max_hp == round(62 * 1.3 * 1.5)
+    assert thanatos.max_hp == round(62 * 1.3 * 1.4)
     assert thanatos.hp == thanatos.max_hp
-    assert thanatos.attack_damage == round(17 * 1.2 * 1.5)
+    assert thanatos.attack_damage == round(17 * 1.2 * 1.4)
 
 def test_install_thanatos_leaves_the_halls_guard_and_cleared_flag_alone():
     dungeon, start, floors = build_world()
@@ -5033,15 +5033,15 @@ def test_create_polypoetes_is_an_armoured_wall():
 
 def test_create_meriones_and_teucer_are_evasive_archers():
     meriones, teucer = create_meriones(), create_teucer()
-    assert (meriones.hp, meriones.attack_damage, meriones.armour) == (26, 9, 1)
-    assert (teucer.hp, teucer.attack_damage, teucer.armour) == (26, 10, 1)
+    assert (meriones.hp, meriones.attack_damage, meriones.armour) == (26, 11, 1)
+    assert (teucer.hp, teucer.attack_damage, teucer.armour) == (26, 12, 1)
     for archer in (meriones, teucer):
         assert archer.melee_dodge_chance == 0.3
         assert archer.armour_pierce == 4
 
 def test_create_diomedes_is_the_champion():
     diomedes = create_diomedes()
-    assert (diomedes.hp, diomedes.attack_damage, diomedes.armour) == (60, 13, 4)
+    assert (diomedes.hp, diomedes.attack_damage, diomedes.armour) == (60, 15, 4)
     assert (diomedes.armour_pierce, diomedes.heal_amount, diomedes.brace_amount) == (3, 5, 3)
 
 def test_create_shield_of_achilles_is_the_best_shield():

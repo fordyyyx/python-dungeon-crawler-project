@@ -322,8 +322,8 @@ def test_start_new_game_plus_scales_thanatos_for_the_new_cycle():
     spare_and_recruit_hades(world, player)
     new_world, _, _ = start_new_game_plus(player, floors)
     thanatos = room_named(new_world, "Hall of Hades").enemies[0]
-    assert thanatos.max_hp == round(thanatos.unscaled_max_hp * 1.5)
-    assert thanatos.attack_damage == round(thanatos.unscaled_attack * 1.5)
+    assert thanatos.max_hp == round(thanatos.unscaled_max_hp * 1.4)
+    assert thanatos.attack_damage == round(thanatos.unscaled_attack * 1.4)
 
 def test_start_new_game_plus_with_hades_carried_counts_the_promise_as_kept():
     """So Persephone's stair opens without her asking again - Hades is standing right there."""
@@ -390,7 +390,7 @@ def test_start_new_game_plus_scales_the_new_world_for_the_new_cycle():
     for room in new_world.rooms.values():
         for enemy in room.enemies:
             if not enemy.respawns:
-                assert enemy.max_hp == max(1, round(enemy.unscaled_max_hp * 1.5)), enemy.name
+                assert enemy.max_hp == max(1, round(enemy.unscaled_max_hp * 1.4)), enemy.name
                 assert enemy.hp == enemy.max_hp, enemy.name
 
 def test_start_new_game_plus_scales_for_the_difficulty_as_well_as_the_cycle():
@@ -398,8 +398,8 @@ def test_start_new_game_plus_scales_for_the_difficulty_as_well_as_the_cycle():
     player.difficulty = "hard"
     new_world, _, _ = start_new_game_plus(player, floors)
     minotaur = room_named(new_world, "Labyrinth of the Minotaur").enemies[0]
-    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 1.3 * 1.5)
-    assert minotaur.attack_damage == round(minotaur.unscaled_attack * 1.2 * 1.5)
+    assert minotaur.max_hp == round(minotaur.unscaled_max_hp * 1.3 * 1.4)
+    assert minotaur.attack_damage == round(minotaur.unscaled_attack * 1.2 * 1.4)
 
 def test_start_new_game_plus_never_scales_thanatos_twice():
     """He's scaled when he's installed and again with the rest of the world - always from his unscaled stats, so the result is the same."""
@@ -407,7 +407,7 @@ def test_start_new_game_plus_never_scales_thanatos_twice():
     spare_and_recruit_hades(world, player)
     new_world, _, _ = start_new_game_plus(player, floors)
     thanatos = room_named(new_world, "Hall of Hades").enemies[0]
-    assert (thanatos.hp, thanatos.max_hp) == (93, 93)
+    assert (thanatos.hp, thanatos.max_hp) == (87, 87)
 
 # ---- carried companions can always rejoin ----
 

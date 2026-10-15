@@ -200,10 +200,11 @@ def test_the_rest_between_contests_reaches_full_on_a_setting_that_regenerates_to
     beat_the_round(room, player)
     assert player.hp == 20
 
-def test_the_rest_between_contests_stops_at_half_on_hard():
-    trial, player, room = started(hp=8, max_hp=20, difficulty="hard")
+def test_the_rest_between_contests_stops_at_hards_regen_cap():
+    """Hard's cap is 0.65 - 13 of 20."""
+    trial, player, room = started(hp=11, max_hp=20, difficulty="hard")
     beat_the_round(room, player)
-    assert player.hp == 10
+    assert player.hp == 13
 
 def test_check_trial_progress_only_rests_the_player_once_per_contest():
     trial, player, room = started(hp=8, max_hp=20)

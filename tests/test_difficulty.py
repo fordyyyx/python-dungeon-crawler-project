@@ -32,9 +32,13 @@ def test_normal_leaves_enemies_alone_and_regenerates_to_three_quarters():
     normal = DIFFICULTIES["normal"]
     assert (normal.hp_multiplier, normal.attack_multiplier, normal.regen_cap, normal.regen_per_move) == (1.0, 1.0, 0.75, 1)
 
-def test_hard_strengthens_enemies_and_regenerates_to_half():
+def test_hard_strengthens_enemies_and_regenerates_to_about_two_thirds():
+    """Raised from half: the balance check found the 50% cap was most of what made Hard uneven."""
     hard = DIFFICULTIES["hard"]
-    assert (hard.hp_multiplier, hard.attack_multiplier, hard.regen_cap, hard.regen_per_move) == (1.3, 1.2, 0.5, 1)
+    assert (hard.hp_multiplier, hard.attack_multiplier, hard.regen_cap, hard.regen_per_move) == (1.3, 1.2, 0.65, 1)
+
+def test_hard_still_regenerates_less_than_normal():
+    assert DIFFICULTIES["hard"].regen_cap < DIFFICULTIES["normal"].regen_cap
 
 def test_difficulties_get_harder_in_order():
     settings = list(DIFFICULTIES.values())
@@ -79,20 +83,23 @@ def test_enemy_multipliers_are_the_settings_own_with_no_cycles():
     assert enemy_multipliers("hard", 0) == (1.3, 1.2)
     assert enemy_multipliers("story", 0) == (0.5, 0.5)
 
-def test_ng_plus_adds_a_half_per_cycle():
-    """Raised from a quarter: the balance check found the first two cycles easier than a first run."""
-    assert NG_PLUS_MULTIPLIER_PER_CYCLE == 0.5
-    assert enemy_multipliers("normal", 1) == (1.5, 1.5)
-    assert enemy_multipliers("normal", 2) == (2.0, 2.0)
+def test_ng_plus_adds_two_fifths_per_cycle():
+    """0.25 at first, then 0.5 - which the balance check found made the fourth cycle a wall at Typhon - and now 0.4."""
+    assert NG_PLUS_MULTIPLIER_PER_CYCLE == 0.4
+    hp_multiplier, attack_multiplier = enemy_multipliers("normal", 1)
+    assert abs(hp_multiplier - 1.4) < 1e-9
+    assert abs(attack_multiplier - 1.4) < 1e-9
 
 def test_ng_plus_cycles_add_rather_than_compound():
-    """Four cycles is +200%, not 1.5 to the fourth power."""
-    assert enemy_multipliers("normal", 4) == (3.0, 3.0)
+    """Four cycles is +160%, not 1.4 to the fourth power."""
+    hp_multiplier, attack_multiplier = enemy_multipliers("normal", 4)
+    assert abs(hp_multiplier - 2.6) < 1e-9
+    assert abs(attack_multiplier - 2.6) < 1e-9
 
 def test_ng_plus_multiplies_on_top_of_the_setting():
     hp_multiplier, attack_multiplier = enemy_multipliers("hard", 1)
-    assert abs(hp_multiplier - 1.95) < 1e-9
-    assert abs(attack_multiplier - 1.8) < 1e-9
+    assert abs(hp_multiplier - 1.82) < 1e-9
+    assert abs(attack_multiplier - 1.68) < 1e-9
 
 # ---- scale_enemy ----
 
@@ -122,8 +129,8 @@ def test_scale_enemy_on_normal_changes_nothing():
 def test_scale_enemy_applies_the_ng_plus_cycle():
     enemy = make_enemy(hp=100, attack_damage=10)
     scale_enemy(enemy, "normal", 2)
-    assert enemy.max_hp == 200
-    assert enemy.attack_damage == 20
+    assert enemy.max_hp == 180
+    assert enemy.attack_damage == 18
 
 def test_scale_enemy_keeps_a_full_health_enemy_full():
     enemy = make_enemy(hp=100)
@@ -267,7 +274,7 @@ def test_scale_for_uses_the_players_ng_plus_cycle():
     player.ng_plus_cycle = 2
     enemy = make_enemy()
     scale_for(enemy, player)
-    assert (enemy.max_hp, enemy.attack_damage) == (200, 20)
+    assert (enemy.max_hp, enemy.attack_damage) == (180, 18)
 
 def test_scale_for_a_new_player_changes_nothing():
     """A fresh Player is on Normal with no cycles - so every test that builds one sees unscaled enemies."""
@@ -348,7 +355,7 @@ def test_ensure_world_scaled_rescales_when_the_ng_plus_cycle_changes():
     ensure_world_scaled(world, player)
     player.ng_plus_cycle = 1
     ensure_world_scaled(world, player)
-    assert (goblin.max_hp, goblin.attack_damage) == (150, 15)
+    assert (goblin.max_hp, goblin.attack_damage) == (140, 14)
     assert world.scaled_for == ("normal", 1)
 
 def test_ensure_world_scaled_keeps_a_wounded_enemys_share_of_its_hp():
@@ -403,10 +410,10 @@ def test_scale_enemy_on_hard_strengthens_a_gatekeeper_like_anyone_else():
     assert (enemy.max_hp, enemy.attack_damage) == (130, 12)
 
 def test_scale_enemy_on_easy_still_raises_a_gatekeeper_in_new_game_plus():
-    """The floor is 'never easier than Normal', not 'always Normal': two cycles on Easy is x1.5 HP and x1.6 attack."""
+    """The floor is 'never easier than Normal', not 'always Normal': two cycles on Easy is x1.35 HP and x1.44 attack."""
     enemy = make_gatekeeper()
     scale_enemy(enemy, "easy", 2)
-    assert (enemy.max_hp, enemy.attack_damage) == (150, 16)
+    assert (enemy.max_hp, enemy.attack_damage) == (135, 14)
 
 def test_scale_enemy_rescaling_a_gatekeeper_from_easy_to_story_softens_it():
     """Always from the unscaled values, so the gatekeeper floor leaves nothing behind."""

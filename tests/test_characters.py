@@ -3699,3 +3699,22 @@ def test_player_snapshot_restore_still_restores_the_durability_of_armour_left_on
     snapshot.restore(player, room)
     assert helm.durability == 5
     assert helm not in player.inventory.items
+
+def test_skill_path_forget_all_with_a_count_but_no_mastery_does_not_crash():
+    """A save could load a mastery_count onto a path with no mastery - forget_all() then has nothing to undo, and mustn't call None.remove()."""
+    path = SkillPath(name="Attack", skills=[AttackBoostSkill(name="Iron Grip", description="", bonus=2)])
+    path.mastery_count = 2
+    character = Character(name="Hero", hp=100, attack_damage=10)
+    forgotten = path.forget_all(character)
+    assert forgotten == 2
+    assert path.mastery_count == 0
+    assert character.attack_damage == 10
+
+def test_display_skills_says_fully_unlocked_for_a_finished_path_with_no_mastery():
+    player = Player(name="Hero", hp=50, attack_damage=10)
+    path = player.skill_tree.paths["abilities"]
+    path.mastery = None
+    player.skill_tree.skill_points = len(path.skills)
+    for _ in path.skills:
+        player.skill_tree.invest("abilities", player)
+    assert "Abilities: Fully unlocked." in player.get_skills_display()

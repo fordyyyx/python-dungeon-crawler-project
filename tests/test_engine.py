@@ -2293,10 +2293,14 @@ def test_main_passive_regen_on_normal_stops_at_three_quarters(monkeypatch, capsy
     out = _run(monkeypatch, capsys, tmp_path, ["dev set hp 15", "north"])
     assert "You catch your breath" not in out
 
-def test_main_passive_regen_on_hard_stops_at_half(monkeypatch, capsys, tmp_path):
-    """10 of 20 HP regenerates on Normal (the cap is 15) but not on Hard (the cap is 10)."""
-    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 10", "north"])
+def test_main_passive_regen_on_hard_stops_at_its_cap(monkeypatch, capsys, tmp_path):
+    """13 of 20 HP regenerates on Normal (the cap is 15) but not on Hard (the cap is 13 - 0.65 of 20)."""
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 13", "north"])
     assert "You catch your breath" not in out
+
+def test_main_passive_regen_on_hard_still_works_below_its_cap(monkeypatch, capsys, tmp_path):
+    out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 12", "north"])
+    assert "You catch your breath as you move on. (+1 HP)" in out
 
 def test_main_passive_regen_on_hard_still_works_below_half(monkeypatch, capsys, tmp_path):
     out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 9", "north"])
@@ -2326,7 +2330,7 @@ def test_main_passive_regen_hint_on_normal_explains_the_cap(monkeypatch, capsys,
 
 def test_main_passive_regen_hint_on_hard_explains_the_cap(monkeypatch, capsys, tmp_path):
     out = _run(monkeypatch, capsys, tmp_path, ["dev difficulty hard", "dev set hp 5", "north"])
-    assert "half on Hard" in out
+    assert "65% on Hard" in out
 
 def test_main_passive_regen_hint_on_easy_and_story_says_it_goes_to_full(monkeypatch, capsys, tmp_path):
     """Regression: the one hint said 'only up to three quarters' on every setting, which is untrue where regeneration has no cap."""
@@ -2506,12 +2510,12 @@ def test_main_dev_newgameplus_starts_the_next_cycle(monkeypatch, capsys, tmp_pat
 
 def test_main_new_game_plus_scales_the_new_world_before_the_next_command(monkeypatch, capsys, tmp_path):
     _run(monkeypatch, capsys, tmp_path, ["dev newgameplus", "save"])
-    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 10  # the Shade's 7 HP x 1.5, rounded to even
+    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 10  # the Shade's 7 HP x 1.4
 
 def test_main_each_new_game_plus_counts_another_cycle(monkeypatch, capsys, tmp_path):
     out = _run(monkeypatch, capsys, tmp_path, ["dev newgameplus", "dev newgameplus", "save"])
     assert "New Game+ (cycle 2)." in out
-    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 14  # 7 x 2
+    assert _saved_game(tmp_path)["world"]["Fields of Asphodel"]["enemies"][0]["hp"] == 13  # 7 x 1.8
 
 def test_main_begin_anew_does_nothing_until_the_trophy_room_is_complete(monkeypatch, capsys, tmp_path):
     out = _run(monkeypatch, capsys, tmp_path, ["dev teleport trophy room of zeus", "begin anew", "begin anew now"])

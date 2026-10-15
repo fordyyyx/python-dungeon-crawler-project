@@ -362,7 +362,7 @@ def build_floor_4() -> tuple[Room, dict[str, Room]]:
     stony_lair = Room(
         name="Stony Lair",
         description="Statues in twisted, frozen poses fill every corner — a warning, if you look closely enough. One of "
-        "them died kneeling beside a small chest, a hand still resting on the lif. Something about the air here feels thin, "
+        "them died kneeling beside a small chest, a hand still resting on the lid. Something about the air here feels thin, "
         "like a doorway that isn't quite closed - say 'forge' if you feel the pull toward it.",
     )
     mossy_grove = Room(

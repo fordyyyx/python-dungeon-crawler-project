@@ -54,10 +54,10 @@ def test_passive_regen_hint_matches_the_real_regen_cap():
     assert "three quarters of your maximum on Normal" in HINTS["passive_regen"]
 
 def test_passive_regen_hint_matches_hards_regen_cap():
-    """The same hint hard-codes 'half on Hard'."""
+    """The same hint hard-codes '65% on Hard'."""
     from dungeon_crawler.difficulty import DIFFICULTIES
-    assert DIFFICULTIES["hard"].regen_cap == 0.5
-    assert "half on Hard" in HINTS["passive_regen"]
+    assert DIFFICULTIES["hard"].regen_cap == 0.65
+    assert "65% on Hard" in HINTS["passive_regen"]
 
 def test_passive_regen_hints_cover_every_difficulty():
     """Every setting with a cap must be named in the capped hint - a new capped setting needs adding to its wording. The rest regenerate

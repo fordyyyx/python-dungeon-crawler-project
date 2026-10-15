@@ -22,11 +22,11 @@ DIFFICULTIES: dict[str, Difficulty] = {
     "story": Difficulty("Story", "for the myths, not the fighting", 0.5, 0.5, 1.0, 2),
     "easy": Difficulty("Easy", "forgiving, but not effortless", 0.75, 0.8, 1.0, 1, softens_gatekeepers=False),
     "normal": Difficulty("Normal", "the game as it was designed", 1.0, 1.0, 0.75, 1),
-    "hard": Difficulty("Hard", "for those who know what's coming", 1.3, 1.2, 0.5, 1),
+    "hard": Difficulty("Hard", "for those who know what's coming", 1.3, 1.2, 0.65, 1),
 }
 
 DEFAULT_DIFFICULTY = "normal"
-NG_PLUS_MULTIPLIER_PER_CYCLE = 0.5
+NG_PLUS_MULTIPLIER_PER_CYCLE = 0.4
 """Each New Game+ cycle adds this much to enemy HP and attack, stacking - on top of the setting's own multipliers."""
 
 def get_difficulty(key: str) -> Difficulty:

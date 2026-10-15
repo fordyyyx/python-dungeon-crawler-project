@@ -3796,7 +3796,7 @@ def test_handle_enemy_defeat_scales_the_next_phase_to_the_ng_plus_cycle():
     handle_enemy_defeat(room, enemy, player)
 
     next_phase = room.enemies[0]
-    assert (next_phase.max_hp, next_phase.attack_damage) == (80, 40)
+    assert (next_phase.max_hp, next_phase.attack_damage) == (72, 36)
 
 def test_handle_enemy_defeat_scales_every_wave_add_to_the_players_difficulty():
     room = Room("Lair")
@@ -3851,7 +3851,7 @@ def test_handle_enemy_defeat_scales_the_phase_after_a_wave_to_the_ng_plus_cycle(
 
     handle_enemy_defeat(room, add, player)
 
-    assert (room.enemies[0].max_hp, room.enemies[0].attack_damage) == (60, 30)
+    assert (room.enemies[0].max_hp, room.enemies[0].attack_damage) == (56, 28)
 
 # ---- describe_arrivals, and the wave message built from it ----
 
