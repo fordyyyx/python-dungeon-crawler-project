@@ -5,7 +5,37 @@ This game follows a hero (you) on the descent into the Underworld, facing monste
 
 It is built purely in Python to demonstrate my skills in object-oriented programming, as well as brush up on things I hadn't used for a while.
 
+## Quick start
+Requires Python 3.10 or later. Clone the repo, create and activate a virtual environment, then:
+```
+pip install -e ".[dev]"
+python -m dungeon_crawler
+```
+Once installed, `dungeon-crawler` also starts the game. To run the tests:
+```
+pytest --cov=src/dungeon_crawler
+```
+
+## Design Highlights
+* **Abstract base class + inheritance** — `Character` -> `Player`/`Enemy`/`Companion`; `Item` -> `Weapon`/`Armour`/`Consumable`/`QuestItem`, and `Consumable` -> `Reviver`/`StatusEffectItem`/`SpellBook`/`SkillPointReward`/`IntellectReward`/`EscapeItem`
+* **Composition over inheritance** — `Player` *has an* `Inventory` and a `SkillTree`, rather than inheriting either; `Ally` similarly holds its own `Inventory` for items it can give away
+* **Encapsulation** — private attributes with controlled access via methods/`@property`, e.g. `Room._items`, `Inventory._items`
+* **Polymorphism** — `on_death()` behaves differently per subclass; `use()`/`unequip()`/`would_fail()` behave differently per `Item` subclass; each `Skill` subclass applies its own effect via `apply()`
+* **A standalone `Ally` class** (not inheriting `Character`) — friendly NPCs don't carry unused combat stats they'd never use, a deliberate design choice over blanket inheritance. `Companion` deliberately breaks from that pattern instead: it genuinely *is* a `Character`, since it needs real combat stats to fight alongside the player
+* **Data-driven NPC behaviour** — trade requirements, rewards, and conditional dialogue live as attributes on each `Ally` object, rather than name-based branching in the game loop. The same principle extends to combat AI — an enemy or companion's personality (aggression, caution, randomness) is data on the object, not a chain of `if` statements
+* **Data-driven character creation** — ancestry options, their stat trade-offs, and each one's secondary passive ability are all defined as data (`ANCESTRIES`), not a chain of conditionals — applying a secondary gift is one shared function call, not a branch per ancestry
+* **Utility-based AI** — every enemy and companion scores its candidate actions (attack, defend, heal) each turn based on real combat state (kill potential, incoming threat, missing HP), adds a little randomness, and acts on whichever scores highest — occasionally "wrong," by design, rather than always optimal
+* **Validate-then-commit action handling** — spells and certain items expose a `would_fail()` dry-run check alongside their real `cast()`/`use()`, so combat can fully confirm an action will succeed *before* any of the turn's other state (status effect ticks, spell cooldowns) is touched — a failed action never costs the player anything
+
+## How it was built
+I designed the game and its class structure. AI (Claude Code) wrote much of the implementation, all of the tests and the documentation, with me reviewing and directing the work. The instructions and custom commands it worked from are in [`CLAUDE.md`](CLAUDE.md) and [`.claude/`](.claude).
+
 ## Features
+Turn-based team combat with a utility-based AI, recruitable companions, a branching skill tree and spellbook, a full save system, and four difficulty settings, across ten floors from Chiron's training grounds down to Tartarus.
+
+<details>
+<summary>See all 48 features</summary>
+
 * Character creation — name your hero, choose a primary ancestry (gods, heroes, and monstrous bloodlines each with their own starting stats and trade-offs), then a second, different figure for a passive secondary gift — a distinct ability rather than more stats (heavy attacks that miss half as often, spells that never go on cooldown, a guaranteed clean escape, and more)
 * A guided training prologue that teaches every core mechanic in-fiction, before the main descent begins
 * One-off hints that explain a mechanic the first time it matters (your first fight, the forge, a guarded way forward, an unspent skill point) and then never repeat, even across saves
@@ -55,40 +85,14 @@ It is built purely in Python to demonstrate my skills in object-oriented program
 * New Game+ — fill the trophy room and you can begin again: you keep your level, skills and every companion you've recruited, lose everything you carry, and face a harder Underworld each time - and if the god of the dead is travelling with you, someone else is sitting on his throne
 * Hardcore mode — offered once, by a chained god at his forge: accept, and the game gets harder, there's no loading an earlier save, and one death ends the run for good (the save is deleted)
 
-## Design Highlights
-* **Abstract base class + inheritance** — `Character` -> `Player`/`Enemy`/`Companion`; `Item` -> `Weapon`/`Armour`/`Consumable`/`QuestItem`, and `Consumable` -> `Reviver`/`StatusEffectItem`/`SpellBook`/`SkillPointReward`/`IntellectReward`/`EscapeItem`
-* **Composition over inheritance** — `Player` *has an* `Inventory` and a `SkillTree`, rather than inheriting either; `Ally` similarly holds its own `Inventory` for items it can give away
-* **Encapsulation** — private attributes with controlled access via methods/`@property`, e.g. `Room._items`, `Inventory._items`
-* **Polymorphism** — `on_death()` behaves differently per subclass; `use()`/`unequip()`/`would_fail()` behave differently per `Item` subclass; each `Skill` subclass applies its own effect via `apply()`
-* **A standalone `Ally` class** (not inheriting `Character`) — friendly NPCs don't carry unused combat stats they'd never use, a deliberate design choice over blanket inheritance. `Companion` deliberately breaks from that pattern instead: it genuinely *is* a `Character`, since it needs real combat stats to fight alongside the player
-* **Data-driven NPC behaviour** — trade requirements, rewards, and conditional dialogue live as attributes on each `Ally` object, rather than name-based branching in the game loop. The same principle extends to combat AI — an enemy or companion's personality (aggression, caution, randomness) is data on the object, not a chain of `if` statements
-* **Data-driven character creation** — ancestry options, their stat trade-offs, and each one's secondary passive ability are all defined as data (`ANCESTRIES`), not a chain of conditionals — applying a secondary gift is one shared function call, not a branch per ancestry
-* **Utility-based AI** — every enemy and companion scores its candidate actions (attack, defend, heal) each turn based on real combat state (kill potential, incoming threat, missing HP), adds a little randomness, and acts on whichever scores highest — occasionally "wrong," by design, rather than always optimal
-* **Validate-then-commit action handling** — spells and certain items expose a `would_fail()` dry-run check alongside their real `cast()`/`use()`, so combat can fully confirm an action will succeed *before* any of the turn's other state (status effect ticks, spell cooldowns) is touched — a failed action never costs the player anything
-
-## Installation
-* Clone the repo
-* Create and activate a virtual environment
-* Run:
-```
-pip install -e ".[dev]"
-```
-
-## Playing the game
-```
-python -m dungeon_crawler
-```
-or, once installed:
-```
-dungeon-crawler
-```
-
-## Running tests
-```
-pytest --cov=src/dungeon_crawler
-```
+</details>
 
 ## Controls
+Type `controls` in the game to see these at any time.
+
+<details>
+<summary>See all commands</summary>
+
 * `look` - display room name and description
 * `examine` - look closer at your surroundings; may reveal hidden passages
 * `examine <item>` - view an item's description
@@ -132,6 +136,8 @@ pytest --cov=src/dungeon_crawler
 * `stats` - display your core stats (including Intellect), ancestry, level, and experience (also available mid-combat)
 * `controls` - show the full list of available commands (always available, regardless of state)
 * `quit` / `exit` - quit the game
+
+</details>
 
 ## Project structure
 * `characters.py` - `Character`, `Player`, `Enemy`, `Ally`, `Companion`, `Skill`, `SkillPath`, `SkillTree`
